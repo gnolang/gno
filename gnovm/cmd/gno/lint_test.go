@@ -1,9 +1,37 @@
 package main
 
 import (
+	"go/token"
+	"go/types"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/integration"
+	"github.com/rogpeppe/go-internal/testscript"
+	"github.com/stretchr/testify/require"
 )
+
+// Runs the lent-callback script (also in Test_Scripts) under `-run Lint`.
+func TestLintLentCallbackScript(t *testing.T) {
+	file, err := filepath.Abs("testdata/lint/realm_lent_callback.txtar")
+	require.NoError(t, err)
+	p := integration.NewTestingParams(t, "")
+	p.Dir, p.Files = "", []string{file}
+	require.NoError(t, integration.SetupGno(&p, t.TempDir(), t.TempDir()))
+	testscript.Run(t, p)
+}
+
+// A lent-callback warning is placed like the other warnings; one with no
+// position names the package.
+func TestLintLendLocation(t *testing.T) {
+	pkg := types.NewPackage("gno.land/r/x/ll", "ll")
+	fset := token.NewFileSet()
+	fset.AddFile("gno.land/r/x/ll/a.gno", -1, 20).SetLines([]int{0, 10})
+	require.Equal(t, "gno.land/r/x/ll/a.gno:2", lendLocation(pkg, fset, gno.LendWarning{File: "a.gno", Line: 2}))
+	require.Equal(t, "gno.land/r/x/ll", lendLocation(pkg, fset, gno.LendWarning{}))
+}
 
 func TestLintApp(t *testing.T) {
 	tc := []testMainCase{

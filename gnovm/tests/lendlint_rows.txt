@@ -1,0 +1,97 @@
+# The 81 fixtures of the T69 study, one per line:
+# <fixture> <T69: caught|partly|missed> <today: refuses|writes> <flagged sites>
+# today: "refuses" when the golden of gnovm/tests/files/zrealm_<fixture>.gno shows the
+# read-only refusal. Sites: line:col in the fixture, or pkgpath/file:line:col in a
+# realm it imports; "-" is none. Text after "#" says why. TestLendLintRows checks it.
+# Known miss: writes through /p/ methods, through pointers, or a local alias of a map or method value.
+# Known miss: _test.gno and filetest files are not checked.
+# Known miss: a method expression whose method writes only its receiver, e.g. f := (*V).M; f(pkgVar).
+# Known false hit: a kept literal whose copy into package state moves no elements.
+lend_any_assertstore caught refuses 16:47
+lend_any_after caught refuses 18:38,19:44
+lend_alias caught refuses 14:16
+lend_any_storefirst caught refuses 17:46
+lend_any caught refuses 14:19
+lend_any_switchout caught refuses 38:45,39:49,40:41
+lend_box_helper_if caught refuses 9:7
+lend_box_helper_param caught refuses 6:21
+lend_box_helper_nested caught refuses 8:6,9:15 # 8:6 is overwritten before any call: kept in a variable, so it would run read-only
+lend_box_helper_multi caught refuses 9:6,10:9 # 9:6 is overwritten before any call: kept in a variable, so it would run read-only
+lend_box_helper_ref caught refuses 8:6,10:7 # 8:6 is overwritten before any call: kept in a variable, so it would run read-only
+lend_ctl_stored caught refuses 7:23
+lend_crossval caught refuses 17:10
+lend_defer caught refuses 13:11
+lend_deferred_arg caught refuses 6:21
+lend_goto_back caught refuses 6:21
+lend_escape_capture caught refuses 10:7
+lend_helper_capassign caught refuses 7:23
+lend_helper caught refuses 9:10
+lend_inner_shadow caught refuses 6:14
+lend_init caught refuses 11:11
+lend_mexpr caught refuses 14:7
+lend_named_result caught refuses 6:21
+lend_namedvar caught refuses 14:7
+lend_param_redecl caught refuses 6:21
+lend_panic caught refuses 18:16
+lend_range_var caught refuses 6:21
+lend_recv_redecl caught refuses 8:16
+lend_recover_param caught refuses 6:21
+lend_redefine caught refuses 6:21
+lend_reg_deferspot caught refuses 7:12,10:9,11:14,30:9
+lend_ret caught refuses 14:19
+lend_spot_attack caught refuses 9:33,11:23,20:31,23:18,26:9
+lend_store caught refuses 15:19
+lend_testingpkg caught refuses 13:23
+lend_var caught refuses 14:7
+lend_varg caught refuses 14:7
+lend_variadic_redecl caught refuses 6:21
+fv_echo_same_call caught refuses gno.land/r/tests/vm/fvecho/x.gno:9:7
+fv_return_ptr caught refuses gno.land/r/tests/vm/cbvictim/v.gno:21:37,gno.land/r/tests/vm/cbvictim/v.gno:26:31,gno.land/r/tests/vm/cbvictim/v.gno:42:9,gno.land/r/tests/vm/cbvictim/v.gno:46:36,gno.land/r/tests/vm/cbvictim/v.gno:51:32,gno.land/r/tests/vm/cbvictim/v.gno:57:38,gno.land/r/tests/vm/cbvictim/v.gno:59:10,gno.land/r/tests/vm/cbvictim/v.gno:78:64,gno.land/r/tests/vm/cbvictim/v.gno:83:15,gno.land/r/tests/vm/cbvictim/v.gno:88:48,gno.land/r/tests/vm/cbvictim/v.gno:126:26,gno.land/r/tests/vm/cbvictim/v.gno:127:40,gno.land/r/tests/vm/cbvictim/v.gno:128:27,gno.land/r/tests/vm/cbvictim/v.gno:129:17,gno.land/r/tests/vm/cbvictim/v.gno:130:19,gno.land/r/tests/vm/cbvictim/v.gno:131:16,gno.land/r/tests/vm/cbvictim/v.gno:132:11,gno.land/r/tests/vm/cbvictim/v.gno:133:11,gno.land/r/tests/vm/cbvictim/v.gno:182:28,gno.land/r/tests/vm/cbvictim/v.gno:183:29,gno.land/r/tests/vm/cbvictim/v.gno:184:19,gno.land/r/tests/vm/cbvictim/v.gno:185:27
+lend_any_battery partly refuses 15:49,18:41,21:57,23:47,24:70,25:63,27:51,28:56
+lend_lib_shapes partly refuses 15:40,24:46,29:16,34:54,37:64,39:66,41:50,41:70,45:64 # 41:70 inc goes to Branch as a value and is not called there; KeepCall, WrapKeepCall missed (a kept param of a lib callee)
+lend_values partly refuses 20:23,27:46,28:52,30:67,31:72,32:52,34:75,35:53,36:50,43:46,45:56,48:57,68:27
+lend_xrealm partly refuses gno.land/r/tests/vm/lendholdvictim/lendholdvictim.gno:23:73
+ctw_owncb partly refuses gno.land/r/tests/vm/ctw/ctw.gno:114:29
+lend_attack_fieldbump missed refuses -
+lend_attack_ifacebump missed refuses -
+lend_attack_parambump missed refuses -
+lend_attack_plainbump missed refuses -
+lend_attack_resultbump missed refuses -
+lend_box_deferlit missed refuses -
+lend_box_hooklib missed refuses -
+lend_box_lit missed refuses -
+lend_box_plain missed refuses -
+lend_box_shadow missed refuses -
+fv_own_slice missed refuses gno.land/r/tests/vm/pickvault/victim/v.gno:37:14,gno.land/r/tests/vm/pickvault/victim/v.gno:93:7
+fv_own_variadic missed refuses gno.land/r/tests/vm/pickvault/victim/v.gno:37:14,gno.land/r/tests/vm/pickvault/victim/v.gno:93:7
+fv_own_any missed refuses gno.land/r/tests/vm/pickvault/victim/v.gno:37:14,gno.land/r/tests/vm/pickvault/victim/v.gno:93:7
+fv_pick_defer missed refuses gno.land/r/tests/vm/pickvault/victim/v.gno:37:14,gno.land/r/tests/vm/pickvault/victim/v.gno:93:7
+fv_pick_getter missed refuses gno.land/r/tests/vm/pickvault/victim/v.gno:37:14,gno.land/r/tests/vm/pickvault/victim/v.gno:93:7
+fv_pick_keep missed refuses gno.land/r/tests/vm/pickvault/victim/v.gno:37:14,gno.land/r/tests/vm/pickvault/victim/v.gno:93:7
+fv_pick_held missed refuses gno.land/r/tests/vm/pickvault/victim/v.gno:37:14,gno.land/r/tests/vm/pickvault/victim/v.gno:93:7
+fv_pick_handle missed refuses gno.land/r/tests/vm/pickvault/victim/v.gno:37:14,gno.land/r/tests/vm/pickvault/victim/v.gno:93:7
+fv_pick_leak missed refuses gno.land/r/tests/vm/pickvault/victim/v.gno:37:14,gno.land/r/tests/vm/pickvault/victim/v.gno:93:7
+fv_return_own missed refuses gno.land/r/tests/vm/pickvault/victim/v.gno:37:14,gno.land/r/tests/vm/pickvault/victim/v.gno:93:7
+fv_wrap_ptr missed refuses gno.land/r/tests/vm/pickvault/victim/v.gno:37:14,gno.land/r/tests/vm/pickvault/victim/v.gno:93:7
+lend_any_passkeep missed refuses -
+lend_captures missed refuses -
+lend_capture missed refuses -
+lend_handoff_plib missed refuses -
+lend_handoff_wrapper missed refuses -
+lend_handoff_escape missed refuses -
+lend_launder missed refuses -
+lend_litparam_redecl missed refuses -
+lend_pass missed refuses -
+lend_rebind missed refuses -
+lend_relay_keep missed refuses -
+lend_vslot missed refuses -
+lend_wrap missed refuses -
+fv_borrow_mv missed refuses gno.land/r/tests/vm/pickvault/victim/v.gno:37:14,gno.land/r/tests/vm/pickvault/victim/v.gno:93:7
+lend_crossing missed refuses -
+# flagged but not refused
+zrealm_fvshare_escape 35:7,54:7 # refused: the golden prints "refused: true" per case
+zrealm_fvshare_sweep 40:31 # refused: the golden prints "refused: true" per case
+zrealm_lend_nonesc_earlykeep 106:6,108:6,110:6,112:6,114:6,116:6,118:6,120:6,122:6,124:7,126:7 # refused: each kN line prints a recovered panic (true) and count 0
+zrealm_wp_1 32:50,33:50,37:54,39:43 # refused: these cases print a recovered panic (true) and count unchanged
+flagged: 57 of 81 rows that refuse today
+T69 caught rows now writing: 0

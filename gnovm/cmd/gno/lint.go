@@ -10,6 +10,7 @@ import (
 	"go/types"
 	goio "io"
 	"io/fs"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -329,6 +330,17 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				pn, _ := tm.PreprocessFiles(
 					mpkg.Name, mpkg.Path, fset, false, false)
 				ppkg.AddNormal(pn, fset)
+				// A writing function value the VM will run read-only (warning).
+				if gno.IsRealmPath(mpkg.Path) && pn != nil {
+					for _, w := range gno.LentCallbackWarnings(tm.Store, pn) {
+						fmt.Fprintln(io.Err(), gnoIssue{
+							Code:       gnoLintWarning,
+							Msg:        w.Msg,
+							Confidence: 1,
+							Location:   lendLocation(tcPkg, tcFset, w),
+						})
+					}
+				}
 			}
 			{
 				// LINT STEP 5: PreprocessFiles()
@@ -992,6 +1004,19 @@ func calleeOnParam(fun ast.Expr, env *paramEnv) *types.Var {
 		return reachedParam(sel.X, env)
 	}
 	return reachedParam(fun, env)
+}
+
+// lendLocation places w through lintLocation, as the other warnings are.
+func lendLocation(pkg *types.Package, fset *token.FileSet, w gno.LendWarning) string {
+	pos, name := token.NoPos, path.Join(pkg.Path(), w.File)
+	fset.Iterate(func(f *token.File) bool {
+		if f.Name() == name && w.Line >= 1 && w.Line <= f.LineCount() {
+			pos = f.LineStart(w.Line)
+			return false
+		}
+		return true
+	})
+	return lintLocation(pkg, fset, pos)
 }
 
 // lintLocation is "file:line" for p, or the package path when p is unknown.
