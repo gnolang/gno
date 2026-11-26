@@ -255,6 +255,9 @@ func (m *Machine) dropFrameLends(from int) {
 
 // dropCapturedLends ends the loan of every lent value fv captured.
 func (m *Machine) dropCapturedLends(fv *FuncValue) {
+	if len(m.lends) == 0 {
+		return
+	}
 	for i := range fv.Captures {
 		hiv, ok := fv.Captures[i].V.(*HeapItemValue)
 		if !ok {
