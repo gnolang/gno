@@ -110,6 +110,7 @@ type wmState struct {
 	loans    []wmLoan  // live loans
 	crossing int       // the current crossing
 	next     int       // the last crossing number used
+	ended    [2]int    // loans ended by rule 7 (hand-off), by rule 8 (a non-lending parameter)
 }
 
 func (s *wmState) mode() wmMode {
@@ -202,6 +203,10 @@ func (s *wmState) lent(fn any, realm string) bool {
 	return false
 }
 
+// 9. A write to a stored object goes through exactly when the running mode
+// writes as the realm that owns the object; an object stored nowhere yet ("") takes any write.
+func (md wmMode) mayWrite(owner string) bool { return owner == "" || md.writer() == owner }
+
 // wmArg is one argument as the callee receives it; a variadic tail is one slice.
 // The VM reads nonesc, lit and reach.
 type wmArg struct {
@@ -247,7 +252,7 @@ func (s *wmState) enter(callee string, a wmAnswer, args []wmArg, deferred bool) 
 	if (fr.mode.readOnly() && !caller.readOnly()) || fr.hold != callerHold {
 		for _, x := range args {
 			if x.fn != nil {
-				s.drop(x.reach...)
+				s.ended[0] += s.drop(x.reach...)
 			}
 		}
 	}
@@ -260,19 +265,17 @@ func (s *wmState) enter(callee string, a wmAnswer, args []wmArg, deferred bool) 
 		switch {
 		case x.slice:
 			for _, e := range x.elems {
-				s.drop(e.fn)
-				s.drop(e.reach...)
+				s.ended[1] += s.drop(e.fn) + s.drop(e.reach...)
 			}
 		case x.fn == nil:
 		case s.hasLoan(x.fn):
 			if !x.nonesc {
-				s.drop(x.fn)
-				s.drop(x.reach...)
+				s.ended[1] += s.drop(x.fn) + s.drop(x.reach...)
 			}
 		case x.nonesc && x.lit && caller.kind == wmWrite:
 			s.loans = append(s.loans, wmLoan{fn: x.fn, realm: caller.realm, crossing: callerX, depth: len(s.stack) - 1})
 		default:
-			s.drop(x.reach...)
+			s.ended[1] += s.drop(x.reach...)
 		}
 	}
 }
@@ -351,13 +354,16 @@ func (s *wmState) hasLoan(fn any) bool {
 	return false
 }
 
-func (s *wmState) drop(fns ...any) {
+// drop ends the loans of fns and says how many ended.
+func (s *wmState) drop(fns ...any) (n int) {
 	for _, fn := range fns {
 		for i := 0; i < len(s.loans); i++ {
 			if s.loans[i].fn == fn {
 				s.loans = append(s.loans[:i], s.loans[i+1:]...)
 				i--
+				n++
 			}
 		}
 	}
+	return n
 }
