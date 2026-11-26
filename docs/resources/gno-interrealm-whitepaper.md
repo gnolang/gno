@@ -181,12 +181,13 @@ The idea: R1 makes the gate the only way in by name, but a function value can ca
 gate. So a plain function value (one without a `cur realm` parameter) counts as the realm's own intent only
 where the code that runs it can be read at the call line.
 
-**A plain function value writes the realm's saved state only (1) as the realm's own code called by name, or as
-a local helper; (2) as a literal written in place as a call argument, while that call runs, lent only to the
-realm's own functions or to a `/p/` library function reached by name, never to another realm's function; (3)
-as a literal called in the expression that writes it.** Anything else runs read-only: a stored value, a
-returned one, a declared function passed as a value, a method value, a literal the callee keeps and calls
-later.
+**A plain function value writes the realm's saved state only (1) as the realm's own code called by name, or as a
+local helper; (2) as a literal written in place as a call argument, while that call runs, lent only to the realm's
+own functions or to a `/p/` library function reached by name, never to another realm's function; (3) as a literal
+called in the expression that writes it.** Reached by name means a direct call of a `/p/` function or method,
+including a method called on an interface value that holds a `/p/` type from the realm's import tree; a local copy
+of the function or a method value is not. Anything else runs read-only: a stored value, a returned one, a declared
+function passed as a value, a method value, a literal the callee keeps and calls later.
 
 ```go
 // realm r, inside a crossing call
@@ -224,8 +225,9 @@ ctw.ForEachX(cross(cur), func(cur realm, n int) { sum += n })  // f enters b: wr
 ```
 
 Known limits: a callee not reached by name (a local copy `each := lib.Each`, or a literal kept in a variable)
-lends nothing; a method value never writes; and `lib.Default.Each(func(int){ count++ })` is refused, since a
-method of a variable the library owns runs as the library.
+lends nothing; a method value never writes; `lib.Default.Each(func(int){ count++ })` is refused, since a method of
+a variable the library owns runs as the library; and a local helper used inside a literal lent in place is refused
+(call it outside the literal, or write its body in the literal).
 
 **The save check (R2a-save).** Read-only code may still fill in an object made during the call, since that is
 how a getter builds its result. The gap: a read-only function value fills in the realm's new object, and the
@@ -686,8 +688,8 @@ it instead (`zrealm_maker_ownfunc.gno`: `declared` refused, `literal` writes). A
 for later is a crossing closure (§7.8).
 
 Rule: R2a, R2b. Tests: `zrealm_maker_getdecl.gno`, `zrealm_maker_ownfunc.gno`, `zrealm_home_gate_result.gno`,
-`zrealm_saved_cross_helper.gno`, `zrealm_saved_same_tx.gno`, `zrealm_t51_store.gno`, `zrealm_t51_each.gno`,
-`zrealm_chald_helper.gno`, `zrealm_chald_values.gno`; R2a-save: `zrealm_s3u_rv2_1.gno`.
+`zrealm_saved_cross_helper.gno`, `zrealm_saved_same_tx.gno`, `zrealm_lend_store.gno`, `zrealm_lend_each.gno`,
+`zrealm_lend_helper.gno`, `zrealm_lend_values.gno`; R2a-save: `zrealm_s3u_rv2_1.gno`.
 
 ### 7.10 Accept interfaces and plugins
 
@@ -761,7 +763,7 @@ Rule: R1. Tests: `zrealm_ctw_recover.gno` (Output `recovered: boom`, `count: 1`)
 ### 7.14 Known limits
 
 - A fresh function a realm stores and then runs in the same call is read-only; run it first, or make it a
-  crossing function (`zrealm_saved_same_tx`, `zrealm_t38_wrap_ptr`).
+  crossing function (`zrealm_saved_same_tx`, `zrealm_fv_wrap_ptr`).
 - A library table entry called in place (the entry `lib.Table[k]` called directly) acts for the current realm; copied to a local
   first, it runs read-only (`zrealm_ctw_owncb`'s `ViaDispatch`, `zrealm_saved_libtable_copy`).
 - A library in the realm's import tree is trusted for interface and method-value calls (R2c).
@@ -834,7 +836,7 @@ above are what `ls` prints, so a reviewer can re-run them.
 | R3 | type check | `cannot hold a value of <T> outside its realm (use a pointer)` (`realmvalue.go`), e.g. `c := *p` |
 | R3 | run time | `cannot copy <T> outside realm <R> (use a pointer)` (`alloc.go:checkCopy`), the only refusal for `err := fvx.Fail()` and `defer p.Val()` |
 | R3 | run time | `cannot allocate <T> in realm <R>` (`alloc.go:panicForeignAlloc`) |
-| R2a, R2b | run time | E4 `<path>'s code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): expr` |
+| R2a, R2b | run time | E4 `<path>'s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): expr` |
 | R2a-save | save | `<realm>: an object written by read-only code would be stored (write it inside a crossing call of <realm>)` |
 
 R2a's marks are decided when the code is prepared: `ATTR_LOCAL_HELPER` on a local helper's calls,
@@ -892,7 +894,7 @@ from the call stack:
   write is by the callback's home realm, `ctw_callback`. `zrealm_launder_rdata_pdr_panic_defer.gno` shows it
   naming the attacker realm that writes the victim's object during panic unwinding.
 - An R2a-entered stretch (`m.viewRealm != nil && m.viewS3`): the R2a text, E4 (`machine.go:3364-3368`):
-  `<path>`'s code is read-only here: a function value writes only in the crossing call that made it. The
+  `<path>`'s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs. The
   callee is a function value outside R2a's three places, so there is no crossing function to call; make the
   callback crossing (`func(cur realm, …)`, called with `cross(cur)`) or pass a literal in place. `zrealm_maker_getdecl.gno` and `zrealm_saved_getter.gno` show it.
 - Anything else: the fallback text, E3 (`machine.go:3380`), when the writing code is not `/p/` and `viewRealm`

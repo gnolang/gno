@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/tests/lendswitchlib"
+gno = "0.9"

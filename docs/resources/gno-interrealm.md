@@ -57,7 +57,10 @@ func Bump(cur realm) {
 
 2. A literal written in place as a call argument, while that call runs. It is
    lent only to the realm's own functions or to a `/p/` library function called
-   by its name, never to another realm's function.
+   by its name, never to another realm's function. Called by its name means a
+   direct call of a `/p/` function or method, including a method called on an
+   interface value that holds a `/p/` type from the realm's import tree; a local
+   copy of the function or a method value is not.
 
 ```go
 func Sum(cur realm) {
@@ -80,7 +83,7 @@ called later. A write is then refused:
 
 ```
 // Error:
-// gno.land/r/tests/vm/cbvictim's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): Owner<~VPBlock(3,0)>
+// gno.land/r/tests/vm/cbvictim's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): Owner<~VPBlock(3,0)>
 ```
 
 For every other case, and as the default for any callback, write a crossing
@@ -114,6 +117,8 @@ Known limits of the loan in shape 2:
 - A method value never writes; call the method directly.
 - `lib.Default.Each(func(int){ count++ })` is refused: the method of a
   variable the library owns runs as the library, not as your realm.
+- A local helper used inside a literal that is lent in place is refused; call
+  the helper outside the literal, or write its body in the literal.
 
 #### The same line in Swift and Rust
 

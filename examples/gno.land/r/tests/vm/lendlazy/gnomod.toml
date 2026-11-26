@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/lendlazy"
+gno = "0.9"

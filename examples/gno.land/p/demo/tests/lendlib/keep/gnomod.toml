@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/tests/lendlib/keep"
+gno = "0.9"

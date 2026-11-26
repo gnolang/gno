@@ -18,10 +18,13 @@ runs read-only. Library (`/p/`) code never writes another realm's objects.
 2. a literal written in place as a call argument, while that call runs, lent
    only to the realm's own functions or to a `/p/` library function reached by
    name (`lib.Each(xs, func(x int){ sum += x })`), never to another realm's function;
+   reached by name means a direct call of a `/p/` function or method, including
+   a method called on an interface value that holds a `/p/` type from the
+   realm's import tree, not a local copy of the function or a method value;
 3. a literal called in the expression that writes it (`func(){ n++ }()`).
 
 Anything else runs read-only and a write is refused with `<realm>'s code is
-read-only here: a function value writes only in the crossing call that made it`.
+read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs`.
 The legal form for every other case is a crossing closure, `func(cur realm, …)`
 called with `cross`; it is the default for callbacks. The loan (clause 2) ends
 when the call returns, when the callee stores or returns the value, and for a
@@ -59,7 +62,7 @@ read-only (call its crossing function)`; `cannot modify object owned by another
 realm from library code (call a function of the owning realm)`.
 
 ## Alternatives rejected
-- **Copy on hand-out** (a function value writes only in the crossing call that made it, while private to it; a stored or handed-out value becomes a copy without write power): it needed a per-call marker and a deep swap on every attach and realm change, and its edge cases were hard to state to authors.
+- **Copy on hand-out** (a function value writes only during the crossing call it was made in, while private to it; a stored or handed-out value becomes a copy without write power): it needed a per-call marker and a deep swap on every attach and realm change, and its edge cases were hard to state to authors.
 - **Owner grant (`mutable`, #6207)**: one grant hands out every method. **Stamping function values with their sender**: lost in containers and variadics.
 - **Receiver ownership for interface calls** (cannot tell who picked the code); **implicit crossing on every call** (shifts the caller identity silently).
 
@@ -70,10 +73,11 @@ realm from library code (call a function of the owning realm)`.
 
 ## Known open
 - A callee not reached by name lends nothing: a local copy (`each := lib.Each; each(xs, f)`) or a function literal kept in a variable (`var Apply = func(f func()) { f() }`) runs `f` read-only (`zrealm_ctw_owncb`).
-- Another realm's function gets no loan, even a plain one (`zrealm_t55_other_plain`): give it a crossing callback.
-- A method value never writes (`zrealm_chald_lend_lib`); call the method directly.
-- `lib.Default.Each(func(int){ count++ })`, a method of a library-owned variable, is refused (`zrealm_chale_plibeach`).
+- Another realm's function gets no loan, even a plain one (`zrealm_lend_other_plain`): give it a crossing callback.
+- A method value never writes (`zrealm_lend_lib_shapes`); call the method directly.
+- `lib.Default.Each(func(int){ count++ })`, a method of a library-owned variable, is refused (`zrealm_lend_reg_plibeach`).
 - Swift and Rust put the same line in the function's type; the guide compares the four limits above (`gno-interrealm.md`, "The same line in Swift and Rust").
+- A local helper used inside a literal that is lent in place is refused; call the helper outside the literal, or write its body in the literal.
 - A library in the import tree is trusted for interface calls; type-assert caller-supplied interface values.
 - A library package variable called in place (`lib.Table[k](x)`) acts for the caller (`zrealm_ctw_owncb`, `zrealm_saved_libtable_copy`).
 

@@ -54,8 +54,8 @@ func main(cur realm) {
 }
 
 // Output:
-// Private: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N 0 0
-// Decorate: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N 0 0
-// PrivateLit: gno.land/r/zrealm_fvshare_private's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/zrealm_fvshare_private) package{})).count 0 0
-// DecorateLit: gno.land/r/zrealm_fvshare_private's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/zrealm_fvshare_private) package{})).count 0 0
+// Private: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N 0 0
+// Decorate: gno.land/r/tests/vm/fvshare's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): v<VPBlock(1,0)>.N 0 0
+// PrivateLit: gno.land/r/zrealm_fvshare_private's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/zrealm_fvshare_private) package{})).count 0 0
+// DecorateLit: gno.land/r/zrealm_fvshare_private's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/zrealm_fvshare_private) package{})).count 0 0
 // LitInPlace: undefined 0 1

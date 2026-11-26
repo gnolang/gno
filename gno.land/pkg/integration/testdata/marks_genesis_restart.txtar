@@ -1,33 +1,33 @@
 # The load-time marks (local helper, lent callback) give the same writes and the
 # same refusals before and after a restart. Realms come in through genesis;
-# t56d is reached after the restart only as t56c's import (lazy load); a
+# lendboth is reached after the restart only as lendlazy's import (lazy load); a
 # maketx run script carries its own helper and loan.
 
-loadpkg gno.land/p/demo/tests/t56lib
-loadpkg gno.land/r/tests/vm/t56a
-loadpkg gno.land/r/tests/vm/t56b
-loadpkg gno.land/r/tests/vm/t56d
-loadpkg gno.land/r/tests/vm/t56c
+loadpkg gno.land/p/demo/tests/lendrunlib
+loadpkg gno.land/r/tests/vm/lendlocalhelper
+loadpkg gno.land/r/tests/vm/lendrun
+loadpkg gno.land/r/tests/vm/lendboth
+loadpkg gno.land/r/tests/vm/lendlazy
 gnoland start
 
 # (a) local helper: control writes, the non-helper is refused and writes nothing.
-gnokey maketx call -pkgpath gno.land/r/tests/vm/t56a -func Helper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlocalhelper -func Helper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '\(1 int\)'
-gnokey maketx call -pkgpath gno.land/r/tests/vm/t56a -func NotHelper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlocalhelper -func NotHelper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '\(true bool\)'
 stdout '\(1 int\)'
 
 # (b) lent callback through /p/: control writes, the unlent literal is refused.
-gnokey maketx call -pkgpath gno.land/r/tests/vm/t56b -func Lend -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendrun -func Lend -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '\(1 int\)'
-gnokey maketx call -pkgpath gno.land/r/tests/vm/t56b -func NotLent -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendrun -func NotLent -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '\(true bool\)'
 stdout '\(1 int\)'
 
-# (c) both, in t56d reached through t56c.
-gnokey maketx call -pkgpath gno.land/r/tests/vm/t56c -func Both -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+# (c) both, in lendboth reached through lendlazy.
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlazy -func Both -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '\(2 int\)'
-gnokey maketx call -pkgpath gno.land/r/tests/vm/t56c -func Neither -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlazy -func Neither -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '\(true bool\)\n\(true bool\)\n\(2 int\)'
 
 # run script: its own package is never saved, so its by-value call writes too
@@ -40,21 +40,21 @@ stdout 'realm non-helper: true 2'
 
 gnoland restart
 
-# (c) first: the first call after the restart loads t56d only as an import.
-gnokey maketx call -pkgpath gno.land/r/tests/vm/t56c -func Both -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+# (c) first: the first call after the restart loads lendboth only as an import.
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlazy -func Both -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '\(4 int\)'
-gnokey maketx call -pkgpath gno.land/r/tests/vm/t56c -func Neither -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlazy -func Neither -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '\(true bool\)\n\(true bool\)\n\(4 int\)'
 
-gnokey maketx call -pkgpath gno.land/r/tests/vm/t56a -func Helper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlocalhelper -func Helper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '\(3 int\)'
-gnokey maketx call -pkgpath gno.land/r/tests/vm/t56a -func NotHelper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlocalhelper -func NotHelper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '\(true bool\)'
 stdout '\(3 int\)'
 
-gnokey maketx call -pkgpath gno.land/r/tests/vm/t56b -func Lend -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendrun -func Lend -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '\(2 int\)'
-gnokey maketx call -pkgpath gno.land/r/tests/vm/t56b -func NotLent -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendrun -func NotLent -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
 stdout '\(true bool\)'
 stdout '\(2 int\)'
 
@@ -68,8 +68,8 @@ stdout 'realm non-helper: true 4'
 package main
 
 import (
-	"gno.land/p/demo/tests/t56lib"
-	"gno.land/r/tests/vm/t56a"
+	"gno.land/p/demo/tests/lendrunlib"
+	"gno.land/r/tests/vm/lendlocalhelper"
 )
 
 var count int
@@ -77,7 +77,7 @@ var count int
 func main(cur realm) {
 	f := func() { count++ }
 	f()
-	t56lib.Run(func() { count++ })
+	lendrunlib.Run(func() { count++ })
 	println("wrote:", count)
 	refused := false
 	func() {
@@ -88,7 +88,7 @@ func main(cur realm) {
 		g()
 	}()
 	println("own non-helper refused:", refused, count)
-	println("realm helper:", t56a.Helper(cross(cur)))
-	r, n := t56a.NotHelper(cross(cur))
+	println("realm helper:", lendlocalhelper.Helper(cross(cur)))
+	r, n := lendlocalhelper.NotHelper(cross(cur))
 	println("realm non-helper:", r, n)
 }
