@@ -86,14 +86,19 @@ func (c *gnolovDaoCondThreshold) yesRatio(ballot Ballot) float64 {
 		return totalPower
 	}
 
+	// Look roles up outside the callback: a panic out of a callback the
+	// tree wraps cannot be recovered by the caller.
+	var yesVoters []string
 	ballot.Iterate(func(voter string, vote Vote) bool {
-		if vote != VoteYes {
-			return false
+		if vote == VoteYes {
+			yesVoters = append(yesVoters, voter)
 		}
-		tier := c.getUserRole(voter)
-		totalYes += votingPowersByTier[tier]
 		return false
 	})
+	for _, voter := range yesVoters {
+		tier := c.getUserRole(voter)
+		totalYes += votingPowersByTier[tier]
+	}
 	return totalYes / totalPower
 }
 

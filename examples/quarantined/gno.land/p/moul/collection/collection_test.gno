@@ -216,75 +216,54 @@ func TestEdgeCases(t *testing.T) {
 		return v.(*Person).Name
 	}, UniqueIndex)
 
-	tests := []struct {
-		name      string
-		operation func() bool
-		wantPanic bool
-	}{
-		{
-			name: "Set nil object",
-			operation: func() bool {
-				return c.Set(nil) != 0
-			},
-			wantPanic: false,
-		},
-		{
-			name: "Set wrong type",
-			operation: func() bool {
-				return c.Set("not a person") != 0
-			},
-			wantPanic: true,
-		},
-		{
-			name: "Update with nil",
-			operation: func() bool {
-				id := c.Set(&Person{Name: "Test"})
-				return c.Update(id, nil)
-			},
-			wantPanic: false,
-		},
-		{
-			name: "Get with invalid index name",
-			operation: func() bool {
-				iter := c.Get("invalid_index", "key")
-				if iter.Empty() {
-					return false
-				}
-				entry := iter.Value()
-				if entry == nil {
-					return false
-				}
-				_, err := seqid.FromString(entry.ID)
-				if err != nil {
-					return false
-				}
-				return true
-			},
-			wantPanic: false,
-		},
+	// Each operation is passed in place: an operation taken from a table runs
+	// view-only, and its panic out of Collection's methods is not recoverable.
+	checkEdgeCase(t, "Set nil object", false, func() bool {
+		return c.Set(nil) != 0
+	})
+	checkEdgeCase(t, "Set wrong type", true, func() bool {
+		return c.Set("not a person") != 0
+	})
+	checkEdgeCase(t, "Update with nil", false, func() bool {
+		id := c.Set(&Person{Name: "Test"})
+		return c.Update(id, nil)
+	})
+	checkEdgeCase(t, "Get with invalid index name", false, func() bool {
+		iter := c.Get("invalid_index", "key")
+		if iter.Empty() {
+			return false
+		}
+		entry := iter.Value()
+		if entry == nil {
+			return false
+		}
+		_, err := seqid.FromString(entry.ID)
+		if err != nil {
+			return false
+		}
+		return true
+	})
+}
+
+func checkEdgeCase(t *testing.T, name string, wantPanic bool, operation func() bool) {
+	t.Helper()
+	var got bool
+	panicked := false
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				panicked = true
+			}
+		}()
+		got = operation()
+	}()
+
+	if panicked != wantPanic {
+		t.Errorf("%s: Operation panicked = %v, want panic = %v", name, panicked, wantPanic)
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var got bool
-			panicked := false
-
-			func() {
-				defer func() {
-					if r := recover(); r != nil {
-						panicked = true
-					}
-				}()
-				got = tt.operation()
-			}()
-
-			if panicked != tt.wantPanic {
-				t.Errorf("Operation panicked = %v, want panic = %v", panicked, tt.wantPanic)
-			}
-			if !panicked && got != false {
-				t.Errorf("Operation returned %v, want 0", got)
-			}
-		})
+	if !panicked && got != false {
+		t.Errorf("%s: Operation returned %v, want 0", name, got)
 	}
 }
 
