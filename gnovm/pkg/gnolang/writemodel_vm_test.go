@@ -17,6 +17,7 @@ const (
 	wmPM = "gno.land/p/t/m"
 	wmEE = "gno.land/e/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/run"
 	wmSL = "strings"
+	wmPT = "gno.land/p/t/l_test" // a test overlay: no realm
 )
 
 // wmVMRealms are the realms NewPackage gives these packages (.uverse has none).
@@ -263,8 +264,8 @@ func TestWriteModelAllFacts(t *testing.T) {
 	callees := []string{wmRA, wmEE, wmPL, wmSL, "main", uversePkgPath}
 	callers := []string{wmRA, wmPL, TestingBasePkgPath}
 	forms := []wmForm{wmNamed, wmHelper, wmLit, wmValue, wmBuiltin, wmMethod, wmIface}
-	owners := []string{"-", "", wmPL, wmPM, wmSL, wmRA} // "-": no receiver
-	binders := []string{"", wmRA, wmRB, wmPL}
+	owners := []string{"-", "", wmPL, wmPM, wmSL, wmRA, wmPT, uversePkgPath} // "-": no receiver
+	binders := []string{"", wmRA, wmRB, wmPL, wmSL, wmPT, uversePkgPath}
 	makers := []string{"", wmRA, wmRB, wmPL}
 	stacks := []wmStack{
 		{},
