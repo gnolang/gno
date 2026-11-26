@@ -16,11 +16,26 @@ import (
 )
 
 const (
-	lendLintRows    = "../../tests/lendlint_rows.txt"
-	lendLintFiles   = "../../tests/files"
-	lendLintRefusal = "read-only here" // machine.go: the one refusal text
-	lendLintNotRef  = "# flagged but not refused"
+	lendLintRows   = "../../tests/lendlint_rows.txt"
+	lendLintFiles  = "../../tests/files"
+	lendLintNotRef = "# flagged but not refused"
 )
+
+// The refusal texts of machine.go (readonly access) and realm.go (save).
+var lendLintRefusals = [][]byte{
+	[]byte("is read-only here"),
+	[]byte("was entered without crossing and is read-only"),
+	[]byte("an object written by read-only code would be stored"),
+}
+
+func lendLintRefuses(src []byte) bool {
+	for _, r := range lendLintRefusals {
+		if bytes.Contains(src, r) {
+			return true
+		}
+	}
+	return false
+}
 
 // lendLinter preprocesses one file test and runs the check over its package
 // and the realms it imports. LENDLINT_UPDATE=1 rewrites the rows file.
@@ -155,7 +170,7 @@ func TestLendLintRows(t *testing.T) {
 		}
 		g := r
 		g.today = "writes"
-		if bytes.Contains(src, []byte(lendLintRefusal)) {
+		if lendLintRefuses(src) {
 			g.today = "refuses"
 			refusing++
 		}
@@ -185,7 +200,7 @@ func TestLendLintRows(t *testing.T) {
 	var gotNotRef []lendRow
 	for _, f := range files {
 		src, _ := os.ReadFile(f)
-		if bytes.Contains(src, []byte(lendLintRefusal)) {
+		if lendLintRefuses(src) {
 			continue
 		}
 		fname := filepath.Base(f)

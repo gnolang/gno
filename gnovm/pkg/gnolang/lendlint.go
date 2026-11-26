@@ -296,6 +296,12 @@ func (c *lendLint) staticType(last BlockNode, x Expr) (t Type) {
 	if ct := convType(x); ct != nil {
 		return ct // a type: method expression T.M
 	}
+	// Inside a literal a package name reads as pkgref.name.
+	if sx, ok := x.(*SelectorExpr); ok && pkgRefPath(sx.X) != "" {
+		if pn := c.pkgNode(pkgRefPath(sx.X)); pn != nil {
+			return pn.GetStaticTypeOf(c.store, sx.Sel)
+		}
+	}
 	return evalStaticTypeOf(c.store, last, x)
 }
 
