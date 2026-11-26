@@ -43,7 +43,10 @@ func (bs BitSet) String() string {
 	return fmt.Sprintf("0x%016X", uint64(bs)) // Show all 64 bits
 }
 
-var _ std.AccountUnrestricter = &GnoAccount{}
+var (
+	_ std.AccountUnrestricter = &GnoAccount{}
+	_ std.AccountFreezer      = &GnoAccount{}
+)
 
 type GnoAccount struct {
 	std.BaseAccount

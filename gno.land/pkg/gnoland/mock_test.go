@@ -5,51 +5,14 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/store"
 
-	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
-
-type (
-	fireEventDelegate      func(events.Event)
-	addListenerDelegate    func(string, events.EventCallback)
-	removeListenerDelegate func(string)
-)
-
-type mockEventSwitch struct {
-	service.BaseService
-
-	fireEventFn      fireEventDelegate
-	addListenerFn    addListenerDelegate
-	removeListenerFn removeListenerDelegate
-}
-
-func (m *mockEventSwitch) FireEvent(ev events.Event) {
-	if m.fireEventFn != nil {
-		m.fireEventFn(ev)
-	}
-}
-
-func (m *mockEventSwitch) AddListener(
-	listenerID string,
-	cb events.EventCallback,
-) {
-	if m.addListenerFn != nil {
-		m.addListenerFn(listenerID, cb)
-	}
-}
-
-func (m *mockEventSwitch) RemoveListener(listenerID string) {
-	if m.removeListenerFn != nil {
-		m.removeListenerFn(listenerID)
-	}
-}
 
 type mockVMKeeper struct {
 	addPackageFn                func(sdk.Context, vm.MsgAddPackage) error
@@ -140,10 +103,12 @@ func (m *mockVMKeeper) InitGenesis(ctx sdk.Context, gs vm.GenesisState) {}
 type mockBankKeeper struct {
 	recomputeSupplyCalls int
 	setCoinsCalls        int
-	// setCoinsAtRecompute is how many balances had been written when the supply was
-	// recomputed. SetCoins does not maintain the counter, so a recompute that runs
-	// before the balance loop leaves a fresh chain with balances and no supply
-	// record — a call count alone cannot tell the two orders apart.
+	initCoinsCalls       int
+	// setCoinsAtRecompute is how many balances had been written, via either path,
+	// when the supply was recomputed. Neither SetCoins nor InitCoins maintains the
+	// counter, so a recompute that runs before the balance loop leaves a fresh
+	// chain with balances and no supply record — a call count alone cannot tell
+	// the two orders apart.
 	setCoinsAtRecompute int
 }
 
@@ -175,6 +140,13 @@ func (m *mockBankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.
 	return nil
 }
 
+// InitCoins is the fresh-address form of SetCoins, counted separately so a test
+// can assert which branch applyBalance took for a given address.
+func (m *mockBankKeeper) InitCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+	m.initCoinsCalls++
+	return nil
+}
+
 func (m *mockBankKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
 	return true
 }
@@ -189,7 +161,7 @@ func (m *mockBankKeeper) BurnCoins(ctx sdk.Context, addr crypto.Address, amt std
 
 func (m *mockBankKeeper) RecomputeSupply(ctx sdk.Context) {
 	m.recomputeSupplyCalls++
-	m.setCoinsAtRecompute = m.setCoinsCalls
+	m.setCoinsAtRecompute = m.setCoinsCalls + m.initCoinsCalls
 }
 
 func (m *mockBankKeeper) TotalSupply(ctx sdk.Context, denom string) int64 {
@@ -200,9 +172,18 @@ func (m *mockBankKeeper) GetCoin(ctx sdk.Context, addr crypto.Address, denom str
 	return 0
 }
 
-type mockAuthKeeper struct{}
+// mockAuthKeeper tracks which addresses it has seen so GetAccount can report a
+// repeat. Without that, applyBalance would always see a first sighting and a
+// test could never reach its SetCoins branch.
+type mockAuthKeeper struct {
+	known map[crypto.Address]bool
+}
 
 func (m *mockAuthKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Address) std.Account {
+	if m.known == nil {
+		m.known = map[crypto.Address]bool{}
+	}
+	m.known[addr] = true
 	return nil
 }
 
@@ -214,8 +195,14 @@ func (m *mockAuthKeeper) NewAccountWithAddress(ctx sdk.Context, addr crypto.Addr
 func (m *mockAuthKeeper) NewAccountWithUncheckedNumber(ctx sdk.Context, addr crypto.Address, accNum uint64) std.Account {
 	return nil
 }
-func (m *mockAuthKeeper) GetNextAccountNumber(ctx sdk.Context) uint64                     { return 0 }
-func (m *mockAuthKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Account     { return nil }
+func (m *mockAuthKeeper) GetNextAccountNumber(ctx sdk.Context) uint64 { return 0 }
+
+func (m *mockAuthKeeper) GetAccount(ctx sdk.Context, addr crypto.Address) std.Account {
+	if m.known[addr] {
+		return &GnoAccount{}
+	}
+	return nil
+}
 func (m *mockAuthKeeper) GetAllAccounts(ctx sdk.Context) []std.Account                    { return nil }
 func (m *mockAuthKeeper) SetAccount(ctx sdk.Context, acc std.Account)                     {}
 func (m *mockAuthKeeper) IterateAccounts(ctx sdk.Context, process func(std.Account) bool) {}
@@ -299,6 +286,7 @@ func (m *mockConfigurableParamsKeeper) GetInt64(ctx sdk.Context, key string, ptr
 	*ptr = v
 	return true
 }
+
 func (m *mockConfigurableParamsKeeper) GetString(ctx sdk.Context, key string, ptr *string) bool {
 	v, ok := m.strings[key]
 	if !ok {
@@ -307,15 +295,19 @@ func (m *mockConfigurableParamsKeeper) GetString(ctx sdk.Context, key string, pt
 	*ptr = v
 	return true
 }
+
 func (m *mockConfigurableParamsKeeper) GetUint64(ctx sdk.Context, key string, ptr *uint64) bool {
 	return false
 }
+
 func (m *mockConfigurableParamsKeeper) GetBool(ctx sdk.Context, key string, ptr *bool) bool {
 	return false
 }
+
 func (m *mockConfigurableParamsKeeper) GetBytes(ctx sdk.Context, key string, ptr *[]byte) bool {
 	return false
 }
+
 func (m *mockConfigurableParamsKeeper) GetStrings(ctx sdk.Context, key string, ptr *[]string) bool {
 	return false
 }
@@ -323,15 +315,19 @@ func (m *mockConfigurableParamsKeeper) SetString(ctx sdk.Context, key, value str
 func (m *mockConfigurableParamsKeeper) SetInt64(ctx sdk.Context, key string, value int64) int {
 	return 0
 }
+
 func (m *mockConfigurableParamsKeeper) SetUint64(ctx sdk.Context, key string, value uint64) int {
 	return 0
 }
+
 func (m *mockConfigurableParamsKeeper) SetBool(ctx sdk.Context, key string, value bool) int {
 	return 0
 }
+
 func (m *mockConfigurableParamsKeeper) SetBytes(ctx sdk.Context, key string, value []byte) int {
 	return 0
 }
+
 func (m *mockConfigurableParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) int {
 	return 0
 }

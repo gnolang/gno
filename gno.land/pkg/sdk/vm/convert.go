@@ -11,6 +11,7 @@ import (
 	"github.com/cockroachdb/apd/v3"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 func assertNoPlusPrefix(s string) {
@@ -18,6 +19,21 @@ func assertNoPlusPrefix(s string) {
 		panic("numbers cannot start with +")
 	}
 }
+
+// assertIntegerArgFormat refuses an integer argument that is not the one spelling
+// its value formats to, such as "-0" or "007", so one value has one argument.
+func assertIntegerArgFormat(kind, arg, want string) {
+	if arg != want {
+		panic(fmt.Sprintf(
+			"error parsing %s %q: not in canonical form, want %q",
+			kind, arg, want))
+	}
+}
+
+// maxFloatArgLen bounds a float argument before apd sees it. apd converts the
+// whole mantissa to a big.Int before it reads the exponent, work that grows
+// with the square of the digit count while nothing charges gas for it.
+const maxFloatArgLen = 1024
 
 // These convert string representations of public-facing arguments to GNO types.
 // The limited set of input types available should map 1:1 to types supported
@@ -46,103 +62,103 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 			tv.SetString(gno.StringValue(arg))
 			return
 		case gno.IntType:
-			assertNoPlusPrefix(arg)
 			i64, err := strconv.ParseInt(arg, 10, 64)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing int %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("int", arg, strconv.FormatInt(i64, 10))
 			tv.SetInt(i64)
 			return
 		case gno.Int8Type:
-			assertNoPlusPrefix(arg)
 			i8, err := strconv.ParseInt(arg, 10, 8)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing int8 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("int8", arg, strconv.FormatInt(i8, 10))
 			tv.SetInt8(int8(i8))
 			return
 		case gno.Int16Type:
-			assertNoPlusPrefix(arg)
 			i16, err := strconv.ParseInt(arg, 10, 16)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing int16 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("int16", arg, strconv.FormatInt(i16, 10))
 			tv.SetInt16(int16(i16))
 			return
 		case gno.Int32Type:
-			assertNoPlusPrefix(arg)
 			i32, err := strconv.ParseInt(arg, 10, 32)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing int32 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("int32", arg, strconv.FormatInt(i32, 10))
 			tv.SetInt32(int32(i32))
 			return
 		case gno.Int64Type:
-			assertNoPlusPrefix(arg)
 			i64, err := strconv.ParseInt(arg, 10, 64)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing int64 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("int64", arg, strconv.FormatInt(i64, 10))
 			tv.SetInt64(i64)
 			return
 		case gno.UintType:
-			assertNoPlusPrefix(arg)
 			u64, err := strconv.ParseUint(arg, 10, 64)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing uint %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("uint", arg, strconv.FormatUint(u64, 10))
 			tv.SetUint(u64)
 			return
 		case gno.Uint8Type:
-			assertNoPlusPrefix(arg)
 			u8, err := strconv.ParseUint(arg, 10, 8)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing uint8 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("uint8", arg, strconv.FormatUint(u8, 10))
 			tv.SetUint8(uint8(u8))
 			return
 		case gno.Uint16Type:
-			assertNoPlusPrefix(arg)
 			u16, err := strconv.ParseUint(arg, 10, 16)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing uint16 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("uint16", arg, strconv.FormatUint(u16, 10))
 			tv.SetUint16(uint16(u16))
 			return
 		case gno.Uint32Type:
-			assertNoPlusPrefix(arg)
 			u32, err := strconv.ParseUint(arg, 10, 32)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing uint32 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("uint32", arg, strconv.FormatUint(u32, 10))
 			tv.SetUint32(uint32(u32))
 			return
 		case gno.Uint64Type:
-			assertNoPlusPrefix(arg)
 			u64, err := strconv.ParseUint(arg, 10, 64)
 			if err != nil {
 				panic(fmt.Sprintf(
 					"error parsing uint64 %q: %v",
 					arg, err))
 			}
+			assertIntegerArgFormat("uint64", arg, strconv.FormatUint(u64, 10))
 			tv.SetUint64(u64)
 			return
 		case gno.Float32Type:
@@ -158,6 +174,27 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 		}
 	case *gno.ArrayType:
 		if bt.Elt == gno.Uint8Type {
+			// Refuse before decoding. DecodeString allocates
+			// DecodedLen(len(arg)) up front, and the result is discarded
+			// below unless it is exactly bt.Len bytes, so an oversized
+			// argument must not get to size that allocation.
+			//
+			// This is an equality, not an upper bound: the decoder ignores
+			// \r and \n, so len(arg) bounds nothing on its own — a payload
+			// may carry arbitrarily many of them. Requiring the canonical
+			// encoded length also removes that padding as a source of
+			// malleability, which this file's header forbids: it otherwise
+			// spells one array value in unboundedly many ways.
+			//
+			// It does not subsume the decoded-length check below. Padding
+			// makes EncodedLen constant across three inputs (1, 2 and 3
+			// bytes all encode to 4 chars), so an argument of the right
+			// encoded length can still decode to bt.Len±2 bytes.
+			if want := base64.StdEncoding.EncodedLen(bt.Len); len(arg) != want {
+				panic(fmt.Sprintf(
+					"array length mismatch: declared [%d]byte, got a %d byte argument, want %d",
+					bt.Len, len(arg), want))
+			}
 			bz, err := base64.StdEncoding.DecodeString(arg)
 			if err != nil {
 				panic(fmt.Sprintf(
@@ -203,14 +240,29 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 
 func convertFloat(value string, precision int) float64 {
 	assertNoPlusPrefix(value)
+	if len(value) > maxFloatArgLen {
+		panic(fmt.Sprintf(
+			"error parsing float%d: argument is %d bytes, over the %d byte limit",
+			precision, len(value), maxFloatArgLen))
+	}
 	dec, _, err := apd.NewFromString(value)
 	if err != nil {
 		panic(fmt.Sprintf("error parsing float%d %q: %v", precision, value, err))
+	}
+	// apd reads NaN and Infinity in any letter case. A NaN or ±Inf argument
+	// passes range checks like `x < 0` in the callee, so refuse them here.
+	if dec.Form != apd.Finite {
+		panic(fmt.Sprintf("error parsing float%d %q: NaN and Inf are not accepted", precision, value))
 	}
 
 	f64, err := strconv.ParseFloat(dec.String(), precision)
 	if err != nil {
 		panic(fmt.Sprintf("error value exceeds float%d precision %q: %v", precision, value, err))
+	}
+	// -0 (or a negative value that underflows to it) arrives as +0, so the
+	// callee never sees a second zero that only Signbit can tell apart.
+	if f64 == 0 {
+		f64 = 0
 	}
 
 	return f64
@@ -221,39 +273,39 @@ type jsonResults struct {
 	Error   *string         `json:"@error,omitempty"`
 }
 
-// stringifyJSONResults converts TypedValues to JSON format using Amino encoding.
-// It first exports values (replacing persisted objects with RefValues and
-// breaking ephemeral cycles), then serializes with amino.MarshalJSON.
-// ft is the function type (if available) used for signature-based error detection.
-func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, ft *gno.FuncType) string {
+// stringifyJSONResults converts TypedValues to JSON format using Amino
+// encoding. It first exports values (replacing persisted objects with RefValues
+// and breaking ephemeral cycles), then serializes with amino.MarshalJSON.
+// ft is the function type (if available) used for signature-based error
+// detection.
+//
+// The two limits bound different things. maxExportBytes caps the estimated
+// size of the export walk's copy, and an oversized result returns
+// gno.ErrExportSizeExceeded before anything is marshaled. maxOutputBytes caps
+// the JSON amino writes for the results, which stops at the cap. Only pass <= 0
+// (unbounded) for trusted input: every query path must pass maxQueryExportBytes
+// and maxQueryOutputBytes.
+func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, ft *gno.FuncType, maxExportBytes, maxOutputBytes int64) (string, error) {
 	jres := jsonResults{Results: []byte("[]")}
 	if len(tvs) > 0 {
 		// Export values: replace persisted objects with RefValues,
 		// break ephemeral cycles with synthetic ":N" RefValues.
-		exported := gno.ExportValues(tvs)
-
-		bz, err := amino.MarshalJSON(exported)
+		exported, err := gno.ExportValues(tvs, maxExportBytes)
 		if err != nil {
-			panic("unable to marshal results: " + err.Error())
+			return "", err
+		}
+
+		bz, err := marshalJSONCapped(maxOutputBytes, amino.MarshalJSONTo, exported)
+		if err != nil {
+			return "", fmt.Errorf("unable to marshal results: %w", err)
 		}
 		jres.Results = bz
 
-		// Check for error based on function signature. If the func return type's last
-		// element is exactly a named or unnamed interface type which implements error,
-		// then .Error() is called.
-		last := tvs[len(tvs)-1]
-		shouldExtractError := false
-		if ft != nil && len(ft.Results) > 0 {
-			// Signature-based: check if declared return type implements error
-			lastReturnType := ft.Results[len(ft.Results)-1].Type
-			shouldExtractError = gno.IsErrorType(lastReturnType)
-		} else {
-			// Fallback for QueryEval: value-based detection
-			shouldExtractError = last.ImplError()
-		}
-
-		if shouldExtractError {
-			if errStr, ok := tryGetError(m, last); ok {
+		// Error extraction needs a live machine: the error-interface checks are
+		// metered against m.GasMeter and .Error() is evaluated on m. Both
+		// checks live inside tryGetError so its recover covers them.
+		if m != nil {
+			if errStr, ok := tryGetError(m, tvs[len(tvs)-1], ft); ok {
 				jres.Error = &errStr
 			}
 		}
@@ -261,36 +313,52 @@ func stringifyJSONResults(m *gno.Machine, tvs []gno.TypedValue, ft *gno.FuncType
 
 	s, err := json.Marshal(jres)
 	if err != nil {
-		panic("unable to marshal result")
+		return "", fmt.Errorf("unable to marshal result: %w", err)
 	}
-
-	return string(s)
+	return string(s), nil
 }
 
-func tryGetError(m *gno.Machine, tv gno.TypedValue) (errStr string, ok bool) {
-	// Check if type implements error interface
-	if !tv.ImplError() {
-		return "", false
-	}
-
-	// Call .Error() in a panic-safe context. ANY panic — out-of-gas, buggy
-	// .Error() method, typed-nil receiver nil-deref — gracefully degrades:
-	// no @error field, but the already-computed Results JSON is preserved.
-	//
-	// Rationale for catching OOG here (rather than re-panicking): the main
-	// expression evaluation has already succeeded by the time tryGetError
-	// runs, and its results have already been Amino-marshaled into
-	// jsonResults.Results. Re-panicking OOG here would discard that
-	// successful payload and return an empty body with an OOG error, which
-	// is strictly worse for the caller. Instead we treat the @error field
-	// as best-effort and surface whatever results we already have.
+// tryGetError extracts the @error field from the last result. ft is the called
+// function's signature when one is known (nil on the QueryEval path).
+func tryGetError(m *gno.Machine, tv gno.TypedValue, ft *gno.FuncType) (errStr string, ok bool) {
+	// A realm panic in Error() leaves @error empty, but budget exhaustion must
+	// fail the query instead of returning a false success. So panic again on
+	// its signals: a budgetStop error, the allocator's string panic, and a gas
+	// meter past its limit. The meter catches an out-of-gas that was already
+	// recovered while rendering a nested panic value (boundedUserSprint
+	// recovers every panic), which reaches here as an UnhandledPanicError.
 	defer func() {
 		if r := recover(); r != nil {
+			if _, stop := budgetStop(r); stop {
+				panic(r)
+			}
+			if s, isStr := r.(string); isStr && strings.Contains(s, "allocation limit exceeded") {
+				panic(r)
+			}
+			if m.GasMeter != nil && m.GasMeter.IsPastLimit() {
+				panic(stypes.OutOfGasError{Descriptor: "Error()"})
+			}
 			errStr = ""
 			ok = false
 		}
 	}()
 
+	// With a signature, only a last result whose declared type implements
+	// error is extracted; without one (QueryEval) the dynamic-type check
+	// below decides alone.
+	if ft != nil && len(ft.Results) > 0 {
+		if !gno.IsErrorType(m.GasMeter, ft.Results[len(ft.Results)-1].Type) {
+			return "", false
+		}
+	}
+
+	// Check if the dynamic type implements error (metered walk).
+	if !tv.ImplError(m.GasMeter) {
+		return "", false
+	}
+
 	res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "Error")))
-	return res[0].GetString(), true
+	// The realm's Error() output is caller-controlled. Keep the diagnostic
+	// itself small in addition to the final response cap.
+	return truncate(res[0].GetString()), true
 }

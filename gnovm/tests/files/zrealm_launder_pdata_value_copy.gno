@@ -12,7 +12,7 @@ package launderpdata_v
 // writes to local copies.
 
 import (
-	"gno.land/p/demo/tests/launderpkg"
+	"gno.land/p/demo/tests/launderpkg/v0"
 )
 
 func main(cur realm) {

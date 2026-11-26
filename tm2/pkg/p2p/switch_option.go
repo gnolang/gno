@@ -70,3 +70,12 @@ func WithMaxOutboundPeers(maxOutbound uint64) SwitchOption {
 		sw.maxOutboundPeers = maxOutbound
 	}
 }
+
+// WithAllowDuplicateIP toggles the guard against several peers connecting from
+// the same IP. It must be enabled for local clusters, where every node shares
+// the loopback address.
+func WithAllowDuplicateIP(allow bool) SwitchOption {
+	return func(sw *MultiplexSwitch) {
+		sw.allowDuplicateIP = allow
+	}
+}

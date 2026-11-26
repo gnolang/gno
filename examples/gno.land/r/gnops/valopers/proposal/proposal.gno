@@ -7,12 +7,13 @@ import (
 	valopers "gno.land/r/gnops/valopers"
 	"gno.land/r/gov/dao"
 	sysparams "gno.land/r/sys/params"
-	validators "gno.land/r/sys/validators/v3"
+	validators "gno.land/r/sys/validators/v0"
 )
 
 var (
 	ErrValidatorMissing = errors.New("the validator is missing")
 	ErrSameValues       = errors.New("the valoper has the same voting power and pubkey")
+	ErrNegativeMinFee   = errors.New("min fee must be non-negative")
 )
 
 // NewValidatorProposalRequest creates a proposal request to the GovDAO
@@ -20,8 +21,8 @@ var (
 //
 // Signature is preserved for historical-replay compatibility (gnoland-1
 // callers call this with a single address). Body is rewired to call
-// v3's operator-keyed NewValidatorProposalRequest with a single-element
-// slice; v3's executor re-resolves the signing pubkey from valoperCache
+// v0's operator-keyed NewValidatorProposalRequest with a single-element
+// slice; v0's executor re-resolves the signing pubkey from valoperCache
 // at execution time, so a mid-flight rotation publishes the current key.
 func NewValidatorProposalRequest(cur realm, addr address) dao.ProposalRequest {
 	var (
@@ -49,7 +50,7 @@ func NewValidatorProposalRequest(cur realm, addr address) dao.ProposalRequest {
 	// Craft the proposal title and description, framed around the
 	// valoper profile. Voters see the operator identity (moniker +
 	// operator address); the signing key is an implementation detail
-	// resolved at execution time by v3's executor.
+	// resolved at execution time by v0's executor.
 	title := ufmt.Sprintf(
 		"Add valoper %s to the valset",
 		valoper.Moniker,
@@ -70,15 +71,26 @@ func NewValidatorProposalRequest(cur realm, addr address) dao.ProposalRequest {
 
 // ProposeNewInstructionsProposalRequest creates a proposal to the GovDAO
 // for updating the realm instructions.
+//
+// Signature is preserved; the body now delegates. Building the request
+// here required valopers to export the privileged closure, which handed
+// this realm's frame identity to any caller. The
+// closure and the request are now built inside valopers, which returns
+// the request with its executor sealed — see valopers.NewInstructionsProposalRequest.
 func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) dao.ProposalRequest {
-	cb := valopers.NewInstructionsProposalCallback(newInstructions)
-	// Create a proposal
-	title := "/p/gnops/valopers: Update instructions"
-	description := ufmt.Sprintf("Update the instructions to: \n\n%s", newInstructions)
+	return valopers.NewInstructionsProposalRequest(cross(cur), newInstructions)
+}
 
-	e := dao.NewSimpleExecutor(0, cur, cb, "")
-
-	return dao.NewProposalRequest(title, description, e)
+// ProposeAuthorityRotationProposalRequest creates a proposal to the GovDAO
+// for re-pointing the valopers realm's governance authority.
+//
+// Delegates, for the same reason as above: the rotation closure reaches
+// auth.Transfer, so it must never leave the valopers package. Exposed here
+// because this package is where proposal factories for the realm live —
+// see valopers.NewAuthorityRotationProposalRequest for why it takes a path
+// rather than an authz.Authority, and why it exists at all.
+func ProposeAuthorityRotationProposalRequest(cur realm, newContractPath string) dao.ProposalRequest {
+	return valopers.NewAuthorityRotationProposalRequest(cross(cur), newContractPath)
 }
 
 // ProposeNewMinFeeProposalRequest creates a proposal to the GovDAO
@@ -88,5 +100,9 @@ func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) da
 // generic sys/params factory so the fee lives in
 // node:valoper:register_fee.
 func ProposeNewMinFeeProposalRequest(cur realm, newMinFee int64) dao.ProposalRequest {
+	if newMinFee < 0 {
+		panic(ErrNegativeMinFee)
+	}
+
 	return sysparams.NewSysParamUint64PropRequest(cross(cur), "node", "valoper", "register_fee", uint64(newMinFee))
 }

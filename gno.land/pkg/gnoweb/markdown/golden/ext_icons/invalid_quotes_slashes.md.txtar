@@ -1,0 +1,17 @@
+-- input.md --
+Backslash does not escape a quote: <gno-icon name="star" label="a\"b" />
+
+Spaced slash: <gno-icon name="star" / >
+
+Unquoted value eats the slash: <gno-icon name=star/>
+
+Tabs between attributes: <gno-icon	name="star"	label="t"	/>
+
+	<gno-icon name="star" /> tab-indented is code
+-- output.html --
+<p>Backslash does not escape a quote: <svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="a\"><path d="m7.5 11.5-5 3 2-5.131-4-3.869h5l2-5 2 5h5l-4 4 2 5z" transform="translate(3 3)"/></svg></p>
+<p>Spaced slash: <!-- gno-icon: write it self-closing, <gno-icon name="…" /> --></p>
+<p>Unquoted value eats the slash: <!-- gno-icon: write it self-closing, <gno-icon name="…" /> --></p>
+<p>Tabs between attributes: <svg class="gno-icon" viewBox="0 0 21 21" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="t"><path d="m7.5 11.5-5 3 2-5.131-4-3.869h5l2-5 2 5h5l-4 4 2 5z" transform="translate(3 3)"/></svg></p>
+<pre><code>&lt;gno-icon name=&quot;star&quot; /&gt; tab-indented is code
+</code></pre>

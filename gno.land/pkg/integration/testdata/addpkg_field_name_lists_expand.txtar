@@ -1,0 +1,55 @@
+# Nested name lists that share one anonymous struct type are rejected before
+# conversion.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/ctx -pkgpath gno.land/r/test/ctx -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# a.gno copies about 57000 nodes from 241 bytes. A fixed per-file bound admitted
+# it, and a package could repeat it across thousands of files.
+! gnokey maketx addpkg -pkgdir $WORK/split -pkgpath gno.land/r/test/split -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'declarations copy more than'
+
+# 10 names over 8 levels converted to 10^8 fields and ran out of memory while
+# sealing the type in SaveBlockNodes.
+! gnokey maketx addpkg -pkgdir $WORK/wide8 -pkgpath gno.land/r/test/wide8 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'declarations copy more than'
+
+# 10 names over 9 levels stalled predefine in findUndefinedAny, which runs
+# before the MaxTypeDepth check. Skip simulation so DeliverTx itself parses it.
+! gnokey maketx addpkg -pkgdir $WORK/wide9 -pkgpath gno.land/r/test/wide9 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -simulate skip -chainid=tendermint_test test1
+stderr 'declarations copy more than'
+
+# vm/qeval parses the expression with ParseExpr, unauthenticated and free.
+! gnokey query vm/qeval --data 'gno.land/r/test/ctx.func(){var a, b struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y struct{x, y int}}}}}}}}}}}}}}}}}}}}}}}}}; _ = a}()'
+stderr 'declarations copy more than'
+
+-- ctx/gnomod.toml --
+module = "gno.land/r/test/ctx"
+gno = "0.9"
+-- ctx/ctx.gno --
+package ctx
+-- split/gnomod.toml --
+module = "gno.land/r/test/split"
+gno = "0.9"
+-- split/a.gno --
+package split
+
+type A struct{ f0, f1 struct{ f0, f1 struct{ f0, f1 struct{ f0, f1 struct{ f0, f1 struct{ f0, f1 struct{ f0, f1 struct{ f0, f1 struct{ f0, f1 struct{ f0, f1 struct{ f0, f1 struct{ f0, f1 struct{ f0, f1 int } } } } } } } } } } } } }
+-- split/b.gno --
+package split
+-- wide8/gnomod.toml --
+module = "gno.land/r/test/wide8"
+gno = "0.9"
+-- wide8/wide8.gno --
+package wide8
+
+type WIDE8 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 int } } } } } } } }
+-- wide9/gnomod.toml --
+module = "gno.land/r/test/wide9"
+gno = "0.9"
+-- wide9/wide9.gno --
+package wide9
+
+type WIDE9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 struct{ f0, f1, f2, f3, f4, f5, f6, f7, f8, f9 int } } } } } } } } }

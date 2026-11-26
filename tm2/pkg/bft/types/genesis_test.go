@@ -183,6 +183,21 @@ func TestGenesis_Validate(t *testing.T) {
 		assert.ErrorIs(t, g.Validate(), ErrLongChainID)
 	})
 
+	t.Run("too many validators", func(t *testing.T) {
+		t.Parallel()
+
+		g := getValidTestGenesis()
+		for len(g.Validators) < MaxVotesCount {
+			g.Validators = append(g.Validators, g.Validators[0])
+		}
+		require.NoError(t, g.Validate())
+		require.NoError(t, g.ValidateAndComplete())
+
+		g.Validators = append(g.Validators, g.Validators[0])
+		assert.ErrorContains(t, g.Validate(), "too many validators")
+		assert.ErrorContains(t, g.ValidateAndComplete(), "too many validators")
+	})
+
 	t.Run("invalid genesis time", func(t *testing.T) {
 		t.Parallel()
 

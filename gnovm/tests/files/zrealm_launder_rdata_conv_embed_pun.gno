@@ -12,7 +12,7 @@ package launderrh_conv_embed_pun
 // /p/-typed pointers reached via deep field access.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 
