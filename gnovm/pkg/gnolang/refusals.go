@@ -88,7 +88,7 @@ var refusals = []refusal{
 		true},
 	{refuseConvStored,
 		"another realm's stored value is converted to another mutable type",
-		"Convert it inside a crossing function of the realm that stores it.",
+		"Convert it inside a crossing function of the realm that stores it, or copy the value first and convert the copy.",
 		true},
 	{refuseConvForeign,
 		"a value is converted to a type another realm declares",
