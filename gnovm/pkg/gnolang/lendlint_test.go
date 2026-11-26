@@ -145,6 +145,44 @@ func TestLendLintUnfinished(t *testing.T) {
 	}
 }
 
+// lendPanicStore panics on its n-th block-node lookup (n < 0 only counts).
+type lendPanicStore struct {
+	gno.Store
+	calls, n int
+}
+
+func (s *lendPanicStore) GetBlockNode(loc gno.Location) gno.BlockNode {
+	s.calls++
+	if s.calls == s.n {
+		panic("lendPanicStore")
+	}
+	return s.Store.GetBlockNode(loc)
+}
+
+// A failure late in the check keeps the warnings already found.
+func TestLendLintUnfinishedKeeps(t *testing.T) {
+	const src = `package ll
+import "gno.land/p/nt/ufmt/v0"
+var count int
+var saved func()
+func Keep(cur realm) { saved = func() { count++ } }
+func Later(cur realm) { _ = ufmt.Sprintf("%v", func() { count++ }) }
+`
+	l := newLendLinter(t)
+	tcw := l.base.CacheWrap()
+	m := gno.NewMachineWithOptions(gno.MachineOptions{PkgPath: "gno.land/r/x/ll", Output: io.Discard, Store: l.store.BeginTransaction(tcw, tcw, nil, nil)})
+	defer m.Release()
+	fn := m.MustParseFile("ll.gno", src)
+	pn, _ := m.PreprocessFiles("ll", "gno.land/r/x/ll", &gno.FileSet{Files: []*gno.FileNode{fn}}, false, false)
+	count := &lendPanicStore{Store: m.Store, n: -1}
+	gno.LentCallbackWarnings(count, pn)
+	ws := gno.LentCallbackWarnings(&lendPanicStore{Store: m.Store, n: count.calls}, pn)
+	last := len(ws) - 1
+	if last < 1 || ws[0].Line != 5 || ws[last].Msg != "the lent-callback check could not finish for this package" {
+		t.Fatalf("lookups %d, got %+v", count.calls, ws)
+	}
+}
+
 type lendRow struct {
 	name, cat, today, sites, note string
 }

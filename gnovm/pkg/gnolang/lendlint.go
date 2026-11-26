@@ -20,13 +20,13 @@ func LentCallbackWarnings(store Store, pn *PackageNode) (ws []LendWarning) {
 	if pn == nil || pn.FileSet == nil || !IsRealmPath(pn.PkgPath) {
 		return nil
 	}
+	c := &lendLint{store: store, pn: pn, bodies: map[BlockNode]*llBody{}}
 	defer func() {
 		if r := recover(); r != nil {
-			// A lint aid never fails lint, but says it stopped short.
-			ws = []LendWarning{{Msg: "the lent-callback check could not finish for this package"}}
+			// A lint aid never fails lint: keep what it found, say it stopped short.
+			ws = append(c.sorted(), LendWarning{Msg: "the lent-callback check could not finish for this package"})
 		}
 	}()
-	c := &lendLint{store: store, pn: pn, bodies: map[BlockNode]*llBody{}}
 	for _, fn := range pn.FileSet.Files {
 		c.collectLocals(fn)
 		for _, d := range fn.Decls {
@@ -39,6 +39,10 @@ func LentCallbackWarnings(store Store, pn *PackageNode) (ws []LendWarning) {
 			c.place(fn, d)
 		}
 	}
+	return c.sorted()
+}
+
+func (c *lendLint) sorted() []LendWarning {
 	sort.SliceStable(c.ws, func(i, j int) bool {
 		a, b := c.ws[i], c.ws[j]
 		if a.File != b.File {
