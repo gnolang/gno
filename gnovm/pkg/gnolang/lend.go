@@ -207,7 +207,7 @@ func (m *Machine) lendArgs(fr *Frame, fs BlockNode, args []TypedValue) {
 		okParam := nonesc != nil && pi >= 0 && pi < len(nonesc) && nonesc[pi]
 		if m.lends[afv] != nil {
 			if !okParam {
-				delete(m.lends, afv)
+				m.dropLend(afv)
 			}
 			continue
 		}
@@ -260,18 +260,40 @@ func (m *Machine) dropFrameLends(from int) {
 	}
 }
 
-// dropCapturedLends ends the loan of every lent value fv captured.
+// dropLend ends fv's own loan and those of everything it reaches by captures.
+func (m *Machine) dropLend(fv *FuncValue) {
+	delete(m.lends, fv)
+	m.dropCapturedLends(fv)
+}
+
+// dropCapturedLends ends the loan of every lent value fv reaches through
+// captures, at any depth: a value that escapes carries all of them with it.
 func (m *Machine) dropCapturedLends(fv *FuncValue) {
 	if len(m.lends) == 0 {
 		return
 	}
-	for i := range fv.Captures {
-		hiv, ok := fv.Captures[i].V.(*HeapItemValue)
-		if !ok {
-			continue
+	m.walkCaptures(fv, map[*FuncValue]bool{fv: true})
+}
+
+// walkCaptures is dropCapturedLends' walk, skipping values already in seen.
+func (m *Machine) walkCaptures(fv *FuncValue, seen map[*FuncValue]bool) {
+	todo := []*FuncValue{fv}
+	for len(todo) > 0 && len(m.lends) > 0 {
+		cur := todo[len(todo)-1]
+		todo = todo[:len(todo)-1]
+		if cur != fv { // below the first level: paid per value (its seen-set entry) and capture
+			m.incrCPU(OpCPUSlopeMapLit + OpCPUSlopeCallCapture*int64(len(cur.Captures)))
 		}
-		if cfv, ok := hiv.Value.V.(*FuncValue); ok {
-			delete(m.lends, cfv)
+		for i := range cur.Captures {
+			hiv, ok := cur.Captures[i].V.(*HeapItemValue)
+			if !ok {
+				continue
+			}
+			if cfv, ok := hiv.Value.V.(*FuncValue); ok && !seen[cfv] {
+				seen[cfv] = true
+				delete(m.lends, cfv)
+				todo = append(todo, cfv)
+			}
 		}
 	}
 }
@@ -298,6 +320,8 @@ func isLitArg(x Expr) bool {
 }
 
 // dropSliceLends ends the loan of every lent value held in sv's elements.
+// While a loan is live each element walked is paid for, and a func element
+// with captures also as a value of the shared walk (seen-set entry, captures).
 func (m *Machine) dropSliceLends(sv *SliceValue) {
 	if len(m.lends) == 0 || sv.Base == nil {
 		return
@@ -306,10 +330,26 @@ func (m *Machine) dropSliceLends(sv *SliceValue) {
 	if !ok {
 		return
 	}
-	for i := sv.Offset; i < sv.Offset+sv.Length && i < len(av.List); i++ {
-		if fv, ok := av.List[i].V.(*FuncValue); ok {
-			delete(m.lends, fv)
-			m.dropCapturedLends(fv)
+	end := min(sv.Offset+sv.Length, len(av.List))
+	if end <= sv.Offset {
+		return
+	}
+	m.incrCPU(OpCPUSlopeArrayLit * int64(end-sv.Offset))
+	var seen map[*FuncValue]bool
+	for i := sv.Offset; i < end && len(m.lends) > 0; i++ {
+		fv, ok := av.List[i].V.(*FuncValue)
+		if !ok || seen[fv] {
+			continue
 		}
+		delete(m.lends, fv)
+		if len(fv.Captures) == 0 {
+			continue // reaches nothing more: no seen entry needed
+		}
+		m.incrCPU(OpCPUSlopeMapLit + OpCPUSlopeCallCapture*int64(len(fv.Captures)))
+		if seen == nil {
+			seen = map[*FuncValue]bool{}
+		}
+		seen[fv] = true
+		m.walkCaptures(fv, seen)
 	}
 }
