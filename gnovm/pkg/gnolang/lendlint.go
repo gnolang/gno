@@ -60,6 +60,7 @@ type lendLint struct {
 	store  Store
 	pn     *PackageNode
 	bodies map[BlockNode]*llBody
+	order  []BlockNode // bodies in source order, so output is the same each run
 	// Local names whose calls preprocess marked as by name or as a helper,
 	// and the one value each was declared with.
 	named, helper map[helperKey]bool
@@ -70,6 +71,7 @@ type lendLint struct {
 func (c *lendLint) body(b BlockNode) *llBody {
 	if c.bodies[b] == nil {
 		c.bodies[b] = &llBody{}
+		c.order = append(c.order, b)
 	}
 	return c.bodies[b]
 }
@@ -211,7 +213,8 @@ func (fd *FuncDecl) isCrossing() bool {
 func (c *lendLint) fixpoint() {
 	for changed := true; changed; {
 		changed = false
-		for _, bd := range c.bodies {
+		for _, b := range c.order {
+			bd := c.bodies[b]
 			if bd.writes != "" {
 				continue
 			}

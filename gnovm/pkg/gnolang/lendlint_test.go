@@ -97,6 +97,44 @@ func (l *lendLinter) sites(fname string, src []byte, own bool) string {
 	return strings.Join(out, ",")
 }
 
+// warnings preprocesses src as a realm file and runs the check n times.
+func (l *lendLinter) warnings(t *testing.T, src string, n int) [][]gno.LendWarning {
+	t.Helper()
+	tcw := l.base.CacheWrap()
+	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath: "gno.land/r/x/ll",
+		Output:  io.Discard,
+		Store:   l.store.BeginTransaction(tcw, tcw, nil, nil),
+	})
+	defer m.Release()
+	fn := m.MustParseFile("ll.gno", src)
+	pn, _ := m.PreprocessFiles("ll", "gno.land/r/x/ll", &gno.FileSet{Files: []*gno.FileNode{fn}}, false, false)
+	var out [][]gno.LendWarning
+	for range n {
+		out = append(out, gno.LentCallbackWarnings(m.Store, pn))
+	}
+	return out
+}
+
+// The variable a message names must not depend on map order.
+func TestLendLintStable(t *testing.T) {
+	const src = `package ll
+var a, b int
+var saved func()
+func g0() { a++ }
+func g1() { g0() }
+func h()  { b++ }
+func f()  { g1(); h() }
+func Keep(cur realm) { saved = func() { f() } }
+`
+	runs := newLendLinter(t).warnings(t, src, 20)
+	for i, ws := range runs {
+		if len(ws) != 1 || !strings.Contains(ws[0].Msg, "writes a ") {
+			t.Fatalf("run %d: got %+v, want one warning naming a", i, ws)
+		}
+	}
+}
+
 type lendRow struct {
 	name, cat, today, sites, note string
 }
