@@ -678,6 +678,23 @@ func (m *Machine) isRealmBoundary(cfr *Frame) bool {
 	return false
 }
 
+// isPanicBoundary: recover stops at a call that gained write power over another
+// realm (cross, or a realm switch), not at a read-only stretch; a switch into an
+// immutable package (/p/, stdlib, main) has none at StageRun, which refuses its writes.
+func (m *Machine) isPanicBoundary(cfr *Frame) bool {
+	if cfr.WithCross {
+		return true
+	}
+	crlm := m.Realm
+	if crlm == nil {
+		return false
+	}
+	if crlm != cfr.LastRealm {
+		return !(crlm.ID.IsImmutablePkg() && m.Stage == StageRun)
+	}
+	return m.NumFrames() == 1 && m.Stage != StageAdd
+}
+
 // Finalize realm updates if realm boundary.
 // NOTE: resource intensive
 func (m *Machine) maybeFinalize(cfr *Frame) {
@@ -685,8 +702,8 @@ func (m *Machine) maybeFinalize(cfr *Frame) {
 		// /p/ and stdlib packages now carry a frozen, immutable realm
 		// (so the readonly gate works inside their method bodies), but
 		// that realm must never be persisted: skip finalization for it.
-		// isRealmBoundary still reports the frame as a boundary for
-		// panic-routing; we just don't run FinalizeRealmTransaction.
+		// isRealmBoundary still reports the frame as a boundary; we just
+		// don't run FinalizeRealmTransaction. Panics use isPanicBoundary.
 		m.Realm.FinalizeRealmTransaction(m.Store, m.s3Written)
 	}
 }
@@ -966,7 +983,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		if m.Exception != nil {
 			// If crossing a realm boundary find the revive frame
 			// for transaction revival.
-			if m.isRealmBoundary(cfr) {
+			if m.isPanicBoundary(cfr) {
 				cfr := m.PopUntilLastReviveFrame()
 				if cfr == nil {
 					// or abort the transaction.
