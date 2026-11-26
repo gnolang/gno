@@ -201,9 +201,6 @@ type ObjectInfo struct {
 	// s3Written: written in an R2a read-only stretch (R2a-save); finalize refuses to
 	// store it.
 	s3Written bool
-	// shared: reachable by another realm or a stranger's library (R2a);
-	// memory only. A function stored into a shared object loses its maker.
-	shared bool
 
 	lastGCCycle int64
 	owner       Object // mem reference to owner.

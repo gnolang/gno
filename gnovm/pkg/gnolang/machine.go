@@ -3111,19 +3111,12 @@ func (m *Machine) PopFrameAndReturn() {
 	m.Values = m.Values[:fr.NumValues+numRes]
 	m.Package = fr.LastPackage
 	hold, _ := m.Alloc.holdRealm()
-	wasView := m.viewOnly
 	m.restoreRealmState(&fr)
-	// Results handed to code with another hold are judged by the returning
-	// code; results leaving another realm or a stranger's library are shared.
-	after, _ := m.Alloc.holdRealm()
-	moved := after != hold
-	if moved || (wasView && !m.viewOnly) {
+	// Results handed to code with another hold are judged by the returning code.
+	if after, _ := m.Alloc.holdRealm(); after != hold {
 		for i := range numRes {
 			res := &m.Values[fr.NumValues+i]
-			m.Alloc.shareSlot(res)
-			if moved {
-				*res = m.Alloc.stripDeep(*res, hold)
-			}
+			*res = m.Alloc.stripDeep(*res, hold)
 		}
 	}
 	if m.Exception != nil {

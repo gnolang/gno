@@ -971,9 +971,6 @@ func makeUverseNode() {
 									for i := start; i != end; i += step {
 										oldElem := list[dstStart+i]
 										newElem := arg1Base.List[arg1Offset+i].Copy(m.Alloc, m.Store)
-										if sharedOrSaved(arg0Base) {
-											m.Alloc.shareSlot(&newElem) // R2a
-										}
 										list[dstStart+i] = newElem
 
 										m.Realm.DidUpdate(m,

@@ -345,10 +345,6 @@ func (pv PointerValue) Assign2(m *Machine, alloc *Allocator, store Store, rlm *R
 	// General case
 	oo1 := pv.TV.GetFirstObject(store)
 	pv.TV.Assign(alloc, store, tv2, cu)
-	// R2a: what goes into saved or shared state is a copy with no maker.
-	if bo, ok := pv.Base.(Object); ok && sharedOrSaved(bo) {
-		alloc.shareSlot(pv.TV)
-	}
 	oo2 := pv.TV.GetFirstObject(store)
 	if pv.Base != nil {
 		rlm.DidUpdate(m, pv.Base.(Object), oo1, oo2)
