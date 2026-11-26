@@ -767,6 +767,15 @@ Rule: R1. Tests: `zrealm_ctw_recover.gno` (Output `recovered: boom`, `count: 1`)
 - A library table entry called in place (the entry `lib.Table[k]` called directly) acts for the current realm; copied to a local
   first, it runs read-only (`zrealm_ctw_owncb`'s `ViaDispatch`, `zrealm_saved_libtable_copy`).
 - A library in the realm's import tree is trusted for interface and method-value calls (R2c).
+- A literal is lent only to a callee reached by name: through a local copy (`each := lib.Each`) or a function
+  kept in a variable it runs read-only (`zrealm_ctw_owncb`); another realm's function gets no loan
+  (`zrealm_lend_other_plain`); a method value never writes (`zrealm_lend_lib_shapes`).
+- A literal passed to a method of a variable a library owns, `lib.Default.Each(func(int) { n++ })`, is refused:
+  the method runs as the library (`zrealm_lend_reg_plibeach`). Call a library function by name, or pass a
+  crossing closure.
+- A local helper used inside a lent literal is refused; call it outside the literal or write its body there.
+- A lent literal captured, at any depth, by a function value that is stored, returned or kept loses its loan at
+  once, also when that wrapper was itself lent (`zrealm_lend_nested_two`, `zrealm_lend_captures`).
 - State saved before this change keeps its old function-value references; the rules hold chain-wide from a
   fresh genesis or a migration.
 
