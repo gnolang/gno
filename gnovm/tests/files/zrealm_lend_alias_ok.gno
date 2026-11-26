@@ -74,6 +74,16 @@ func main(cur realm) {
 			each(xs, func(x int) { n += x })
 		}
 	}))
+
+	show("08 inside a local helper, name ", try(func() {
+		h := func() { lib.Each(xs, func(x int) { n += x }) }
+		h()
+	}))
+	show("08 inside a local helper, alias", try(func() {
+		each := lib.Each
+		h := func() { each(xs, func(x int) { n += x }) }
+		h()
+	}))
 }
 
 func try(fn func()) (r any) {
@@ -97,3 +107,5 @@ func try(fn func()) (r any) {
 // 06 two aliases, alias 66 undefined
 // 07 loop, name  18 undefined
 // 07 loop, alias 18 undefined
+// 08 inside a local helper, name  6 undefined
+// 08 inside a local helper, alias 6 undefined

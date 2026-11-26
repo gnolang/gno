@@ -87,6 +87,17 @@ func main(cur realm) {
 		each := lib.Each
 		defer each(xs, func(x int) { n += x })
 	}))
+	show("12 address taken", try(func() {
+		each := lib.Each
+		p := &each
+		each(xs, func(x int) { n += x })
+		_ = p
+	}))
+	show("13 method expression, name ", try(func() { lib.Inner.Do(lib.Inner{}, xs, func(x int) { n += x }) }))
+	show("13 method expression, alias", try(func() {
+		me := lib.Inner.Do
+		me(lib.Inner{}, xs, func(x int) { n += x })
+	}))
 }
 
 func try(fn func()) (r any) {
@@ -112,3 +123,6 @@ func try(fn func()) (r any) {
 // 10 literal not in place, alias 0 gno.land/r/tests/vm/lendaliasrefused's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/lendaliasrefused) package{})).n
 // 11 deferred, name  0 gno.land/r/tests/vm/lendaliasrefused's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/lendaliasrefused) package{})).n
 // 11 deferred, alias 0 gno.land/r/tests/vm/lendaliasrefused's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/lendaliasrefused) package{})).n
+// 12 address taken 0 gno.land/r/tests/vm/lendaliasrefused's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/lendaliasrefused) package{})).n
+// 13 method expression, name  6 undefined
+// 13 method expression, alias 0 gno.land/r/tests/vm/lendaliasrefused's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/lendaliasrefused) package{})).n
