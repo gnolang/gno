@@ -1,8 +1,7 @@
 package gnolang
 
-// Rule R2a (pr6495_cross_to_write.md): a non-crossing function value called BY
-// VALUE runs read-only, unless it is a literal lent in place to a live call.
-// The crossing-call marker lives in memory only: never stored, encoded or hashed.
+// A non-crossing function value called BY VALUE runs read-only, unless it is a
+// literal lent in place to a live call (lend.go; pr6495_cross_to_write.md).
 
 // calledByValue reports whether cx reaches its callee as a value rather than by
 // its declared name. ATTR_NAMED_CALLEE is the static answer: a realm's own

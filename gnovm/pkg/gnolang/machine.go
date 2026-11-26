@@ -2851,7 +2851,8 @@ func (m *Machine) pushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue, bi
 		case m.Realm == nil && !m.viewOnly:
 			m.setRealm(r) // no realm context (genesis, tooling)
 		case m.Realm != nil && m.Realm.Path == pv.PkgPath:
-			// the realm's own code; R2a makes a foreign-made value read-only
+			// the realm's own code; a function value called by value writes
+			// only while lent in place to a live call (restrictByValueCall)
 			m.restrictByValueCall(cx, fv, withCross)
 		case m.viewOnly && m.viewRealm != nil && m.viewRealm.Path == pv.PkgPath:
 			// the same realm's code inside its read-only entry
@@ -3389,7 +3390,7 @@ func (m *Machine) readonlyAccessPanic(x Expr) string {
 		return "cannot modify object owned by another realm from library code (call a function of the owning realm): " + x.String()
 	}
 	if m.viewRealm != nil && m.viewS3 {
-		// An R2a stretch: a by-value call made outside its crossing call.
+		// A function value called by value with no live loan.
 		return m.viewRealm.Path + "'s code is read-only here: a function value writes" +
 			" only as a literal called where it is written, or passed in place to a" +
 			" plain function of this realm or a /p/ function called by name, while" +
