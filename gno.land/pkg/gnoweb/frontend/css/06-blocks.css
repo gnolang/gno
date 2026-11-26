@@ -3170,6 +3170,26 @@ main.is-dev-mode .b-toc a {
 	.gno-mermaid__swatch {
 		fill: var(--mermaid-c);
 	}
+
+	/* XY charts: axes, grid, bars and lines. */
+	.gno-mermaid__axis {
+		stroke: var(--mermaid-stroke);
+	}
+
+	.gno-mermaid__grid {
+		stroke: var(--s-color-border-secondary);
+	}
+
+	.gno-mermaid__bar {
+		fill: var(--mermaid-c);
+	}
+
+	.gno-mermaid__plot {
+		fill: none;
+		stroke: var(--mermaid-c);
+		stroke-width: 2.5;
+		stroke-linejoin: round;
+	}
 }
 
 /* ===== TOOLTIP & LINK GLYPH COMPONENTS ===== */
