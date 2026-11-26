@@ -26,11 +26,21 @@ func PanicIt(f func(), box *[]func()) {
 	panic(f)
 }
 
-func PanicOut(f func())                { panic(f) }
-func CallThenCB(f func(), cb func())   { cb(); f() }
-func Recurse(f func(), n int)          { if n > 0 { Recurse(f, n-1) }; f() }
-func Ret(f func() int) int             { return f() }
-func Branch(f, alt func(), b bool)     { if b { f = alt }; f() }
+func PanicOut(f func())              { panic(f) }
+func CallThenCB(f func(), cb func()) { cb(); f() }
+func Recurse(f func(), n int) {
+	if n > 0 {
+		Recurse(f, n-1)
+	}
+	f()
+}
+func Ret(f func() int) int { return f() }
+func Branch(f, alt func(), b bool) {
+	if b {
+		f = alt
+	}
+	f()
+}
 
 type Fn func()
 
@@ -51,4 +61,3 @@ func CallOps(o Ops) { o.F() }
 type Caller interface{ Do(f func()) }
 
 func Via(c Caller, f func()) { c.Do(f) }
-

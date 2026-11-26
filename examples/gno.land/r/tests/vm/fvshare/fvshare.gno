@@ -85,7 +85,9 @@ func ProcessUndoFn(cur realm, h func(undo func()) func()) {
 	cb()
 }
 
-type Getter interface{ Use(get func() func()) func() }
+type Getter interface {
+	Use(get func() func()) func()
+}
 
 // ProcessCapture shows a getter closure that captures its undo.
 func ProcessCapture(cur realm, h Getter) {

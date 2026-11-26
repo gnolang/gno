@@ -168,6 +168,7 @@ func marksCall(t *testing.T, store Store, fn string, args ...any) (lends, live i
 }
 
 func marksCount(t *testing.T, store Store) int64 {
+	t.Helper()
 	m := NewMachineWithOptions(MachineOptions{PkgPath: marksRealmPath, Store: store, Output: io.Discard})
 	defer m.Release()
 	return m.Eval(Call(X("Count")))[0].GetInt()

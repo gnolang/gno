@@ -12,11 +12,11 @@ func try(fn func()) (r any) {
 	return nil
 }
 
-func Call(f func())                    { f() }
-func CallX(cur realm, f func()) any    { return try(func() { f() }) }
-func ViaLib(cur realm, f func()) any   { return try(func() { lib.Call(f) }) }
-func Keep(cur realm, f func()) any     { Box = append(Box, f); return nil }
-func Run(cur realm) any                { return try(func() { Box[0]() }) }
+func Call(f func())                  { f() }
+func CallX(cur realm, f func()) any  { return try(func() { f() }) }
+func ViaLib(cur realm, f func()) any { return try(func() { lib.Call(f) }) }
+func Keep(cur realm, f func()) any   { Box = append(Box, f); return nil }
+func Run(cur realm) any              { return try(func() { Box[0]() }) }
 
 // Bounce hands f back to the caller's crossing Reenter while still lent.
 func Bounce(cur realm, f func(), back func(cur realm, g func()) any) any {

@@ -5,7 +5,7 @@ import lib "gno.land/p/demo/tests/lendholdlib"
 
 var count int
 
-func inc()      { count++ }
+func inc()                   { count++ }
 func show(s string, err any) { println(s, count, err) }
 
 func main(cur realm) {

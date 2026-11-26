@@ -70,7 +70,7 @@ var defIntInit = lib.BumpInt
 
 // DefInit exposes a stored library handle (made under this realm).
 func DefInit() func(*lib.Box) { return defInit }
-func DefIntInit() func(*int)   { return defIntInit }
+func DefIntInit() func(*int)  { return defIntInit }
 
 var adder = lib.MakeAdder(1000)
 var intAdder = lib.MakeIntAdder(1000)

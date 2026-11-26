@@ -22,9 +22,9 @@ func KeepAdder(cur realm)    { lendboxvictim.AddBox(cross(cur), lendboxvictim.Ad
 func KeepIntAdder(cur realm) { lendboxvictim.AddCount(cross(cur), lendboxvictim.IntAdder()) }
 func MyAdder(cur realm)      { lendboxvictim.AddBox(cross(cur), lib.MakeAdder(1000)) }
 
-func GuardBump(cur realm)    { lendboxvictim.AddBoxGuarded(cross(cur), lib.Bump) }
-func GuardSetter(cur realm)  { lendboxvictim.AddBoxGuarded(cross(cur), lib.Setter{V: 777}.Apply) }
-func GuardInt(cur realm)     { lendboxvictim.AddCountGuarded(cross(cur), lib.BumpInt) }
+func GuardBump(cur realm)   { lendboxvictim.AddBoxGuarded(cross(cur), lib.Bump) }
+func GuardSetter(cur realm) { lendboxvictim.AddBoxGuarded(cross(cur), lib.Setter{V: 777}.Apply) }
+func GuardInt(cur realm)    { lendboxvictim.AddCountGuarded(cross(cur), lib.BumpInt) }
 func GuardOwn(cur realm) {
 	lendboxvictim.AddBoxGuarded(cross(cur), func(b *lib.Box) { b.N += 1000 })
 }

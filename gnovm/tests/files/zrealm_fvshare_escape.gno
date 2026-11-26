@@ -6,8 +6,8 @@ package zrealm_fvshare_escape
 
 type F func()
 
-func (f F) Throw()  { panic(f) }
-func (f F) Get() F  { return f }
+func (f F) Throw() { panic(f) }
+func (f F) Get() F { return f }
 
 var (
 	count int

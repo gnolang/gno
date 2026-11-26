@@ -629,7 +629,11 @@ closures, walks `a`'s objects or uses its own tables writes `a`'s state:
 
 ```go
 // realm a: ctw
-func ViaTable(cur realm)    { libtable.Table["run"](func() { Count++ }) }
+func ViaTable(cur realm) {
+	libtable.Table["run"](
+		func() { Count++ },
+	)
+}
 func ViaDispatch(cur realm) { libtable.Dispatch("inc", Boxes[0]) }
 
 // realm b

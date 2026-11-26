@@ -15,5 +15,7 @@ func ResultBump(cur realm) { lendpickvictim.RunResult(cross(cur), lendpickvictim
 func PlainBump(cur realm)  { lendpickvictim.RunPlain(cross(cur), lendpickvictim.Get().Bump) }
 func RegLib(cur realm)     { lendpickvictim.RunReg(cross(cur), lib.Bump) }
 func RegBump(cur realm)    { lendpickvictim.RunRegPlain(cross(cur), lendpickvictim.Get().Bump) }
-func IfaceBump(cur realm)  { lendpickvictim.RunIface(cross(cur), lendpickvictim.Fn(lendpickvictim.Get().Bump)) }
-func FieldBump(cur realm)  { lendpickvictim.RunField(cross(cur), lendpickvictim.Get().Bump) }
+func IfaceBump(cur realm) {
+	lendpickvictim.RunIface(cross(cur), lendpickvictim.Fn(lendpickvictim.Get().Bump))
+}
+func FieldBump(cur realm) { lendpickvictim.RunField(cross(cur), lendpickvictim.Get().Bump) }
