@@ -22,6 +22,10 @@ func show(s string, err any) {
 	n = 0
 }
 
+type Fn func()
+
+func run(f Fn) { f() }
+
 func pass(f func([]int, func(int))) {}
 
 func get() func([]int, func(int)) {
@@ -98,6 +102,18 @@ func main(cur realm) {
 		me := lib.Inner.Do
 		me(lib.Inner{}, xs, func(x int) { n += x })
 	}))
+	// Accepted fail-closed gap: refused although the by-name twin writes.
+	show("14 in a converted literal, nested call, name ", try(func() {
+		run(func() {
+			func() { lib.Each(xs, func(x int) { n += x }) }()
+		})
+	}))
+	show("14 in a converted literal, nested call, alias", try(func() {
+		run(func() {
+			each := lib.Each
+			func() { each(xs, func(x int) { n += x }) }()
+		})
+	}))
 }
 
 func try(fn func()) (r any) {
@@ -126,3 +142,5 @@ func try(fn func()) (r any) {
 // 12 address taken 0 gno.land/r/tests/vm/lendaliasrefused's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/lendaliasrefused) package{})).n
 // 13 method expression, name  6 undefined
 // 13 method expression, alias 0 gno.land/r/tests/vm/lendaliasrefused's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/lendaliasrefused) package{})).n
+// 14 in a converted literal, nested call, name  6 undefined
+// 14 in a converted literal, nested call, alias 0 gno.land/r/tests/vm/lendaliasrefused's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/lendaliasrefused) package{})).n

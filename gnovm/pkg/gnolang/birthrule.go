@@ -71,10 +71,15 @@ func markLocalHelpersIn(fn *FileNode, root Decl) {
 				return n, TRANS_CONTINUE
 			}
 			dbn := last.GetBlockNodeForPath(nil, n.Path)
-			k := helperKey{dbn, n.Name}
+			// Key by the slot the path names: a capture already moved into a
+			// literal's block ("~f") must not share a key with an f declared there.
+			k := helperKey{dbn, "~?"}
+			if names := dbn.GetBlockNames(); int(n.Path.Index) < len(names) {
+				k.name = names[n.Path.Index]
+			}
 			u := uses[k]
 			if u == nil {
-				u = &helperUse{lit: true}
+				u = &helperUse{lit: true, bad: k.name == "~?"} // unknown slot: fail closed
 				uses[k] = u
 			}
 			// Every literal entered since the declaring block captures it.
