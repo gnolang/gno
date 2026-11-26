@@ -3159,6 +3159,17 @@ main.is-dev-mode .b-toc a {
 	.gno-mermaid__badge {
 		fill: var(--mermaid-ink);
 	}
+
+	/* Pie charts: slices parted by a hairline of page, legend swatches. */
+	.gno-mermaid__slice {
+		fill: var(--mermaid-c);
+		stroke: var(--mermaid-ground);
+		stroke-width: 2;
+	}
+
+	.gno-mermaid__swatch {
+		fill: var(--mermaid-c);
+	}
 }
 
 /* ===== TOOLTIP & LINK GLYPH COMPONENTS ===== */

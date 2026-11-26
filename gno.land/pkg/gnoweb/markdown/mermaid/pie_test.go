@@ -1,0 +1,59 @@
+package mermaid
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestPieErrors(t *testing.T) {
+	renderErrors(t, map[string][2]string{
+		"zero total":   {"pie\n\"a\" : 0", "positive"},
+		"no slices":    {"pie title x", "positive"},
+		"negative":     {"pie\n\"a\" : -1", "non-negative"},
+		"not a number": {"pie\n\"a\" : many", "non-negative"},
+		"underscores":  {"pie\n\"a\" : 1_000", "non-negative"},
+		"unquoted":     {"pie\na : 1", "unsupported statement"},
+		"unclosed":     {"pie\n\"a : 1", "unclosed quote"},
+		"no value":     {"pie\n\"a\"", "without a value"},
+		"option":       {"pie explode", "unsupported pie option"},
+	})
+}
+
+func TestPieWhole(t *testing.T) {
+	// A single slice is a full circle: an arc cannot start and end at the
+	// same point. A zero slice draws nothing but keeps its legend row.
+	out, err := Render("pie\n\"all\" : 3\n\"none\" : 0")
+	require.NoError(t, err)
+	s := string(out)
+	assert.Contains(t, s, `<circle class="gno-mermaid__slice gno-mermaid__c0"`)
+	assert.NotContains(t, s, "<path")
+	assert.Equal(t, 1, strings.Count(s, "gno-mermaid__slice"))
+	assert.Contains(t, s, "all 100%")
+	assert.Contains(t, s, "none 0%")
+}
+
+func TestPieDuplicates(t *testing.T) {
+	// Mermaid keeps the first slice of a label.
+	d, err := parsePie("", []line{{text: `"a" : 1`}, {text: `"b" : 1`}, {text: `"a" : 8`}}, &meta{})
+	require.NoError(t, err)
+	p := d.(*pie)
+	assert.Equal(t, []slice{{"a", 1}, {"b", 1}}, p.slices)
+	assert.Equal(t, 2.0, p.total)
+}
+
+func TestPieColors(t *testing.T) {
+	// The last slice never takes the color of the first, which it touches.
+	p := &pie{slices: make([]slice, len(palette)+1)}
+	assert.Equal(t, color(0), p.sliceColor(0))
+	assert.NotEqual(t, p.sliceColor(0), p.sliceColor(len(palette)))
+	assert.NotEqual(t, p.sliceColor(len(palette)-1), p.sliceColor(len(palette)))
+}
+
+func TestPercent(t *testing.T) {
+	assert.Equal(t, "65.6%", percent(42, 64))
+	assert.Equal(t, "50%", percent(1, 2))
+	assert.Equal(t, "33.3%", percent(1, 3))
+}
