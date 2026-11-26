@@ -78,6 +78,7 @@ realm from library code (call a function of the owning realm)`.
 - `lib.Default.Each(func(int){ count++ })`, a method of a library-owned variable, is refused (`zrealm_lend_reg_plibeach`).
 - Swift and Rust put the same line in the function's type; the guide compares the four limits above (`gno-interrealm.md`, "The same line in Swift and Rust").
 - A local helper used inside a literal that is lent in place is refused; call the helper outside the literal, or write its body in the literal.
+- A lent literal captured, at any depth, by a function value that escapes (stored, returned, or handed to a parameter that keeps it) loses its loan at once, also when that wrapper was itself lent (`zrealm_lend_nested_two`, `zrealm_lend_captures`); following captures below the first level, and walking a `xs...` slice while a loan is live, is paid in gas.
 - A library in the import tree is trusted for interface calls; type-assert caller-supplied interface values.
 - A library package variable called in place (`lib.Table[k](x)`) acts for the caller (`zrealm_ctw_owncb`, `zrealm_saved_libtable_copy`).
 
