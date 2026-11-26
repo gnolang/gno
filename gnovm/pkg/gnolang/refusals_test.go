@@ -132,3 +132,83 @@ func TestRefusalTextsInDocs(t *testing.T) {
 		t.Errorf("gno-interrealm.md's refusal table differs from refusals; generated:\n%s%s", head, want.String())
 	}
 }
+
+// refusalSites are the functions that raise a refusal of the write rule, keyed
+// file:function (a uverse builtin by its name), with how many refusal constants
+// or refuseWrite calls each names. Swapping one for a raw string drops the count.
+var refusalSites = map[string]int{
+	"machine.go:pushFrameCall":        2,
+	"machine.go:PopAsPointer":         1,
+	"machine.go:resolvePointer":       1,
+	"machine.go:readonlyAccessPanic":  4,
+	"op_assign.go:doOpAssign":         1,
+	"realm.go:DidUpdate":              2,
+	"realm.go:assertNoUncrossedWrite": 1,
+	"op_expressions.go:convertValue":  2,
+	"uverse.go:append":                1,
+	"uverse.go:copy":                  2,
+	"uverse.go:delete":                1,
+	"preprocess.go:preprocess1":       1,
+}
+
+func TestRefusalSites(t *testing.T) {
+	names := map[string]bool{"refuseWrite": true}
+	f, err := parser.ParseFile(token.NewFileSet(), "refusals.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range f.Decls {
+		if gd, ok := d.(*ast.GenDecl); ok && gd.Tok == token.CONST {
+			for _, sp := range gd.Specs {
+				for _, n := range sp.(*ast.ValueSpec).Names {
+					names[n.Name] = true
+				}
+			}
+		}
+	}
+	got := map[string]int{}
+	fset := token.NewFileSet()
+	for _, file := range refusalRuleFiles {
+		f, err := parser.ParseFile(fset, file, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range f.Decls {
+			fd, ok := d.(*ast.FuncDecl)
+			if !ok || fd.Body == nil {
+				continue
+			}
+			key := file + ":" + fd.Name.Name
+			ast.Inspect(fd.Body, func(n ast.Node) bool {
+				if c, ok := n.(*ast.CallExpr); ok && file == "uverse.go" && len(c.Args) > 0 {
+					if id, ok := c.Fun.(*ast.Ident); ok && id.Name == "defNative" {
+						if lit, ok := c.Args[0].(*ast.BasicLit); ok {
+							name, _ := strconv.Unquote(lit.Value)
+							ast.Inspect(c, func(n ast.Node) bool {
+								if id, ok := n.(*ast.Ident); ok && names[id.Name] {
+									got[file+":"+name]++
+								}
+								return true
+							})
+							return false
+						}
+					}
+				}
+				if id, ok := n.(*ast.Ident); ok && names[id.Name] {
+					got[key]++
+				}
+				return true
+			})
+		}
+	}
+	for k, want := range refusalSites {
+		if got[k] != want {
+			t.Errorf("%s names %d refusal constants or refuseWrite calls, want %d: a refusal raised with a raw string?", k, got[k], want)
+		}
+	}
+	for k, n := range got {
+		if _, ok := refusalSites[k]; !ok {
+			t.Errorf("%s raises %d refusals but is not in refusalSites", k, n)
+		}
+	}
+}
