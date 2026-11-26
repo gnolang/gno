@@ -223,8 +223,8 @@ cap re-anchors it: the outstanding jailed power may not exceed
 count may not exceed `max_jailed_count_percent` of its entries — both
 measured against membership, not the shrinking live set, and counting only
 jailed entries still in `current` — each with a floor of one validator so
-that a small set can jail anyone at all (gnoland-1 is 5 validators at power
-60; 10% of 300 is less than any one of them). At the cap the jail is
+that a small set can jail anyone at all (gnoland-1 is 6 validators at power
+60; 10% of 360 is less than any one of them). At the cap the jail is
 refused, not traded against an older one: a halt is recoverable in hours
 with the roster intact, a captured set is not. Beyond the cap an outage is by
 definition one the set shares, and §5 applies. The constitution caps the
@@ -292,6 +292,23 @@ liveness keeper is not dirty":
    the signing info of every address `diff` removes — or move it to its
    successor when a rename exists (§7) — clear both flags, return `diff`.
 
+The consensus-apply dry run follows the set tm2 holds. Today the EndBlocker
+and `nodeParamsKeeper.WillSetParam` both run `dryRunValsetDiff` on
+`current`, which is that set only while nothing is jailed. Both move to
+`consensus`:
+
+- The EndBlocker dry-runs step 3's `diff` on `consensus` before writing
+  anything. If tm2 would refuse it and a proposal is pending, the proposal is
+  dropped whole as today: `current` keeps its previous value and steps 2–3
+  run again on it, so a jail or unjail of the same block still applies.
+- `WillSetParam` dry-runs `consensus.UpdatesFrom(proposed − jailed)` on
+  `consensus`, so a write to `valset:proposed` is refused in its own
+  transaction for the diff tm2 would actually receive.
+
+`liveValset` and `loadValsetCurrent` gain their `consensus` counterparts. The
+small-order-key and repeated-address checks on `valset:proposed` are about
+the proposal itself and do not change.
+
 No step reconciles the jailed set with `current`: an entry stays until
 `MsgUnjail` clears it, whatever governance does to the membership in between.
 
@@ -322,6 +339,11 @@ The handler, in order:
    `valopers.GetByAddr(<operator>)`, read `SigningAddress` and `KeepRunning`.
    No profile: reject. The eval must run under the transaction's gas meter
    rather than the query budget, so the sender pays for it.
+   `QueryEvalJSON` cannot be called as is: `withQueryEvalMachine` replaces
+   the context's meter with `newQueryGasMeter`, which is documented as never
+   to be used for a transaction. The keeper needs a variant of that helper
+   that keeps the caller's meter, and that variant is what the liveness
+   keeper's interface exposes.
 3. `SigningAddress` not in the jailed set: reject `not jailed`.
 4. `KeepRunning == false`: reject. An opted-out validator does not come back,
    consistent with the add rule in v0.
@@ -396,7 +418,7 @@ The shape is theirs: a large window with a low threshold, so that a short
 blip never counts and only a sustained absence does — the operators this set
 is drawn from are used to that and to nothing tighter. The window is smaller
 because the set is: a validator missing for 15 hours is noise among 180 and
-the whole margin among five. The quantity to reason about is
+the whole margin among six. The quantity to reason about is
 `window × (1 − min_signed/100) × block time`, the continuous silence that
 jails: it must exceed the longest routine maintenance an operator is expected
 to do, and can be loosened toward the Hub's value by proposal as the set
@@ -619,8 +641,10 @@ Negative / trade-offs:
   validators as members meanwhile.
 - The "active at H+2" meaning moves from `current` to `consensus`; `current`
   becomes "governed membership". The known readers to update are
-  `InitChainer`, `EndBlocker` and their doc comments; realm readers already
-  treat `current` as membership.
+  `InitChainer`, `EndBlocker`, the consensus-apply dry run
+  (`dryRunValsetDiff` and `liveValset`, in the EndBlocker and in
+  `WillSetParam`, §2) and their doc comments; realm readers already treat
+  `current` as membership.
 - A validator that is online but persistently excluded by proposers can be
   jailed. The window and the threshold are the tolerance; if a network hits
   this, the fix is the window, not the mechanism.
