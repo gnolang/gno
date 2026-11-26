@@ -81,4 +81,9 @@ realm from library code (call a function of the owning realm)`.
 - These stop writing: a stored callback (store a crossing closure instead); a declared function passed as a value (pass a literal in place, or make it crossing); a method value (call the method, or wrap it in a literal argument); a callback handed to another realm (make it `func(cur realm, …)`, called with `cross`).
 - `commondao` v0 `Option` and boards `permissions` v0 `Option` became interfaces (`commondao.WithID(…)` etc. keep their names): a closure made in init runs read-only when `New` calls it.
 - Struct errors returned to other realms become pointer errors (`sys/users`); library containers receive realm structs as pointers (`commondao`); `gov/dao NewGovDAO` is crossing.
-- Replay: see PR description
+- Replay: a chain that replays past blocks with this binary computes other
+  results. A function value read back from saved state, or made and called
+  without being passed in place, no longer writes, so such past transactions
+  would fail; the panic rule lets some past aborts be caught; gas differs.
+  There is no height switch: this ships on a new chain or behind a gated
+  upgrade. Marks are rebuilt at every load, so nodes agree with each other.
