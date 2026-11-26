@@ -44,9 +44,6 @@ jobs:
     with:
       modulepath: "gno.land"
       tests-extra-args: "-coverpkg=github.com/gnolang/gno/gno.land/..."
-      # `make generate` here also builds gnoweb's frontend with npm, so it
-      # needs a full runner's Node rather than ubuntu-slim's.
-      build-runs-on: ubuntu-latest
       # txtar integration tests run against in-memory nodes in parallel by
       # default (see gno.land/pkg/integration). This replaces the old
       # subprocess-per-node mode (cold stdlib reload every boot) and the
@@ -54,7 +51,7 @@ jobs:
       # a few minutes.
 
   gnoweb_generate:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -73,7 +70,7 @@ jobs:
              (echo "'gnoweb generate' out of date, please run 'make gnoweb.generate' within './gno.land'" && exit 1)
 
   gnoweb_front_lint:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -34,11 +34,11 @@ concurrency:
   cancel-in-progress: true
 
 # gno2go, generate and mod-tidy each build the gno binary first, so they
-# restore the cache _ci-gno.yml's test job saves on develop.
+# restore the cache _ci-gno.yml's test job saves on the default branch.
 jobs:
   gno2go:
-    runs-on: ubuntu-slim
-    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -62,8 +62,7 @@ jobs:
       path: "examples"
 
   generate:
-    runs-on: ubuntu-slim
-    timeout-minutes: 15
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -93,7 +92,7 @@ jobs:
           fi
 
   mod-tidy:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

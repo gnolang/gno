@@ -41,8 +41,8 @@ jobs:
   fmt:
     name: fmt
     if: inputs.run-fmt
-    runs-on: ubuntu-slim
-    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:

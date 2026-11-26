@@ -15,11 +15,6 @@ on:
       modulepath:
         required: true
         type: string
-      build-runs-on:
-        description: "Runner for the build job, which only runs `make generate`"
-        required: false
-        type: string
-        default: ubuntu-slim
       tests-extra-args:
         required: false
         type: string
@@ -111,8 +106,8 @@ jobs:
 
   build:
     name: build
-    runs-on: ${{ inputs.build-runs-on }}
-    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:

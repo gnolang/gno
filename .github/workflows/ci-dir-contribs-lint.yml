@@ -3,15 +3,15 @@ name: ci / contribs-lint
 # golangci-lint and `go fix` report on a module's own code, so a change to
 # gno.land, gnovm or tm2 cannot give them anything new to say about contribs/:
 # on pull requests this runs when contribs/ or the lint setup changes, unlike
-# the tests (ci-dir-contribs.yml), which also run on those. Every push to
-# develop runs it, so a change that does reach contribs/ from outside, such as
-# a core API it uses becoming deprecated, shows up on the merge that caused it;
-# that also keeps this job's cache current.
+# the tests (ci-dir-contribs.yml), which also run on those. Every push to the
+# default branch runs it, so a change that does reach contribs/ from outside,
+# such as a core API it uses becoming deprecated, shows up on the merge that
+# caused it; that also keeps this job's cache current.
 
 on:
   push:
     branches:
-      - develop
+      - master
   pull_request:
     paths:
       - contribs/**
