@@ -124,3 +124,58 @@ func TestLoansBounded(t *testing.T) {
 	// Every loan wrote while its call ran.
 	require.Equal(t, c0+10000+100+100+3000, count())
 }
+
+const loansWalkRealmPath = "gno.land/r/tests/vm/loanwalk"
+
+const loansWalkRealmSrc = `package loanwalk
+
+var count int
+
+func sink(x func()) {}
+func call(g func()) { g() }
+
+// Walk builds an n-deep chain of closures, then hands either the chain or a
+// one-level closure to sink n times while a lent literal's loan is live.
+func Walk(n, deep int) {
+	shallow := func() {}
+	prev := func() {}
+	for i := 0; i < n; i++ {
+		p := prev
+		prev = func() { p() }
+	}
+	call(func() {
+		for i := 0; i < n; i++ {
+			if deep == 1 {
+				sink(prev)
+			} else {
+				sink(shallow)
+			}
+		}
+		count++
+	})
+}
+`
+
+// Following captures below the first level costs CPU per value visited, so
+// a deep chain handed out repeatedly while a loan is live is paid for.
+func TestLoansDeepWalkCharged(t *testing.T) {
+	db := memdb.NewMemDB()
+	backend := dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
+	store := NewStore(nil, backend, backend)
+	m0 := NewMachineWithOptions(MachineOptions{Store: store, Output: io.Discard})
+	m0.RunMemPackage(&std.MemPackage{
+		Type: MPUserProd, Name: "loanwalk", Path: loansWalkRealmPath,
+		Files: []*std.MemFile{{Name: "loanwalk.gno", Body: loansWalkRealmSrc}},
+	}, true)
+	m0.Release()
+	cycles := func(n, deep int) int64 {
+		m := NewMachineWithOptions(MachineOptions{PkgPath: loansWalkRealmPath, Store: store, Output: io.Discard})
+		defer m.Release()
+		m.Eval(Call(X("Walk"), n, deep))
+		return m.Cycles
+	}
+	const n = 200
+	shallow, deep := cycles(n, 0), cycles(n, 1)
+	t.Logf("cycles: shallow %d, deep %d", shallow, deep)
+	require.GreaterOrEqual(t, deep-shallow, int64(n*n/2))
+}
