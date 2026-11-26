@@ -19,36 +19,30 @@ var modeSetters = map[string]bool{
 	"enterReadOnlyByS3": true, "enterReadOnlyMode": true,
 }
 
-// modeFields are the machine's mode (with its allocator's view state); only
-// modeFieldSites write them, through a *Machine of any name.
-var (
-	modeFields = map[string]bool{
-		"Realm": true, "viewOnly": true, "viewS3": true, "viewRealm": true, "curCrossing": true,
-		"scratch": true, "viewHoldID": true, "currentRealmID": true,
-	}
-	modeFieldSites = map[string]bool{
-		"setRealm": true, "setViewOnly": true, "enterReadOnlyMode": true, "setCrossing": true,
-		"restoreRealmState": true, "NewMachineWithOptions": true, "Release": true,
-	}
-	// decidedSetterRefs is how many mode-setter references each decided site has.
-	decidedSetterRefs = map[string]int{"pushFrameCall": 1, "applyCallStart": 5}
-)
+// modeFields are the machine's mode (with its allocator's view state).
+var modeFields = map[string]bool{
+	"Realm": true, "viewOnly": true, "viewS3": true, "viewRealm": true, "curCrossing": true,
+	"scratch": true, "viewHoldID": true, "currentRealmID": true,
+}
 
-// modeSetterSites are the only functions that may call a mode setter. A
-// "decided" entry applies decideCallStart's answer; the rest are not a call
-// start deciding its mode.
-var modeSetterSites = map[string]string{
-	"setRealm":          "setter: writes as a realm, clearing view state",
-	"setViewOnly":       "setter: drops the realm via setRealm(nil)",
-	"enterReadOnlyMode": "setter: view-only plus the read-only realm",
-	"enterReadOnly":     "setter wrapper",
-	"enterReadOnlyByS3": "setter wrapper",
-	"pushFrameCall":     "decided: applies askCallStart's startCross answer",
-	"applyCallStart":    "decided: applies askCallStart's answer",
-	"restoreRealmState": "restores the caller's saved mode on return or panic",
-	"SetActivePackage":  "tooling: runs as the package's realm, no call",
-	"runMemPackage":     "package init under a throwaway realm, no call",
-	"PreprocessFiles":   "package preprocess under a throwaway realm, no call",
+// modeSites are the only functions that use a mode setter or write a mode
+// field, each with exactly the uses listed (setter or .field, times). A
+// "decided" site applies decideCallStart's answer; the rest start no call.
+var modeSites = map[string]struct{ why, uses string }{
+	"setRealm":              {"setter: writes as a realm, clearing view state", ".Realm×1 .currentRealmID×2 .scratch×1 .viewHoldID×1 .viewOnly×1 .viewRealm×1 .viewS3×1"},
+	"setViewOnly":           {"setter: drops the realm via setRealm(nil)", ".scratch×1 .viewHoldID×1 .viewOnly×1 setRealm×1"},
+	"enterReadOnlyMode":     {"setter: view-only plus the read-only realm", ".currentRealmID×1 .scratch×1 .viewRealm×1 .viewS3×1 setViewOnly×1"},
+	"enterReadOnly":         {"setter wrapper", "enterReadOnlyMode×1"},
+	"enterReadOnlyByS3":     {"setter wrapper", "enterReadOnlyMode×1"},
+	"setCrossing":           {"setter: the active crossing call", ".curCrossing×1"},
+	"pushFrameCall":         {"decided: applies askCallStart's startCross answer", "setRealm×1"},
+	"applyCallStart":        {"decided: applies askCallStart's answer", "enterReadOnlyByS3×1 enterReadOnly×1 setRealm×2 setViewOnly×1"},
+	"restoreRealmState":     {"restores the caller's saved mode on return or panic", ".currentRealmID×1 .scratch×1 .viewHoldID×1 .viewOnly×1 .viewRealm×1 .viewS3×1 setRealm×1"},
+	"NewMachineWithOptions": {"a new machine starts the tx's first crossing call", ".curCrossing×1"},
+	"Release":               {"a released machine is zeroed for the pool", "*×1"},
+	"SetActivePackage":      {"tooling: runs as the package's realm, no call", "setRealm×1"},
+	"runMemPackage":         {"package init under a throwaway realm, no call", "setRealm×2"},
+	"PreprocessFiles":       {"package preprocess under a throwaway realm, no call", "setRealm×2"},
 }
 
 // pureDecision are decideCallStart and the helpers it reads through, and
@@ -104,30 +98,50 @@ func isMachineType(x ast.Expr) bool {
 }
 
 // checkWriteDecision returns every violation of the single-decision rule.
-// Limits (go/ast sees no types): a Machine reached through a call result,
-// a field of another struct, reflect or unsafe; Machine{...} literals.
+// Limits (go/ast sees no types or scopes): a Machine reached through a call
+// result, a field of another struct, a closure's captured alias, reflect or
+// unsafe; Machine{...} literals; aliases are per function, so a shadowing
+// inner declaration can hide one.
 func checkWriteDecision(fset *token.FileSet, files []*ast.File) []string {
 	var bad []string
 	report := func(n ast.Node, msg string) { bad = append(bad, fset.Position(n.Pos()).String()+": "+msg) }
 	calls := map[string]map[string]bool{} // function -> names it calls
-	setterRefs := map[string]int{}
+	uses := map[string]map[string]int{}   // site -> setter or .field -> times
+	use := func(n ast.Node, name, what string) {
+		if _, ok := modeSites[name]; !ok {
+			report(n, name+" uses mode "+what)
+		}
+		if uses[name] == nil {
+			uses[name] = map[string]int{}
+		}
+		uses[name][what]++
+	}
 	check := func(name string, recv, params *ast.FieldList, body ast.Node) {
 		if calls[name] == nil {
 			calls[name] = map[string]bool{}
 		}
-		outside := map[string]bool{}  // receiver and parameters
-		machines := map[string]bool{} // variables holding a Machine or *Machine
-		for _, fl := range []*ast.FieldList{recv, params} {
+		outside := map[string]bool{}      // receiver and parameters
+		machines := map[string]bool{}     // variables holding a Machine or *Machine
+		manyMachines := map[string]bool{} // slices or maps of Machines
+		addParams := func(fl *ast.FieldList, isOutside bool) {
 			if fl == nil {
-				continue
+				return
 			}
 			for _, f := range fl.List {
 				for _, n := range f.Names {
-					outside[n.Name] = true
-					machines[n.Name] = machines[n.Name] || isMachineType(f.Type)
+					outside[n.Name] = outside[n.Name] || isOutside
+					machines[n.Name] = isMachineType(f.Type)
+					switch t := f.Type.(type) {
+					case *ast.ArrayType:
+						manyMachines[n.Name] = isMachineType(t.Elt)
+					case *ast.MapType:
+						manyMachines[n.Name] = isMachineType(t.Value)
+					}
 				}
 			}
 		}
+		addParams(recv, true)
+		addParams(params, true)
 		// isMachine reports whether x is a Machine variable, maybe via & or *.
 		isMachine := func(x ast.Expr) bool {
 			for {
@@ -138,6 +152,13 @@ func checkWriteDecision(fset *token.FileSet, files []*ast.File) []string {
 					x = e.X
 				case *ast.ParenExpr:
 					x = e.X
+				case *ast.SelectorExpr: // m.Alloc holds part of the mode
+					if e.Sel.Name != "Alloc" {
+						return false
+					}
+					x = e.X
+				case *ast.TypeAssertExpr:
+					return isMachineType(e.Type)
 				case *ast.Ident:
 					return machines[e.Name]
 				default:
@@ -161,17 +182,19 @@ func checkWriteDecision(fset *token.FileSet, files []*ast.File) []string {
 				if pureDecision[name] && cn != "" && !pureDecision[cn] && !pureCallees[cn] {
 					report(n, name+" calls "+cn)
 				}
+			case *ast.FuncLit:
+				addParams(n.Type.Params, false)
+			case *ast.RangeStmt:
+				if id, ok := n.Value.(*ast.Ident); ok {
+					machines[id.Name] = manyMachines[rootIdent(n.X)]
+				}
 			case *ast.SelectorExpr: // a setter called or taken as a method value
 				if modeSetters[n.Sel.Name] {
-					setterRefs[name]++
-					if modeSetterSites[name] == "" {
-						report(n, name+" uses mode setter "+n.Sel.Name)
-					}
+					use(n, name, n.Sel.Name)
 				}
 			case *ast.UnaryExpr:
-				if sx, ok := n.X.(*ast.SelectorExpr); ok && n.Op == token.AND &&
-					modeFields[sx.Sel.Name] && !modeFieldSites[name] {
-					report(n, name+" takes the address of mode field "+sx.Sel.Name)
+				if sx, ok := n.X.(*ast.SelectorExpr); ok && n.Op == token.AND && modeFields[sx.Sel.Name] {
+					use(n, name, "&."+sx.Sel.Name)
 				}
 			case *ast.ValueSpec:
 				for i, id := range n.Names {
@@ -183,8 +206,12 @@ func checkWriteDecision(fset *token.FileSet, files []*ast.File) []string {
 					if id, ok := l.(*ast.Ident); ok && len(n.Rhs) == len(n.Lhs) {
 						machines[id.Name] = isMachine(n.Rhs[i]) // an alias of a Machine
 					}
-					if modeTarget(l) && !modeFieldSites[name] {
-						report(n, name+" writes the machine's mode")
+					if modeTarget(l) {
+						what := "*"
+						if sx, ok := l.(*ast.SelectorExpr); ok {
+							what = "." + sx.Sel.Name
+						}
+						use(n, name, what)
 					}
 					if _, local := l.(*ast.Ident); pureDecision[name] && (!local || outside[rootIdent(l)]) {
 						report(n, name+" assigns through "+rootIdent(l))
@@ -209,9 +236,14 @@ func checkWriteDecision(fset *token.FileSet, files []*ast.File) []string {
 			}
 		}
 	}
-	for site, want := range decidedSetterRefs {
-		if setterRefs[site] > want {
-			bad = append(bad, fmt.Sprintf("%s uses mode setters %d times, want %d", site, setterRefs[site], want))
+	for site, u := range uses {
+		var got []string
+		for what, k := range u {
+			got = append(got, fmt.Sprintf("%s×%d", what, k))
+		}
+		sort.Strings(got)
+		if want := modeSites[site].uses; want != "" && strings.Join(got, " ") != want {
+			bad = append(bad, fmt.Sprintf("%s uses %q, want %q", site, strings.Join(got, " "), want))
 		}
 	}
 	// A "decided" site takes its answer from decideCallStart.
@@ -283,6 +315,11 @@ func (m *Machine) askCallStart(f *callFacts) { m.decideCallStart(f) }`,
 			"method-value":          pre + `func (m *Machine) helper() { f := m.setViewOnly; f() }`,
 			"package-scope":         pre + `var stray = func(m *Machine) { m.setViewOnly() }`,
 			"alloc-state":           pre + `func (m *Machine) helper() { m.Alloc.viewHoldID = PkgID{} }`,
+			"listed-extra":          pre + `func (m *Machine) runMemPackage() { m.setRealm(nil); m.setRealm(nil); m.setViewOnly() }`,
+			"swapped":               pre + `func (m *Machine) enterReadOnly(r *Realm) { m.setRealm(r) }`,
+			"lit-param":             pre + `func helper(m *Machine) { func(x *Machine) { x.Realm = nil }(m) }`,
+			"range-var":             pre + `func helper(ms []*Machine) { for _, x := range ms { x.viewOnly = true } }`,
+			"alloc-alias":           pre + `func (m *Machine) helper() { a := m.Alloc; a.scratch = 0 }`,
 			"whole-struct":          pre + `func (m *Machine) helper(o *Machine) { *m = *o }`,
 		}
 		for name, src := range stray {
