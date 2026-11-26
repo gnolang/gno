@@ -25,9 +25,12 @@ var (
 )
 
 func TestRefusalTextsNameFix(t *testing.T) {
-	for _, text := range refusalTexts {
-		if !refusalFixRe.MatchString(text) {
-			t.Errorf("refusal text names no fix in brackets: %q", text)
+	for _, r := range refusals {
+		if strings.TrimSpace(r.fix) == "" || strings.TrimSpace(r.when) == "" {
+			t.Errorf("refusal has no when or what to do: %q", r.text)
+		}
+		if !r.master && !refusalFixRe.MatchString(r.text) {
+			t.Errorf("refusal text new on this branch names no fix in brackets: %q", r.text)
 		}
 	}
 	fset := token.NewFileSet()
@@ -49,7 +52,7 @@ func TestRefusalTextsNameFix(t *testing.T) {
 			return true
 		})
 	}
-	// Every constant of refusals.go is in refusalTexts.
+	// Every constant of refusals.go is in refusals.
 	f, err := parser.ParseFile(fset, "refusals.go", nil, 0)
 	if err != nil {
 		t.Fatal(err)
@@ -65,9 +68,9 @@ func TestRefusalTextsNameFix(t *testing.T) {
 			if !ok {
 				continue
 			}
-			if gd.Tok == token.VAR && vs.Names[0].Name == "refusalTexts" {
+			if gd.Tok == token.VAR && vs.Names[0].Name == "refusals" {
 				for _, e := range vs.Values[0].(*ast.CompositeLit).Elts {
-					listed[e.(*ast.Ident).Name] = true
+					listed[e.(*ast.CompositeLit).Elts[0].(*ast.Ident).Name] = true
 				}
 			}
 		}
@@ -77,7 +80,7 @@ func TestRefusalTextsNameFix(t *testing.T) {
 			for _, sp := range gd.Specs {
 				for _, n := range sp.(*ast.ValueSpec).Names {
 					if !listed[n.Name] {
-						t.Errorf("refusals.go: %s is not in refusalTexts", n.Name)
+						t.Errorf("refusals.go: %s is not in refusals", n.Name)
 					}
 				}
 			}
@@ -85,38 +88,41 @@ func TestRefusalTextsNameFix(t *testing.T) {
 	}
 }
 
-// refusalDocRow is the docs table row for text: run-time parts shown as "…",
-// then the bracketed fix as "what to do".
-func refusalDocRow(text string) string {
+// refusalDocRow is the docs table row for r: the text with its run-time parts
+// shown as "…", when it fires, and what to do.
+func refusalDocRow(r refusal) string {
 	hole := strings.NewReplacer("%s.%v", "…", "%s", "…", "%v", "…")
-	form := hole.Replace(text)
+	form := hole.Replace(r.text)
 	if strings.HasPrefix(form, "'s ") {
 		form = "…" + form
 	}
 	if strings.HasSuffix(form, ": ") {
 		form += "…"
 	}
-	fix := refusalFixRe.FindAllString(form, -1)
-	last := fix[len(fix)-1]
-	return "| `" + form + "` | " + last[1:len(last)-1] + " |"
+	return "| `" + form + "` | " + r.when + " | " + r.fix + " |"
 }
 
 func TestRefusalTextsInDocs(t *testing.T) {
-	doc, err := os.ReadFile("../../../docs/resources/gno-interrealm.md")
+	raw, err := os.ReadFile("../../../docs/resources/gno-interrealm.md")
 	if err != nil {
 		t.Fatal(err)
 	}
+	doc := string(raw)
+	const head = "| Refusal | When | What to do |\n|---|---|---|\n"
 	var want strings.Builder
-	missing := false
-	for _, text := range refusalTexts {
-		row := refusalDocRow(text)
-		want.WriteString(row + "\n")
-		if !strings.Contains(string(doc), "\n"+row+"\n") {
-			missing = true
-			t.Errorf("gno-interrealm.md lacks the row: %s", row)
+	for _, r := range refusals {
+		want.WriteString(refusalDocRow(r) + "\n")
+	}
+	// The table on the page must be exactly the generated one, in both directions.
+	i := strings.Index(doc, head)
+	got := ""
+	if i >= 0 {
+		got = doc[i+len(head):]
+		if j := strings.Index(got, "\n\n"); j >= 0 {
+			got = got[:j+1]
 		}
 	}
-	if missing {
-		t.Logf("the table, generated from refusalTexts:\n| Refusal | What to do |\n|---|---|\n%s", want.String())
+	if got != want.String() {
+		t.Errorf("gno-interrealm.md's refusal table differs from refusals; generated:\n%s%s", head, want.String())
 	}
 }
