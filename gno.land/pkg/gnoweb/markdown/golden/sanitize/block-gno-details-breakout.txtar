@@ -1,0 +1,23 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: <gno-details summary="Comments">\n%s\n</gno-details>\n\n## Footer
+-- input.md --
+hello
+</gno-details>
+injected after breakout
+-- output.md --
+
+
+hello
+\</gno-details>
+injected after breakout
+
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>Comments</span></summary>
+<div>
+<p>hello
+&lt;/gno-details&gt;
+injected after breakout</p>
+</div>
+</details>
+<h2>Footer</h2>

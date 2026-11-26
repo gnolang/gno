@@ -1,0 +1,22 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: <gno-frame>\nrealm intro\n%s\nrealm footer\n</gno-frame>\n\nREALM AFTER
+-- input.md --
+<gno-frame>
+x
+</gno-frame>
+-- output.md --
+
+
+\<gno-frame>
+x
+\</gno-frame>
+
+-- output.html --
+<section class="gno-frame">
+<p>realm intro</p>
+<p>&lt;gno-frame&gt;
+x
+&lt;/gno-frame&gt;</p>
+<p>realm footer</p>
+</section>
+<p>REALM AFTER</p>

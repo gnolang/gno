@@ -7,8 +7,11 @@
 | Mainnet           | https://rpc.gno.land:443                | `gnoland-1` | [`misc/deployments/mainnet.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/mainnet.gno.land) |
 | Onyx / Test17     | https://rpc.onyx.testnets.gno.land:443  | `onyx-1`    | [`misc/deployments/onyx.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land)       |
 | Betanet (retired) | —                                       | `gnoland1`  | [`misc/deployments/gnoland1`](https://github.com/gnolang/gno/tree/chain/gnoland1/misc/deployments/gnoland1)                                                               |
-| Staging           | https://rpc.staging.gno.land:443        | `staging`   | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop)                                                                                             |
-| Pearl / Test16 (retiring) | https://rpc.pearl.testnets.gno.land:443 | `pearl-1` | [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land)   |
+| Staging (down since 2026-07-10) | https://rpc.staging.gno.land:443 | `staging`   | [`misc/loop`](https://github.com/gnolang/gno/tree/master/misc/loop)                                                                                             |
+| Pearl / Test16 (retired) | — | `pearl-1` | [`misc/deployments/pearl.gno.land`](https://github.com/gnolang/gno/tree/chain/pearl/misc/deployments/pearl.gno.land)   |
+
+`https://rpc.latest.testnets.gno.land:443` always points at the current testnet,
+today Onyx (`onyx-1`).
 
 Mainnet (`gnoland-1`) launched at `2026-09-12T15:00:00Z` as a fresh chain — not
 a hardfork of betanet. Balances come from the audited
@@ -21,14 +24,14 @@ coordinated upgrade since launch, are listed in `UPGRADES.md` under
 
 To watch mainnet live, [Gnockpit](https://gnockpit.gno.land/) shows its chain state, recent blocks, validators and peers, and [status.gno.land](https://status.gno.land/) reports service health, incidents and scheduled maintenance.
 
-Onyx (`onyx-1`) is the testnet on the mainnet line: it launches on
-`2026-09-28T00:00:00Z` running mainnet's code, one release candidate ahead,
-and is upgraded whenever mainnet is — every mainnet release is rehearsed there
-first. It has a
+Onyx (`onyx-1`) is the testnet on the mainnet line: it launched on
+`2026-09-28T00:00:00Z` running mainnet's code, and is upgraded whenever mainnet
+is: every mainnet release is rehearsed there first, as a release candidate on
+the commit mainnet's final is then cut from. It has a
 faucet and open transfers, mainnet's package set, namespaces and governance
 seed, and its own `UPGRADES.md` under
 [`misc/deployments/onyx.gno.land/`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land).
-Pearl is retiring in its favour.
+Pearl was retired in its favour.
 
 ### WebSocket endpoints
 
@@ -47,9 +50,9 @@ If you intend to [run a node](../builders/running-a-node.md) — a full node
 or a validator — the operational details you need are not in this page.
 They live with the network itself, under
 [`misc/deployments/`](../../misc/deployments)
-in the monorepo: one directory per network, holding its `config.toml`,
-its genesis (or the script that regenerates it), and a `README.md` /
-`VALIDATOR.md` with the join instructions.
+in the monorepo: one directory per network, holding its genesis (or the script that
+regenerates it) and a `README.md` / `VALIDATOR.md` with the join instructions
+and the node configuration; older networks also keep a `config.toml`.
 
 Two conventions to know:
 
@@ -57,10 +60,10 @@ Two conventions to know:
   not on `master` — that's the branch the chain's release is cut from. A
   testnet on the mainnet line (onyx) has no branch of its own: its directory
   sits on `chain/mainnet`, and its `chain/<name>` launch tag marks the commit
-  of the mainnet version it launched on. The `master` copy is where the next
+  that added its directory, on top of the mainnet version it launched on. The `master` copy is where the next
   network is prepared, plus the archives of past ones.
 - The `chain/<name>` [release](https://github.com/gnolang/gno/releases)
-  carries the network's `genesis.json` and its checksum, nothing else. Binaries
+  carries the network's `genesis.json`, its `.gz` and their checksums. Binaries
   and container images belong to version releases (`vX.Y.Z`): one per binary
   the network has run, listed in that network's `UPGRADES.md`.
 
@@ -74,6 +77,15 @@ Related infrastructure directories in the monorepo:
 | [`gnolang/tx-exports`](https://github.com/gnolang/tx-exports) | Archived transaction data of past testnets |
 
 ## Staging Environments
+
+:::warning Staging is down
+
+Staging has not produced a block since 2026-07-10, and its endpoints answer
+`503`. Whether it returns, rebuilt on gnodev instead of the `misc/loop` setup, is
+tracked in [#6258](https://github.com/gnolang/gno/issues/6258). The docs use the
+current testnet, which runs mainnet's code: `https://rpc.latest.testnets.gno.land:443`.
+
+:::
 
 Staging is an always-up-to-date staging testnet that allows for using
 the latest version of Gno, gno.land, and TM2. By utilizing the power of Docker
@@ -168,7 +180,7 @@ gno.land testnets are categorized by 4 main points:
 
 Below you can find a breakdown of each existing testnet by these categories.
 
-### Staging chain
+### Staging chain (down)
 
 The Staging chain is an always up-to-date rolling testnet. It is meant to be used as
 a nightly build of the Gno tech stack. The home page of [staging.gno.land](https://staging.gno.land)
@@ -191,13 +203,14 @@ is the `gnoweb` render of the Staging testnet.
 
 ### Onyx / Test17
 
-The current Gno.land testnet, launching on the 28th of September, 2026, and the one to use unless you have a reason not to. It runs mainnet's code, one release candidate ahead, and follows every mainnet upgrade, so what works here works on mainnet.
+The current Gno.land testnet, launched on the 28th of September, 2026, and the one to use unless you have a reason not to. It runs mainnet's code, as the candidate of each mainnet release, and follows every mainnet upgrade, so what works here works on mainnet.
 
 - **Persistence of state:**
   - State is fully persisted across coordinated upgrades, exactly as on mainnet:
     every upgrade is rehearsed here before it reaches mainnet
 - **Timeliness of code:**
-  - The version onyx runs is the version mainnet runs; the launch version and
+  - The version onyx runs is the candidate of the version mainnet runs, on the
+    same commit; the launch version and
     every upgrade since are in `UPGRADES.md` under
     [`misc/deployments/onyx.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land)
 - **Intended purpose**
@@ -208,7 +221,7 @@ The current Gno.land testnet, launching on the 28th of September, 2026, and the 
     tag marks the mainnet commit it launched on; deployment files under
     [`misc/deployments/onyx.gno.land`](https://github.com/gnolang/gno/tree/chain/mainnet/misc/deployments/onyx.gno.land)
 
-### Pearl / Test16 (retiring)
+### Pearl / Test16 (retired)
 
 Released on the 26th of August, 2026; superseded by Onyx / Test17.
 

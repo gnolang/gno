@@ -148,11 +148,10 @@ func MakeConnectedPeers(
 			return nil
 		}
 
-		// Async dial the peers with a higher index, so each pair connects in
-		// a single direction. If both ends of a pair dial each other
-		// concurrently, each side can register its own outbound connection and
-		// then reject the other side's inbound as a duplicate, tearing down
-		// both connections and leaving the pair permanently disconnected
+		// Async dial the peers with a higher index, so each pair opens a single
+		// connection. If both ends dialed each other, both would keep the
+		// connection dialed by the lower ID, after opening a second one only to
+		// tear it down
 		multiplexSwitch.DialPeers(addrs[switchIndex+1:]...)
 
 		// Set up an exit timer

@@ -6,7 +6,6 @@ import (
 	crand "crypto/rand"
 	mrand "math/rand"
 	"sync"
-	"time"
 )
 
 const (
@@ -55,10 +54,6 @@ func (r *Rand) reset(seed int64) {
 // ----------------------------------------
 // Global functions
 
-func Seed(seed int64) {
-	grand.Seed(seed)
-}
-
 func RandStr(length int) string {
 	return grand.Str(length)
 }
@@ -79,10 +74,6 @@ func RandUint() uint {
 	return grand.Uint()
 }
 
-func RandInt16() int16 {
-	return grand.Int16()
-}
-
 func RandInt32() int32 {
 	return grand.Int32()
 }
@@ -99,10 +90,6 @@ func RandInt31() int32 {
 	return grand.Int31()
 }
 
-func RandInt31n(n int32) int32 {
-	return grand.Int31n(n)
-}
-
 func RandInt63() int64 {
 	return grand.Int63()
 }
@@ -113,18 +100,6 @@ func RandInt63n(n int64) int64 {
 
 func RandBool() bool {
 	return grand.Bool()
-}
-
-func RandFloat32() float32 {
-	return grand.Float32()
-}
-
-func RandFloat64() float64 {
-	return grand.Float64()
-}
-
-func RandTime() time.Time {
-	return grand.Time()
 }
 
 func RandBytes(n int) []byte {
@@ -194,10 +169,6 @@ func (r *Rand) Uint() uint {
 	return uint(i)
 }
 
-func (r *Rand) Int16() int16 {
-	return int16(r.Uint32() & (1<<16 - 1))
-}
-
 func (r *Rand) Int32() int32 {
 	return int32(r.Uint32())
 }
@@ -220,13 +191,6 @@ func (r *Rand) Int31() int32 {
 	return i31
 }
 
-func (r *Rand) Int31n(n int32) int32 {
-	r.Lock()
-	i31n := r.rand.Int31n(n)
-	r.Unlock()
-	return i31n
-}
-
 func (r *Rand) Int63() int64 {
 	r.Lock()
 	i63 := r.rand.Int63()
@@ -239,24 +203,6 @@ func (r *Rand) Int63n(n int64) int64 {
 	i63n := r.rand.Int63n(n)
 	r.Unlock()
 	return i63n
-}
-
-func (r *Rand) Float32() float32 {
-	r.Lock()
-	f32 := r.rand.Float32()
-	r.Unlock()
-	return f32
-}
-
-func (r *Rand) Float64() float64 {
-	r.Lock()
-	f64 := r.rand.Float64()
-	r.Unlock()
-	return f64
-}
-
-func (r *Rand) Time() time.Time {
-	return time.Unix(int64(r.Uint64()), 0)
 }
 
 // Bytes returns n random bytes generated from the internal

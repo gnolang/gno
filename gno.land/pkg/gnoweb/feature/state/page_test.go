@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -192,8 +193,26 @@ func TestServePageObjectHappyPath(t *testing.T) {
 		t.Errorf("body missing Realm sidebar label\n%s", head(body, 800))
 	}
 	// Field-level rows surfaced.
-	if !strings.Contains(body, "test") {
+	if !strings.Contains(body, `&#34;test&#34;`) {
 		t.Errorf("body missing struct field value\n%s", head(body, 800))
+	}
+
+	// A pointer to field 0 of the object (&idx=0) shows only that field.
+	rec = servePageReq(t, h, url.Values{"oid": {validOID}, "idx": {"0"}}, "/r/demo")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("idx=0: status = %d, want %d, body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), `&#34;test&#34;`) {
+		t.Errorf("idx=0: body shows field 1, not only the pointee field 0\n%s", head(rec.Body.String(), 800))
+	}
+	// The label shows the index and the back link goes to the whole object.
+	body = rec.Body.String()
+	if !strings.Contains(body, "<span>Object abcdef01…cdef01:1, index 0</span>") {
+		t.Errorf("idx=0: label missing the index\n%s", head(body, 800))
+	}
+	backHref := html.EscapeString(string(stateObjectHref("/r/demo", validOID, "", nil, ViewModePretty)))
+	if !strings.Contains(body, `<a class="back-link" href="`+backHref+`"`) {
+		t.Errorf("idx=0: back link is not %s\n%s", backHref, head(body, 800))
 	}
 }
 
@@ -203,6 +222,23 @@ func TestServePageInvalidOID400(t *testing.T) {
 	// gnoweb wire-in stamps the status from the return, not the recorder).
 	h := newPageHandler(&pageMockClient{})
 	u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"oid": {"garbage"}, "state": {""}}}
+	req := httptest.NewRequest(http.MethodGet, "/r/demo$state", nil)
+	status, view := h.servePage(context.Background(), httptest.NewRecorder(), req, u)
+	if status != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d", status, http.StatusBadRequest)
+	}
+	if view == nil {
+		t.Fatalf("view is nil; want a status-error view")
+	}
+}
+
+func TestServePageObjectIdxOutOfRange400(t *testing.T) {
+	client := &pageMockClient{
+		objBytes: map[string][]byte{validOID: []byte(pageFixtureObj)},
+	}
+	h := newPageHandler(client)
+	// pageFixtureObj has two fields.
+	u := &weburl.GnoURL{Path: "/r/demo", WebQuery: url.Values{"oid": {validOID}, "idx": {"2"}, "state": {""}}}
 	req := httptest.NewRequest(http.MethodGet, "/r/demo$state", nil)
 	status, view := h.servePage(context.Background(), httptest.NewRecorder(), req, u)
 	if status != http.StatusBadRequest {

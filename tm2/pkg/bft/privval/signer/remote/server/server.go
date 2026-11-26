@@ -24,7 +24,7 @@ type RemoteSignerServer struct {
 
 	// Optional connection config.
 	keepAlivePeriod time.Duration // If 0, keep alive is disabled.
-	responseTimeout time.Duration // If 0, no timeout is set. Requests reception is not timed out.
+	responseTimeout time.Duration // If 0, only the handshake times out. Requests reception is not timed out.
 
 	// Optional authentication config.
 	serverPrivKey  ed25519.PrivKeyEd25519  // Default is a random key.
@@ -32,7 +32,8 @@ type RemoteSignerServer struct {
 
 	// Internal.
 	listener net.Listener
-	conn     net.Conn
+	conn     net.Conn   // The connection being served, if any.
+	idle     *sync.Cond // Broadcast when conn is cleared.
 	lock     sync.RWMutex
 	running  atomic.Bool
 }
@@ -83,7 +84,7 @@ func (rss *RemoteSignerServer) Stop() error {
 	// Close the listener and conn if any.
 	err := multierr.Combine(
 		rss.setListener(nil),
-		rss.setConnection(nil),
+		rss.clearConnection(nil),
 	)
 
 	rss.logger.Info("Server stopped")

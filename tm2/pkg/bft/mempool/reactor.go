@@ -25,6 +25,20 @@ const (
 	UnknownPeerID uint16 = 0
 
 	maxActiveIDs = math.MaxUint16
+
+	// maxTxMsgSize is the MempoolChannel's RecvMessageCapacity: a TxMessage
+	// carrying the largest transaction any chain's consensus params admit, since
+	// Block.MaxTxBytes has to leave MaxBlockOverheadBytes of Block.MaxDataBytes,
+	// which is capped at MaxBlockDataBytesLimit. It takes the ceiling rather than
+	// the chain's current MaxTxBytes, which the app's EndBlock can change at any
+	// height while the channel's capacity is read once, when the reactor joins
+	// the switch.
+	maxTxMsgSize = int(types.MaxBlockDataBytesLimit-types.MaxBlockOverheadBytes) + txMsgFieldsBytes
+
+	// txMsgFieldsBytes covers a TxMessage's type URL and amino's framing, which
+	// measure 25 bytes on the largest transaction
+	// (TestChannelCapacityFitsLargestTx).
+	txMsgFieldsBytes = 64
 )
 
 // Reactor handles mempool tx broadcasting amongst peers.
@@ -144,8 +158,9 @@ func (memR *Reactor) OnStart() error {
 func (memR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 	return []*p2p.ChannelDescriptor{
 		{
-			ID:       MempoolChannel,
-			Priority: 5,
+			ID:                  MempoolChannel,
+			Priority:            5,
+			RecvMessageCapacity: maxTxMsgSize,
 		},
 	}
 }
@@ -175,11 +190,11 @@ func (memR *Reactor) RemovePeer(peer p2p.PeerConn, reason any) {
 func (memR *Reactor) Receive(chID byte, src p2p.PeerConn, msgBytes []byte) {
 	msg, err := memR.decodeMsg(msgBytes)
 	if err != nil {
-		memR.Logger.Error("Error decoding mempool message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
+		memR.Logger.Error("Error decoding mempool message", "src", src, "chId", chID, "err", err, "bytes", len(msgBytes))
 		memR.Switch.StopPeerForError(src, err)
 		return
 	}
-	memR.Logger.Debug("Receive", "src", src, "chId", chID, "msg", msg)
+	memR.Logger.Debug("Receive", "src", src, "chId", chID, "type", reflect.TypeOf(msg), "bytes", len(msgBytes))
 
 	switch msg := msg.(type) {
 	case *TxMessage:
@@ -273,7 +288,16 @@ func (memR *Reactor) broadcastTxRoutine(peer p2p.PeerConn) {
 // Messages
 
 // MempoolMessage is a message sent or received by the Reactor.
-type MempoolMessage any
+//
+// Only this package's types have assertMempoolMessage, so amino refuses a
+// registered type of any other package before decoding it, and its decode
+// error, which can quote what a peer sent at any length, never reaches the
+// log.
+type MempoolMessage interface {
+	assertMempoolMessage()
+}
+
+func (*TxMessage) assertMempoolMessage() {}
 
 func (memR *Reactor) decodeMsg(bz []byte) (msg MempoolMessage, err error) {
 	err = amino.Unmarshal(bz, &msg)

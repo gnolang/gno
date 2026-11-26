@@ -192,31 +192,10 @@ func GetDebugErrors() []string {
 	return derrors
 }
 
-func ClearDebugErrors() {
-	derrors = nil
-}
-
-func IsDebug() bool {
-	return bool(debug)
-}
-
-func IsDebugEnabled() bool {
-	return bool(debug) && enabled.Load()
-}
-
 func DisableDebug() {
 	enabled.Store(false)
 }
 
 func EnableDebug() {
 	enabled.Store(true)
-}
-
-func PrintCaller(start, end int) {
-	for i := start; i < end; i++ {
-		_, file, line, _ := runtime.Caller(i)
-		caller := fmt.Sprintf("%-.12s:%-4d", path.Base(file), line)
-		prefix := fmt.Sprintf("DEBUG: %17s: ", caller)
-		fmt.Println(append([]any{prefix}, "")...)
-	}
 }

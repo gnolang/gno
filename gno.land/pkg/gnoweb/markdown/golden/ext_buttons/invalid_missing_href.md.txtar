@@ -1,0 +1,7 @@
+-- input.md --
+<gno-button label="No href" />
+
+Inline <gno-button label="No href" /> too.
+-- output.html --
+<p><!-- raw HTML omitted --></p>
+<p>Inline <!-- raw HTML omitted --> too.</p>
