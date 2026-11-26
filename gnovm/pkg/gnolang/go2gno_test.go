@@ -97,6 +97,24 @@ func TestRejectsExpandingNameLists(t *testing.T) {
 	}
 }
 
+// A blank type switch variable is Go's "no new variables" error. ParseFile gets
+// it from the parser's declaration resolver; ParseStmts and ParseExpr skip the
+// resolver, so Go2Gno refuses it. The preprocessor and doOpTypeSwitch both
+// assume the variable has a block slot, and a blank one never gets one.
+func TestRejectsBlankTypeSwitchVar(t *testing.T) {
+	t.Parallel()
+
+	var m *Machine
+	const sw = "switch _ := i.(type) { case int: x := 3; println(x) }"
+	const want = "no new variables on left side of :="
+	_, err := m.ParseFile("blank.gno", "package blank\nfunc f(i any) {\n"+sw+"\n}")
+	require.ErrorContains(t, err, want, "file")
+	_, err = m.ParseStmts("var i any = 42\n" + sw)
+	require.ErrorContains(t, err, want, "stmts")
+	_, err = m.ParseExpr("func(i any) {" + sw + "}")
+	require.ErrorContains(t, err, want, "expr")
+}
+
 // constBlock returns a const block whose first spec is head followed by the
 // sum of n ones, and n-1 bare specs that each copy it.
 func constBlock(n int, head string) string {

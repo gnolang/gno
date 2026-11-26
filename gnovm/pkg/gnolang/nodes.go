@@ -2329,6 +2329,7 @@ func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype N
 			return
 		}
 	}
+	sb.checkDefinable(nx.Name, anyValue(nil))
 	sb.defineNew(isConst, nx.Name, nil, anyValue(nil), NameSource{nx, origin, nstype, index})
 }
 
@@ -2349,9 +2350,10 @@ func (sb *StaticBlock) numFauxCopiedNames() uint16 {
 	return 0
 }
 
-// defineFauxCopy writes tv to the slot n occupies among this block's
-// faux-copied names. Unlike Define it never retargets a shadowing slot the
-// case body declared for the same name.
+// defineFauxCopy writes tv to slot idx, which must already hold n: one of this
+// block's faux-copied names, or a type switch's variable, reserved at exactly
+// numFauxCopiedNames. Unlike Define it writes by index, so it never retargets
+// a shadowing slot the case body declared for the same name.
 func (sb *StaticBlock) defineFauxCopy(idx uint16, n Name, tv TypedValue) {
 	if sb.Names[idx] != n {
 		panic(fmt.Sprintf(
@@ -2361,16 +2363,10 @@ func (sb *StaticBlock) defineFauxCopy(idx uint16, n Name, tv TypedValue) {
 	sb.Types[idx] = tv.T
 }
 
-// The declared type st may not be the same as the static tv;
-// e.g. var x MyInterface = MyStruct{}.
-// Setting st and tv to nil/zero reserves (predefines) name for definition later.
-func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsrc NameSource) {
-	if debug {
-		debug.Printf(
-			"StaticBlock.Define2(%v, %s, %v, %v)\n", // XXX add nsrc
-			isConst, n, st, tv)
-	}
-	// TODO check that tv.T implements t.
+// checkDefinable panics on a name, value or block state that no definition may
+// proceed with. Define2 runs it before any lookup; Reserve runs it before
+// appending a shadow's slot. defineNew relies on its callers having run it.
+func (sb *StaticBlock) checkDefinable(n Name, tv TypedValue) {
 	if len(n) == 0 {
 		panic("name cannot be zero")
 	}
@@ -2389,6 +2385,19 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 	if tv.T == nil && tv.V != nil {
 		panic("StaticBlock.Define2() requires .T if .V is set")
 	}
+}
+
+// The declared type st may not be the same as the static tv;
+// e.g. var x MyInterface = MyStruct{}.
+// Setting st and tv to nil/zero reserves (predefines) name for definition later.
+func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsrc NameSource) {
+	if debug {
+		debug.Printf(
+			"StaticBlock.Define2(%v, %s, %v, %v)\n", // XXX add nsrc
+			isConst, n, st, tv)
+	}
+	// TODO check that tv.T implements t.
+	sb.checkDefinable(n, tv)
 	if n == blankIdentifier {
 		return // ignore
 	}
@@ -2462,7 +2471,8 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 
 // defineNew appends a new slot for n, whether or not n is already defined in
 // this block. Only Define2 (for a name that is genuinely new) and Reserve (for
-// a declaration shadowing a faux-copied name) may append a slot.
+// a declaration shadowing a faux-copied name) may append a slot, and both run
+// checkDefinable first.
 //
 // A name may therefore occupy two slots, but only in a faux case block and
 // only with the second past numFauxCopiedNames. GetLocalIndex resolving to the
@@ -2475,9 +2485,6 @@ func (sb *StaticBlock) defineNew(isConst bool, n Name, st Type, tv TypedValue, n
 				"StaticBlock.defineNew(%s) would duplicate slot %d of %T",
 				n, idx, sb.Source))
 		}
-	}
-	if sb.NumNames == math.MaxUint16 {
-		panic("too many variables in block")
 	}
 	sb.Names = append(sb.Names, n)
 	sb.HeapItems = append(sb.HeapItems, false)

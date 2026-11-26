@@ -55,7 +55,7 @@ static block**, resolved last-wins.
    declaration against the slot's recorded `NameSource`.
 
    The comparison is on `(Origin, Type, Index)`, not on the `*NameExpr`.
-   Every one of the eleven `Reserve` call sites passes a stable triple, but
+   Every one of the fifteen `Reserve` call sites passes a stable triple, but
    one does *not* pass a stable `*NameExpr`: the type switch variable's site
    (`preprocess.go`, `initStaticBlocks`) builds `&NameExpr{Name: ss.VarName}`
    fresh on each pass. Keying on the pointer would have made that site's
@@ -88,7 +88,13 @@ of :=" exactly as before. Nothing in `Reserve` has to enforce that: the variable
 is reserved at exactly `numFauxCopiedNames()`, so the
 `idx >= numFauxCopiedNames()` return fires first. The variable may itself shadow
 an init name (`switch v := 42; v := any(v).(type)`), which takes the append
-path like any other shadow; `tests/files/typeswitch11.gno` covers both.
+path like any other shadow; `tests/files/typeswitch11.gno` covers both. A
+blank variable (`switch _ := x.(type)`) gets no slot at all, while both the
+preprocessor and `doOpTypeSwitch` write the variable at that index. Go rejects
+it ("no new variables on left side of :="), and `ParseFile` gets that error from
+the parser's declaration resolver. `ParseStmts` and `ParseExpr` (the REPL,
+`gno run -expr`, `vm/qeval`) skip the resolver, so `Go2Gno` now refuses it with
+the same message.
 
 ## Alternatives considered
 
@@ -112,6 +118,29 @@ panic but not the clobbering, and could not represent both bindings being live
 at different points in the same case.
 
 ## Consequences
+
+- **Consensus-breaking.** Preprocess re-runs every stored package at node
+  start, so the new rules apply to code already on chain from the upgrade on:
+  - A case-body shadow whose type differs from the init name's, or a `const`
+    shadow, failed to deploy (preprocess panic) and now deploys.
+  - A same-type shadow (`case 1: v := 99`) deployed before, writing over the
+    copy. It now gets its own slot, so each run of that branch allocates one
+    more block item (40 bytes of allocation, and the gas for them), and the
+    outer name keeps its value: a read after the shadow, through
+    `fallthrough` or a backward `goto`, sees the outer value
+    (`tests/files/switch53.gno`).
+
+  A node on the old binary therefore refuses deploys the new one admits, and
+  the two charge different gas for a transaction that runs a same-type shadow,
+  so validators must switch binaries at one height. An AST scan of the 1,910
+  non-test files of the 712 `gno.land/` packages on gnoland-1 (2026-11-25)
+  found three same-type shadows, none of which reads the outer name after the
+  shadow, so only their gas moves: `p/nt/treasury/v0` (`render.gno:70`,
+  reached from `r/gov/dao/treasury/v0`'s `Render`), and two user packages that
+  no realm imports (`p/g1lnkytfqcjwllws63gvf0mv9yt04aswy4y9amhm/app/v0` and
+  `p/g17khqpukees4237dtn3astzapmp462vjhsz6st4/expect`). Whether any past
+  transaction ran one of those branches, or a deploy failed on the old panic,
+  has not been checked against gnoland-1's history.
 
 - Case blocks now differ in name count more often, so this **depends on the
   `fallthrough` block-shrinkage fix** (`b.Values` truncation in `doOpExec`),
@@ -167,12 +196,13 @@ at different points in the same case.
   reached at all: the `const v` is rejected with
   `StaticBlock.Define2(v) cannot change const status`.
 
-- One behavior change outside the compiler: the debugger's `print v`, stopped
-  in a case body *before* the shadowing declaration, now reports the shadow's
-  slot (zero value) rather than the outer name. `tryGetPathForName` resolves by
-  name with no notion of statement position, so it inherits last-wins
-  unconditionally. This is the one place where "last slot" and "what is in
-  scope here" differ.
+- Outside the compiler, the debugger's `print v`, stopped in a case body
+  *before* the shadowing declaration, now reports the shadow's slot rather
+  than the outer name: its zero value for a variable (`v := 99` shows `0`),
+  its value for a constant (`const v = "c"` shows `"c"`). `tryGetPathForName`
+  resolves by name with no notion of statement position, so it inherits
+  last-wins unconditionally. This is the one place where "last slot" and "what
+  is in scope here" differ.
 
 ## Tests
 
@@ -191,3 +221,7 @@ output.
 last-wins on both `GetLocalIndex` branches, the linear scan and the `nameIndex`
 map past `nameIndexThreshold`. Putting `buildNameIndex` back to first-wins fails
 it at width 40.
+
+`TestRejectsBlankTypeSwitchVar` (`go2gno_test.go`) checks that a blank type
+switch variable is refused with Go's message by `ParseFile`, `ParseStmts` and
+`ParseExpr`.
