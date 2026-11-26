@@ -3,8 +3,8 @@ package gnolang
 import "strings"
 
 // A small model of the write rule (pr6495), written apart from the VM and
-// checked against it. It keeps its own stack of modes and its own loans, and
-// takes from the VM only the facts listed on wmFacts.
+// checked against it. It keeps its own stack of modes and its own loans. From
+// the VM it takes only: binder, owner, fresh, maker, foreign; nonesc, lit, reach.
 
 type wmKind uint8
 
@@ -56,7 +56,8 @@ const (
 	wmIface                 // x.M() through an interface
 )
 
-// wmFacts is one call. owner, maker and foreign come from the VM.
+// wmFacts is one call. The VM reads binder, owner, fresh, maker and foreign;
+// the rest is the call as written.
 type wmFacts struct {
 	cross, crossing bool
 	callee, caller  string // package paths
@@ -201,55 +202,8 @@ func (s *wmState) lent(fn any, realm string) bool {
 	return false
 }
 
-// ledBy reports whether every running call down to the nearest realm code acts for r.
-func (s *wmState) ledBy(r string) bool {
-	for i := len(s.stack) - 1; i >= 0; i-- {
-		if s.stack[i].mode.writer() != r {
-			return false
-		}
-		if wmRealmCode(s.stack[i].pkg) {
-			return true
-		}
-	}
-	return s.base.writer() == r
-}
-
-// testRunner reports whether only the "testing" package's calls lead here.
-func (s *wmState) testRunner(f wmFacts) bool {
-	if f.caller != TestingBasePkgPath || len(s.stack) == 0 {
-		return false
-	}
-	for _, fr := range s.stack {
-		if fr.pkg != TestingBasePkgPath {
-			return false
-		}
-	}
-	return true
-}
-
-func wmRealmCode(p string) bool { return IsRealmPath(p) || IsEphemeralPath(p) }
-
-// wmLibPkg: an object of a /p/ library (or test overlay) is a frozen library's.
-func wmLibPkg(p string) bool {
-	return p != "" && !IsStdlib(p) && (IsPPackagePath(p) || IsTestOverlayPath(p) || p == uversePkgPath)
-}
-
-// wmRealmPkg: a package whose objects are a realm's state.
-func wmRealmPkg(p string) bool {
-	return p != "" && !IsStdlib(p) && !IsPPackagePath(p) && !IsTestOverlayPath(p) && p != uversePkgPath
-}
-
-// wmRealmOf is the realm a package's code acts as, "" if none.
-func wmRealmOf(p string) string {
-	_, run := IsGnoRunPath(p)
-	lib := !strings.HasSuffix(p, "_test") && (IsPPackagePath(p) || IsStdlib(p))
-	if IsRealmPath(p) || p == "main" || run || lib {
-		return p
-	}
-	return ""
-}
-
 // wmArg is one argument as the callee receives it; a variadic tail is one slice.
+// The VM reads nonesc, lit and reach.
 type wmArg struct {
 	fn     any     // a function value, or nil
 	reach  []any   // the function values fn reaches through captures, at any depth
@@ -321,6 +275,55 @@ func (s *wmState) enter(callee string, a wmAnswer, args []wmArg, deferred bool) 
 			s.drop(x.reach...)
 		}
 	}
+}
+
+// 4c.1 Led by r: every running call down to the nearest realm code acts for r.
+func (s *wmState) ledBy(r string) bool {
+	for i := len(s.stack) - 1; i >= 0; i-- {
+		if s.stack[i].mode.writer() != r {
+			return false
+		}
+		if wmRealmCode(s.stack[i].pkg) {
+			return true
+		}
+	}
+	return s.base.writer() == r
+}
+
+// 5.1 The test runner: only the "testing" package's calls lead here.
+func (s *wmState) testRunner(f wmFacts) bool {
+	if f.caller != TestingBasePkgPath || len(s.stack) == 0 {
+		return false
+	}
+	for _, fr := range s.stack {
+		if fr.pkg != TestingBasePkgPath {
+			return false
+		}
+	}
+	return true
+}
+
+// 0a. Realm code: an /r/ realm or an ephemeral run package.
+func wmRealmCode(p string) bool { return IsRealmPath(p) || IsEphemeralPath(p) }
+
+// 0b. A library object: one of a /p/ package, a test overlay or .uverse.
+func wmLibPkg(p string) bool {
+	return p != "" && !IsStdlib(p) && (IsPPackagePath(p) || IsTestOverlayPath(p) || p == uversePkgPath)
+}
+
+// 0c. A realm package: any other non-stdlib package; its objects are a realm's state.
+func wmRealmPkg(p string) bool {
+	return p != "" && !IsStdlib(p) && !IsPPackagePath(p) && !IsTestOverlayPath(p) && p != uversePkgPath
+}
+
+// 0d. The realm a package's code acts as: a realm, main, a run, /p/ or stdlib; else "".
+func wmRealmOf(p string) string {
+	_, run := IsGnoRunPath(p)
+	lib := !strings.HasSuffix(p, "_test") && (IsPPackagePath(p) || IsStdlib(p))
+	if IsRealmPath(p) || p == "main" || run || lib {
+		return p
+	}
+	return ""
 }
 
 // pop leaves n calls running: the loans of the others end with them.
