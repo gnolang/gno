@@ -22,7 +22,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/trace"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
-	stringz "github.com/gnolang/gno/tm2/pkg/strings"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -1596,14 +1595,12 @@ func (ds *defaultStore) Print() {
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:cacheTypes..."))
 	for tid, typ := range ds.cacheTypes {
-		fmt.Printf("- %v: %v\n", tid,
-			stringz.TrimN(fmt.Sprintf("%v", typ), 50))
+		fmt.Printf("- %v: %.50s\n", tid, fmt.Sprintf("%v", typ))
 	}
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:cacheNodes..."))
 	ds.cacheNodes.Iterate()(func(loc Location, bn BlockNode) bool {
-		fmt.Printf("- %v: %v\n", loc,
-			stringz.TrimN(fmt.Sprintf("%v", bn), 50))
+		fmt.Printf("- %v: %.50s\n", loc, fmt.Sprintf("%v", bn))
 		return true
 	})
 	fmt.Println(colors.Red("//----------------------------------------"))
