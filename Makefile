@@ -107,7 +107,7 @@ fix.contribs:
 # this list with `make print.misc-modules`. It is fixed because other programs
 # there are covered elsewhere (genproto2 by ci-codegen-verify.yml,
 # multiarch-determinism by its own workflow, gnoe2e by ci-gnoe2e.yml,
-# stdlib_diff by deploy-pages.yml upstream) or not at all: a new one that is in
+# stdlib_diff by deploy-pages.yml) or not at all: a new one that is in
 # neither place is never built, with nothing to say so.
 MISC_MODULES := misc/audit-pattern-harness misc/autocounterd misc/genstd misc/gnopreview misc/goscan misc/loop
 
