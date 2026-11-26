@@ -75,7 +75,7 @@ func main(cur realm) {
 
 // Output:
 // converted
-// illegal conversion to external realm type
+// illegal conversion to external realm type (call a function of the realm that declares the type to make it)
 
 // Error:
 // cannot allocate gno.land/r/tests/vm/launderrvictim.Immutable in realm gno.land/r/launderrh_conv_recover

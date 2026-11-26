@@ -15,4 +15,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot cur-call to external realm function gno.land/r/tests/vm.IncCounter from gno.land/r/test/indirectcurexternal
+// cannot cur-call to external realm function gno.land/r/tests/vm.IncCounter from gno.land/r/test/indirectcurexternal (call it with cross(cur))

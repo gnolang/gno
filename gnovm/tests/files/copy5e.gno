@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// cannot copy to readonly tainted slice
+// cannot copy to readonly tainted slice (call a crossing function of the owning realm)

@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// cannot append to readonly tainted slice
+// cannot append to readonly tainted slice (call a crossing function of the owning realm)

@@ -12,7 +12,7 @@ func main(cur realm) {
 }
 
 // Error:
-// illegal conversion to external realm type
+// illegal conversion to external realm type (call a function of the realm that declares the type to make it)
 
 // TypeCheckError:
 // gno.land/r/fvforgero/zrealm_fv_forge_ro.gno:10:22: cannot hold a value of gno.land/r/tests/vm/fvx.T outside its realm (use a pointer)

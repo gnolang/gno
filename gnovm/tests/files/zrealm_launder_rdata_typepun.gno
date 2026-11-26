@@ -30,7 +30,7 @@ func main(cur realm) {
 }
 
 // Error:
-// illegal conversion of readonly or externally stored value
+// illegal conversion of readonly or externally stored value (convert it inside a crossing function of the realm that stores it)
 
 // TypeCheckError:
 // gno.land/r/launderrh5/zrealm_launder_rdata_typepun.gno:28:8: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer)
