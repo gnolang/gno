@@ -1,0 +1,13 @@
+syntax = "proto3";
+package tm;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/crypto/mldsa65/pb";
+
+// messages
+message PubKeyMLDSA65 {
+	bytes value = 1;
+}
+
+message PrivKeyMLDSA65 {
+	bytes value = 1;
+}

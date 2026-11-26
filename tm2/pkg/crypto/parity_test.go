@@ -10,6 +10,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
+	"github.com/gnolang/gno/tm2/pkg/crypto/mldsa65"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
@@ -35,6 +36,7 @@ func TestCodecParity_Crypto(t *testing.T) {
 	// crypto.PubKey interface (so multisig's []PubKey can Any-wrap them).
 	cdc.RegisterPackage(ed25519.Package)
 	cdc.RegisterPackage(secp256k1.Package)
+	cdc.RegisterPackage(mldsa65.Package)
 	cdc.RegisterPackage(multisig.Package)
 	cdc.RegisterPackage(hd.Package)
 	cdc.RegisterPackage(merkle.Package)
@@ -72,6 +74,21 @@ func parityCasesCrypto() []struct {
 	pvSec := secp256k1.PrivKeySecp256k1{}
 	for i := range pvSec {
 		pvSec[i] = byte(i + 200)
+	}
+
+	pkML := mldsa65.PubKeyMLDSA65{}
+	for i := range pkML {
+		pkML[i] = byte(i * 7)
+	}
+	pvML := mldsa65.PrivKeyMLDSA65{}
+	for i := range pvML {
+		pvML[i] = byte(i + 50)
+	}
+
+	// A hybrid 2-of-2, ed25519 and ML-DSA-65, through the Any-wrapping path.
+	hybrid := &multisig.PubKeyMultisigThreshold{
+		K:       2,
+		PubKeys: []crypto.PubKey{pkEd, pkML},
 	}
 
 	// Multisig 2-of-3 with heterogeneous PubKey concrete types. Exercises
@@ -154,6 +171,9 @@ func parityCasesCrypto() []struct {
 		{"PrivKeyEd25519", &pvEd},
 		{"PubKeySecp256k1", &pkSec},
 		{"PrivKeySecp256k1", &pvSec},
+		{"PubKeyMLDSA65", &pkML},
+		{"PrivKeyMLDSA65", &pvML},
+		{"PubKeyMultisigThreshold/hybrid-mldsa65", hybrid},
 		{"BIP44Params", bip},
 		{"SimpleProof", simpleProof},
 		{"ProofOp", proofOp},
