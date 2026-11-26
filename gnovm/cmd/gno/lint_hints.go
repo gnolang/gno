@@ -18,7 +18,7 @@ import (
 // never make `gno lint` fail. They point realm authors at code whose cost or
 // behaviour is easy to misjudge. Every hint is syntactic and only reports what
 // it can see for certain; when in doubt it stays silent.
-// See gnovm/adr/prxxxx_lint_hints.md.
+// See gnovm/adr/pr6536_lint_hints.md.
 
 const lintHintConfidence = 0.8
 
