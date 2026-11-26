@@ -429,39 +429,50 @@ func wgWrite(ind string, site int, wf wgWriteForm, owner, stmt, probe string) st
 type wgWriteForm uint8
 
 const (
-	wfVar    wgWriteForm = iota // count++ or kept = f
-	wfField                     // Obj.N++
-	wfPair                      // count, Obj.N = ...: two targets
-	wfMap                       // M[len(M)] = 1: a new key
-	wfAppend                    // S = append(S[:1], k), within capacity
-	wfCopy                      // copy(S, []int{k})
-	wfDelete                    // delete(D, -1)
-	wfPtr                       // setN(Obj): through a pointer parameter
-	wfFresh                     // a new object stored nowhere: goes through
-	wfRecv                      // o.N++ in a method
+	wfVar     wgWriteForm = iota // count++ or kept = f
+	wfField                      // Obj.N++
+	wfPair                       // count, Obj.N = ...: two targets
+	wfMap                        // M[len(M)] = 1: a new key
+	wfAppend                     // S = append(S[:1], k), within capacity
+	wfCopy                       // copy(S, []int{k})
+	wfDelete                     // delete(D, -1)
+	wfPtr                        // setN(Obj): through a pointer parameter
+	wfFresh                      // a new object stored nowhere: goes through
+	wfCopyStr                    // copy(B, string): into a stored []byte
+	wfElem                       // S[0] = v: an element of a stored slice
+	wfDeref                      // *p = v: through a pointer to stored state
+	wfRecv                       // o.N++ in a method
 	wgWriteForms
 )
 
 var wgWriteFormNames = [...]string{"variable", "field", "two targets", "map index", "append", "copy", "delete",
-	"pointer parameter", "fresh object", "receiver field"}
+	"pointer parameter", "fresh object", "copy from string", "element", "deref", "receiver field"}
 
 // wgWriteSrc is the wrapped write at a worker's or callback's site for the realm at path.
 func wgWriteSrc(ind string, site int, path string, method bool) string {
-	wf := wgWriteForm(site % int(wfRecv))
+	return wgWriteSrcAt(ind, site, site, path, method)
+}
+
+// wgWriteSrcAt is wgWriteSrc with the form picked by k instead of site.
+func wgWriteSrcAt(ind string, site, k int, path string, method bool) string {
+	wf := wgWriteForm(k % int(wfRecv))
 	if method {
 		wf = wfRecv
 	}
 	sp := map[wgWriteForm][2]string{
-		wfVar:    {"count++", "count"},
-		wfField:  {"Obj.N++", "Obj.N"},
-		wfPair:   {"count, Obj.N = count+1, Obj.N+1", "count + Obj.N"},
-		wfMap:    {"M[len(M)] = 1", "len(M)"},
-		wfAppend: {fmt.Sprintf("S = append(S[:1], %d)", site), "S[1]"},
-		wfCopy:   {fmt.Sprintf("copy(S, []int{%d})", site), "S[0]"},
-		wfDelete: {"delete(D, -1)", "len(D)"},
-		wfPtr:    {"setN(Obj)", "Obj.N"},
-		wfFresh:  {"x := &ObjT{}; x.N = 1", "0"},
-		wfRecv:   {"o.N++", "o.N"},
+		wfVar:     {"count++", "count"},
+		wfField:   {"Obj.N++", "Obj.N"},
+		wfPair:    {"count, Obj.N = count+1, Obj.N+1", "count + Obj.N"},
+		wfMap:     {"M[len(M)] = 1", "len(M)"},
+		wfAppend:  {fmt.Sprintf("S = append(S[:1], %d)", site), "S[1]"},
+		wfCopy:    {fmt.Sprintf("copy(S, []int{%d})", site), "S[0]"},
+		wfDelete:  {"delete(D, -1)", "len(D)"},
+		wfPtr:     {"setN(Obj)", "Obj.N"},
+		wfFresh:   {"x := &ObjT{}; x.N = 1", "0"},
+		wfCopyStr: {"copy(B, string([]byte{B[0] + 1}))", "B[0]"},
+		wfElem:    {"S[0] = S[0] + 1", "S[0]"},
+		wfDeref:   {"p := &Obj.N; *p = *p + 1", "Obj.N"},
+		wfRecv:    {"o.N++", "o.N"},
 	}[wf]
 	owner := strconv.Quote(path)
 	if wf == wfFresh {
@@ -497,7 +508,7 @@ func (p *wgProg) realmSrc(r int) string {
 	q := strconv.Quote(path)
 	w := func(ind string, site int, stmt string) string { return wgWrite(ind, site, wfVar, q, stmt, "0") }
 	fmt.Fprintf(&body, "type ObjT struct{ N int }\n\nvar count int\nvar Obj = &ObjT{}\nvar kept func()\nvar box = &l%d.Box{Tag: %q}\n\n", p.boxLib(r), path)
-	body.WriteString("var M = map[int]int{}\nvar D = map[int]int{-1: 0}\nvar S = make([]int, 2, 4)\n\nfunc setN(o *ObjT) { o.N = o.N + 1 }\n\n")
+	body.WriteString("var M = map[int]int{}\nvar D = map[int]int{-1: 0}\nvar S = make([]int, 2, 4)\nvar B = make([]byte, 2)\n\nfunc setN(o *ObjT) { o.N = o.N + 1 }\n\n")
 	fmt.Fprintf(&body, "func (o *ObjT) Run() {\n%s}\n\n", wgWrite("\t", wgHelperSite(r, hRun), wfRecv, q, "o.N++", "o.N"))
 	fmt.Fprintf(&body, "func Each(f func()) {\n%s\tf()\n}\n\n", w("\t", wgHelperSite(r, hEach), "count++"))
 	fmt.Fprintf(&body, "func EachV(fs ...func()) {\n%s\tfor _, g := range fs {\n\t\tg()\n\t}\n}\n\n", w("\t", wgHelperSite(r, hEachV), "count++"))
@@ -548,6 +559,10 @@ func (p *wgProg) realmSrc(r int) string {
 			fmt.Fprintf(&body, "func %s() {\n", f.name())
 		}
 		body.WriteString(wgWriteSrc("\t", f.site, path, f.kind == wgMethod))
+		if f.kind == wgCross { // a crossing worker writes as its realm: try two more forms there
+			body.WriteString(wgWriteSrcAt("\t", f.site, f.site+4, path, false))
+			body.WriteString(wgWriteSrcAt("\t", f.site, f.site+8, path, false))
+		}
 		for _, c := range f.calls {
 			body.WriteString(p.callSrc(f, c))
 		}

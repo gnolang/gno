@@ -76,7 +76,7 @@ func (w *wgOut) Write(b []byte) (int, error) {
 // wgRefusals are the texts a refused write may carry; a builtin refuses by its own.
 var wgRefusals = []string{refuseLibWrite, refuseByValue, refuseUncrossed, refuseTainted}
 
-var wgBuiltinRefusal = map[wgWriteForm]string{wfAppend: refuseAppend, wfCopy: refuseCopy, wfDelete: refuseDelete}
+var wgBuiltinRefusal = map[wgWriteForm]string{wfAppend: refuseAppend, wfCopy: refuseCopy, wfCopyStr: refuseCopy, wfDelete: refuseDelete}
 
 func (w *wgOut) line(s string) {
 	w.r.lines++
@@ -272,7 +272,7 @@ func TestWriteModelRandom(t *testing.T) {
 		deferred, guarded                                                            int
 		args                                                                         [wgArgKinds]int
 		loans, lentHits, endedHandOff, endedParam                                    int
-		wforms                                                                       [wgWriteForms]int
+		wforms                                                                       [wgWriteForms][2]int // refused, through
 	)
 	for i := range n {
 		seed := seed0 + i
@@ -319,7 +319,7 @@ func TestWriteModelRandom(t *testing.T) {
 		border += r.borderRecovers
 		for _, w := range r.writes {
 			writes++
-			wforms[w.form]++
+			wforms[w.form][b2i(w.got)]++
 			if w.got {
 				through++
 			} else {
@@ -389,7 +389,10 @@ func TestWriteModelRandom(t *testing.T) {
 		row{"programs aborted by a panic", aborted, 0},
 	)
 	for wf := range wgWriteForms {
-		rows = append(rows, row{"write form " + wgWriteFormNames[wf], wforms[wf], 20})
+		if wf != wfFresh { // a fresh object is never refused
+			rows = append(rows, row{"write form " + wgWriteFormNames[wf] + " refused", wforms[wf][0], 20})
+		}
+		rows = append(rows, row{"write form " + wgWriteFormNames[wf] + " through", wforms[wf][1], 20})
 	}
 	var sb strings.Builder
 	for _, r := range rows {
@@ -415,4 +418,11 @@ func pct(a, b int) float64 {
 		return 0
 	}
 	return 100 * float64(a) / float64(b)
+}
+
+func b2i(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
