@@ -1,7 +1,8 @@
 ## GovDAO freezes an account by adding it to auth:p:frozen_addrs through the
 ## generic string-list helper r/sys/params already exports. A frozen account can
 ## sign nothing -- no transfer, no MsgRun -- and pays no fee for trying.
-## Removing it from the list restores it.
+## Removing it from the list restores it. A package's address signs nothing, so
+## listing one is refused rather than accepted as a freeze that stops nothing.
 loadpkg gno.land/r/sys/params
 loadpkg gno.land/r/gov/dao/init/v0
 loadpkg gno.land/r/gov/dao
@@ -52,6 +53,19 @@ stdout '\[\]'
 gnokey maketx send -send 100ugnot -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid=tendermint_test victim
 stdout 'OK!'
 
+## A realm's coins move through its own banker, so freezing its address is refused.
+gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1 $WORK/run/propose_freeze_realm.gno
+stdout '2'
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 2 -args YES -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1
+stdout 'OK!'
+
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 2 -gas-fee 2600001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1
+stderr 'cannot freeze g1[a-z0-9]+: it is the address of package gno.land/r/gov/dao'
+
+gnokey query params/auth:p:frozen_addrs
+stdout '\[\]'
+
 -- run/load_user.gno --
 package main
 
@@ -86,6 +100,22 @@ import (
 func main(cur realm) {
 	pr := params.NewSysParamStringsPropRequestRemoveWithTitle(cross(cur), "auth", "p", "frozen_addrs",
 		"Unfreeze accounts", []string{"g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"})
+	println(dao.MustCreateProposal(cross(cur), pr).String())
+}
+
+-- run/propose_freeze_realm.gno --
+package main
+
+import (
+	"chain"
+
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	pr := params.NewSysParamStringsPropRequestAddWithTitle(cross(cur), "auth", "p", "frozen_addrs",
+		"Freeze a realm", []string{chain.PackageAddress("gno.land/r/gov/dao").String()})
 	println(dao.MustCreateProposal(cross(cur), pr).String())
 }
 

@@ -31,6 +31,10 @@ type AccountKeeper struct {
 
 	// The prototypical SessionAccount constructor.
 	sessionProto func() std.Account
+
+	// freezeVeto, if set, may refuse addresses entering frozen_addrs. See
+	// WithFreezeVeto.
+	freezeVeto func(ctx sdk.Context, addrs []crypto.Address)
 }
 
 // NewAccountKeeper returns a new AccountKeeper that uses go-amino to

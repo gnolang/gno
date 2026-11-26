@@ -154,7 +154,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		vmk.QueryMaxAlloc = cfg.QueryMaxAlloc
 	}
 
-	prmk.Register(auth.ModuleName, acck)
+	prmk.Register(auth.ModuleName, acck.WithFreezeVeto(refusePackageAddrs(vmk)))
 	prmk.Register(bank.ModuleName, bankk)
 	prmk.Register(vm.ModuleName, vmk)
 	prmk.Register("node", nodeParamsKeeper{requireFlushPoint: baseApp.RequireFlushPoint, prmk: prmk})
@@ -871,6 +871,18 @@ func assertAuthGenesis(state auth.GenesisState) {
 	if gp.Price.Denom != ugnot.Denom {
 		panic(fmt.Errorf("genesis auth initial_gasprice must be denominated in %s, got %q",
 			ugnot.Denom, gp.Price.Denom))
+	}
+}
+
+// refusePackageAddrs is gno.land's veto on auth:p:frozen_addrs. A package's
+// address has no key, so it signs nothing: a realm's coins move through its own
+// banker, which the ante check never sees. Freezing one would look like a
+// freeze and stop nothing, so the proposal fails instead.
+func refusePackageAddrs(vmk *vm.VMKeeper) func(sdk.Context, []crypto.Address) {
+	return func(ctx sdk.Context, addrs []crypto.Address) {
+		if addr, path, ok := vmk.PackageAtAddr(ctx, addrs); ok {
+			panic(fmt.Sprintf("cannot freeze %s: it is the address of package %s, whose coins move through its own code, not signed transactions", addr, path))
+		}
 	}
 }
 

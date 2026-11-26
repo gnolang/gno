@@ -332,7 +332,8 @@ func (ak AccountKeeper) applyUnrestrictedAddrsChange(ctx sdk.Context, params Par
 // Unlike the unrestricted list, nothing is skipped silently: an address with no
 // account gets one, so coins it receives later arrive frozen, and an account
 // that cannot carry the bit panics, failing the proposal rather than leaving an
-// address listed but spendable.
+// address listed but spendable. For the same reason the chain's freezeVeto may
+// refuse addresses that never sign, whose freeze would stop nothing.
 //
 // The lists are walked in order, never a map: creating an account takes the
 // next account number, so the order has to be the same on every node.
@@ -340,6 +341,10 @@ func (ak AccountKeeper) applyFrozenAddrsChange(ctx sdk.Context, newStrs []string
 	var oldStrs []string
 	ak.prmk.GetStrings(ctx, frozenAddrsPath, &oldStrs)
 	oldAddrs, newAddrs := parseAddrs(oldStrs), parseAddrs(newStrs)
+	added := addrsNotIn(newAddrs, oldAddrs)
+	if ak.freezeVeto != nil && len(added) > 0 {
+		ak.freezeVeto(ctx, added)
+	}
 
 	setFrozen := func(addr crypto.Address, frozen bool) {
 		acc := ak.GetAccount(ctx, addr)
@@ -356,12 +361,21 @@ func (ak AccountKeeper) applyFrozenAddrsChange(ctx sdk.Context, newStrs []string
 		facc.SetFrozen(frozen)
 		ak.SetAccount(ctx, acc)
 	}
-	for _, addr := range addrsNotIn(newAddrs, oldAddrs) {
+	for _, addr := range added {
 		setFrozen(addr, true)
 	}
 	for _, addr := range addrsNotIn(oldAddrs, newAddrs) {
 		setFrozen(addr, false)
 	}
+}
+
+// WithFreezeVeto returns a copy of ak that calls veto with the addresses a
+// frozen_addrs write adds, in list order, before it freezes any of them. veto
+// panics to refuse the write. The ante check stops only what an account signs,
+// and tm2 cannot tell which addresses never sign: a chain built on it can.
+func (ak AccountKeeper) WithFreezeVeto(veto func(ctx sdk.Context, addrs []crypto.Address)) AccountKeeper {
+	ak.freezeVeto = veto
+	return ak
 }
 
 func parseAddrs(ss []string) []crypto.Address {
