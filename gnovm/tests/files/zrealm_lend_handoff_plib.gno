@@ -34,4 +34,4 @@ func try(fn func()) (r any) {
 
 // Output:
 // p01 control: lent to a /p/ function 1 undefined
-// p02 wrapper handed off, then f 1 gno.land/r/tests/vm/lendhandoffplib's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/lendhandoffplib) package{})).count
+// p02 wrapper handed off, then f 1 gno.land/r/tests/vm/lendhandoffplib's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/lendhandoffplib) package{})).count

@@ -55,24 +55,24 @@ func try(fn func()) (r any) {
 // 01 Call (control, lent) 1 undefined
 // 02 Pass 2 undefined
 // 03 Keep 2 undefined
-// 03b stored call 2 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
-// 04 KeepCall 2 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
+// 03b stored call 2 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
+// 04 KeepCall 2 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
 // 05 DeferCall 3 undefined
 // 06 WrapCall 4 undefined
-// 07 WrapKeepCall 4 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
-// 08 PanicIt 4 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
+// 07 WrapKeepCall 4 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
+// 08 PanicIt 4 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
 // 09 PanicOut 4 undefined
-// 09b recovered after unwind 4 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
+// 09b recovered after unwind 4 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
 // 10 CallFn named type 5 undefined
-// 11 Fn(lit).Run receiver 5 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
+// 11 Fn(lit).Run receiver 5 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
 // 12 promoted Outer.Do 6 undefined
 // 13 method expr Inner.Do 7 undefined
-// 14 Outer.Keep then call 7 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
-// 15 struct field Ops 7 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
+// 14 Outer.Keep then call 7 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
+// 15 struct field Ops 7 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
 // 16 iface Via 8 undefined
-// 17 Branch false 8 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
+// 17 Branch false 8 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
 // 9
 // 18 Ret 9 undefined
 // 19 Recurse 13 undefined
 // 20 nested lend 14 undefined
-// 21 method value 14 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count
+// 21 method value 14 gno.land/r/tests/vm/chaldlendlib's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldlendlib) package{})).count

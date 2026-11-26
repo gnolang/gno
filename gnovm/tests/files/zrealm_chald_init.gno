@@ -34,6 +34,6 @@ func try(fn func()) (r any) {
 // Output:
 // 1
 // i01 after init 2 undefined
-// i02 init-kept literal 2 gno.land/r/tests/vm/chaldinit's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldinit) package{})).count
-// i03 init-kept via lib 2 gno.land/r/tests/vm/chaldinit's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldinit) package{})).count
-// i04 init-kept re-lent wrapper 2 gno.land/r/tests/vm/chaldinit's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldinit) package{})).count
+// i02 init-kept literal 2 gno.land/r/tests/vm/chaldinit's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldinit) package{})).count
+// i03 init-kept via lib 2 gno.land/r/tests/vm/chaldinit's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldinit) package{})).count
+// i04 init-kept re-lent wrapper 2 gno.land/r/tests/vm/chaldinit's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldinit) package{})).count

@@ -34,9 +34,9 @@ func try(fn func()) (r any) {
 }
 
 // Output:
-// t01 lib.Call(saved) control 0 gno.land/r/tests/vm/chaldtesting's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldtesting) package{})).count
-// t02 testing.AllocsPerRun2(saved) 0 gno.land/r/tests/vm/chaldtesting's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldtesting) package{})).count
-// panic: gno.land/r/tests/vm/chaldtesting's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldtesting) package{})).count
+// t01 lib.Call(saved) control 0 gno.land/r/tests/vm/chaldtesting's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldtesting) package{})).count
+// t02 testing.AllocsPerRun2(saved) 0 gno.land/r/tests/vm/chaldtesting's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldtesting) package{})).count
+// panic: gno.land/r/tests/vm/chaldtesting's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldtesting) package{})).count
 // Stacktrace:
 // exampleTestFunc<VPBlock(1,0)>()
 //     gno.land/r/tests/vm/chaldtesting/zrealm_chald_testingpkg.gno:13

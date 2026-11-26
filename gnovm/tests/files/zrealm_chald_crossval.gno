@@ -37,7 +37,7 @@ func try(fn func()) (r any) {
 }
 
 // Output:
-// c01 stored value (control) 0 0 gno.land/r/tests/vm/chaldcrossval's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldcrossval) package{})).count
+// c01 stored value (control) 0 0 gno.land/r/tests/vm/chaldcrossval's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldcrossval) package{})).count
 // c02 stored crossing value, no cross 1 0 undefined
 // c04 stored lib method value 1 0 cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node
 // c05 lib method value lent to lib 1 0 cannot modify object owned by another realm from library code (call a function of the owning realm): tree<VPBlock(1,0)>.node

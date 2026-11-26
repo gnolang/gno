@@ -37,7 +37,7 @@ func try(fn func()) (r any) {
 }
 
 // Output:
-// same: gno.land/r/zrealm_t38_borrow_mv's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): t<VPBlock(1,0)>.Name orig
+// same: gno.land/r/zrealm_t38_borrow_mv's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): t<VPBlock(1,0)>.Name orig
 
 // Error:
 // gno.land/r/zrealm_t38_borrow_mv's code was entered without crossing and is read-only (call its crossing function): t<VPBlock(1,0)>.Name

@@ -27,5 +27,5 @@ func try(fn func()) (r any) {
 }
 
 // Output:
-// declared: gno.land/r/zrealm_maker_ownfunc's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): x<VPBlock(1,0)>.Field orig
+// declared: gno.land/r/zrealm_maker_ownfunc's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): x<VPBlock(1,0)>.Field orig
 // literal: lit

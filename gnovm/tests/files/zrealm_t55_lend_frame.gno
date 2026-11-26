@@ -29,4 +29,4 @@ func try(fn func()) (r any) {
 
 // Output:
 // f01 control: kept wrapper run while the loan holds 1 undefined
-// f02 the same wrapper run after the call returned 1 gno.land/r/tests/vm/t55lendframe's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/t55lendframe) package{})).count
+// f02 the same wrapper run after the call returned 1 gno.land/r/tests/vm/t55lendframe's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/t55lendframe) package{})).count

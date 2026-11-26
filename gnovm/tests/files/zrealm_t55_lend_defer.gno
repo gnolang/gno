@@ -23,4 +23,4 @@ func try(f func()) (r any) {
 
 // Output:
 // d01 callee defers the lent literal 1 undefined
-// d02 control: callee defers a variable 1 gno.land/r/tests/vm/t55lenddefer's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/t55lenddefer) package{})).count
+// d02 control: callee defers a variable 1 gno.land/r/tests/vm/t55lenddefer's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/t55lenddefer) package{})).count

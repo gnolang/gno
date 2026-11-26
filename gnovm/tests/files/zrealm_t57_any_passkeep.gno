@@ -35,7 +35,7 @@ func try(fn func()) (r any) {
 }
 
 // Output:
-// pass: gno.land/r/zrealm_t57_any_passkeep's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/zrealm_t57_any_passkeep) package{})).count
-// switch: gno.land/r/zrealm_t57_any_passkeep's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/zrealm_t57_any_passkeep) package{})).count
-// later: gno.land/r/zrealm_t57_any_passkeep's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/zrealm_t57_any_passkeep) package{})).count
+// pass: gno.land/r/zrealm_t57_any_passkeep's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/zrealm_t57_any_passkeep) package{})).count
+// switch: gno.land/r/zrealm_t57_any_passkeep's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/zrealm_t57_any_passkeep) package{})).count
+// later: gno.land/r/zrealm_t57_any_passkeep's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/zrealm_t57_any_passkeep) package{})).count
 // count: 0

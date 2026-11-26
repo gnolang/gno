@@ -21,7 +21,7 @@ runs read-only. Library (`/p/`) code never writes another realm's objects.
 3. a literal called in the expression that writes it (`func(){ n++ }()`).
 
 Anything else runs read-only and a write is refused with `<realm>'s code is
-read-only here: a function value writes only in the crossing call that made it`.
+read-only here: a function value writes only as a literal passed in place or called where it is written`.
 The legal form for every other case is a crossing closure, `func(cur realm, …)`
 called with `cross`; it is the default for callbacks. The loan (clause 2) ends
 when the call returns, when the callee stores or returns the value, and for a
@@ -59,7 +59,7 @@ read-only (call its crossing function)`; `cannot modify object owned by another
 realm from library code (call a function of the owning realm)`.
 
 ## Alternatives rejected
-- **Copy on hand-out** (a function value writes only in the crossing call that made it, while private to it; a stored or handed-out value becomes a copy without write power): it needed a per-call marker and a deep swap on every attach and realm change, and its edge cases were hard to state to authors.
+- **Copy on hand-out** (a function value writes only during the crossing call it was made in, while private to it; a stored or handed-out value becomes a copy without write power): it needed a per-call marker and a deep swap on every attach and realm change, and its edge cases were hard to state to authors.
 - **Owner grant (`mutable`, #6207)**: one grant hands out every method. **Stamping function values with their sender**: lost in containers and variadics.
 - **Receiver ownership for interface calls** (cannot tell who picked the code); **implicit crossing on every call** (shifts the caller identity silently).
 

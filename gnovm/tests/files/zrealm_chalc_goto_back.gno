@@ -29,4 +29,4 @@ func main(cur realm) {
 // before: 0
 
 // Error:
-// gno.land/r/zrealm_chalc_goto_back's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/zrealm_chalc_goto_back) package{})).count
+// gno.land/r/zrealm_chalc_goto_back's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/zrealm_chalc_goto_back) package{})).count

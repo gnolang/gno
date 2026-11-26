@@ -30,4 +30,4 @@ func try(fn func()) (r any) {
 
 // Output:
 // e01 control: lent and called 1 undefined
-// e02 handed to an escaping parameter, then called 1 gno.land/r/tests/vm/lendhandoffescape's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/lendhandoffescape) package{})).count
+// e02 handed to an escaping parameter, then called 1 gno.land/r/tests/vm/lendhandoffescape's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/lendhandoffescape) package{})).count

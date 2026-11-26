@@ -25,7 +25,7 @@ func main(cur realm) {
 // x03 other realm via lib 0 gno.land/r/tests/vm/chaldv's code was entered without crossing and is read-only (call its crossing function): (const (ref(gno.land/r/tests/vm/chaldv) package{})).Count
 // x04 other realm keeps 0 undefined
 // x05 other realm runs kept 0 gno.land/r/tests/vm/chaldv's code was entered without crossing and is read-only (call its crossing function): (const (ref(gno.land/r/tests/vm/chaldv) package{})).Count
-// x06 bounce back crossing 0 gno.land/r/tests/vm/chaldv's code is read-only here: a function value writes only in the crossing call that made it (to write elsewhere, give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldv) package{})).Count
+// x06 bounce back crossing 0 gno.land/r/tests/vm/chaldv's code is read-only here: a function value writes only as a literal passed in place or called where it is written (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/chaldv) package{})).Count
 // x07 lib callback re-enters 2 undefined
 // x08 view victim lends 3 undefined
 // x09 outsider runs non-crossing lend 3 gno.land/r/tests/vm/chaldv's code was entered without crossing and is read-only (call its crossing function): (const (ref(gno.land/r/tests/vm/chaldv) package{})).Count
