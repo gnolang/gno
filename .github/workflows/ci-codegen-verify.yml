@@ -26,9 +26,11 @@ on:
 permissions:
   contents: read
 
+# mod-tidy, genproto2 and docs are light jobs: ubuntu-slim (1 vCPU, a third of
+# the price) where minutes are billed, i.e. in private repositories.
 jobs:
   mod-tidy:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.repository.private && 'ubuntu-slim' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -56,7 +58,7 @@ jobs:
           git diff --text --exit-code || (echo "upstream.pb.go is not updated, please run 'make -C tm2/pkg/bft/privval/upstream/upstreampb'." && exit 1)
 
   genproto2:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.repository.private && 'ubuntu-slim' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -87,7 +89,7 @@ jobs:
           key: ${{ steps.go-cache.outputs.cache-primary-key }}
 
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.repository.private && 'ubuntu-slim' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -34,10 +34,11 @@ concurrency:
   cancel-in-progress: true
 
 # gno2go, generate and mod-tidy each build the gno binary first, so they
-# restore the cache _ci-gno.yml's test job saves on the default branch.
+# restore the cache _ci-gno.yml's test job saves on the default branch. They
+# are light jobs: ubuntu-slim where minutes are billed (private repositories).
 jobs:
   gno2go:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.repository.private && 'ubuntu-slim' || 'ubuntu-latest' }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -62,7 +63,7 @@ jobs:
       path: "examples"
 
   generate:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.repository.private && 'ubuntu-slim' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -92,7 +93,7 @@ jobs:
           fi
 
   mod-tidy:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.repository.private && 'ubuntu-slim' || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

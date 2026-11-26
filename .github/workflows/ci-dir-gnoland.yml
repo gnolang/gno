@@ -50,8 +50,10 @@ jobs:
       # sequential `tests-ts-seq` workaround, cutting this job from ~22m to
       # a few minutes.
 
+  # The gnoweb jobs are light: ubuntu-slim (1 vCPU, a third of the price) where
+  # minutes are billed, i.e. in private repositories.
   gnoweb_generate:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.repository.private && 'ubuntu-slim' || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -70,7 +72,7 @@ jobs:
              (echo "'gnoweb generate' out of date, please run 'make gnoweb.generate' within './gno.land'" && exit 1)
 
   gnoweb_front_lint:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.repository.private && 'ubuntu-slim' || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
