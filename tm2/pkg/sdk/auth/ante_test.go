@@ -17,6 +17,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/crypto/mldsa65"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -692,6 +693,53 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 	require.Nil(t, acc2.GetPubKey())
 }
 
+// A tx signed with an ML-DSA-65 key passes the ante handler, stores the key on
+// the account, and is charged SigVerifyCostMLDSA65 for its one signature. A
+// tampered signature under the same key is refused.
+func TestAnteHandlerMLDSA65(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	var charged int64
+	var chargedFor []crypto.PubKey
+	consumer := func(meter store.GasMeter, sig []byte, pubkey crypto.PubKey, params Params) sdk.Result {
+		before := meter.GasConsumed()
+		res := DefaultSigVerificationGasConsumer(meter, sig, pubkey, params)
+		charged += meter.GasConsumed() - before
+		chargedFor = append(chargedFor, pubkey)
+		return res
+	}
+	anteHandler := NewAnteHandler(env.acck, env.bankk, consumer, defaultAnteOptions())
+
+	priv := mldsa65.GenPrivKey()
+	addr := priv.PubKey().Address()
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	acc.SetCoins(tu.NewTestCoins())
+	require.NoError(t, acc.SetAccountNumber(0))
+	env.acck.SetAccount(ctx, acc)
+
+	// About 5.3 KB of signature and public key at TxSizeCostPerByte, plus the
+	// verification itself: more than tu.NewTestFee's 50000.
+	fee := std.NewFee(200000, std.NewCoin("atom", 150))
+	msgs := []std.Msg{tu.NewTestMsg(addr)}
+
+	tx := tu.NewTestTx(t, ctx.ChainID(), msgs, []crypto.PrivKey{priv}, []uint64{0}, []uint64{0}, fee)
+	require.Len(t, tx.Signatures[0].Signature, mldsa65.SignatureSize)
+	checkValidTx(t, anteHandler, ctx, tx, false)
+
+	require.Len(t, chargedFor, 1)
+	assert.IsType(t, mldsa65.PubKeyMLDSA65{}, chargedFor[0])
+	assert.Equal(t, DefaultSigVerifyCostMLDSA65, charged)
+	assert.True(t, priv.PubKey().Equals(env.acck.GetAccount(ctx, addr).GetPubKey()))
+
+	// Next sequence, one bit flipped in the signature.
+	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, []crypto.PrivKey{priv}, []uint64{0}, []uint64{1}, fee)
+	tx.Signatures[0].Signature[100] ^= 0x01
+	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnauthorizedError{})
+}
+
 func TestConsumeSignatureVerificationGas(t *testing.T) {
 	t.Parallel()
 
@@ -725,6 +773,7 @@ func TestConsumeSignatureVerificationGas(t *testing.T) {
 	}{
 		{"PubKeyEd25519", args{store.NewInfiniteGasMeter(), nil, ed25519.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostED25519, false},
 		{"PubKeySecp256k1", args{store.NewInfiniteGasMeter(), nil, secp256k1.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostSecp256k1, false},
+		{"PubKeyMLDSA65", args{store.NewInfiniteGasMeter(), nil, mldsa65.GenPrivKey().PubKey(), params}, DefaultSigVerifyCostMLDSA65, false},
 		{"Multisig", args{store.NewInfiniteGasMeter(), amino.MustMarshal(multisignature1), multisigKey1, params}, expectedCost1, false},
 		{"Multisig signed past its threshold", args{store.NewInfiniteGasMeter(), amino.MustMarshal(multisignatureAll), multisigKey1, params}, 0, true},
 		{"unknown key", args{store.NewInfiniteGasMeter(), nil, nil, params}, 0, true},

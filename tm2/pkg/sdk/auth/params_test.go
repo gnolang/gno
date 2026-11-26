@@ -28,11 +28,27 @@ func TestValidate(t *testing.T) {
 				TxSizeCostPerByte:         1,
 				SigVerifyCostED25519:      100,
 				SigVerifyCostSecp256k1:    200,
+				SigVerifyCostMLDSA65:      300,
 				GasPricesChangeCompressor: 1,
 				TargetGasRatio:            50,
 				FeeCollector:              crypto.AddressFromPreimage([]byte("test_collector")),
 			},
 			expectsError: false,
+		},
+		{
+			name: "Invalid SigVerifyCostMLDSA65",
+			params: Params{
+				MaxMemoBytes:              256,
+				TxSigLimit:                7,
+				TxSizeCostPerByte:         1,
+				SigVerifyCostED25519:      100,
+				SigVerifyCostSecp256k1:    200,
+				SigVerifyCostMLDSA65:      0,
+				GasPricesChangeCompressor: 1,
+				TargetGasRatio:            50,
+				FeeCollector:              crypto.AddressFromPreimage([]byte("test_collector")),
+			},
+			expectsError: true,
 		},
 		{
 			// TxSigLimit counts leaves; multisig.MaxTotalKeys counts the whole
@@ -162,6 +178,7 @@ func TestNewParams(t *testing.T) {
 	txSizeCostPerByte := int64(5)
 	sigVerifyCostED25519 := int64(100)
 	sigVerifyCostSecp256k1 := int64(200)
+	sigVerifyCostMLDSA65 := int64(300)
 	gasPricesChangeCompressor := int64(50)
 	targetGasRatio := int64(75)
 	feeCollector := crypto.AddressFromPreimage([]byte("test_collector"))
@@ -173,6 +190,7 @@ func TestNewParams(t *testing.T) {
 		txSizeCostPerByte,
 		sigVerifyCostED25519,
 		sigVerifyCostSecp256k1,
+		sigVerifyCostMLDSA65,
 		gasPricesChangeCompressor,
 		targetGasRatio,
 		feeCollector,
@@ -185,6 +203,7 @@ func TestNewParams(t *testing.T) {
 		TxSizeCostPerByte:         txSizeCostPerByte,
 		SigVerifyCostED25519:      sigVerifyCostED25519,
 		SigVerifyCostSecp256k1:    sigVerifyCostSecp256k1,
+		SigVerifyCostMLDSA65:      sigVerifyCostMLDSA65,
 		GasPricesChangeCompressor: gasPricesChangeCompressor,
 		TargetGasRatio:            targetGasRatio,
 		FeeCollector:              feeCollector,
@@ -347,6 +366,25 @@ func TestWillSetParam(t *testing.T) {
 			value:       int64(0),
 			shouldPanic: true,
 		},
+		// sig_verify_cost_mldsa65
+		{
+			name:        "valid sig_verify_cost_mldsa65",
+			key:         "p:sig_verify_cost_mldsa65",
+			value:       int64(1400),
+			shouldPanic: false,
+		},
+		{
+			name:        "wrong type for sig_verify_cost_mldsa65",
+			key:         "p:sig_verify_cost_mldsa65",
+			value:       "not_int64",
+			shouldPanic: true,
+		},
+		{
+			name:        "invalid sig_verify_cost_mldsa65 value",
+			key:         "p:sig_verify_cost_mldsa65",
+			value:       int64(0),
+			shouldPanic: true,
+		},
 		// gas_price_change_compressor
 		{
 			name:        "valid gas_price_change_compressor",
@@ -454,11 +492,11 @@ func TestParamsString(t *testing.T) {
 		params Params
 		want   string
 	}{
-		{"blank params", Params{}, "Params: \nMaxMemoBytes: 0\nTxSigLimit: 0\nTxSizeCostPerByte: 0\nSigVerifyCostED25519: 0\nSigVerifyCostSecp256k1: 0\nGasPricesChangeCompressor: 0\nTargetGasRatio: 0\nFeeCollector: g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqluuxe\n"},
+		{"blank params", Params{}, "Params: \nMaxMemoBytes: 0\nTxSigLimit: 0\nTxSizeCostPerByte: 0\nSigVerifyCostED25519: 0\nSigVerifyCostSecp256k1: 0\nSigVerifyCostMLDSA65: 0\nGasPricesChangeCompressor: 0\nTargetGasRatio: 0\nFeeCollector: g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqluuxe\n"},
 		{"some values", Params{
 			MaxMemoBytes:      1_000_000,
 			TxSizeCostPerByte: 8192,
-		}, "Params: \nMaxMemoBytes: 1000000\nTxSigLimit: 0\nTxSizeCostPerByte: 8192\nSigVerifyCostED25519: 0\nSigVerifyCostSecp256k1: 0\nGasPricesChangeCompressor: 0\nTargetGasRatio: 0\nFeeCollector: g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqluuxe\n"},
+		}, "Params: \nMaxMemoBytes: 1000000\nTxSigLimit: 0\nTxSizeCostPerByte: 8192\nSigVerifyCostED25519: 0\nSigVerifyCostSecp256k1: 0\nSigVerifyCostMLDSA65: 0\nGasPricesChangeCompressor: 0\nTargetGasRatio: 0\nFeeCollector: g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqluuxe\n"},
 	}
 
 	for _, tt := range cases {

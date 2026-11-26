@@ -23,6 +23,7 @@ message Params {
 	std.GasPrice initial_gas_price = 8 [json_name = "initial_gasprice"];
 	repeated string unrestricted_addrs = 9;
 	string fee_collector = 10;
+	sint64 sig_verify_cost_mldsa65 = 11;
 }
 
 message m_create_session {

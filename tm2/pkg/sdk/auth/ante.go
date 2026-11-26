@@ -9,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/crypto/mldsa65"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -455,6 +456,10 @@ func DefaultSigVerificationGasConsumer(
 
 	case secp256k1.PubKeySecp256k1:
 		meter.ConsumeGas(params.SigVerifyCostSecp256k1, "ante verify: secp256k1")
+		return sdk.Result{}
+
+	case mldsa65.PubKeyMLDSA65:
+		meter.ConsumeGas(params.SigVerifyCostMLDSA65, "ante verify: mldsa65")
 		return sdk.Result{}
 
 	case multisig.PubKeyMultisigThreshold:
