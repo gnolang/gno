@@ -85,8 +85,10 @@ type wmAnswer struct {
 }
 
 type wmFrame struct {
-	pkg  string
-	mode wmMode
+	pkg      string
+	mode     wmMode
+	crossing int    // the crossing the call runs in
+	hold     string // the realm new values belong to while it runs
 }
 
 // wmLoan: fn was written in place as an argument while realm wrote; it ends
@@ -95,13 +97,17 @@ type wmLoan struct {
 	fn       any
 	realm    string
 	crossing int
+	depth    int // the receiving call's place on the stack
 }
 
 type wmState struct {
 	base     wmMode    // the mode below every call
+	baseHold string    // the hold below every call
+	baseX    int       // the crossing below every call
 	stack    []wmFrame // running calls, the caller on top
 	loans    []wmLoan  // live loans
 	crossing int       // the current crossing
+	next     int       // the last crossing number used
 }
 
 func (s *wmState) mode() wmMode {
@@ -233,4 +239,114 @@ func wmRealmOf(p string) string {
 		return p
 	}
 	return ""
+}
+
+// wmArg is one argument as the callee receives it; a variadic tail is one slice.
+type wmArg struct {
+	fn     any     // a function value, or nil
+	reach  []any   // the function values fn reaches through captures, at any depth
+	slice  bool    // a slice: its elements escape like stored values
+	elems  []wmArg // the slice's elements
+	nonesc bool    // the parameter is marked as never letting its value escape
+	lit    bool    // a function literal written in place
+}
+
+// readOnly reports whether md writes no stored state.
+func (md wmMode) readOnly() bool {
+	return md.kind == wmView || md.kind == wmReadOnly || md.kind == wmByValue
+}
+
+func (s *wmState) hold() string {
+	if n := len(s.stack); n > 0 {
+		return s.stack[n-1].hold
+	}
+	return s.baseHold
+}
+
+// enter pushes a call that starts in a. Its arguments then hand over loans
+// (rule 7) and, unless the call was deferred, lend (rule 8).
+func (s *wmState) enter(callee string, a wmAnswer, args []wmArg, deferred bool) {
+	caller, callerHold, callerX := s.mode(), s.hold(), s.crossing
+	fr := wmFrame{pkg: callee, mode: a.mode, crossing: callerX, hold: a.mode.realm}
+	if a.mode.kind == wmErrNotCrossing || a.mode.kind == wmErrExternalCur {
+		fr.mode, fr.hold = caller, callerHold // the call fails before it runs
+		s.stack = append(s.stack, fr)
+		return
+	}
+	if a.mode.kind == wmView {
+		fr.hold = callerHold
+	}
+	if a.cross {
+		s.next++
+		fr.crossing = s.next
+	}
+	s.stack, s.crossing = append(s.stack, fr), fr.crossing
+	// 7. Leaving the caller's hold, or entering read-only code, ends the loans an argument captures.
+	if (fr.mode.readOnly() && !caller.readOnly()) || fr.hold != callerHold {
+		for _, x := range args {
+			if x.fn != nil {
+				s.drop(x.reach...)
+			}
+		}
+	}
+	if deferred {
+		return
+	}
+	// 8. A literal written in place for a non-escaping parameter is lent to the call
+	// while its caller writes; any other function value handed over loses its loans.
+	for _, x := range args {
+		switch {
+		case x.slice:
+			for _, e := range x.elems {
+				s.drop(e.fn)
+				s.drop(e.reach...)
+			}
+		case x.fn == nil:
+		case s.hasLoan(x.fn):
+			if !x.nonesc {
+				s.drop(x.fn)
+				s.drop(x.reach...)
+			}
+		case x.nonesc && x.lit && caller.kind == wmWrite:
+			s.loans = append(s.loans, wmLoan{fn: x.fn, realm: caller.realm, crossing: callerX, depth: len(s.stack) - 1})
+		default:
+			s.drop(x.reach...)
+		}
+	}
+}
+
+// pop leaves n calls running: the loans of the others end with them.
+func (s *wmState) pop(n int) {
+	s.stack = s.stack[:n]
+	s.crossing = s.baseX
+	if n > 0 {
+		s.crossing = s.stack[n-1].crossing
+	}
+	kept := s.loans[:0]
+	for _, l := range s.loans {
+		if l.depth < n {
+			kept = append(kept, l)
+		}
+	}
+	s.loans = kept
+}
+
+func (s *wmState) hasLoan(fn any) bool {
+	for _, l := range s.loans {
+		if l.fn == fn {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *wmState) drop(fns ...any) {
+	for _, fn := range fns {
+		for i := 0; i < len(s.loans); i++ {
+			if s.loans[i].fn == fn {
+				s.loans = append(s.loans[:i], s.loans[i+1:]...)
+				i--
+			}
+		}
+	}
 }
