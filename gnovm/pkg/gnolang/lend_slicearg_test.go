@@ -171,3 +171,34 @@ func TestLendSliceArgStillDrops(t *testing.T) {
 		require.Equal(t, tc.lent, peak > 0, "%s: lent", tc.how)
 	}
 }
+
+// sliceMayHoldFunc answers true for any type it cannot read as a slice, so
+// the loan walk runs; it answers false only for element bases that hold no func.
+func TestLendSliceArgMayHoldFunc(t *testing.T) {
+	fn := &FuncType{}
+	declF := &DeclaredType{PkgPath: "gno.land/p/demo/x", Name: "F", Base: fn}
+	declS := &DeclaredType{PkgPath: "gno.land/p/demo/x", Name: "S", Base: &SliceType{Elt: IntType}}
+	declFS := &DeclaredType{PkgPath: "gno.land/p/demo/x", Name: "FS", Base: &SliceType{Elt: fn}}
+	for _, tc := range []struct {
+		name string
+		t    Type
+		want bool
+	}{
+		{"nil", nil, true},
+		{"non-slice", IntType, true},
+		{"nil elt", &SliceType{}, true},
+		{"[]int", &SliceType{Elt: IntType}, false},
+		{"[]*int", &SliceType{Elt: &PointerType{Elt: IntType}}, false},
+		{"[]struct", &SliceType{Elt: &StructType{}}, false},
+		{"[]map", &SliceType{Elt: &MapType{Key: StringType, Value: IntType}}, false},
+		{"[][]int", &SliceType{Elt: &SliceType{Elt: IntType}}, false},
+		{"[][3]int", &SliceType{Elt: &ArrayType{Len: 3, Elt: IntType}}, false},
+		{"[]func()", &SliceType{Elt: fn}, true},
+		{"[]interface{}", &SliceType{Elt: &InterfaceType{}}, true},
+		{"[]F", &SliceType{Elt: declF}, true},
+		{"S []int", declS, false},
+		{"FS []func()", declFS, true},
+	} {
+		require.Equal(t, tc.want, sliceMayHoldFunc(tc.t), tc.name)
+	}
+}
