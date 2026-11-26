@@ -228,6 +228,33 @@ func TestInitialGasPriceParamRoundTrip(t *testing.T) {
 	require.Equal(t, params, env.acck.GetParams(env.ctx))
 }
 
+// A genesis or a stored params struct from before SigVerifyCostMLDSA65 existed
+// carries a zero there. It must load with the default, not fail validation and
+// not make ML-DSA-65 verification free.
+func TestParamsWithoutMLDSA65CostGetDefault(t *testing.T) {
+	old := DefaultParams()
+	old.SigVerifyCostMLDSA65 = 0
+
+	t.Run("genesis", func(t *testing.T) {
+		env := setupTestEnv()
+		require.NoError(t, ValidateGenesis(NewGenesisState(old)))
+		env.acck.InitGenesis(env.ctx, NewGenesisState(old))
+		assert.Equal(t, DefaultSigVerifyCostMLDSA65, env.acck.GetParams(env.ctx).SigVerifyCostMLDSA65)
+	})
+
+	t.Run("stored", func(t *testing.T) {
+		env := setupTestEnv()
+		// Written straight to the store, as a chain running the previous
+		// binary would have left it.
+		env.acck.prmk.SetStruct(env.ctx, "p", old)
+		assert.Equal(t, DefaultSigVerifyCostMLDSA65, env.acck.GetParams(env.ctx).SigVerifyCostMLDSA65)
+		// Any later auth param write revalidates the whole struct.
+		require.NotPanics(t, func() {
+			env.acck.WillSetParam(env.ctx, "p:max_memo_bytes", int64(1024))
+		})
+	})
+}
+
 func TestWillSetParam(t *testing.T) {
 	env := setupTestEnv()
 

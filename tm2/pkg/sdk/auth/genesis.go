@@ -28,7 +28,7 @@ func ValidateGenesis(data GenesisState) error {
 	if amino.DeepEqual(data, GenesisState{}) {
 		return fmt.Errorf("auth genesis state cannot be empty")
 	}
-	return data.Params.Validate()
+	return data.Params.withDefaults().Validate()
 }
 
 // InitGenesis - Init store state from genesis data
@@ -36,6 +36,7 @@ func (ak AccountKeeper) InitGenesis(ctx sdk.Context, data GenesisState) {
 	if err := ValidateGenesis(data); err != nil {
 		panic(err)
 	}
+	data.Params = data.Params.withDefaults()
 
 	if err := ak.SetParams(ctx, data.Params); err != nil {
 		panic(err)

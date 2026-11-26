@@ -231,7 +231,21 @@ func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	// caller (AnteHandler/handlers) hasn't necessarily applied the
 	// gas config that we'd be metering against yet.
 	ak.prmk.GetStruct(ctx.WithGasMeter(nil), "p", &params)
-	return params
+	return params.withDefaults()
+}
+
+// withDefaults fills the fields added after chains were already running, so
+// that a genesis file or a stored params struct written before them still
+// validates. Today that is only SigVerifyCostMLDSA65: without this, a zero
+// would fail Validate at InitGenesis and on every later auth param write, and
+// would let an ML-DSA-65 signature be verified for free. No block before this
+// field existed can hold an ML-DSA-65 key, so the default changes no replayed
+// result.
+func (p Params) withDefaults() Params {
+	if p.SigVerifyCostMLDSA65 == 0 {
+		p.SigVerifyCostMLDSA65 = DefaultSigVerifyCostMLDSA65
+	}
+	return p
 }
 
 func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
