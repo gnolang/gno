@@ -202,6 +202,10 @@ func (s *wmState) lent(fn any, realm string) bool {
 	return false
 }
 
+// 9. A write to a stored object goes through exactly when the running mode
+// writes as the realm that owns the object.
+func (md wmMode) mayWrite(owner string) bool { return owner != "" && md.writer() == owner }
+
 // wmArg is one argument as the callee receives it; a variadic tail is one slice.
 // The VM reads nonesc, lit and reach.
 type wmArg struct {
