@@ -253,11 +253,15 @@ func TestRefusalMasterTexts(t *testing.T) {
 	}
 }
 
-// refusalLiteralJoin reports whether n joins a string literal to a refusal
-// constant, by + or as call arguments: a site adds only paths or values.
-func refusalLiteralJoin(n ast.Node, names map[string]bool) bool {
+// refusalLiteralJoin reports whether n adds words to a refusal: a literal or a
+// package-level text name joined by + or as call arguments, or a slice of one.
+// Known limits: a local variable holding words, and fmt over a slice of texts.
+func refusalLiteralJoin(n ast.Node, names, texts map[string]bool) bool {
 	var ops []ast.Expr
 	switch x := n.(type) {
+	case *ast.SliceExpr:
+		id, ok := ast.Unparen(x.X).(*ast.Ident)
+		return ok && names[id.Name]
 	case *ast.BinaryExpr:
 		var flat func(e ast.Expr)
 		flat = func(e ast.Expr) {
@@ -279,8 +283,12 @@ func refusalLiteralJoin(n ast.Node, names map[string]bool) bool {
 		switch e := e.(type) {
 		case *ast.Ident:
 			con = con || names[e.Name]
+			lit = lit || texts[e.Name]
 		case *ast.BasicLit:
 			lit = lit || e.Kind == token.STRING
+		case *ast.CallExpr: // readonlyAccessPanic returns a refusal
+			sel, ok := e.Fun.(*ast.SelectorExpr)
+			con = con || ok && sel.Sel.Name == "readonlyAccessPanic"
 		}
 	}
 	return con && lit
@@ -321,17 +329,38 @@ func TestRefusalSites(t *testing.T) {
 	}
 	got := map[string]int{}
 	fset := token.NewFileSet()
-	for _, file := range refusalRuleFiles {
+	files := map[string]*ast.File{}
+	texts := map[string]bool{}
+	for _, file := range append([]string{"refusals.go"}, refusalRuleFiles...) {
 		f, err := parser.ParseFile(fset, file, nil, 0)
 		if err != nil {
 			t.Fatal(err)
 		}
+		files[file] = f
+		for _, d := range f.Decls {
+			if gd, ok := d.(*ast.GenDecl); ok && gd.Tok != token.IMPORT && gd.Tok != token.TYPE {
+				for _, sp := range gd.Specs {
+					vs := sp.(*ast.ValueSpec)
+					for i, n := range vs.Names {
+						if i < len(vs.Values) && !names[n.Name] {
+							lit, ok := vs.Values[i].(*ast.BasicLit)
+							texts[n.Name] = texts[n.Name] || ok && lit.Kind == token.STRING
+						}
+					}
+				}
+			}
+		}
+	}
+	for file, f := range files {
 		ast.Inspect(f, func(n ast.Node) bool {
-			if refusalLiteralJoin(n, names) {
-				t.Errorf("%s: a string literal joined to a refusal text", fset.Position(n.Pos()))
+			if refusalLiteralJoin(n, names, texts) {
+				t.Errorf("%s: words added to a refusal text", fset.Position(n.Pos()))
 			}
 			return true
 		})
+		if file == "refusals.go" {
+			continue
+		}
 		for _, d := range f.Decls {
 			fd, ok := d.(*ast.FuncDecl)
 			if !ok || fd.Body == nil {
