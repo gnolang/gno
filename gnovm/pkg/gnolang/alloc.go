@@ -42,9 +42,6 @@ type Allocator struct {
 	// scratch numbers the active read-only stretch (0: none); objects
 	// allocated in it carry the number and it may write them while unreal.
 	scratch uint32
-	// crossingID is the crossing call running now; new function values
-	// record it (madeIn). nil under view-only/read-only code.
-	crossingID *crossingCall
 	// viewHoldID is the realm whose values code may hold while view-only
 	// (setViewOnly clears currentRealmID): the realm current on entry.
 	viewHoldID PkgID
@@ -1397,10 +1394,4 @@ func internalRefSize(val Value) int64 {
 		))
 	}
 	return size
-}
-
-// recordCrossing ties a freshly made function value to the crossing call that
-// made it; values made read-only (crossingID nil) are left unrecorded.
-func (alloc *Allocator) recordCrossing(v interface{ setMadeIn(*crossingCall) }) {
-	v.setMadeIn(alloc.crossingID)
 }

@@ -2324,7 +2324,6 @@ func (tv *TypedValue) getPointerToForCall(gm types.GasMeter, alloc *Allocator, s
 		// Pass nil to stamp with currentRealmID.
 		alloc.stampPkgID(&bmv.ObjectInfo, nil)
 		alloc.unbindReadOnly(&bmv.ObjectInfo)
-		alloc.recordCrossing(bmv)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -2366,7 +2365,6 @@ func (tv *TypedValue) getPointerToForCall(gm types.GasMeter, alloc *Allocator, s
 		// Pass nil to stamp with currentRealmID.
 		alloc.stampPkgID(&bmv.ObjectInfo, nil)
 		alloc.unbindReadOnly(&bmv.ObjectInfo)
-		alloc.recordCrossing(bmv)
 		return PointerValue{
 			TV: &TypedValue{
 				T: mt.BoundType(),
@@ -2411,7 +2409,6 @@ func (tv *TypedValue) getPointerToForCall(gm types.GasMeter, alloc *Allocator, s
 		}
 		alloc.stampPkgID(&bmv.ObjectInfo, nil)
 		alloc.unbindReadOnly(&bmv.ObjectInfo)
-		alloc.recordCrossing(bmv)
 		return PointerValue{
 			TV: &TypedValue{
 				T: ift.(*FuncType),

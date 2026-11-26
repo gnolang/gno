@@ -211,11 +211,9 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm := machinePool.Get().(*Machine)
 	mm.Alloc = alloc
 	// The message entry into a realm (main(cur realm)) is the tx's first
-	// crossing call: give it a fresh marker so values it makes are writable
-	// there. A value reloaded from the store was never recorded: nil.
+	// crossing call: give it a fresh marker.
 	mm.curCrossing = &crossingCall{}
 	mm.s3Written = false // a transaction starts with no R2a-save writes (kept across calls)
-	alloc.crossingID = mm.curCrossing
 	alloc.store = store
 	if !isPreprocessing {
 		// Skip GC fn and gas-meter installation when the alloc is the
@@ -339,20 +337,17 @@ func (m *Machine) setViewOnly() {
 	m.viewOnly = true
 	m.Alloc.scratch = scratch
 	m.Alloc.viewHoldID = hold
-	m.Alloc.crossingID = nil
 }
 
-// crossingCall marks one crossing call; values made in it point to it. Two
-// live calls never share one, and it is never stored, so no counter can wrap
-// or differ between nodes. Non-zero size: Go may give zero-size values one
-// address.
+// crossingCall marks one crossing call; a loan records the one it was made
+// in. Two live calls never share one, and it is never stored, so no counter
+// can wrap or differ between nodes. Non-zero size: Go may give zero-size
+// values one address.
 type crossingCall struct{ _ byte }
 
-// setCrossing records the active crossing call on the machine and on the
-// allocator, so values made now can be told apart from values made elsewhere.
+// setCrossing records the active crossing call on the machine.
 func (m *Machine) setCrossing(c *crossingCall) {
 	m.curCrossing = c
-	m.Alloc.crossingID = c
 }
 
 // readOnlyOf reports whether m is running realm r's code read-only: R2a, or r
@@ -3076,9 +3071,6 @@ func (m *Machine) restoreRealmState(fr *Frame) {
 	m.Alloc.scratch = fr.LastScratch
 	m.Alloc.viewHoldID = fr.LastViewHold
 	m.setCrossing(fr.LastCrossing)
-	if m.viewOnly {
-		m.Alloc.crossingID = nil // as setViewOnly: read-only code makes no writer
-	}
 }
 
 // popFrameRestore pops a call frame while a panic unwinds and restores its

@@ -181,6 +181,9 @@ type ObjectInfo struct {
 	// Object has multiple references (refcount > 1) and is persisted separately
 	IsEscaped bool `json:",omitempty"` // hash in iavl.
 
+	LastObjectSize int64 //
+
+	// MemRefCount int // consider for optimizations.
 	// Object has been modified and needs to be saved
 	isDirty bool
 
@@ -202,19 +205,9 @@ type ObjectInfo struct {
 	// memory only. A function stored into a shared object loses its maker.
 	shared bool
 
-	LastObjectSize int64 //
-
-	// MemRefCount int // consider for optimizations.
 	lastGCCycle int64
 	owner       Object // mem reference to owner.
-	// madeIn: the crossing call that made a function value (R2a); memory
-	// only, a copy or reload gets nil.
-	madeIn *crossingCall
 }
-
-func (oi *ObjectInfo) setMadeIn(c *crossingCall) { oi.madeIn = c }
-
-func (oi *ObjectInfo) madeInCall() *crossingCall { return oi.madeIn }
 
 // Copy used for serialization of objects.
 // Note that "owner" is nil.
