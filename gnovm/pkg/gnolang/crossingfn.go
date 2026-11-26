@@ -25,8 +25,8 @@ func calledByValue(cx *CallExpr) bool {
 	return true
 }
 
-// restrictByValueCall applies R2a to a call that would otherwise run writable:
-// a non-crossing callee reached by value runs read-only unless its loan is live.
+// restrictByValueCall makes a call that would otherwise run writable read-only
+// when its non-crossing callee is reached by value and its loan is not live.
 func (m *Machine) restrictByValueCall(cx *CallExpr, fv *FuncValue, withCross bool) {
 	if withCross || fv.IsCrossing() || m.Realm == nil || !calledByValue(cx) || m.lendLive(fv) {
 		return
