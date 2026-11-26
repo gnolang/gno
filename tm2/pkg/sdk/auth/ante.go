@@ -173,6 +173,16 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			}
 
 			if !stdSigs[i].SessionAddr.IsZero() {
+				// So may a frozen session key, though it signs as its master.
+				// Its bit is on the account at the key's own address, which the
+				// freeze creates when there is none: the session account lives
+				// under its master and cannot be found from that address. Read
+				// unmetered, like GetParams, so a session tx costs no more gas.
+				sessionAcc := ak.GetAccount(newCtx.WithGasMeter(nil), stdSigs[i].SessionAddr)
+				if fa, ok := sessionAcc.(std.AccountFreezer); ok && fa.IsFrozen() {
+					return newCtx, abciResult(std.ErrUnauthorized(
+						fmt.Sprintf("session key %s is frozen", stdSigs[i].SessionAddr))), true
+				}
 				sa := ak.GetSessionAccount(newCtx, signerAddr, stdSigs[i].SessionAddr)
 				if sa == nil {
 					return newCtx, abciResult(std.ErrUnauthorized("unknown session")), true

@@ -119,3 +119,29 @@ func TestFrozenAccountCannotSign(t *testing.T) {
 	_, res, abort := ante(ctx, direct, false)
 	assert.False(t, abort, "an unfrozen account signs again: %s", res.Log)
 }
+
+// Freezing a session key's own address stops that key signing for its master,
+// though the master stays unfrozen: the list names keys, and a session key
+// signs as its master.
+func TestFrozenSessionKeyCannotSign(t *testing.T) {
+	t.Parallel()
+	env, ante, _, _, addr := setupSessionGnoEnv(t)
+	ctx := env.ctx
+
+	sessionPriv, sessionPub, sessionAddr := tu.KeyTestPubAddr()
+	sa := createGnoSession(t, env, addr, sessionPub, 0, []string{"*"})
+	msgs := []std.Msg{tu.NewTestMsg(addr)}
+	fee := std.NewFee(1_000_000, std.NewCoin("atom", 150))
+	tx := tu.NewSessionTestTx(t, ctx.ChainID(), msgs, sessionPriv, sessionAddr, sa.GetAccountNumber(), 0, fee)
+
+	env.setFrozenAddrs(sessionAddr)
+	balance := env.bankk.GetCoins(ctx, addr)
+	_, res, abort := ante(ctx, tx, false)
+	assert.True(t, abort)
+	assert.Contains(t, res.Log, "is frozen")
+	assert.Equal(t, balance, env.bankk.GetCoins(ctx, addr), "a refused tx must not charge the master a fee")
+
+	env.setFrozenAddrs()
+	_, res, abort = ante(ctx, tx, false)
+	assert.False(t, abort, "an unfrozen session key signs again: %s", res.Log)
+}
