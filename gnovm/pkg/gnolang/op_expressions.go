@@ -823,9 +823,7 @@ func (m *Machine) stampMaker(fv *FuncValue) {
 	m.Alloc.stampPkgID(&fv.ObjectInfo, nil)
 	if m.viewOnly {
 		fv.ObjectInfo.SetPkgID(PkgID{})
-		return
 	}
-	m.Alloc.recordCrossing(fv)
 }
 
 // doOpFuncHandle turns a declared function or method expression into a

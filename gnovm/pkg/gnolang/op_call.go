@@ -414,7 +414,7 @@ func (m *Machine) doOpCall() {
 		args = []TypedValue{*m.PopValue()}
 	} else {
 		args = m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver, fr.callerHold())
-		m.shareHandedArgs(fr, args)
+		m.handOffLends(fr, args)
 		m.lendArgs(fr, fs, args)
 	}
 	// Assign parameters in forward order.
@@ -745,7 +745,6 @@ func (m *Machine) doOpReturnAfterCopy() {
 			rtv = rtv.Copy(m.Alloc, m.Store)
 		}
 		fblock.Values[numParams+i].AssignToBlock(rtv)
-		m.Alloc.shareInto(hiv, &hiv.Value) // R2a: r may have been shown
 	}
 
 	// Unwind stack.
@@ -802,9 +801,6 @@ func (m *Machine) doOpReturnToBlock() {
 			rtv = rtv.Copy(m.Alloc, m.Store)
 		}
 		fblock.Values[numParams+i].AssignToBlock(rtv)
-		if hiv != nil {
-			m.Alloc.shareInto(hiv, &hiv.Value) // R2a: r may have been shown
-		}
 	}
 	m.PopValues(numResults)
 }
@@ -1086,7 +1082,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		})
 		m.PushOp(OpCallDeferNativeBody)
 	}
-	m.shareHandedArgs(m.LastFrame(), dfr.Args)
+	m.handOffLends(m.LastFrame(), dfr.Args)
 	// Assign parameters in forward order.
 	for i, arg := range dfr.Args {
 		// We need to define, but b was already populated
