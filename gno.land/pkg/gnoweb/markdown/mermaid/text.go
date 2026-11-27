@@ -163,8 +163,8 @@ func decodeEntities(s string) string {
 					decoded = string(r)
 				}
 			}
-		} else if decoded == "&"+code+";" {
-			decoded = ""
+		} else if decoded == "&"+code+";" || strings.ContainsFunc(decoded, unicode.IsControl) {
+			decoded = "" // unknown, or a control character such as #NewLine;
 		}
 		if decoded == "" {
 			b.WriteByte(s[i])

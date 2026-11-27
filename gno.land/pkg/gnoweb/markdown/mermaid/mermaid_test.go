@@ -181,6 +181,7 @@ func TestDecodeEntities(t *testing.T) {
 		"##59;":          "#;",
 		"#":              "#",
 		"#lt;script#gt;": "<script>",
+		"#NewLine;#Tab;": "#NewLine;#Tab;", // named controls stay too
 	} {
 		assert.Equal(t, want, decodeEntities(in), in)
 	}
