@@ -35,8 +35,11 @@ func parseTimeline(args string, lines []line, m *meta) (diagram, error) {
 			m.title = t
 			continue
 		}
-		if strings.HasPrefix(l.text, "#") {
-			continue // a comment, in Mermaid's timeline syntax
+		// A comment, in Mermaid's timeline syntax, unless the # starts an
+		// entity code. Mermaid also ends a line at a # anywhere else, where it
+		// stays text here.
+		if strings.HasPrefix(l.text, "#") && entityEnd(l.text, 0) < 0 {
+			continue
 		}
 		if rest, ok := cutPrefixFold(l.text, "section "); ok {
 			// Mermaid ends a section at a colon and reads the rest as an event.

@@ -1,6 +1,7 @@
 package mermaid
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -41,4 +42,30 @@ func TestTimelineParse(t *testing.T) {
 	assert.Empty(t, tl.periods[2].events)
 	assert.Equal(t, [][]string{{"at 10:30"}, {"https://gno.land"}, {"x :"}}, tl.periods[3].events,
 		"only a colon followed by a space separates events")
+}
+
+func TestTimelineComments(t *testing.T) {
+	// Only a line starting with a # that starts no entity code is a comment;
+	// elsewhere a # is text.
+	d, err := parseTimeline("", toLines(
+		"2021 : a",
+		"#9829; love : x",
+		": y",
+		"#35;1 : launch",
+		"#quot;Q1#quot; : launch",
+		"# 2022 : dropped",
+		"PR #6543 : merged",
+	), new(meta))
+	require.NoError(t, err)
+	var got []string
+	for _, p := range d.(*timeline).periods {
+		got = append(got, fmt.Sprint(p.label, p.events))
+	}
+	assert.Equal(t, []string{
+		"[2021] [[a]]",
+		"[♥ love] [[x] [y]]",
+		"[#1] [[launch]]",
+		`["Q1"] [[launch]]`,
+		"[PR #6543] [[merged]]",
+	}, got)
 }
