@@ -135,18 +135,17 @@ func Render(src string) (svg []byte, width float64, err error) {
 	}
 	var w svgWriter
 	bodyW, bodyH := d.draw(&w)
-	title := m.title
 	// Checked before document copies the body, which svgWriter stopped
 	// drawing past MaxOutputLen.
-	width, height := max(bodyW, titleWidth(title)), bodyH+titleHeight(title)
+	width, height := max(bodyW, titleWidth(m.title)), bodyH+titleHeight(m.title)
 	if width > maxDimension || height > maxDimension {
 		return nil, 0, errorf(0, "diagram larger than %d px", maxDimension)
 	}
 	if w.b.Len() > MaxOutputLen {
 		return nil, 0, errorf(0, "diagram larger than %d bytes", MaxOutputLen)
 	}
-	label := cmp.Or(plain(m.accTitle), title, kind.name)
-	svg = w.document(width, height, bodyW, title, label, plain(m.accDescr))
+	label := cmp.Or(plain(m.accTitle), m.title, kind.name)
+	svg = w.document(width, height, bodyW, m.title, label, plain(m.accDescr))
 	if len(svg) > MaxOutputLen {
 		return nil, 0, errorf(0, "diagram larger than %d bytes", MaxOutputLen)
 	}
@@ -205,7 +204,8 @@ func scan(src string, m *meta) ([]line, error) {
 }
 
 // frontTitle matches the title key of a frontmatter line and its value.
-// YAML keys are case-sensitive, and a key needs a space after its colon.
+// YAML keys are case-sensitive, and a colon ends a key only before a space
+// or at the end of the line.
 var frontTitle = regexp.MustCompile(`^title[ \t]*:(?:[ \t](.*))?$`)
 
 // yamlTyped matches the plain values YAML's core schema, as js-yaml reads
