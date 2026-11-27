@@ -78,11 +78,16 @@ func (opts *TestOptions) runFiletest(fname string, source []byte, tgs gno.Store,
 	gasMeter := store.NewInfiniteGasMeter()
 	// Create machine for execution and run test
 	tcw := opts.BaseStore.CacheWrap()
+	txStore := tgs.BeginTransaction(tcw, tcw, nil, gasMeter)
+	// The store and the machine share one allocator, as in the keeper, so
+	// allocations made while preprocessing are charged gas too.
+	alloc := gno.NewAllocator(maxAlloc)
+	txStore.SetAllocator(alloc)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		Output:        &opts.outWriter,
-		Store:         tgs.BeginTransaction(tcw, tcw, nil, gasMeter),
+		Store:         txStore,
 		Context:       ctx,
-		MaxAllocBytes: maxAlloc,
+		Alloc:         alloc,
 		GasMeter:      gasMeter,
 		Debug:         opts.Debug,
 		ReviveEnabled: true,
@@ -464,6 +469,9 @@ func (opts *TestOptions) runTest(m *gno.Machine, pkgPath, fname string, content 
 		}
 		// Start transaction store.
 		orig, txs := m.Store, m.Store.BeginTransaction(nil, nil, nil, nil)
+		// The fork has its own allocator with no GC, which is safe while
+		// preprocessing. Charge it to the machine's gas meter.
+		txs.GetAllocator().SetGasMeter(m.GasMeter)
 		m.Store = txs
 		// Validate Gno syntax and type check.
 		if tcheck {

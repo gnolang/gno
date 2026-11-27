@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/token"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -242,8 +243,9 @@ func StoreWithOptions(
 	// Construct new stores
 	db := memdb.NewMemDB()
 	baseStore = dbadapter.StoreConstructor(db, storetypes.StoreOptions{})
-	// Make a new gno store.
-	gnoStore = gno.NewStore(nil, baseStore, baseStore)
+	// Make a new gno store with its own allocator. Without one, the first
+	// machine run on it installs its own, and every later transaction forks it.
+	gnoStore = gno.NewStore(gno.NewAllocator(math.MaxInt64), baseStore, baseStore)
 	gnoStore.SetPackageGetter(getPackage)
 	if opts.Testing {
 		gnoStore.SetNativeResolver(teststdlibs.NativeResolver)
