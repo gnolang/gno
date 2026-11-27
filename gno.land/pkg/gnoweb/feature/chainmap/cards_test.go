@@ -38,13 +38,14 @@ func (f fakePackages) Summary(ctx context.Context, pkgPath string) (PackageSumma
 
 var cardSummaries = map[string]PackageSummary{
 	"/r/demo/blog": {
+		Name:    "blog",
 		Doc:     "Package blog is a multi-author blog.\n\nAnyone can post.\n\n- one\n- two",
 		Actions: []string{"Post"},
 		Height:  25988,
 	},
-	"/r/demo/coins":  {Doc: "Package coins provides coin helpers.", Height: 0},
-	"/r/demo/wugnot": {Actions: []string{"Approve", "Deposit", "Transfer", "TransferFrom", "Withdraw"}},
-	"/p/demo/avl":    {Doc: "Package avl implements an AVL tree."},
+	"/r/demo/coins":  {Name: "coins", Doc: "Package coins provides coin helpers.", Height: 0},
+	"/r/demo/wugnot": {Name: "wugnot", Actions: []string{"Approve", "Deposit", "Transfer", "TransferFrom", "Withdraw"}},
+	"/p/demo/avl":    {Name: "avl", Doc: "Package avl implements an AVL tree."},
 }
 
 func TestCards_FromChain(t *testing.T) {
@@ -56,19 +57,19 @@ func TestCards_FromChain(t *testing.T) {
 
 	assert.Equal(t, components.PackageCard{
 		Path: "/r/demo/blog", Realm: true, Known: true,
-		Description: "Multi-author blog. Anyone can post.",
+		Description: "multi-author blog. Anyone can post.",
 		Actions:     1,
 		Block:       25988,
 	}, cards[0], "a realm with a call: its actions and its block")
 
 	assert.Equal(t, components.PackageCard{
-		Path: "/r/demo/coins", Realm: true, Known: true, Description: "Provides coin helpers.",
+		Path: "/r/demo/coins", Realm: true, Known: true, Description: "provides coin helpers.",
 	}, cards[1], "a realm with nothing to call, deployed at genesis")
 
 	assert.Equal(t, 5, cards[2].Actions)
 
 	assert.Equal(t, components.PackageCard{
-		Path: "/p/demo/avl", Known: true, Description: "Implements an AVL tree.",
+		Path: "/p/demo/avl", Known: true, Description: "implements an AVL tree.",
 	}, cards[3], "a pure package has no actions")
 
 	assert.Equal(t, components.PackageCard{Path: "/r/demo/gone", Realm: true}, cards[4],
@@ -109,6 +110,8 @@ func TestCards_WithIndexer(t *testing.T) {
 		"/r/demo/quiet": {Height: 0},
 	}
 	h := New(Deps{Indexer: idx, Imports: fakeImports{}, Packages: fakePackages{summaries: pkgs}, Domain: "gno.land"})
+	_, err := h.weekActivity(context.Background())
+	require.NoError(t, err)
 
 	cards := h.Cards(context.Background(), []string{"/r/demo/blog", "/r/demo/quiet"})
 
@@ -124,19 +127,68 @@ func TestCards_WithIndexer(t *testing.T) {
 	assert.True(t, quiet.Date.IsZero(), "genesis has no block to date")
 }
 
-// A cold activity scan must not spend the listing's wait: the chain's part of
-// each card still lands.
+// A listing never waits on the activity scan: with an indexer that never
+// answers, the chain's part of each card lands and the listing returns as
+// soon as it has, while the scan it started carries on.
 func TestCards_SlowIndexerDoesNotStarveCards(t *testing.T) {
 	t.Parallel()
 
 	idx := &fakeIndexer{tip: 1000, t0: time.Now().Add(-1000 * time.Second), bandDelay: 5 * time.Second}
 	h := New(Deps{Indexer: idx, Imports: fakeImports{}, Packages: fakePackages{summaries: cardSummaries}, Domain: "gno.land"})
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
-	defer cancel()
 
-	cards := h.Cards(ctx, []string{"/r/demo/blog"})
-	assert.True(t, cards[0].Known, "the summary is read beside the scan, not after it")
+	for range 3 {
+		start := time.Now()
+		cards := h.Cards(context.Background(), []string{"/r/demo/blog"})
+		assert.Less(t, time.Since(start), 300*time.Millisecond, "the listing does not wait on the scan")
+		assert.True(t, cards[0].Known, "the summary is read beside the scan, not after it")
+		assert.Zero(t, cards[0].WeeklyUsers)
+	}
+	assert.Eventually(t, func() bool {
+		idx.mu.Lock()
+		defer idx.mu.Unlock()
+		return len(idx.bandsQueried) > 0
+	}, time.Second, 10*time.Millisecond, "the scan was started for the next reader")
+}
+
+// An aggregate whose tip is long past means the indexer stopped answering:
+// "over the last 7 days" would no longer hold, so the cards leave it off.
+func TestCards_StaleActivityIsLeftOff(t *testing.T) {
+	t.Parallel()
+
+	idx := &fakeIndexer{tip: 1000, t0: time.Now().Add(-1000 * time.Second)}
+	h := New(Deps{Indexer: idx, Imports: fakeImports{}, Packages: fakePackages{summaries: cardSummaries}, Domain: "gno.land"})
+	old := time.Now().Add(-10 * 24 * time.Hour)
+	h.activity.store(activityKey, &Activity{
+		Callers: map[string]int{"gno.land/r/demo/blog": 2},
+		Last:    map[string]int{"gno.land/r/demo/blog": 900},
+		From:    1, To: 1000, Since: old.Add(-7 * 24 * time.Hour), Until: old,
+	}, nil)
+
+	cards := h.Cards(context.Background(), []string{"/r/demo/blog"})
+	assert.True(t, cards[0].Known)
 	assert.Zero(t, cards[0].WeeklyUsers)
+	assert.True(t, cards[0].LastUsed.IsZero())
+}
+
+// panickingPackages panics on every read, as a doc comment that trips the
+// markdown parser would.
+type panickingPackages struct{}
+
+func (panickingPackages) Summary(context.Context, string) (PackageSummary, error) {
+	panic("index out of range")
+}
+
+// A read that panics runs on the flight's goroutine, out of reach of
+// net/http's recover: it must leave a blank card, not stop gnoweb.
+func TestCards_PanickingReadLeavesTheCardBlank(t *testing.T) {
+	t.Parallel()
+
+	h := New(Deps{Imports: fakeImports{}, Packages: panickingPackages{}})
+	for range 2 {
+		cards := h.Cards(context.Background(), []string{"/r/demo/blog"})
+		assert.Equal(t, []components.PackageCard{{Path: "/r/demo/blog", Realm: true}}, cards)
+	}
+	assert.Eventually(t, func() bool { return len(h.cardSlots) == 0 }, time.Second, 10*time.Millisecond, "the slot is given back")
 }
 
 // Pure packages are never called: their listing does not ask for activity.
@@ -243,15 +295,27 @@ func TestActivity_TimeOf(t *testing.T) {
 func TestDescribe(t *testing.T) {
 	t.Parallel()
 
-	cases := map[string]string{
-		"":                                   "",
-		"Package foo is a counter.":          "Counter.",
-		"package foo implements counters.":   "Implements counters.",
-		"Package foo is the main realm.":     "Main realm.",
-		"Package bar provides helpers.":      "Provides helpers.",
-		"Boards2 is a forum for discussion.": "Boards2 is a forum for discussion.",
+	cases := []struct{ name, doc, want string }{
+		{"foo", "", ""},
+		{"foo", "Package foo is a counter.", "counter."},
+		{"foo", "package foo implements counters.", "implements counters."},
+		{"foo", "Package foo is the main realm.", "main realm."},
+		{"home", "Package home is the gno.land home page.", "gno.land home page."},
+		// Only the package's own name makes the clause.
+		{"hub", "Package registry for the chain.", "Package registry for the chain."},
+		{"x", "Package management made easy for realms.", "Package management made easy for realms."},
+		// The author's case is kept.
+		{"foo20", "foo20 is a GRC20 token contract.", "foo20 is a GRC20 token contract."},
+		{"boards2", "Boards2 is a forum for discussion.", "Boards2 is a forum for discussion."},
+		// A disclaimer first: the card starts at the paragraph naming the
+		// package.
+		{"avl", "v0 - Unaudited: use at your own risk.\n\nPackage avl provides an AVL tree.\n\nMore.", "provides an AVL tree. More."},
+		// No clause anywhere: the doc comment from its start.
+		{"avl", "v0 - Unaudited.\n\nAn AVL tree.", "v0 - Unaudited. An AVL tree."},
+		// A package qdoc could not name.
+		{"", "Package foo is a counter.", "Package foo is a counter."},
 	}
-	for doc, want := range cases {
-		assert.Equal(t, want, describe(doc), "doc %q", doc)
+	for _, c := range cases {
+		assert.Equal(t, c.want, describe(c.doc, c.name), "doc %q of %q", c.doc, c.name)
 	}
 }

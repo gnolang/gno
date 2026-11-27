@@ -1583,15 +1583,18 @@
 	font-weight: var(--g-font-medium);
 }
 
+/* The link's hover colour, as the user page's package titles: in dark theme
+   the link colour is under 4.5:1 on a card. A long path breaks after a slash
+   past its namespace first (<wbr>), anywhere only when a segment does not
+   fit. */
 .b-pkg-card__name {
 	display: inline-flex;
 	align-items: center;
 	gap: var(--g-space-2);
-	color: var(--s-color-text-link);
+	color: var(--s-color-text-link-hover);
 	overflow-wrap: anywhere;
 
 	&:hover {
-		color: var(--s-color-text-link-hover);
 		text-decoration: underline;
 	}
 }

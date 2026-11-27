@@ -36,9 +36,11 @@ cards sit under a section heading, which makes their titles one level lower.
         {{ if .Actions }}
         <li><svg class="c-icon" aria-hidden="true"><use href="#ico-tx-link"></use></svg>{{ .Actions }} {{ if eq .Actions 1 }}action{{ else }}actions{{ end }}</li>
         {{ end }}
+        {{ if ge .Block 0 }}
         <li title="The block this package was deployed in.">
           <svg class="c-icon" aria-hidden="true"><use href="#ico-hash"></use></svg>{{ if .Block }}Block {{ .Block }}{{ else }}Genesis{{ end }}
         </li>
+        {{ end }}
         {{ if not .Date.IsZero }}
         <li title="When that block was produced, from the indexer.">
           <svg class="c-icon" aria-hidden="true"><use href="#ico-calendar"></use></svg><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "Jan 2, 2006" }}</time>
@@ -65,6 +67,6 @@ cards sit under a section heading, which makes their titles one level lower.
 {{ define "ui/pkg_card_name" }}
 <a href="{{ .Path }}" class="b-pkg-card__name">
   <svg class="c-icon" aria-hidden="true"><use href="#ico-{{ if .Realm }}realm{{ else }}pure{{ end }}"></use></svg>
-  <span>{{ .Path }}</span>
+  <span>{{ range $i, $s := split .Path "/" }}{{ if gt $i 2 }}/<wbr>{{ else if $i }}/{{ end }}{{ $s }}{{ end }}</span>
 </a>
 {{ end }}

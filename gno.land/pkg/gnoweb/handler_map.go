@@ -69,19 +69,23 @@ func (r chainReader) Imports(ctx context.Context, pkgPath string) ([]string, err
 	return d.Imports, nil
 }
 
-// Summary reads the package at pkgPath, a gnoweb path: its doc comment and
-// exported crossing functions from vm/qdoc, its deploy height from its
-// metadata.
+// Summary reads the package at pkgPath, a gnoweb path: its name, doc comment
+// and exported crossing functions from vm/qdoc, its deploy height from its
+// metadata. A node without vm/qpkgmeta_json still gives the rest, as
+// pendingApprovalView assumes.
 func (r chainReader) Summary(ctx context.Context, pkgPath string) (chainmap.PackageSummary, error) {
 	d, err := r.doc(ctx, pkgPath)
 	if err != nil {
 		return chainmap.PackageSummary{}, err
 	}
-	meta, err := r.client.PackageMeta(ctx, pkgPath)
-	if err != nil {
-		return chainmap.PackageSummary{}, err
+	s := chainmap.PackageSummary{Doc: d.PackageDoc, Height: chainmap.UnknownHeight}
+	// "package foo // import ..."
+	if f := strings.Fields(d.PackageLine); len(f) > 1 {
+		s.Name = f[1]
 	}
-	s := chainmap.PackageSummary{Doc: d.PackageDoc, Height: meta.Height}
+	if meta, err := r.client.PackageMeta(ctx, pkgPath); err == nil {
+		s.Height = meta.Height
+	}
 	for _, fn := range d.Funcs {
 		if components.IsAction(fn) {
 			s.Actions = append(s.Actions, fn.Name)

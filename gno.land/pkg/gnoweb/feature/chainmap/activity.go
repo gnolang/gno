@@ -72,13 +72,17 @@ type Activity struct {
 // weekActivity is the window's aggregate, shared by every map and listing:
 // one indexer scan answers them all. It needs an indexer.
 func (h *Handler) weekActivity(ctx context.Context) (*Activity, error) {
-	return h.activity.get(ctx, "activity", func(ctx context.Context) (*Activity, error) {
+	return h.activity.get(ctx, activityKey, func(ctx context.Context) (*Activity, error) {
 		return computeActivity(ctx, h.deps.Indexer, h.closedBands)
 	})
 }
 
+// activityKey is the one aggregate's key in its flight.
+const activityKey = "activity"
+
 // timeOf estimates when height was produced from the window's average block
-// rate: exact at both ends of the window, within a block's drift between them.
+// rate: exact at both ends of the window, and off in between by as much as
+// the rate was uneven, by days after a long halt.
 func (a *Activity) timeOf(height int) time.Time {
 	if a.To <= a.From {
 		return a.Until
