@@ -43,7 +43,7 @@ renderer, and supports a subset of Mermaid, chosen for what realms show:
 
 Every type also takes `accTitle`, `accDescr`, `%%` comment lines, a YAML
 frontmatter (its `title` is drawn) and entity codes (`#59;`, `#quot;`, any
-HTML entity name). Keywords ignore case, as in Mermaid. `%%{init}%%` directives and the frontmatter's
+HTML entity name). Keywords ignore ASCII case, as in Mermaid. `%%{init}%%` directives and the frontmatter's
 configuration are ignored, since gnoweb's theme decides the colors, and so
 are kanban metadata keys outside the four above.
 
@@ -83,7 +83,12 @@ extension, the tag is omitted like any other unknown one.
 
 The SVG is inlined in the page, so its text uses the page font and the
 theme. Assistive technology reads it as one image (`role="img"`) labelled by
-`accTitle`, the title or the type, with `<desc>` from `accDescr`.
+`accTitle`, the title or the type, with `<desc>` from `accDescr`. The
+source follows the drawing in a visually hidden `<pre class="u-sr-only">`,
+so a screen reader still reaches every label, as it did when the fence was
+code; it is also what the Copy button of a rendered file copies (the
+drawing carries `data-copy-exclude`). The omnibar's in-page find skips
+diagrams: SVG text cannot hold its `<mark>`.
 
 `Render` draws the title of every type above the diagram the type
 returns, which it moves below the title, and centers under it when the
@@ -127,8 +132,9 @@ East Asian text) breaks after a `/ . - _ ,` or between characters.
 - `Render` refuses a drawing wider or taller than 20,000 px or larger than
   512 KiB (`MaxOutputLen`), which also bounds how many items a type draws.
 - A document tries at most 20 diagrams, fences and `<gno-mermaid>` blocks
-  together, and draws at most 2 MiB of SVG; the diagrams past a bound stay
-  code.
+  together, counted as they are rendered (a fence in a footnote never
+  referenced takes none), and draws at most 2 MiB of SVG; the diagrams past
+  a bound stay code.
 - `Render` turns a panic into an `*Error`, so a bug on some input shows the
   source rather than failing the page.
 - The page still goes through gnoweb's output cap (`maxRenderOutputBytes`).

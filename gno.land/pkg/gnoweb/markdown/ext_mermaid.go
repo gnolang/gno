@@ -40,17 +40,18 @@ func (n *mermaidNode) Dump(source []byte, level int) {
 }
 
 // Per-document bounds: a document tries to draw at most maxMermaidTries
-// fences, which with mermaid.MaxSourceLen bounds the drawing work of a
-// render, and draws at most maxMermaidBytes of SVG. Fences past a bound show
-// as code.
+// diagrams, which with mermaid.MaxSourceLen bounds the drawing work of a
+// render, and draws at most maxMermaidBytes of SVG. Diagrams past a bound
+// show as code. Only rendered diagrams count, so a fence in a footnote never
+// referenced takes no try.
 const (
 	maxMermaidTries = 20
 	maxMermaidBytes = 2 << 20
 )
 
-// mermaidBudget is what a document has drawn so far.
+// mermaidBudget is what a document has tried and drawn so far.
 type mermaidBudget struct {
-	bytes int
+	tries, bytes int
 }
 
 // mermaidTransformer gives the <gno-mermaid> blocks their budget and turns
@@ -66,12 +67,8 @@ func (mermaidTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 	}
 	src := reader.Source()
 	budget := &mermaidBudget{}
-	tries := 0
 	var fences []*ast.FencedCodeBlock
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if tries == maxMermaidTries {
-			return ast.WalkStop, nil
-		}
 		if !entering {
 			return ast.WalkContinue, nil
 		}
@@ -79,12 +76,10 @@ func (mermaidTransformer) Transform(doc *ast.Document, reader text.Reader, pc pa
 		case *mermaidNode: // a <gno-mermaid> block
 			if n.src != "" {
 				n.budget = budget
-				tries++
 			}
 		case *ast.FencedCodeBlock:
 			if n.Info != nil && string(n.Info.Segment.Value(src)) == "mermaid" && !util.IsBlank(n.Lines().Value(src)) {
 				fences = append(fences, n)
-				tries++
 			}
 		}
 		return ast.WalkContinue, nil
@@ -108,22 +103,30 @@ func renderMermaid(w util.BufWriter, _ []byte, node ast.Node, entering bool) (as
 		return ast.WalkContinue, nil
 	}
 	n := node.(*mermaidNode)
-	if n.budget == nil {
+	b := n.budget
+	if b == nil || b.tries == maxMermaidTries {
 		return ast.WalkContinue, nil // show the code
 	}
+	b.tries++
 	svg, err := mermaid.Render(n.src)
-	if err != nil || n.budget.bytes+len(svg) > maxMermaidBytes {
+	if err != nil || b.bytes+len(svg) > maxMermaidBytes {
 		return ast.WalkContinue, nil
 	}
-	n.budget.bytes += len(svg)
+	b.bytes += len(svg)
 	w.WriteString(`<div class="gno-mermaid`)
 	if n.width != "" {
 		w.WriteString(" gno-mermaid--")
 		w.WriteString(n.width) // "fit" or "full"
 	}
-	w.WriteString(`">`)
+	// Assistive technology reads the drawing as one image, labelled by its
+	// title or type; the source follows it, visually hidden, as the text a
+	// reader had without diagrams. It is also what the Copy button of a
+	// rendered file copies (data-copy-exclude drops the drawing).
+	w.WriteString(`"><div data-copy-exclude>`)
 	w.Write(svg)
-	w.WriteString("</div>\n")
+	w.WriteString(`</div><pre class="u-sr-only">`)
+	w.Write(util.EscapeHTML([]byte(n.src)))
+	w.WriteString("</pre></div>\n")
 	return ast.WalkSkipChildren, nil
 }
 

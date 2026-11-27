@@ -62,9 +62,9 @@ func TestMermaidTag(t *testing.T) {
 	const pie = "pie\n\"a\" : 1\n"
 	// The golden file ext_mermaid/tag.md covers each width and an unknown one.
 	for name, c := range map[string]struct{ src, want string }{
-		"tag case":      {"<GNO-MERMAID width=full>\n" + pie + "</gno-mermaid >\n", `<div class="gno-mermaid gno-mermaid--full"><svg`},
-		"in a list":     {"- x\n\n  <gno-mermaid>\n  pie\n  \"a\" : 1\n  </gno-mermaid>\n", `<div class="gno-mermaid"><svg`},
-		"after text":    {"Votes:\n<gno-mermaid>\n" + pie + "</gno-mermaid>\n", "<p>Votes:</p>\n<div class=\"gno-mermaid\"><svg"},
+		"tag case":      {"<GNO-MERMAID width=full>\n" + pie + "</gno-mermaid >\n", `<div class="gno-mermaid gno-mermaid--full"><div data-copy-exclude><svg`},
+		"in a list":     {"- x\n\n  <gno-mermaid>\n  pie\n  \"a\" : 1\n  </gno-mermaid>\n", `<div class="gno-mermaid"><div data-copy-exclude><svg`},
+		"after text":    {"Votes:\n<gno-mermaid>\n" + pie + "</gno-mermaid>\n", "<p>Votes:</p>\n<div class=\"gno-mermaid\"><div data-copy-exclude><svg"},
 		"bad attribute": {"<gno-mermaid width=fit style=x>\n" + pie + "</gno-mermaid>\n", "<pre><code>pie"},
 		"unclosed":      {"<gno-mermaid>\n" + pie, "<pre><code>pie"},
 		"list ends":     {"- <gno-mermaid>\n  " + pie + "\nafter\n", "<pre><code>pie"},

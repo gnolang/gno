@@ -1485,7 +1485,14 @@ export class SearchbarController extends BaseController {
 
 		const needle = q.toLowerCase();
 		const matches: PageMatch[] = [];
-		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+		// A diagram's text is SVG, which a <mark> cannot highlight, and its
+		// source is visually hidden: neither is a match to reveal.
+		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+			acceptNode: (n) =>
+				n.parentElement?.closest(".gno-mermaid")
+					? NodeFilter.FILTER_REJECT
+					: NodeFilter.FILTER_ACCEPT,
+		});
 		let node = walker.nextNode() as Text | null;
 		while (node && matches.length < MAX_PAGE_MATCHES) {
 			const text = node.nodeValue ?? "";
