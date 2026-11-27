@@ -228,6 +228,12 @@ last-wins on both `GetLocalIndex` branches, the linear scan and the `nameIndex`
 map past `nameIndexThreshold`. Putting `buildNameIndex` back to first-wins fails
 it at width 40.
 
+`TestFauxCopiesSurviveSecondStaticBlockPass` (`machine_test.go`) runs
+`PredefineFileSet` and `Preprocess` over one file, which both run
+`initStaticBlocks`, and checks each case block's name count. Dropping
+`Reserve`'s same-declaration check doubles every copy there, which no filetest
+or gas test notices.
+
 `TestRejectsBlankTypeSwitchVar` (`go2gno_test.go`) checks that a blank type
 switch variable is refused with Go's message by `ParseFile`, `ParseStmts` and
 `ParseExpr`.
