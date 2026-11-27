@@ -461,3 +461,98 @@ func (g *Grant) vested(now int64) (int64, error) {
 	}
 	return v, nil
 }
+
+// Invariant checks the books. The factory calls it after every mutation
+// and panics if it fails, so a broken grant does not commit.
+//
+// A bound grant must satisfy all of these at now:
+//
+//   - claimed, returned, and frozen are non-negative, and claimed+returned
+//     is at most total
+//   - the stored address is DerivePkgSubAddr(host, "g/<id>")
+//   - the admin and the beneficiary are valid and are neither the factory
+//     nor the grant address
+//   - while the grant is open, returned and frozen are zero
+//   - after revoke, returned is total-frozen and frozen is at least claimed
+//   - claimed is at most the curve (the frozen amount, once revoked)
+//   - releasable is that amount minus claimed
+//   - outstanding is total-claimed-returned
+func (g *Grant) Invariant(now int64) error {
+	if g == nil || g.subpath == "" {
+		return ErrUnbound
+	}
+	if now < 0 {
+		return ErrTime
+	}
+	if err := validHost(g.hostPkg, g.hostAddr); err != nil {
+		return err
+	}
+	if err := g.asset.validate(); err != nil {
+		return err
+	}
+	if err := g.terms.Validate(); err != nil {
+		return err
+	}
+	if g.claimed < 0 || g.returned < 0 || g.frozen < 0 || g.revokedAt < 0 {
+		return ErrMath
+	}
+	if g.id <= 0 || g.subpath != "g/"+strconv.FormatInt(g.id, 10) {
+		return ErrMath
+	}
+	if chain.DerivePkgSubAddr(g.hostPkg, g.subpath) != g.addr || !g.addr.IsValid() {
+		return ErrMath
+	}
+	if !g.admin.IsValid() || !g.beneficiary.IsValid() {
+		return ErrAddress
+	}
+	if g.admin == g.addr || g.beneficiary == g.addr || g.admin == g.hostAddr || g.beneficiary == g.hostAddr {
+		return ErrSelf
+	}
+	sum, err := addInt(g.claimed, g.returned)
+	if err != nil || sum > g.terms.Total {
+		return ErrMath
+	}
+	var curve int64
+	if g.revoked {
+		if g.frozen < g.claimed || g.frozen > g.terms.Total {
+			return ErrMath
+		}
+		back, berr := subInt(g.terms.Total, g.frozen)
+		if berr != nil || back != g.returned {
+			return ErrMath
+		}
+		curve = g.frozen
+	} else {
+		if g.returned != 0 || g.frozen != 0 || g.revokedAt != 0 {
+			return ErrMath
+		}
+		curve, err = VestedAmount(g.terms, now)
+		if err != nil {
+			return err
+		}
+	}
+	if curve > g.terms.Total || g.claimed > curve {
+		return ErrMath
+	}
+	v, err := g.Vested(now)
+	if err != nil || v != curve {
+		return ErrMath
+	}
+	rel, err := g.Releasable(now)
+	if err != nil {
+		return err
+	}
+	wantRel, err := subInt(curve, g.claimed)
+	if err != nil || rel != wantRel {
+		return ErrMath
+	}
+	out, err := g.Outstanding()
+	if err != nil {
+		return err
+	}
+	wantOut, err := subInt(g.terms.Total, sum)
+	if err != nil || out != wantOut {
+		return ErrMath
+	}
+	return nil
+}

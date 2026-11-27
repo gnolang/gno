@@ -113,12 +113,10 @@ func renderGrant(id int64) string {
 }
 
 func assetRef(view vst.GrantView) string {
+	// The stored denom or registry key. Render does not call the token
+	// for its symbol: that string is chosen by the token's issuer.
 	if view.Asset.Kind == vst.AssetGRC20 {
-		tok := grc20reg.Get(view.Asset.Token)
-		if tok == nil {
-			return view.Asset.Token + " (not in the registry)"
-		}
-		return tok.GetSymbol()
+		return view.Asset.Token
 	}
 	return view.Asset.Denom
 }

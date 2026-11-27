@@ -308,6 +308,51 @@ func TestReentrancyGuard(cur realm, t *testing.T) {
 	busy = false
 }
 
+func TestDonationDoesNotIncreaseClaim(cur realm, t *testing.T) {
+	alice := testutils.TestAddress("don")
+	at(t0+10, alice)
+	var id int64
+	func(cur realm) {
+		allow("ugnot", 100)
+		credit("ugnot", 100)
+		id = CreateCoin(cur, alice, "ugnot", 100, t0, 0, 10, 0, 1, true, "don")
+	}(cross(cur))
+	testing.IssueCoins(GrantAddress(id), chain.NewCoins(chain.NewCoin("ugnot", 40)))
+	uassert.Equal(t, int64(140), BalanceOf(id))
+	uassert.Equal(t, int64(100), ClaimableOf(id))
+	uassert.Equal(t, int64(100), OutstandingOf(id))
+	at(t0+10, alice)
+	func(cur realm) {
+		Claim(cur, id)
+		mustPanic(t, "nothing to release", func() { Claim(cur, id) })
+	}(cross(cur))
+	uassert.Equal(t, int64(100), ClaimedOf(id))
+	uassert.Equal(t, int64(0), OutstandingOf(id))
+	uassert.Equal(t, int64(40), BalanceOf(id))
+}
+
+func TestRolesStaySeparate(cur realm, t *testing.T) {
+	alice := testutils.TestAddress("rolea")
+	bob := testutils.TestAddress("roleb")
+	at(t0+10, alice)
+	var id int64
+	func(cur realm) {
+		allow("ugnot", 10)
+		credit("ugnot", 10)
+		id = CreateCoin(cur, bob, "ugnot", 10, t0, 0, 10, 0, 1, true, "roles")
+		mustPanic(t, "not the beneficiary", func() { Claim(cur, id) })
+	}(cross(cur))
+	at(t0+10, bob)
+	func(cur realm) {
+		mustPanic(t, "not the admin", func() { Revoke(cur, id) })
+		mustPanic(t, "not the admin", func() { TransferAdmin(cur, id, alice) })
+		Claim(cur, id)
+	}(cross(cur))
+	uassert.Equal(t, int64(10), ClaimedOf(id))
+	uassert.Equal(t, int64(0), BalanceOf(id))
+	uassert.Equal(t, int64(0), OutstandingOf(id))
+}
+
 func TestRender(cur realm, t *testing.T) {
 	alice := testutils.TestAddress("rend")
 	nasty := "hello # pwned [click](http://evil)"

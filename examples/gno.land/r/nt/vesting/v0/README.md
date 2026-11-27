@@ -70,7 +70,12 @@ gnokey maketx call \
 ```
 
 The `-send` amount must be exactly one coin, same denom and amount as
-the grant. Anything else is rejected and no grant is stored.
+the grant. Anything else is rejected and no grant is stored. The
+factory keeps the grant only when its own balance of that denom drops
+by `total` and the grant address rises by `total`. A later claim or
+revoke is kept only when the grant address drops by that amount and
+the recipient rises by the same amount. Coins sent directly to the
+grant address are not added to the schedule.
 
 ## Create a GRC20 grant
 

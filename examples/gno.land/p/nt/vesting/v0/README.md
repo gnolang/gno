@@ -35,4 +35,12 @@ A grant is a schedule plus books:
 
 The package rejects a negative clock, a total that does not fit in
 int64 arithmetic, and a label that contains a control character.
-Rounding favors the vault. After a revoke, `claimed + releasable + returned == total`.
+Rounding favors the vault. `Grant.Invariant` checks, at a unix second:
+
+- `claimed + returned <= total`, and both are non-negative
+- the stored address is still `DerivePkgSubAddr(host, "g/<id>")`
+- while the grant is open, nothing has been returned
+- after revoke, `returned == total - frozen` and `frozen >= claimed`
+- `claimed` never exceeds the curve, and `releasable == curve - claimed`
+
+After a revoke, `claimed + releasable + returned == total`.

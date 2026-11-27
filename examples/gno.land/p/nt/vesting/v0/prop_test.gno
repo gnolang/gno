@@ -51,6 +51,7 @@ func TestPropertyInvariants(t *testing.T) {
 			prevV = v
 			prevNow = now
 			checkBooks(t, g, v, rel)
+			uassert.NoError(t, g.Invariant(now))
 
 			switch rng.intn(5) {
 			case 0:
@@ -102,6 +103,7 @@ func TestPropertyInvariants(t *testing.T) {
 			rel, err = g.Releasable(now)
 			uassert.NoError(t, err)
 			checkBooks(t, g, v, rel)
+			uassert.NoError(t, g.Invariant(now))
 		}
 		end, err := terms.End()
 		uassert.NoError(t, err)
@@ -124,6 +126,7 @@ func TestPropertyInvariants(t *testing.T) {
 		uassert.NoError(t, err)
 		uassert.Equal(t, int64(0), rel)
 		checkBooks(t, g, v, rel)
+		uassert.NoError(t, g.Invariant(end+10_000))
 	}
 }
 

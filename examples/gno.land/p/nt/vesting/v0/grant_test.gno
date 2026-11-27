@@ -205,6 +205,24 @@ func TestGrantErrors(t *testing.T) {
 	uassert.ErrorIs(t, err, ErrHost)
 }
 
+func TestInvariantRejectsBrokenBooks(t *testing.T) {
+	admin := testutils.TestAddress("ia")
+	ben := testutils.TestAddress("ib")
+	g := openGrant(t, admin, ben, linear(100, 0, 10, 50), true, 7)
+	uassert.NoError(t, g.Invariant(100))
+	g.claimed = -1
+	uassert.ErrorIs(t, g.Invariant(100), ErrMath)
+	g.claimed = 0
+	g.returned = 1
+	uassert.ErrorIs(t, g.Invariant(100), ErrMath)
+	g.returned = 0
+	g.addr = admin
+	uassert.ErrorIs(t, g.Invariant(100), ErrMath)
+	unbound, err := New(hostPkg, hostAddr(), admin, ben, coinAsset(), linear(100, 0, 10, 50), false, "")
+	uassert.NoError(t, err)
+	uassert.ErrorIs(t, unbound.Invariant(100), ErrUnbound)
+}
+
 func TestNilGrant(t *testing.T) {
 	var g *Grant
 	uassert.Equal(t, int64(0), g.ID())
