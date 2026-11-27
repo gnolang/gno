@@ -76,7 +76,10 @@ wider, so its text stays the size of the page's. The body is read verbatim
 up to a `</gno-mermaid>` line, like a fence. Another attribute or value, a
 block its container or the document ends before the close tag, or a page
 with diagrams off shows the body as code, so a mistake shows the source
-rather than a guess. Inside `<gno-foreign>`, which does not load this
+rather than a guess. In a `<gno-columns>` column, a diagram without a
+width shrinks to the column, down to two thirds of its size (its text
+stays 9 px or more), then scrolls; an empty `<svg>` two thirds as wide
+holds that floor, since a style attribute is not allowed. Inside `<gno-foreign>`, which does not load this
 extension, the tag is omitted like any other unknown one.
 
 ### The SVG: inline, CSP-clean, themed

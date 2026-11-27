@@ -23,6 +23,6 @@ func TestNewHTMLRendererMermaid(t *testing.T) {
 		return out.String()
 	}
 
-	assert.Contains(t, render(true), `<div class="gno-mermaid"><div data-copy-exclude><svg`)
+	assert.Contains(t, render(true), `<div class="gno-mermaid"><div class="gno-mermaid__scale" data-copy-exclude><svg`)
 	assert.NotContains(t, render(false), "<svg")
 }

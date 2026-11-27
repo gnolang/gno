@@ -3072,6 +3072,30 @@ main.is-dev-mode .b-toc a {
 		}
 	}
 
+	/* In a column, a diagram wider than the column shrinks to it, down to
+	   two thirds of its size, then scrolls. The floor, an empty <svg> two
+	   thirds as wide as the drawing, holds the scale box at least that wide,
+	   and the drawing takes the box's width; outside a column, and with an
+	   explicit width, the floor is not drawn. */
+	.gno-mermaid__floor {
+		display: none;
+		max-width: none;
+	}
+
+	.gno-columns .gno-mermaid:not(.gno-mermaid--fit, .gno-mermaid--full) {
+		& .gno-mermaid__scale {
+			min-width: min-content;
+		}
+
+		& .gno-mermaid__svg {
+			max-width: 100%;
+		}
+
+		& .gno-mermaid__floor {
+			display: block;
+		}
+	}
+
 	/* <gno-mermaid width="fit"> shrinks a diagram wider than its container,
 	   never enlarges it; width="full" gives it the container's width. */
 	.gno-mermaid--fit .gno-mermaid__svg {

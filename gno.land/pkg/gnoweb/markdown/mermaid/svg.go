@@ -101,6 +101,15 @@ type svgWriter struct {
 // element labelled for assistive technology, under the title if there is
 // one: the drawing is moved below the title and centered under it when the
 // title is wider. It returns the size of the whole.
+// Width returns the width, in px, of an SVG that Render drew: the first
+// width attribute, which document writes on the <svg> element.
+func Width(svg []byte) float64 {
+	_, rest, _ := bytes.Cut(svg, []byte(` width="`))
+	v, _, _ := bytes.Cut(rest, []byte(`"`))
+	w, _ := strconv.ParseFloat(string(v), 64)
+	return w
+}
+
 func (w *svgWriter) document(bodyW, bodyH float64, title, label, desc string) (out []byte, width, height float64) {
 	width = max(bodyW, titleWidth(title))
 	height = bodyH + titleHeight(title)
