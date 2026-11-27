@@ -4,6 +4,7 @@ package rpcserver
 import (
 	"bufio"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -150,16 +151,40 @@ func WriteStreamingRPCResponseHTTP(r *http.Request, w http.ResponseWriter, id ty
 		return nil
 	}
 
-	if _, err := fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":`, idBytes); err != nil {
+	var out io.Writer = w
+	if server, ok := r.Context().Value(http.ServerContextKey).(*http.Server); ok && server.WriteTimeout > 0 {
+		out = &progressDeadlineWriter{w: w, rc: http.NewResponseController(w), timeout: server.WriteTimeout}
+	}
+
+	if _, err := fmt.Fprintf(out, `{"jsonrpc":"2.0","id":%s,"result":`, idBytes); err != nil {
 		return err
 	}
-	if err := result.StreamJSON(r.Context(), w); err != nil {
+	if err := result.StreamJSON(r.Context(), out); err != nil {
 		return err
 	}
-	if _, err := w.Write([]byte(`}`)); err != nil {
+	if _, err := out.Write([]byte(`}`)); err != nil {
 		return err
 	}
 	return nil
+}
+
+// progressDeadlineWriter gives each write time to finish and extends the
+// deadline as the response advances. Keep a finite limit even for large streams.
+type progressDeadlineWriter struct {
+	w       io.Writer
+	rc      *http.ResponseController
+	timeout time.Duration
+	rearm   time.Time
+}
+
+func (p *progressDeadlineWriter) Write(b []byte) (int, error) {
+	if now := time.Now(); !now.Before(p.rearm) {
+		if err := p.rc.SetWriteDeadline(now.Add(p.timeout)); err != nil && !stderrors.Is(err, http.ErrNotSupported) {
+			return 0, fmt.Errorf("refresh stream write deadline: %w", err)
+		}
+		p.rearm = now.Add(p.timeout / 2)
+	}
+	return p.w.Write(b)
 }
 
 // batchWriter writes the answers of a batch one at a time, in the bytes

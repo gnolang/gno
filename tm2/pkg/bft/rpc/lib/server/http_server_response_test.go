@@ -5,15 +5,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
 // failingResponseWriter is an http.ResponseWriter whose Write always fails
@@ -206,4 +209,118 @@ func TestWriteStreamingRPCResponseHTTP_PropagatesWriteError(t *testing.T) {
 		assert.True(t, errors.Is(err, io.ErrClosedPipe),
 			"expected returned error to wrap io.ErrClosedPipe, got %v", err)
 	})
+}
+
+// slowStreamingResult writes its chunks with a pause between them, so the
+// response takes longer to produce than the server's WriteTimeout allows.
+type slowStreamingResult struct {
+	chunks [][]byte
+	pause  time.Duration
+}
+
+func (s *slowStreamingResult) StreamJSON(_ context.Context, w io.Writer) error {
+	for i, c := range s.chunks {
+		if i > 0 {
+			time.Sleep(s.pause)
+		}
+		if _, err := w.Write(c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// A response that makes progress may outlive the original deadline.
+func TestStreamingResponseOutlivesWriteTimeout(t *testing.T) {
+	t.Parallel()
+
+	const (
+		writeTimeout = 300 * time.Millisecond
+		chunks       = 6
+		pause        = 100 * time.Millisecond
+	)
+
+	body := &slowStreamingResult{pause: pause}
+	for i := range chunks {
+		body.chunks = append(body.chunks, fmt.Appendf(nil, `"chunk-%d",`, i))
+	}
+	// Valid JSON once the envelope closes it: an array of the chunks above.
+	body.chunks = append([][]byte{[]byte(`[`)}, body.chunks...)
+	body.chunks = append(body.chunks, []byte(`"last"]`))
+
+	config := DefaultConfig()
+	config.WriteTimeout = writeTimeout
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if err := WriteStreamingRPCResponseHTTP(r, w, types.JSONRPCStringID("1"), body); err != nil {
+			t.Errorf("stream: %v", err)
+		}
+	})
+
+	l, err := Listen("tcp://127.0.0.1:0", config)
+	require.NoError(t, err)
+	t.Cleanup(func() { l.Close() })
+	go StartHTTPServer(l, mux, log.NewTestingLogger(t), config)
+
+	// The whole response takes chunks*pause, comfortably past writeTimeout.
+	started := time.Now()
+	res, err := http.Get("http://" + l.Addr().String() + "/")
+	require.NoError(t, err)
+	defer res.Body.Close()
+
+	got, err := io.ReadAll(res.Body)
+	require.NoError(t, err, "the body was cut before it finished")
+	elapsed := time.Since(started)
+	require.Greater(t, elapsed, writeTimeout,
+		"the response finished before WriteTimeout, so it never tested anything")
+
+	// Parseable end to end is the assertion that matters: a truncated stream
+	// still arrives with a 200 and a plausible prefix, and only the parse
+	// distinguishes the two.
+	var parsed struct {
+		JSONRPC string   `json:"jsonrpc"`
+		Result  []string `json:"result"`
+	}
+	require.NoError(t, json.Unmarshal(got, &parsed),
+		"response is not valid JSON, so it was truncated: %q", got)
+	assert.Equal(t, "2.0", parsed.JSONRPC)
+	require.Len(t, parsed.Result, chunks+1)
+	assert.Equal(t, "last", parsed.Result[chunks])
+}
+
+type deadlineRecorder struct {
+	*httptest.ResponseRecorder
+	deadlines []time.Time
+}
+
+func (r *deadlineRecorder) SetWriteDeadline(deadline time.Time) error {
+	r.deadlines = append(r.deadlines, deadline)
+	return nil
+}
+
+func TestProgressDeadlineWriterKeepsFiniteDeadline(t *testing.T) {
+	rec := &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
+	wrapped := &ResponseWriterWrapper{ResponseWriter: rec}
+	w := &progressDeadlineWriter{
+		w:       wrapped,
+		rc:      http.NewResponseController(wrapped),
+		timeout: time.Minute,
+	}
+
+	_, err := w.Write([]byte("first"))
+	require.NoError(t, err)
+	require.Len(t, rec.deadlines, 1)
+	require.True(t, rec.deadlines[0].After(time.Now()))
+
+	_, err = w.Write([]byte("second"))
+	require.NoError(t, err)
+	require.Len(t, rec.deadlines, 1)
+
+	w.rearm = time.Now().Add(-time.Second)
+	_, err = w.Write([]byte("third"))
+	require.NoError(t, err)
+	require.Len(t, rec.deadlines, 2)
+	require.True(t, rec.deadlines[1].After(rec.deadlines[0]))
+	require.Equal(t, "firstsecondthird", rec.Body.String())
 }
