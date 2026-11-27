@@ -60,20 +60,20 @@ var (
 	lintMu    sync.Mutex
 	lintOnce  sync.Once
 	lintStore gnolang.Store
-	lintErr   error
+	errLint   error
 )
 
 func lintGetter(root string) (gnolang.Store, error) {
 	lintOnce.Do(func() {
 		defer func() {
 			if r := recover(); r != nil {
-				lintErr = fmt.Errorf("lint store: %v", r)
+				errLint = fmt.Errorf("lint store: %v", r)
 			}
 		}()
 		_, lintStore = test.ProdStore(root, io.Discard, nil)
 	})
-	if lintErr != nil {
-		return nil, lintErr
+	if errLint != nil {
+		return nil, errLint
 	}
 	if lintStore == nil {
 		return nil, fmt.Errorf("lint store was not created")
