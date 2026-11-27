@@ -577,6 +577,7 @@ func TestMultiplexTransport_Accept(t *testing.T) {
 		assert.Equal(t, peers[1].nodeInfo.Channels, p.NodeInfo().Channels)
 		assert.Equal(t, peers[1].nodeInfo.Moniker, p.NodeInfo().Moniker)
 		assert.Equal(t, peers[1].nodeInfo.Network, p.NodeInfo().Network)
+		assert.True(t, peers[1].netAddr.IP.Equal(p.RemoteIP()))
 
 		// Attempt to dial again, expect the dial to fail
 		// because the connection is already active

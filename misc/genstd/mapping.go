@@ -31,6 +31,18 @@ type mappingType struct {
 	IsTypedValue bool
 }
 
+// TypedValueParams returns a bitmask of the parameters that are a
+// gno.TypedValue in go: bit i is set for parameter i.
+func (m mapping) TypedValueParams() uint32 {
+	var mask uint32
+	for i, p := range m.Params {
+		if p.IsTypedValue {
+			mask |= 1 << i
+		}
+	}
+	return mask
+}
+
 func (mt mappingType) GoQualifiedName() string {
 	return types.ExprString(mt.Type)
 }

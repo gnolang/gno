@@ -161,6 +161,7 @@ FLAT_OPS = {
     'BenchmarkOpReturnAfterCopy': ('ReturnAfterCopy', 'ReturnAfterCopy'),
     'BenchmarkOpReturnFromBlock': ('ReturnFromBlock', 'ReturnFromBlock'),
     'BenchmarkOpReturnToBlock': ('ReturnToBlock', 'ReturnToBlock'),
+    'BenchmarkOpReturnConvert': ('ReturnConvert', 'ReturnConvert'),
     'BenchmarkOpPanic2': ('Panic2', 'Panic2'),
     'BenchmarkOpChanType': ('ChanType', 'ChanType'),
     'BenchmarkOpMapType': ('MapType', 'MapType'),
@@ -192,6 +193,9 @@ PARAM_FAMILIES = [
     ('ArrayLit (uint8)', 'elements', [
         ('BenchmarkOpArrayLit_Uint8_1', 1), ('BenchmarkOpArrayLit_Uint8_10', 10),
         ('BenchmarkOpArrayLit_Uint8_100', 100), ('BenchmarkOpArrayLit_Uint8_1000', 1000)]),
+    ('ArrayLit (keyed)', 'elements', [
+        ('BenchmarkOpArrayLit_Keyed_1', 1), ('BenchmarkOpArrayLit_Keyed_10', 10),
+        ('BenchmarkOpArrayLit_Keyed_100', 100), ('BenchmarkOpArrayLit_Keyed_1000', 1000)]),
     ('SliceLit', 'elements', [
         ('BenchmarkOpSliceLit_1', 1), ('BenchmarkOpSliceLit_10', 10),
         ('BenchmarkOpSliceLit_100', 100), ('BenchmarkOpSliceLit_1000', 1000)]),
@@ -623,9 +627,12 @@ def main():
             else: tag = 'ok'
         else:
             tag = ''
+        # 'none': machine.go declares no such constant. Call (method) is
+        # charged through OpCPUCall; ReturnConvert has no flat charge, only
+        # each conversion's, in convertValue.
         p('%-50s %8.1f %8.1f %8.0f %8.1f %8s  %s' % (
             display, ns_pure, total_g, alloc_gas, cpu_g,
-            str(cur) if cur > 0 else '?', tag))
+            str(cur) if cur > 0 else ('none' if cur < 0 else '?'), tag))
 
     # ============================================================
     # SECTION 2: PARAMETERIZED OPS
@@ -824,8 +831,9 @@ def main():
     # Mapping from parameterized family display name to (Go base name, Go slope name).
     PARAM_GO_NAMES = {
         'MapLit':                   ('MapLit',          'MapLit'),
-        'ArrayLit (int)':           ('ArrayLit',        'ArrayLit'),
-        'ArrayLit (uint8)':         (None,              None),  # shares ArrayLit constant (use max)
+        'ArrayLit (int)':           ('ArrayLit',        'ArrayLit'),  # max of int, uint8 and keyed
+        'ArrayLit (uint8)':         ('ArrayLit',        'ArrayLit'),
+        'ArrayLit (keyed)':         ('ArrayLit',        'ArrayLit'),
         'SliceLit':                 ('SliceLit',        'SliceLit'),
         'SliceLit2 (sparse)':       ('SliceLit2',       'SliceLit2'),
         'StructLit (unnamed)':      (None,              None),  # shares StructLit constant
@@ -836,7 +844,7 @@ def main():
         'Call (0 params, captures)': (None,             'CallCapture'),
         'FuncLit (captures)':       ('FuncLit',         'FuncLit'),
         'ForLoop (heap copy)':      ('ForLoop',         'ForLoopHeap'),
-        'RangeIter (array)':        ('RangeIter',       'RangeIterArray'),
+        'RangeIter (array)':        ('RangeIter',       None),  # key-only, copies nothing; reading the element pays ArrayValue.Copy
         'ReturnCallDefers':         ('ReturnCallDefers','ReturnCallDefers'),
         'EnterCrossing (depth)':    (None,              'EnterCrossing'),
         'CopyDataToList':           (None,              'CopyPrimitive'), # slower helper drives OpCPUSlopeCopyPrimitive
@@ -845,7 +853,7 @@ def main():
         'TypeSwitch (concrete)':    ('TypeSwitch',      'TypeSwitchCase'),
         'TypeSwitch (interface)':   (None,              None),  # handled separately
         'TypeAssert1 (interface)':  (None,              'TypeAssertIface'),
-        'TypeAssert2 (iface hit)':  (None,              None),  # shares TypeAssertIface
+        'TypeAssert2 (iface hit)':  (None,              'TypeAssertIface'),
         'Selector (VPInterface)':   ('SelectorInterface','SelectorIface'),
         'Eval (NameExpr depth)':    ('Eval',            'EvalNameExpr'),
         'Convert (str->runes)':     (None,              'ConvertStrRunes'),
@@ -898,12 +906,16 @@ def main():
     p('\t/* Flat constants (max across variants) */')
     for key in sorted(flat_by_key.keys()):
         cpu_g, display, ns_pure = flat_by_key[key]
-        p('\tOpCPU%-25s = %4d // %s (%.1f ns)' % (key, round(cpu_g), display, ns_pure))
+        line = 'OpCPU%-25s = %4d // %s (%.1f ns)' % (key, round(cpu_g), display, ns_pure)
+        # Commented out where machine.go declares no such constant, since
+        # runOnce would never read it.
+        p('\t' + line if key in gas_constants else '\t// ' + line)
 
     # --- Parameterized bases and slopes ---
     p()
     p('\t/* Parameterized base constants (from linear fit) */')
-    param_fits = {}  # family_name -> (base, slope, r2, label)
+    bases = {}  # Go base name -> (fit, note); families sharing a name keep the highest fit
+    slopes = {}  # Go slope name -> (fit, r2, label); families sharing a name keep the highest fit
     for display_name, label, benchmarks in PARAM_FAMILIES:
         points = []
         for bench_name, n_val in benchmarks:
@@ -915,29 +927,26 @@ def main():
         if len(points) < 2:
             continue
         a, b, r2 = least_squares(points)
-        param_fits[display_name] = (max(0, a), b, r2, label)
         names = PARAM_GO_NAMES.get(display_name, (None, None))
-        if names and names[0]:
-            base_name = names[0]
-            p('\tOpCPU%-25s = %4d // base; per-%s slope added in handler (fit: %.1f)' % (
-                base_name, max(0, round(a)), label, a))
+        if names[0] and (names[0] not in bases or a > bases[names[0]][0]):
+            note = 'per-%s slope added in handler' if names[1] else 'no per-%s slope of its own'
+            bases[names[0]] = (a, note % label)
+        if names[1] and (names[1] not in slopes or b > slopes[names[1]][0]):
+            slopes[names[1]] = (b, r2, label)
+    for base_name, (a, note) in bases.items():
+        p('\tOpCPU%-25s = %4d // base; %s (fit: %.1f)' % (
+            base_name, max(0, round(a)), note, a))
 
     p()
     p('\t/* Parameterized slope constants */')
-    for display_name, label, benchmarks in PARAM_FAMILIES:
-        if display_name not in param_fits:
-            continue
-        a, b, r2, label = param_fits[display_name]
-        names = PARAM_GO_NAMES.get(display_name, (None, None))
-        if names and names[1]:
-            slope_name = names[1]
-            slope_val = round(b) if abs(b) >= 0.5 else b
-            if isinstance(slope_val, float):
-                p('\tOpCPUSlope%-20s = %.4f // per %s (fit: %.4f, R²=%.4f)' % (
-                    slope_name, slope_val, label, b, r2))
-            else:
-                p('\tOpCPUSlope%-20s = %4d // per %s (fit: %.1f, R²=%.4f)' % (
-                    slope_name, slope_val, label, b, r2))
+    for slope_name, (b, r2, label) in slopes.items():
+        slope_val = round(b) if abs(b) >= 0.5 else b
+        if isinstance(slope_val, float):
+            p('\tOpCPUSlope%-20s = %.4f // per %s (fit: %.4f, R²=%.4f)' % (
+                slope_name, slope_val, label, b, r2))
+        else:
+            p('\tOpCPUSlope%-20s = %4d // per %s (fit: %.1f, R²=%.4f)' % (
+                slope_name, slope_val, label, b, r2))
 
     # --- BigInt slopes ---
     p()

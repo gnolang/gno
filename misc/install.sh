@@ -292,7 +292,7 @@ install_gno() {
     # which for this repo may be a chain/* tag. Resolve "latest" to the most
     # recent non-prerelease v* tag ourselves instead.
     if [ "$VERSION" = "latest" ]; then
-        api_get "${API}/releases?per_page=30" > "$TMP/releases.json" \
+        api_get "${API}/releases?per_page=100" > "$TMP/releases.json" \
             || die "failed to fetch releases list"
         VERSION="$(latest_v_tag)"
         [ -n "$VERSION" ] || die "no v* release found; pass --version <tag> explicitly (see https://github.com/${REPO}/releases)"

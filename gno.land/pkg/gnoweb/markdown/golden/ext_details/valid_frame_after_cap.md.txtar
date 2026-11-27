@@ -1,0 +1,34 @@
+-- input.md --
+<gno-details summary="L1">
+<gno-details summary="L2">
+<gno-details summary="L3">
+<gno-details summary="L4">
+before
+<gno-frame>
+inside
+</gno-frame>
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>L1</span></summary>
+<div>
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>L2</span></summary>
+<div>
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>L3</span></summary>
+<div>
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>L4</span></summary>
+<div>
+<p>before</p>
+</div>
+</details>
+</div>
+</details>
+</div>
+</details>
+</div>
+</details>
+<section class="gno-frame">
+<p>inside</p>
+</section>

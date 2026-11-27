@@ -143,19 +143,6 @@ func DecodeUvarint16(bz []byte) (u uint16, n int, err error) {
 	return
 }
 
-func DecodeUvarint32(bz []byte) (u uint32, n int, err error) {
-	u64, n, err := DecodeUvarint(bz)
-	if err != nil {
-		return
-	}
-	if u64 > uint64(math.MaxUint32) {
-		err = errors.New("EOF decoding uint32")
-		return
-	}
-	u = uint32(u64)
-	return
-}
-
 func DecodeUvarint(bz []byte) (u uint64, n int, err error) {
 	u, n = binary.Uvarint(bz)
 	if n == 0 {

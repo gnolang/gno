@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"math"
+	rtdebug "runtime/debug"
 	"testing"
 
 	storetypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -541,4 +542,66 @@ func TestGrowBlockValuesPreservesContents(t *testing.T) {
 	for i := 3; i < 10; i++ {
 		assert.Zero(t, got[i], "slot %d zeroed", i)
 	}
+}
+
+// cycleStore serves objects from a map and fails the test after a few loads,
+// so a copy that keeps loading the same objects fails here.
+type cycleStore struct {
+	Store
+	t     *testing.T
+	objs  map[ObjectID]Object
+	loads int
+}
+
+func (s *cycleStore) GetObjectSafe(oid ObjectID) Object {
+	if s.loads++; s.loads > 10 {
+		s.t.Fatal("copy keeps loading the same objects")
+	}
+	return s.objs[oid]
+}
+
+// TestCopyStoredCycle copies a stored struct that contains itself, through an
+// array its two fields share, both as refs the copy loads and as objects
+// already loaded. Each array is copied, and the ref back to the struct the
+// copy is inside stays a ref to it.
+func TestCopyStoredCycle(t *testing.T) {
+	defer rtdebug.SetMaxStack(rtdebug.SetMaxStack(64 << 20))
+	at := &ArrayType{Len: 1, Elt: &InterfaceType{}}
+	st := &StructType{Fields: []FieldType{{Name: "V", Type: at}, {Name: "W", Type: at}}}
+	pid := PkgIDFromPkgPath("gno.land/r/test/stored")
+	sid, aid := ObjectID{PkgID: pid, NewTime: 1}, ObjectID{PkgID: pid, NewTime: 2}
+
+	check := func(t *testing.T, cp TypedValue, sv *StructValue, av *ArrayValue) {
+		t.Helper()
+		csv := cp.V.(*StructValue)
+		require.NotSame(t, sv, csv)
+		v, w := csv.Fields[0].V.(*ArrayValue), csv.Fields[1].V.(*ArrayValue)
+		require.NotSame(t, av, v)
+		require.NotSame(t, v, w)
+		for _, a := range []*ArrayValue{v, w} {
+			require.Equal(t, sid, a.List[0].V.(RefValue).ObjectID)
+		}
+	}
+
+	t.Run("refs", func(t *testing.T) {
+		aref := TypedValue{T: at, V: RefValue{ObjectID: aid}}
+		sv := &StructValue{Fields: []TypedValue{aref, aref}}
+		av := &ArrayValue{List: []TypedValue{{T: st, V: RefValue{ObjectID: sid}}}}
+		sv.SetObjectID(sid)
+		av.SetObjectID(aid)
+		store := &cycleStore{t: t, objs: map[ObjectID]Object{sid: sv, aid: av}}
+		check(t, TypedValue{T: st, V: RefValue{ObjectID: sid}}.Copy(nil, store), sv, av)
+		require.Equal(t, 3, store.loads)
+	})
+
+	t.Run("loaded", func(t *testing.T) {
+		sv := &StructValue{}
+		av := &ArrayValue{List: []TypedValue{{T: st, V: sv}}}
+		sv.Fields = []TypedValue{{T: at, V: av}, {T: at, V: av}}
+		sv.SetObjectID(sid)
+		av.SetObjectID(aid)
+		store := &cycleStore{t: t}
+		check(t, TypedValue{T: st, V: sv}.Copy(nil, store), sv, av)
+		require.Zero(t, store.loads)
+	})
 }

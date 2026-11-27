@@ -1516,6 +1516,14 @@ func bigdecToFloat32(bdv BigdecValue) float32 {
 // verified bdv.IsInt().
 func bigdecToBigInt(bdv BigdecValue) *big.Int {
 	if bdv.IsFloat() {
+		// Past ratOverflowBits, the bound a rat is held to, F.Int would
+		// allocate the whole integer: 256 MB at the largest exponent.
+		if bdv.F.MantExp(nil) > ratOverflowBits {
+			if bdv.F.Sign() > 0 {
+				panic("bigint overflows target kind")
+			}
+			panic("bigint underflows target kind")
+		}
 		bi, _ := bdv.F.Int(nil)
 		return bi
 	}
@@ -1529,7 +1537,7 @@ func bigdecToBigInt(bdv BigdecValue) *big.Int {
 // to bigdecErrString for the rat form.
 func bigdecValueErrString(bdv BigdecValue) string {
 	if bdv.IsFloat() {
-		return bdv.F.Text('g', -1)
+		return bigdecFloatString(bdv.F)
 	}
 	if bdv.V == nil {
 		return "0"

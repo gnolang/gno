@@ -47,6 +47,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+          cache: false
       - name: ABCI connection concurrency
         run: go test -race -covermode=atomic -timeout 20m ./tm2/pkg/bft/proxy/...
       - name: Simulate and store concurrency
@@ -59,4 +60,4 @@ jobs:
             -run 'TestParallelQueries|TestParallelVMQueries|TestQueryRace|TestConcurrentInitChain' \
             ./gno.land/pkg/gnoland/
       - name: gnoweb markdown concurrent rendering
-        run: go test -race -covermode=atomic -timeout 10m -run 'TestMathConcurrentRender' ./gno.land/pkg/gnoweb/markdown/
+        run: go test -race -covermode=atomic -timeout 10m -run 'ConcurrentRender' ./gno.land/pkg/gnoweb/markdown/

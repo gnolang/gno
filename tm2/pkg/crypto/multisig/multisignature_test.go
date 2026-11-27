@@ -52,7 +52,7 @@ func TestAddSignatureOutOfRange(t *testing.T) {
 				mSig.BitArray.NumTrueBitsBefore(mSig.BitArray.Size()), len(mSig.Sigs),
 				"after adding index %d", index)
 		}
-		require.NoError(t, mSig.ValidateBasic(size))
+		require.NoError(t, mSig.ValidateBasic(thresholdKey(3, size)))
 	})
 
 	t.Run("AddSignatureFromPubKey reports it", func(t *testing.T) {
@@ -69,7 +69,7 @@ func TestAddSignatureOutOfRange(t *testing.T) {
 		// Sized consistently, it works.
 		mSig = NewMultisig(len(pubkeys))
 		require.NoError(t, mSig.AddSignatureFromPubKey(sigs[2], pubkeys[2], pubkeys))
-		require.NoError(t, mSig.ValidateBasic(len(pubkeys)))
+		require.NoError(t, mSig.ValidateBasic(thresholdKey(1, len(pubkeys))))
 	})
 }
 
@@ -83,7 +83,7 @@ func TestMultisignatureValidateBasic(t *testing.T) {
 	for _, tt := range []struct {
 		name   string
 		mSig   Multisignature
-		nKeys  int
+		key    PubKeyMultisigThreshold
 		wantOK bool
 	}{
 		{
@@ -92,7 +92,7 @@ func TestMultisignatureValidateBasic(t *testing.T) {
 				BitArray: &bitarray.CompactBitArray{ExtraBitsStored: 2, Elems: []byte{0b1000_0000}},
 				Sigs:     [][]byte{sig},
 			},
-			2, true,
+			thresholdKey(1, 2), true,
 		},
 		{
 			"bit array size disagrees with the key count",
@@ -100,15 +100,16 @@ func TestMultisignatureValidateBasic(t *testing.T) {
 				BitArray: &bitarray.CompactBitArray{ExtraBitsStored: 2, Elems: []byte{0b1000_0000}},
 				Sigs:     [][]byte{sig},
 			},
-			3, false,
+			thresholdKey(1, 3), false,
 		},
 		{
+			// K matches the set bits, so the threshold is not what refuses it.
 			"fewer signatures than set bits would run off the end of Sigs",
 			Multisignature{
 				BitArray: &bitarray.CompactBitArray{ExtraBitsStored: 2, Elems: []byte{0b1100_0000}},
 				Sigs:     [][]byte{sig},
 			},
-			2, false,
+			thresholdKey(2, 2), false,
 		},
 		{
 			"more signatures than set bits leaves some never indexed",
@@ -116,7 +117,7 @@ func TestMultisignatureValidateBasic(t *testing.T) {
 				BitArray: &bitarray.CompactBitArray{ExtraBitsStored: 2, Elems: []byte{0b1000_0000}},
 				Sigs:     [][]byte{sig, sig},
 			},
-			2, false,
+			thresholdKey(1, 2), false,
 		},
 		{
 			// The bit array's own shape, which the two clauses above take on
@@ -127,7 +128,7 @@ func TestMultisignatureValidateBasic(t *testing.T) {
 				BitArray: &bitarray.CompactBitArray{ExtraBitsStored: 1, Elems: []byte{0x80}},
 				Sigs:     [][]byte{sig},
 			},
-			9, false,
+			thresholdKey(1, 9), false,
 		},
 		{
 			"bit array with bits set past its end",
@@ -135,18 +136,43 @@ func TestMultisignatureValidateBasic(t *testing.T) {
 				BitArray: &bitarray.CompactBitArray{ExtraBitsStored: 2, Elems: []byte{0b1000_0001}},
 				Sigs:     [][]byte{sig},
 			},
-			2, false,
+			thresholdKey(1, 2), false,
 		},
 		{
 			"nil bit array against a key that has constituents",
 			Multisignature{},
-			1, false,
+			thresholdKey(1, 1), false,
+		},
+		{
+			// A relayer can drop a spare and still have K valid signatures.
+			"more signatures than the threshold",
+			Multisignature{
+				BitArray: &bitarray.CompactBitArray{ExtraBitsStored: 3, Elems: []byte{0b1100_0000}},
+				Sigs:     [][]byte{sig, sig},
+			},
+			thresholdKey(1, 3), false,
+		},
+		{
+			"fewer signatures than the threshold",
+			Multisignature{
+				BitArray: &bitarray.CompactBitArray{ExtraBitsStored: 3, Elems: []byte{0b1000_0000}},
+				Sigs:     [][]byte{sig},
+			},
+			thresholdKey(2, 3), false,
+		},
+		{
+			"exactly the threshold",
+			Multisignature{
+				BitArray: &bitarray.CompactBitArray{ExtraBitsStored: 3, Elems: []byte{0b1010_0000}},
+				Sigs:     [][]byte{sig, sig},
+			},
+			thresholdKey(2, 3), true,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := tt.mSig.ValidateBasic(tt.nKeys)
+			err := tt.mSig.ValidateBasic(tt.key)
 			if tt.wantOK {
 				require.NoError(t, err)
 			} else {
@@ -172,7 +198,13 @@ func TestMultisignatureValidateBasicAcceptsAssembledSignatures(t *testing.T) {
 			for i := range signers {
 				require.NoError(t, mSig.AddSignatureFromPubKey([]byte("sig"), pubkeys[i], pubkeys))
 			}
-			require.NoError(t, mSig.ValidateBasic(n), "n=%d signers=%d", n, signers)
+			require.NoError(t, mSig.ValidateBasic(thresholdKey(signers, n)), "n=%d signers=%d", n, signers)
 		}
 	}
+}
+
+// thresholdKey is a k-of-n key for ValidateBasic, which reads only the
+// threshold and the number of constituents.
+func thresholdKey(k, n int) PubKeyMultisigThreshold {
+	return PubKeyMultisigThreshold{K: uint(k), PubKeys: make([]crypto.PubKey, n)}
 }

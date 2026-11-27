@@ -21,6 +21,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	rpcconfig "github.com/gnolang/gno/tm2/pkg/bft/rpc/config"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -28,6 +29,7 @@ import (
 	tmerrors "github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	bankm "github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	tu "github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -161,6 +163,42 @@ func TestNothing(t *testing.T) {}`,
 	assert.Equal(t, InvalidPackageError{}, tmerrors.Cause(err))
 	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetMemPackageAll(pkgPath))
+}
+
+// A package var initializer that panics fails the tx with the runtime error
+// as its abci.Error. That error is hashed into LastResultsHash, so changing it
+// is state-breaking: before #6129 the same tx committed
+// "<error: runtime.errorString>".
+func TestVMKeeperAddPackage_VarInitPanicError(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	const pkgPath = "gno.land/r/initpanic"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{
+			Name: "initpanic.gno",
+			Body: `package initpanic
+
+var (
+	a = ""
+	A = a[0]
+)`,
+		},
+	}
+
+	err := env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files))
+
+	require.Error(t, err)
+	assert.Equal(t,
+		abci.StringError("runtime error: index out of range [0] with length 0"),
+		sdk.ABCIError(err))
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 }
 
 // Structural companion to addpkg_import_testdep_gas.txtar: importing a
@@ -2138,6 +2176,108 @@ func Grow(cur realm, s string) {
 	assert.Equal(t, int64(0), reloadedSA.(std.DelegatedAccount).GetSpendUsed().AmountOf("ugnot"))
 }
 
+// TestStorageDepositRespectsVesting pins the vesting check on the storage
+// deposit, whose refund goes to whoever frees the storage, and its waiver
+// under genesis replay.
+func TestStorageDepositRespectsVesting(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	deployer := crypto.AddressFromPreimage([]byte("vesting-deployer"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, deployer))
+	env.bankk.SetCoins(ctx, deployer, initialBalance)
+
+	const pkgPath = "gno.land/r/vestgrow"
+	require.NoError(t, env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(deployer, pkgPath, storageRealmFiles("vestgrow", pkgPath))))
+
+	// Every coin the vester holds stays locked until the cliff.
+	const cliff = int64(2_000_000_000)
+	vester := crypto.AddressFromPreimage([]byte("vesting-caller"))
+	acc := env.acck.NewAccountWithAddress(ctx, vester)
+	acc.SetVesting(std.VestingSchedule{
+		OriginalVesting: initialBalance,
+		EndTime:         cliff,
+		Type:            std.VestingDelayed,
+	})
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, vester, initialBalance)
+
+	escrow := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+	escrowBefore := env.bankk.GetCoins(ctx, escrow).AmountOf(ugnot.Denom)
+
+	allocate := func(ctx sdk.Context, size string) error {
+		msg := NewMsgCall(vester, std.Coins{}, pkgPath, "Allocate", []string{size})
+		msg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
+		_, err := env.vmk.Call(ctx, msg)
+		return err
+	}
+
+	err := allocate(ctx, "256")
+	require.Error(t, err, "a deposit must not be paid from locked coins")
+	require.Contains(t, err.Error(), "vesting locked coins")
+	assert.Equal(t, initialBalance, env.bankk.GetCoins(ctx, vester))
+	assert.Equal(t, escrowBefore, env.bankk.GetCoins(ctx, escrow).AmountOf(ugnot.Denom))
+
+	// Genesis replay keeps the outcome the replayed chain gave the deposit.
+	// Each call grows the bytes, since a refused one still leaves its bytes in
+	// this test store.
+	replay := ctx.WithValue(auth.GenesisReplayKey{}, true)
+	require.NoError(t, allocate(replay, "512"), "a replayed deposit must not be refused")
+	escrowReplayed := env.bankk.GetCoins(ctx, escrow).AmountOf(ugnot.Denom)
+	assert.Greater(t, escrowReplayed, escrowBefore)
+
+	// Once the cliff passes, the same coins pay the deposit.
+	vested := ctx.WithBlockHeader(&bft.Header{
+		ChainID: ctx.ChainID(), Height: ctx.BlockHeight(), Time: time.Unix(cliff, 0),
+	})
+	require.NoError(t, allocate(vested, "1024"))
+	assert.Greater(t, env.bankk.GetCoins(vested, escrow).AmountOf(ugnot.Denom), escrowReplayed)
+}
+
+// TestStorageDepositSkipsRestrictionAndChargesSessionOnce pins the two checks
+// the deposit charge skips: a restricted denom must not refuse it, and the
+// session limit is charged once, by lockStorageDeposit itself.
+func TestStorageDepositSkipsRestrictionAndChargesSessionOnce(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	master := crypto.AddressFromPreimage([]byte("restricted-master"))
+	env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, master))
+	env.bankk.SetCoins(ctx, master, initialBalance)
+
+	const pkgPath = "gno.land/r/restrictgrow"
+	require.NoError(t, env.vmk.AddPackage(ctx,
+		NewMsgAddPackage(master, pkgPath, storageRealmFiles("restrictgrow", pkgPath))))
+
+	// ugnot restricted, master not on the token-lock whitelist.
+	env.bankk.SetRestrictedDenoms(ctx, []string{ugnot.Denom})
+
+	_, sessionPub, sessionPubAddr := tu.KeyTestPubAddr()
+	sa := env.acck.NewSessionAccount(ctx, master, sessionPub)
+	da := sa.(std.DelegatedAccount)
+	da.SetExpiresAt(0)
+	da.SetSpendLimit(std.Coins{std.NewCoin(ugnot.Denom, 10_000_000)})
+	da.SetSpendReset(ctx.BlockTime().Unix())
+	env.acck.SetSessionAccount(ctx, master, sa)
+	sessionCtx := ctx.WithValue(std.SessionAccountsContextKey{},
+		map[crypto.Address]std.DelegatedAccount{master: da})
+
+	escrow := gnolang.DeriveStorageDepositCryptoAddr(pkgPath)
+	escrowBefore := env.bankk.GetCoins(ctx, escrow).AmountOf(ugnot.Denom)
+
+	msg := NewMsgCall(master, std.Coins{}, pkgPath, "Allocate", []string{"256"})
+	msg.MaxDeposit = std.MustParseCoins(ugnot.ValueString(10_000_000))
+	_, err := env.vmk.Call(sessionCtx, msg)
+	require.NoError(t, err, "a restricted denom must not refuse the storage deposit")
+
+	paid := env.bankk.GetCoins(ctx, escrow).AmountOf(ugnot.Denom) - escrowBefore
+	require.Positive(t, paid)
+	reloaded := env.acck.GetSessionAccount(sessionCtx, master, sessionPubAddr).(std.DelegatedAccount)
+	used := reloaded.GetSpendUsed().AmountOf(ugnot.Denom)
+	assert.Equal(t, paid, used, "the session limit must be charged the deposit once")
+}
+
 func TestVMKeeperEvalJSONFormatting2(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -2751,10 +2891,7 @@ func GetError() error { return nil }`
 			"nil error should not produce an @error field; got: %s", res)
 	})
 
-	t.Run("oog_in_error_method_graceful_degrade", func(t *testing.T) {
-		// Contract: if the result's .Error() method exhausts gas, the query
-		// must still return the successful Results JSON. The @error field
-		// is best-effort — on OOG we drop it rather than destroying results.
+	t.Run("oog_in_error_method_fails_query", func(t *testing.T) {
 		pkgPath := "gno.land/r/test/oogerror"
 		pkgBody := `package oogerror
 
@@ -2779,13 +2916,42 @@ func GetError() error { return &BigErr{} }`
 		require.NoError(t, env.vmk.AddPackage(ctx, msg))
 		env.vmk.CommitGnoTransactionStore(ctx)
 
-		res, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetError()")
-		require.NoError(t, err,
-			"OOG in .Error() must not fail the query; results should be preserved")
-		assert.Contains(t, res, `"results":`,
-			"results payload must be present")
-		assert.NotContains(t, res, `"@error"`,
-			"OOG in .Error() must graceful-degrade — @error omitted")
+		_, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetError()")
+		var oog types.OutOfGasError
+		require.ErrorAs(t, err, &oog)
+	})
+
+	t.Run("oog_in_nested_panic_error_fails_query", func(t *testing.T) {
+		// Error() panics with a value whose own Error() runs out of gas. The
+		// panic renderer recovers that out-of-gas and raises an
+		// UnhandledPanicError, so only the meter shows the budget ran out.
+		pkgPath := "gno.land/r/test/nestedoogerror"
+		pkgBody := `package nestedoogerror
+
+type Inner struct{}
+
+func (Inner) Error() string {
+	for {
+	}
+}
+
+type Outer struct{}
+
+func (Outer) Error() string { panic(Inner{}) }
+
+func GetError() error { return Outer{} }`
+
+		files := []*std.MemFile{
+			{Name: "a.gno", Body: pkgBody},
+			{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		}
+		msg := NewMsgAddPackage(addr, pkgPath, files)
+		require.NoError(t, env.vmk.AddPackage(ctx, msg))
+		env.vmk.CommitGnoTransactionStore(ctx)
+
+		_, err := env.vmk.QueryEvalJSON(env.ctx, pkgPath, "GetError()")
+		var oog types.OutOfGasError
+		require.ErrorAs(t, err, &oog)
 	})
 
 	t.Run("typed_nil_error_graceful_degrade", func(t *testing.T) {
@@ -3207,7 +3373,7 @@ func TestVMKeeperJSONEdgeCases(t *testing.T) {
 	env.bankk.SetCoins(ctx, addr, initialBalance)
 
 	t.Run("qeval_json_oog_infinite_loop", func(t *testing.T) {
-		// An infinite-loop expression must exhaust maxGasQuery and surface
+		// An expression that loops forever must exhaust the query gas budget and surface
 		// as an OutOfGasError, not panic through the ABCI handler.
 		pkgPath := "gno.land/r/edge/oogloop"
 		deployJSONTestPkg(t, env, ctx, addr, pkgPath, `package oogloop
@@ -3323,6 +3489,7 @@ func extractNestedRefValueObjectID(t *testing.T, jsonStr string) string {
 
 	return searchFrom[start : start+end]
 }
+
 func TestQueryPkg(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -3540,7 +3707,7 @@ func TestVMKeeperQueryEvalBignumGas(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, res, "42")
 
-	// ~2M digits: the quadratic charge exceeds maxGasQuery (3e9) for both the
+	// ~2M digits: the quadratic charge exceeds the query gas budget for both the
 	// INT (OOG above ~1.23M digits) and FLOAT (~866K) slopes, so the parse
 	// never runs.
 	bigDigits := strings.Repeat("1", 2_000_000)
@@ -3564,6 +3731,24 @@ func TestVMKeeperQueryEvalBignumGas(t *testing.T) {
 			require.Contains(t, strings.ToLower(qerr.Error()), "gas")
 		})
 	}
+}
+
+// TestVMKeeperQueryEvalExtremeExponent pins qeval on literals near big.Float's 2^31 exponent limit.
+func TestVMKeeperQueryEvalExtremeExponent(t *testing.T) {
+	pkgPath := "gno.land/r/test/extremeexp"
+	env := setupSizeGuardRealm(t, "addr1", pkgPath, "package extremeexp\n\nfunc Noop() {}\n")
+
+	// The refusal comes before the integer is built: F.Int would allocate
+	// 256 MB, which the gas meter does not charge.
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	_, err := env.vmk.QueryEval(env.ctx, pkgPath, "(1e646456992 << 0) % 7")
+	runtime.ReadMemStats(&after)
+	require.ErrorContains(t, err, "bigint overflows target kind")
+	require.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(16<<20))
+	_, err = env.vmk.QueryEval(env.ctx, pkgPath, "int(1e-646456992)")
+	require.ErrorContains(t, err, "cannot convert (const (1e-646456992 <untyped> bigdec)) to integer type")
 }
 
 // bigLitParseGas mirrors chargeBigLitParse: gas = (chars/10)^2 * slope / 10.
@@ -3602,14 +3787,13 @@ func maxDeliverableLiteralDigits(t *testing.T, pkgPath, suffix string) int {
 }
 
 // TestVMKeeperQueryEvalBignumResidualCeiling pins the residual that the
-// quadratic charge does NOT close, as a checked fact rather than a paragraph
-// in the ADR.
+// quadratic charge does NOT close under the default 3e9 query gas budget.
 //
-// The charge only starts refusing decimal INT literals around 1.23M digits,
-// well above the ~750K a default-configured node accepts in a 1MB JSON-RPC
-// body: no literal a node can receive is refused by gas alone, so the ceiling
-// is MaxBodyBytes, not maxGasQuery. The worst admitted payload is the
-// frac-shaped FLOAT, not the INT one (see OpCPUSlopeBigDecParse).
+// Under that budget the charge only starts refusing decimal INT literals
+// around 1.23M digits, well above the ~750K that fit in a default 1MB JSON-RPC
+// body. No literal a node can receive is refused by gas alone, so the ceiling
+// is MaxBodyBytes, not the query budget. The worst admitted payload is the
+// FLOAT with a long fraction, not the INT (see OpCPUSlopeBigDecParse).
 //
 // Gas is asserted (deterministic, consensus-relevant); wall time is only
 // reported, since CI timing is not a reliable assertion.
@@ -3634,7 +3818,7 @@ func TestVMKeeperQueryEvalBignumResidualCeiling(t *testing.T) {
 	require.NoError(t, env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files)))
 	env.vmk.CommitGnoTransactionStore(ctx)
 
-	const budget = int64(maxGasQuery)
+	const budget = int64(DefaultQueryMaxGas)
 
 	t.Run("charge_refuses_only_above_what_a_node_accepts", func(t *testing.T) {
 		const searchBound = 4_000_000
@@ -3694,7 +3878,7 @@ func TestVMKeeperQueryEvalBignumResidualCeiling(t *testing.T) {
 				"the deliverable worst case is still admitted; if this flips, the residual is closed")
 			pct := 100 * float64(gas) / float64(budget)
 			require.InDelta(t, tc.wantPct, pct, 1.0,
-				"share of the query budget moved (slope %d, MaxBodyBytes, or maxGasQuery changed). "+
+				"share of the query budget moved (slope %d, MaxBodyBytes, or the budget changed). "+
 					"If this is the reference-HW recalibration that machine.go's TODO(calibration) "+
 					"asks for, update wantPct here and the residual table in the ADR together",
 				tc.slope)
@@ -3721,4 +3905,26 @@ func TestVMKeeperQueryEvalBignumResidualCeiling(t *testing.T) {
 				tc.name, len(expr), gas, pct, budget, elapsed, qerr != nil)
 		})
 	}
+}
+
+// Genesis replay reproduces packages accepted before checkCopies existed.
+func TestVMKeeperAddPackage_ReplayedCopies(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bankk.SetCoins(ctx, addr, initialBalance)
+
+	const pkgPath = "gno.land/r/test/grid"
+	files := []*std.MemFile{
+		{Name: "gnomod.toml", Body: gnolang.GenGnoModLatest(pkgPath)},
+		{Name: "grid.gno", Body: "package grid\n\ntype Board struct{ a, b, c, d, e, f, g, h struct{ x, y, z struct{ r, g int } } }\n"},
+	}
+	err := env.vmk.AddPackage(ctx, NewMsgAddPackage(addr, pkgPath, files))
+	require.Equal(t, TypeCheckError{}, tmerrors.Cause(err))
+	assert.Contains(t, fmt.Sprintf("%#v", err), "declarations copy more than")
+
+	replayCtx := ctx.WithValue(auth.GenesisReplayKey{}, true)
+	require.NoError(t, env.vmk.AddPackage(replayCtx, NewMsgAddPackage(addr, pkgPath, files)))
 }

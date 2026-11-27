@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+Accepted. Superseded in part: genproto, and the pbbindings it generated,
+have since been deleted, and the `.proto` schema writer moved into
+genproto2 (#6441). The sections
+below that keep genproto for 3-way fuzzing describe the state at the time.
 
 ## Context
 

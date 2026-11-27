@@ -1,8 +1,12 @@
 package gnolang
 
 import (
+	"bytes"
+	"fmt"
+	"runtime"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 // ft builds a concrete (non-embedded) method entry.
@@ -278,4 +282,419 @@ func TestDoOpStructType_EmbedNames(t *testing.T) {
 				i, f.Name, f.Embedded, w.name, w.embed)
 		}
 	}
+}
+
+// An id of exactly n bytes with no id builder behind it: a declared type's id
+// is its path and name.
+func typeIDOfLen(n int) *DeclaredType {
+	return &DeclaredType{Name: Name(strings.Repeat("a", n-1)), Base: IntType}
+}
+
+// Each builder is given a child sized to reach the cap exactly, then one byte more.
+func TestTypeIDRefusesPastTheCap(t *testing.T) {
+	type id = func() TypeID
+	field := func(name string, typ Type) FieldType { return FieldType{Name: Name(name), Type: typ} }
+	for name, tc := range map[string]struct {
+		overhead int
+		build    func(child Type) id
+	}{
+		"array":         {3, func(c Type) id { return (&ArrayType{Len: 2, Elt: c}).TypeID }},
+		"slice":         {2, func(c Type) id { return (&SliceType{Elt: c}).TypeID }},
+		"pointer":       {1, func(c Type) id { return (&PointerType{Elt: c}).TypeID }},
+		"map key":       {8, func(c Type) id { return (&MapType{Key: c, Value: IntType}).TypeID }},
+		"map value":     {8, func(c Type) id { return (&MapType{Key: IntType, Value: c}).TypeID }},
+		"chan":          {6, func(c Type) id { return (&ChanType{Dir: SEND | RECV, Elt: c}).TypeID }},
+		"send chan":     {8, func(c Type) id { return (&ChanType{Dir: SEND, Elt: c}).TypeID }},
+		"recv chan":     {8, func(c Type) id { return (&ChanType{Dir: RECV, Elt: c}).TypeID }},
+		"func param":    {8, func(c Type) id { return (&FuncType{Params: []FieldType{{Type: c}}}).TypeID }},
+		"func result":   {8, func(c Type) id { return (&FuncType{Results: []FieldType{{Type: c}}}).TypeID }},
+		"struct":        {10, func(c Type) id { return (&StructType{Fields: []FieldType{field("F", c)}}).TypeID }},
+		"interface":     {13, func(c Type) id { return (&InterfaceType{Methods: []FieldType{field("M", c)}}).TypeID }},
+		"tuple":         {2, func(c Type) id { return (&tupleType{Elts: []Type{c}}).TypeID }},
+		"field":         {2, func(c Type) id { return field("F", c).TypeID }},
+		"unnamed field": {0, func(c Type) id { return FieldType{Type: c}.TypeID }},
+		"list":          {2, func(c Type) id { return FieldTypeList{field("F", c)}.TypeID }},
+		"unnamed list": {4, func(c Type) id {
+			return func() TypeID { return FieldTypeList{{Type: IntType}, {Type: c}}.unnamedTypeID(false) }
+		}},
+		"package list": {4, func(c Type) id {
+			return func() TypeID { return FieldTypeList{field("f", c)}.typeIDForPackage("x", false) }
+		}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := tc.build(typeIDOfLen(maxTypeIDBytes - tc.overhead))()
+			if len(got) != maxTypeIDBytes {
+				t.Errorf("id at the cap: len %d", len(got))
+			}
+			over := tc.build(typeIDOfLen(maxTypeIDBytes - tc.overhead + 1))
+			defer func() {
+				if r := recover(); !strings.Contains(fmt.Sprint(r), "type too large") {
+					t.Errorf("id past the cap: recovered %v", r)
+				}
+			}()
+			over()
+		})
+	}
+}
+
+// The id below the cap is what the Sprintf-built TypeID methods wrote, kind by kind.
+func TestTypeIDForms(t *testing.T) {
+	dt := &DeclaredType{PkgPath: "gno.land/p/x", Name: "N", Base: IntType}
+	field := func(name string, typ Type) FieldType { return FieldType{Name: Name(name), Type: typ} }
+	for want, typ := range map[string]Type{
+		"[2]int":                             &ArrayType{Len: 2, Elt: IntType},
+		"[]int":                              &SliceType{Elt: IntType, Vrd: true},
+		"*gno.land/p/x.N":                    &PointerType{Elt: dt},
+		"map[string]int":                     &MapType{Key: StringType, Value: IntType},
+		"chan{int}":                          &ChanType{Dir: SEND | RECV, Elt: IntType},
+		"<-chan{int}":                        &ChanType{Dir: SEND, Elt: IntType},
+		"chan<-{int}":                        &ChanType{Dir: RECV, Elt: IntType},
+		"func()()":                           &FuncType{},
+		"func(int;string)()":                 &FuncType{Params: []FieldType{{Type: IntType}, {Type: StringType}}},
+		"func()(int;string)":                 &FuncType{Results: []FieldType{{Type: IntType}, {Type: StringType}}},
+		"struct{}":                           &StructType{},
+		"struct{A int;p.b string}":           &StructType{PkgPath: "p", Fields: []FieldType{field("A", IntType), field("b", StringType)}},
+		"interface{A func()();p.b func()()}": &InterfaceType{PkgPath: "p", Methods: []FieldType{field("b", &FuncType{}), field("A", &FuncType{})}},
+		"(int,string)":                       &tupleType{Elts: []Type{IntType, StringType}},
+		"F int":                              field("F", IntType),
+		"int":                                FieldType{Type: IntType},
+	} {
+		if got := typ.TypeID().String(); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	}
+	list := FieldTypeList{field("F", IntType), {Type: StringType}}
+	if got := list.TypeID().String(); got != "F int;string" {
+		t.Errorf("list id: %q", got)
+	}
+}
+
+// A refusal stops at the child that would pass the cap, so what the parent
+// wrote before it is all it costs, however many children follow. Each child's id
+// is memoised first, which leaves only the parent's writes to count.
+func TestTypeIDRefusalCostsOneCap(t *testing.T) {
+	fields := make([]FieldType, 1000)
+	child := &SliceType{Elt: typeIDOfLen(maxTypeIDBytes - 100)}
+	child.TypeID()
+	for i := range fields {
+		fields[i] = FieldType{Name: "F", Type: child}
+	}
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	func() {
+		defer func() { _ = recover() }()
+		FieldTypeList(fields).unnamedTypeID(false)
+	}()
+	runtime.ReadMemStats(&after)
+	if n := after.TotalAlloc - before.TotalAlloc; n >= 2*maxTypeIDBytes {
+		t.Errorf("refusing allocated %d bytes", n)
+	}
+}
+
+// The text below the cap is what fmt-built String methods wrote, kind by kind.
+func TestTypeTextForms(t *testing.T) {
+	dt := &DeclaredType{PkgPath: "gno.land/p/x", Name: "N", Base: IntType}
+	for want, typ := range map[string]Type{
+		"[2]int":                  &ArrayType{Len: 2, Elt: IntType},
+		"[]int":                   &SliceType{Elt: IntType},
+		"...int":                  &SliceType{Elt: IntType, Vrd: true},
+		"*gno.land/p/x.N":         &PointerType{Elt: dt},
+		"map[string]int":          &MapType{Key: StringType, Value: IntType},
+		"chan int":                &ChanType{Dir: SEND | RECV, Elt: IntType},
+		"<-chan int":              &ChanType{Dir: SEND, Elt: IntType},
+		"chan<- int":              &ChanType{Dir: RECV, Elt: IntType},
+		"struct{A int; b string}": &StructType{Fields: []FieldType{{Name: "A", Type: IntType}, {Name: "b", Type: StringType}}},
+		"interface {M func()}":    &InterfaceType{Methods: []FieldType{{Name: "M", Type: &FuncType{}}}},
+		"<X>{}":                   &InterfaceType{Generic: "X"},
+		"func()":                  &FuncType{},
+		"func(int, string) int":   &FuncType{Params: []FieldType{{Type: IntType}, {Type: StringType}}, Results: []FieldType{{Type: IntType}}},
+		"func(int) (int, string)": &FuncType{Params: []FieldType{{Type: IntType}}, Results: []FieldType{{Type: IntType}, {Type: StringType}}},
+		"(int,string)":            &tupleType{Elts: []Type{IntType, StringType}},
+		"F int \"t\"":             FieldType{Name: "F", Type: IntType, Tag: "t"},
+		"(embedded) int":          FieldType{Type: IntType},
+	} {
+		if got := typ.String(); got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+	}
+}
+
+func TestTypeTextClipsAtTheCap(t *testing.T) {
+	sized := func(nameLen int) Type {
+		return &StructType{Fields: []FieldType{{Name: Name(strings.Repeat("F", nameLen)), Type: IntType}}}
+	}
+	// struct{<name> int} adds 12 bytes to the name.
+	exact := sized(maxTypeTextBytes - 12).String()
+	if len(exact) != maxTypeTextBytes {
+		t.Errorf("text at the cap: len %d", len(exact))
+	}
+	over := sized(maxTypeTextBytes - 11).String()
+	if len(over) != maxTypeTextBytes+len(typeTextClipMark) {
+		t.Errorf("text past the cap: len %d", len(over))
+	}
+}
+
+// The cut lands on a rune boundary wherever a multi-byte name crosses the cap.
+func TestTypeTextCutKeepsUTF8(t *testing.T) {
+	for pad := range 3 {
+		name := strings.Repeat("F", pad) + strings.Repeat("\u0800", maxExprTypeTextBytes/3+1)
+		text := BoundedTypeText(&StructType{Fields: []FieldType{{Name: Name(name), Type: IntType}}}, maxExprTypeTextBytes)
+		if !utf8.ValidString(text) {
+			t.Errorf("pad %d: invalid UTF-8 at the cut", pad)
+		}
+		if got, want := len(text), maxExprTypeTextBytes+len(typeTextClipMark); got > want || got < want-2 {
+			t.Errorf("pad %d: len %d, want at most 2 under %d", pad, got, want)
+		}
+	}
+}
+
+// Once a cut backs off to a rune boundary, the frames around it write nothing into
+// the bytes left.
+func TestTypeTextCutWritesNothingAfter(t *testing.T) {
+	const r = "\u0800"
+	for pad := range 3 {
+		name := strings.Repeat("F", pad) + strings.Repeat(r, maxExprTypeTextBytes/3+1)
+		fields := []FieldType{{Name: Name(name), Type: IntType}, {Name: "G", Type: IntType}}
+		text := BoundedTypeText(&StructType{Fields: fields}, maxExprTypeTextBytes)
+		if !strings.HasSuffix(text, r+typeTextClipMark) {
+			t.Errorf("pad %d: text ends %q", pad, text[len(text)-8:])
+		}
+	}
+}
+
+// 20000 int parameters print as about 100 KB of text; the type is built in Go, so
+// no sealer refuses it first.
+func TestWriteProtectedCutsTheTypeText(t *testing.T) {
+	params := make(FieldTypeList, 20000)
+	for i := range params {
+		params[i] = FieldType{Type: IntType}
+	}
+	tv := TypedValue{T: &FuncType{Params: params}}
+
+	var buf bytes.Buffer
+	mw := newUnmeteredWriter(&buf)
+	tv.WriteProtected(mw, newSeenValues())
+	mw.Flush()
+
+	if n := buf.Len(); n > maxTypeTextBytes+64 {
+		t.Fatalf("printed %d bytes, want at most about %d", n, maxTypeTextBytes)
+	}
+}
+
+// A type read back from the store keeps an id past the cap, in every kind fillType
+// sees, and the same type built new is refused.
+func TestStoredTypeKeepsItsID(t *testing.T) {
+	structOfID := func(n int) *StructType {
+		return &StructType{Fields: []FieldType{{Name: Name(strings.Repeat("A", n-12)), Type: IntType}}}
+	}
+	atCap := func() Type { return structOfID(maxTypeIDBytes) }
+	half := func() Type { return structOfID(maxTypeIDBytes/2 + 8) }
+	field := func(typ Type) FieldType { return FieldType{Name: "F", Type: typ} }
+	for name, build := range map[string]func() Type{
+		"pointer":                func() Type { return &PointerType{Elt: atCap()} },
+		"array":                  func() Type { return &ArrayType{Len: 2, Elt: atCap()} },
+		"slice":                  func() Type { return &SliceType{Elt: atCap()} },
+		"map":                    func() Type { return &MapType{Key: atCap(), Value: IntType} },
+		"struct":                 func() Type { return &StructType{Fields: []FieldType{field(atCap())}} },
+		"struct, in its list":    func() Type { return &StructType{Fields: []FieldType{field(half()), field(half())}} },
+		"func":                   func() Type { return &FuncType{Params: []FieldType{field(atCap())}} },
+		"params, in their list":  func() Type { return &FuncType{Params: []FieldType{field(half()), field(half())}} },
+		"results, in their list": func() Type { return &FuncType{Results: []FieldType{field(half()), field(half())}} },
+		"tuple":                  func() Type { return &tupleType{Elts: []Type{atCap()}} },
+		"interface": func() Type {
+			return &InterfaceType{Methods: []FieldType{field(&FuncType{Params: []FieldType{field(atCap())}})}}
+		},
+		"methods, in their list": func() Type {
+			method := func(name Name) FieldType {
+				return FieldType{Name: name, Type: &FuncType{Params: []FieldType{field(half())}}}
+			}
+			return &InterfaceType{Methods: []FieldType{method("M"), method("N")}}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			func() {
+				defer func() {
+					if r := recover(); !strings.Contains(fmt.Sprint(r), "type too large") {
+						t.Errorf("built new: recovered %v", r)
+					}
+				}()
+				build().TypeID()
+			}()
+			if id := fillType(nil, build()).TypeID(); len(id) <= maxTypeIDBytes {
+				t.Errorf("read back: id of %d bytes", len(id))
+			}
+		})
+	}
+}
+
+// Loading a map computes each key's id, and saving an object checks its types, so
+// a stored key past the cap must pass both.
+func TestStoredMapKeyPastTheCap(t *testing.T) {
+	ds := NewStore(NewAllocator(1<<30), nil, nil)
+	keyType := &PointerType{Elt: &StructType{Fields: []FieldType{{Name: Name(strings.Repeat("A", maxTypeIDBytes)), Type: IntType}}}}
+	mv := &MapValue{List: &MapList{}}
+	mv.List.Append(nil, TypedValue{T: keyType}).Value = typedString("v")
+	fillTypesOfValue(nil, ds, mv)
+	if len(mv.vmap) != 1 {
+		t.Errorf("vmap holds %d keys", len(mv.vmap))
+	}
+	rlm := &Realm{Path: "gno.land/r/test/stored"}
+	rlm.assertTypeIsPublic(ds, &FuncType{Params: []FieldType{{Name: "p", Type: keyType}}, stored: true}, map[TypeID]struct{}{})
+}
+
+// Text runs past its id by at most one byte per list item, so a type under the
+// id's cap never loses its text to the text's cap.
+func TestTypeTextWholeUnderTheIDCap(t *testing.T) {
+	var params []FieldType
+	for range (maxTypeIDBytes - 8) / 4 {
+		params = append(params, FieldType{Type: IntType})
+	}
+	ft := &FuncType{Params: params}
+	if id := ft.TypeID(); len(id) < maxTypeIDBytes-8 {
+		t.Fatalf("id: len %d", len(id))
+	}
+	if text := ft.String(); strings.HasSuffix(text, typeTextClipMark) {
+		t.Errorf("text of %d bytes was cut", len(text))
+	}
+}
+
+// Once the text is full the walk leaves the rest of the type unvisited, so a
+// type of 8^8 leaves allocates what one cap costs, and the nil type of its last
+// field, far past the cut, is never reached: a walk that ran on would panic on it.
+func TestTypeTextStopsAtTheCap(t *testing.T) {
+	var typ Type = IntType
+	for range 8 {
+		fields := make([]FieldType, 8)
+		for i := range fields {
+			fields[i] = FieldType{Name: "F", Type: &ArrayType{Len: 1 << 40, Elt: typ}}
+		}
+		typ = &StructType{Fields: fields}
+	}
+	st := typ.(*StructType)
+	st.Fields = append(st.Fields, FieldType{Name: "Z"})
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	_ = typ.String()
+	runtime.ReadMemStats(&after)
+	if n := after.TotalAlloc - before.TotalAlloc; n >= 8*maxTypeTextBytes {
+		t.Errorf("text allocated %d bytes", n)
+	}
+}
+
+// Four source bytes can repeat a type inside an expression's text.
+func TestExprTextCutsAType(t *testing.T) {
+	sized := func(n int) Type { return typeIDOfLen(n) }
+	typeval := func(n int) string {
+		return ConstExpr{TypedValue: TypedValue{T: gTypeType, V: TypeValue{Type: sized(n)}}}.String()
+	}
+	if got := len(typeval(maxExprTypeTextBytes)); got != maxExprTypeTextBytes+len("typeval{}") {
+		t.Errorf("typeval at the cap: len %d", got)
+	}
+	if got := len(typeval(maxExprTypeTextBytes + 1)); got != maxExprTypeTextBytes+len("typeval{}")+len(typeTextClipMark) {
+		t.Errorf("typeval past the cap: len %d", got)
+	}
+	constant := func(n int) string {
+		return ConstExpr{TypedValue: TypedValue{T: sized(n)}}.String()
+	}
+	if got := len(constant(maxExprTypeTextBytes)); got != maxExprTypeTextBytes+len("(const (0 ))") {
+		t.Errorf("constant at the cap: len %d", got)
+	}
+	if got := len(constant(maxExprTypeTextBytes + 1)); got != maxExprTypeTextBytes+len("(const (0 ))")+len(typeTextClipMark) {
+		t.Errorf("constant past the cap: len %d", got)
+	}
+	// A value's text outside an expression keeps its declared type whole.
+	if got := len(TypedValue{T: sized(maxExprTypeTextBytes + 1)}.String()); got != maxExprTypeTextBytes+1+len("(0 )") {
+		t.Errorf("value's text: len %d", got)
+	}
+	// A type value is cut on every route, outside an expression too.
+	if got := len(TypedValue{T: gTypeType, V: TypeValue{Type: sized(maxExprTypeTextBytes + 1)}}.String()); got != maxExprTypeTextBytes+len("(typeval{} type{})")+len(typeTextClipMark) {
+		t.Errorf("type value's text: len %d", got)
+	}
+	consttype := func(n int) string { return constTypeExpr{Type: sized(n)}.String() }
+	if got := len(consttype(maxExprTypeTextBytes)); got != maxExprTypeTextBytes+len("(const-type )") {
+		t.Errorf("const-type at the cap: len %d", got)
+	}
+	if got := len(consttype(maxExprTypeTextBytes + 1)); got != maxExprTypeTextBytes+len("(const-type )")+len(typeTextClipMark) {
+		t.Errorf("const-type past the cap: len %d", got)
+	}
+}
+
+// vm/qeval skips type-checking, so it can build `struct{ A }` over a named
+// type that points back to itself; building it must return, not recurse.
+func TestReachableSurface_PointerCycle(t *testing.T) {
+	for _, decls := range []string{"type A *A", "type A *B\ntype B *A"} {
+		for _, expr := range []string{"struct{ A }{}", "struct{ *A }{}"} {
+			m := NewMachine("testdata", nil)
+			m.RunFiles(m.MustParseFile("testdata.gno", "package testdata\n"+decls+"\n"))
+			if res := m.Eval(m.MustParseExpr(expr)); len(res) != 1 {
+				t.Fatalf("%q over %q: got %d results, want 1", expr, decls, len(res))
+			}
+			m.Release()
+		}
+	}
+}
+
+// A named type reached through two embedded fields counts once per field, so
+// the cut fires only on a cycle. qeval accepts the duplicate field name T. The
+// []int base reaches the walk's default case, which keeps T's methods too.
+func TestReachableSurface_RepeatIsNotCycle(t *testing.T) {
+	n := MaxInterfaceMethods/2 + 1 // over the cap only when counted twice
+	for _, base := range []string{"struct{}", "[]int"} {
+		var src strings.Builder
+		src.WriteString("package testdata\ntype T " + base + "\n")
+		for i := range n {
+			fmt.Fprintf(&src, "func (T) M%d() {}\n", i)
+		}
+		m := NewMachine("testdata", nil)
+		m.RunFiles(m.MustParseFile("testdata.gno", src.String()))
+		func() {
+			defer m.Release()
+			defer func() {
+				want := fmt.Sprintf("has %d promoted methods", 2*n)
+				if r := recover(); r == nil || !strings.Contains(fmt.Sprint(r), want) {
+					t.Fatalf("type T %s: want a panic naming %q, got %v", base, want, r)
+				}
+			}()
+			m.Eval(m.MustParseExpr("struct{ T; *T }{}"))
+		}()
+	}
+}
+
+// A type declared in a nested block is keyed to the block's own location, so a
+// block without one is refused: a block the preprocessor built has a span
+// derived from its parent's, and a block evaluated outside a file has none.
+func TestDeclareWith_NestedBlockNeedsOwnLocation(t *testing.T) {
+	const pkgPath = "gno.land/r/test/blocks"
+	loc := Location{PkgPath: pkgPath, File: "a.gno", Span: Span{Pos: Pos{Line: 3, Column: 2}, End: Pos{Line: 6, Column: 3}}}
+	parsed := &BlockStmt{}
+	parsed.SetLocation(loc)
+	if got := declareWith(pkgPath, parsed, "t", IntType).ParentLoc; got != loc {
+		t.Fatalf("parsed block: ParentLoc = %v, want %v", got, loc)
+	}
+
+	derived := loc
+	derived.Num = 1
+	for _, bad := range []Location{{}, derived} {
+		bs := &BlockStmt{}
+		bs.SetLocation(bad)
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Fatalf("block at %q: declareWith did not panic", bad)
+				}
+			}()
+			declareWith(pkgPath, bs, "t", IntType)
+		}()
+	}
+
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+	m.RunFiles(m.MustParseFile("testdata.gno", "package testdata\n"))
+	defer func() {
+		want := "expected type expr but got *gnolang.BlockStmt"
+		if r := recover(); !strings.Contains(fmt.Sprint(r), want) {
+			t.Fatalf("Eval: want a panic naming %q, got %v", want, r)
+		}
+	}()
+	m.Eval(m.MustParseExpr("func() int { { type t int; return int(t(1)) } }()"))
 }

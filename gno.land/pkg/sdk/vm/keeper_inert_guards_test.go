@@ -1120,7 +1120,7 @@ func TestInertSubmissionChargeIsNotTakenFromARefusedSubmission(t *testing.T) {
 // than SendCoinsUnrestricted at the charge.
 //
 // The charge is a one-way transfer, so a locked account has to be refused. The
-// storage deposit next to it uses the unrestricted call because it refunds, and
+// storage deposit next to it skips the token lock because it refunds, and
 // copying that here would let the charge spend locked coins.
 func TestInertSubmissionChargeRespectsATokenLock(t *testing.T) {
 	const pkgPath = "gno.land/r/test/locked"

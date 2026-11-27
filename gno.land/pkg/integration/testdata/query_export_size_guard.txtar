@@ -35,8 +35,8 @@ stderr 'export size limit exceeded'
 stderr 'export size limit exceeded'
 
 # The plain-text eval endpoint renders the same value with TypedValue.String()
-# instead of amino, also outside the alloc meter and also uncapped, so it is
-# bounded by the same budget.
+# instead of amino, also outside the alloc meter. It runs no export walk: the
+# render streams into the 1 MiB response cap and stops there.
 ! gnokey query vm/qeval --data "gno.land/r/test/bigval.Big()"
 stderr 'export size limit exceeded'
 
@@ -47,7 +47,8 @@ stdout 'AAAAAAAAAA'
 # qtype_json does not go through the export walk — QueryType hand-rolls JSON from
 # a gno.Type — but it amplifies the same way: it re-expands each DeclaredType.Base
 # per reference with no seal, so a struct DAG expands into a fanout^levels tree.
-# A leaf type still resolves; the wide DAG root must be refused by the same guard.
+# A leaf type still resolves; the wide DAG root must be refused at the response
+# cap, which its marshal writes into.
 gnokey query vm/qtype_json --data "gno.land/r/test/bigval.T5"
 stdout 'StructType'
 

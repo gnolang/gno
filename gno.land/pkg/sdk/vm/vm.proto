@@ -22,6 +22,7 @@ message m_run {
 	string send = 2;
 	string max_deposit = 3;
 	std.MemPackage package = 4;
+	string max_send = 5;
 }
 
 message m_addpkg {

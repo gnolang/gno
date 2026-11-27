@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -16,25 +17,35 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/upgrades"
 )
 
-// runCutReleaseFuncs runs the named functions of misc/release/cut-release.sh in
-// bash, in order, with the script's globals set from vars. It returns their
-// combined output and whether they all returned (die exits non-zero).
+// runCutReleaseFuncs is runScriptFuncs on misc/release/cut-release.sh.
 func runCutReleaseFuncs(t *testing.T, vars map[string]string, funcs ...string) (string, bool) {
 	t.Helper()
 
-	src := repoFile(t, "misc/release/cut-release.sh")
+	return runScriptFuncs(t, "misc/release/cut-release.sh", vars, funcs...)
+}
+
+// runScriptFuncs makes calls to functions of a release script in bash, in
+// order, with those functions and whichever of the script's die, info, ok and
+// warn it defines, and the script's globals set from vars. A call is a function name,
+// optionally followed by shell-quoted arguments. It returns their combined
+// output and whether they all returned (die exits non-zero).
+func runScriptFuncs(t *testing.T, rel string, vars map[string]string, calls ...string) (string, bool) {
+	t.Helper()
+
+	src := repoFile(t, rel)
 	var script strings.Builder
 	script.WriteString("set -euo pipefail\n")
-	for _, name := range []string{"die", "ok", "warn"} {
-		script.WriteString(shellFunc(t, src, name) + "\n")
+	for _, helper := range []string{"die", "info", "ok", "warn"} {
+		script.WriteString(findShellFunc(src, helper) + "\n")
 	}
-	for _, name := range funcs {
-		script.WriteString(shellFunc(t, src, name) + "\n")
+	for _, call := range calls {
+		script.WriteString(shellFunc(t, rel, src, strings.Fields(call)[0]) + "\n")
 	}
-	script.WriteString(strings.Join(funcs, "\n") + "\n")
+	script.WriteString(strings.Join(calls, "\n") + "\n")
 
-	// check_ledger_entry builds the ledger tool with go run; a module fetch that
-	// hangs fails here rather than at the test binary's own timeout.
+	// cut-release.sh's check_ledger_entry builds the ledger tool with go run; a
+	// module fetch that hangs fails here rather than at the test binary's own
+	// timeout.
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "bash", "-c", script.String())
@@ -50,18 +61,26 @@ func runCutReleaseFuncs(t *testing.T, vars map[string]string, funcs ...string) (
 	return string(out), err == nil
 }
 
-// shellFunc returns the definition of a function in a shell script, either a
-// one-liner or a block closed by a "}" on its own line.
-func shellFunc(t *testing.T, src, name string) string {
+// shellFunc returns the definition of a function in the shell script rel, read
+// as src, and fails the test if the script defines no such function.
+func shellFunc(t *testing.T, rel, src, name string) string {
 	t.Helper()
 
+	def := findShellFunc(src, name)
+	require.NotEmpty(t, def, "%s defines no %s()", rel, name)
+	return def
+}
+
+// findShellFunc returns the definition of a function in a shell script's
+// source, either a one-liner or a block closed by a "}" on its own line, or ""
+// when the script defines none.
+func findShellFunc(src, name string) string {
 	q := regexp.QuoteMeta(name)
 	for _, re := range []string{`(?ms)^` + q + `\(\) \{\n.*?^\}$`, `(?m)^` + q + `\(\) \{ .* \}$`} {
 		if def := regexp.MustCompile(re).FindString(src); def != "" {
 			return def
 		}
 	}
-	require.Failf(t, "function not found", "cut-release.sh defines no %s()", name)
 	return ""
 }
 
@@ -150,4 +169,91 @@ func TestCutReleaseTagMessage(t *testing.T) {
 	require.True(t, returned, out)
 	assert.NotContains(t, out, "848000", "the tag message records the halt height")
 	assert.Contains(t, out, "halt_min_version v1.6.0")
+}
+
+// bash 3.2 ends a script aborted by set -u with the EXIT trap's status, 0
+// unless the trap says otherwise; the operator must still see a failure. This
+// bites on bash 3.2 only, macOS's /bin/bash: bash 5 exits non-zero from the
+// abort with or without the fix. TestReleaseScriptsFailAnyOtherEnding pins
+// the fix's shape on any bash.
+func TestCutReleaseAbortExitsNonZero(t *testing.T) {
+	t.Parallel()
+
+	src := repoFile(t, "misc/release/cut-release.sh")
+	broken := strings.Replace(src, "\tparse_args \"$@\"\n", "\tparse_args \"$@\"\n\t: \"${UNSET_BY_THE_TEST}\"\n", 1)
+	require.NotEqual(t, src, broken, "could not inject the abort")
+	// The script finds the repository two levels up from itself.
+	root := t.TempDir()
+	copied := filepath.Join(root, "misc", "release", "cut-release.sh")
+	require.NoError(t, os.MkdirAll(filepath.Dir(copied), 0o700))
+	require.NoError(t, os.WriteFile(copied, []byte(broken), 0o700))
+
+	out, err := exec.Command("bash", copied, "v99.0.0").CombinedOutput()
+	assert.Error(t, err, "an unset variable aborts the run:\n%s", out)
+	assert.Contains(t, string(out), "UNSET_BY_THE_TEST")
+
+	out, err = exec.Command("bash", copied, "--help").CombinedOutput()
+	assert.NoError(t, err, "--help exits zero:\n%s", out)
+}
+
+// Candidates are cut from chain/mainnet too, so CHAIN names mainnet for every
+// cut, while a candidate's halt is the testnet's. The proposal printed for a
+// candidate must not be a command that, pasted, schedules the halt on mainnet.
+func TestCutReleaseHaltProposalNamesTheNetwork(t *testing.T) {
+	t.Parallel()
+
+	for _, c := range []struct{ version, says, never string }{
+		{"v1.8.0-rc.1", "misc/deployments/<chain>.gno.land/govdao-exec.sh set-halt 120000 v1.8.0-rc.1", "misc/deployments/mainnet.gno.land/"},
+		{"v1.8.0", "misc/deployments/mainnet.gno.land/govdao-exec.sh set-halt 120000 v1.8.0", "<chain>"},
+	} {
+		t.Run(c.version, func(t *testing.T) {
+			t.Parallel()
+
+			out, returned := runCutReleaseFuncs(t, map[string]string{
+				"CHAIN": "mainnet", "VERSION": c.version, "HALT_HEIGHT": "120000",
+			}, "print_halt_proposal")
+			require.True(t, returned, out)
+			assert.Contains(t, out, c.says)
+			assert.NotContains(t, out, c.never)
+		})
+	}
+}
+
+// Each release script marks the ends it means, --help and main returning,
+// with DONE=1, and its EXIT trap fails any other ending. This is the shape
+// TestCutReleaseAbortExitsNonZero and TestPromoteReleaseRuns's abort case
+// exercise on bash 3.2, read from the scripts so it holds on any bash.
+func TestReleaseScriptsFailAnyOtherEnding(t *testing.T) {
+	t.Parallel()
+
+	const fails = "[[ ${DONE} -eq 1 ]] || exit 1"
+	for _, rel := range []string{"misc/release/cut-release.sh", promoteReleaseScript} {
+		t.Run(rel, func(t *testing.T) {
+			t.Parallel()
+
+			src := repoFile(t, rel)
+			trap := grepOne(t, rel, `(?m)^trap (.+) EXIT$`)
+			// An inline trap ends with the check; a named one is a function
+			// whose last statement is the check.
+			if body, ok := strings.CutPrefix(trap, "'"); ok {
+				assert.True(t, strings.HasSuffix(body, "; "+fails+"'"), "%s: the EXIT trap must end with %s", rel, fails)
+			} else {
+				def := shellFunc(t, rel, src, trap)
+				assert.Regexp(t, `\n[ \t]*`+regexp.QuoteMeta(fails)+`\n\}$`, def, "%s: %s() must end with %s", rel, trap, fails)
+			}
+			done0 := strings.Index(src, "\nDONE=0\n")
+			require.GreaterOrEqual(t, done0, 0, "%s must set DONE=0", rel)
+			assert.Less(t, done0, strings.Index(src, "\ntrap "), "%s must set DONE=0 before its trap", rel)
+			assert.True(t, strings.HasSuffix(src, "\nmain \"$@\"\nDONE=1\n"), "%s must end with main \"$@\" and then DONE=1", rel)
+			// The only other end it means is --help's.
+			exits := regexp.MustCompile(`(?m)^(.*)\n\s*exit 0$`).FindAllStringSubmatch(src, -1)
+			require.NotEmpty(t, exits, "%s: no exit 0 for --help", rel)
+			for _, m := range exits {
+				assert.Equal(t, "DONE=1", strings.TrimSpace(m[1]), "%s: an exit 0 must follow DONE=1", rel)
+			}
+			// DONE=1 anywhere else, however it is spelled, would let an abort
+			// after it exit 0.
+			assert.Equal(t, len(exits)+1, strings.Count(src, "DONE=1"), "%s sets DONE=1 before each exit 0 and after main, nowhere else", rel)
+		})
+	}
 }

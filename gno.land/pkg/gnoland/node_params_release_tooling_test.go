@@ -41,6 +41,20 @@ func grepOne(t *testing.T, rel, re string) string {
 	return m[1]
 }
 
+// The release workflows, which the release tooling's tests read.
+const (
+	releaseChainTagWorkflow = ".github/workflows/release-chain-tag.yml"
+	releaseDockerWorkflow   = ".github/workflows/release-docker.yml"
+)
+
+// scriptShape returns the version shape a release script defines in its
+// readonly VERSION_RE.
+func scriptShape(t *testing.T, rel string) string {
+	t.Helper()
+
+	return grepOne(t, rel, `(?m)^readonly VERSION_RE='(.+)'$`)
+}
+
 // The release scripts under misc/release/ mirror parseReleaseVersion in a shell
 // regex, and nothing else in CI reads them: ci-dir-misc.yml's matrix has no
 // release row. Left alone, the two drift, and the direction that matters is the
@@ -57,10 +71,10 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		cutRelease = "misc/release/cut-release.sh"
 		bumpProto  = "misc/release/bump-protocol-version.sh"
 		setHalt    = setHaltScript
-		workflow   = ".github/workflows/release-chain-tag.yml"
+		workflow   = releaseChainTagWorkflow
 	)
 
-	shapeRE := grepOne(t, cutRelease, `(?m)^readonly VERSION_RE='(.+)'$`)
+	shapeRE := scriptShape(t, cutRelease)
 
 	t.Run("the shape check never accepts more than the node parses", func(t *testing.T) {
 		t.Parallel()
@@ -121,15 +135,22 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 		// It defines the shape at the top, readonly, as cut-release.sh does:
 		// the script runs without set -u, and on Linux an unset VERSION_RE in
 		// [[ =~ ]] matches every version.
-		haltRE := grepOne(t, setHalt, `(?m)^readonly VERSION_RE='(.+)'$`)
+		haltRE := scriptShape(t, setHalt)
 		assert.Equal(t, shapeRE, haltRE,
 			"%s accepts a different shape than %s; it writes halt_min_version directly", setHalt, cutRelease)
+
+		// promote-release.sh picks the release to move forward from by this
+		// shape: a stricter one would pass over a real release there and let
+		// an older final through.
+		promoteRE := scriptShape(t, promoteReleaseScript)
+		assert.Equal(t, shapeRE, promoteRE,
+			"%s accepts a different shape than %s", promoteReleaseScript, cutRelease)
 
 		// The shape's bracket ranges follow the locale's collation: under
 		// en_US.UTF-8 on glibc, [A-Za-z] also matches letters such as é, which
 		// parseReleaseVersion refuses. Each script checks in the C locale.
 		export := regexp.MustCompile(`(?m)^export LC_ALL=C$`)
-		for _, script := range []string{cutRelease, bumpProto, setHalt} {
+		for _, script := range []string{cutRelease, bumpProto, setHalt, promoteReleaseScript} {
 			src := repoFile(t, script)
 			if loc := export.FindStringIndex(src); assert.NotNil(t, loc, "%s must export LC_ALL=C", script) {
 				assert.Less(t, loc[0], strings.Index(src, "=~"),
@@ -198,7 +219,7 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 	t.Run("release builds carry the tag that triggered them", func(t *testing.T) {
 		t.Parallel()
 
-		const docker = ".github/workflows/release-docker.yml"
+		const docker = releaseDockerWorkflow
 		chain, image := repoFile(t, workflow), repoFile(t, docker)
 
 		// github.ref_name is the tag only when nothing but a tag push can
@@ -211,12 +232,12 @@ func TestReleaseToolingMatchesTheParser(t *testing.T) {
 
 		// A final release is cut on its last candidate's commit, so an image tag
 		// named after the commit would move from the candidate's images to the
-		// final's. Images carry their version tag only (and latest for the CLIs):
-		// the whole tag list is pinned, so no rule of any form can add one.
+		// final's. Images carry their version tag only: metadata-action's whole
+		// tag list is pinned here, and TestReleasesArePublishedHeld refuses
+		// latest anywhere in the workflow.
 		tags := grepOne(t, docker, `(?ms)^          tags: \|\n(.*?)^          flavor:`)
-		assert.Equal(t, "            type=ref,event=tag\n"+
-			"            type=raw,value=latest,enable=${{ matrix.latest && steps.release_order.outputs.is_highest == 'true' }}\n",
-			tags, "%s must tag images by version only, and latest for the CLIs, never by commit", docker)
+		assert.Equal(t, "            type=ref,event=tag\n", tags,
+			"%s must tag images by version only, never by commit or as latest", docker)
 
 		// Every line that names TAG other than to expand it, comments aside:
 		// an env key in any YAML style, an assignment, a read, a loop variable

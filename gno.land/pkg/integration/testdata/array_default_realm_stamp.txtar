@@ -1,0 +1,66 @@
+# Array defaults retain their declaring realm's ownership across realms.
+
+loadpkg gno.land/r/arrdecl $WORK/arrdecl
+loadpkg gno.land/r/arruser $WORK/arruser
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/arruser -func Register -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey query vm/qeval --data 'gno.land/r/arrdecl.Stored()'
+stdout '0 int'
+
+# r/arruser writing r/arrdecl's declared-type value is rejected: the object
+# is owned by its declaring realm, so a cross-realm write is readonly-tainted.
+! gnokey maketx call -pkgpath gno.land/r/arruser -func Write -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stderr 'cannot directly modify readonly tainted object'
+
+gnokey query vm/qeval --data 'gno.land/r/arrdecl.Stored()'
+stdout '0 int'
+
+# The declaring realm's own write through the stored pointer succeeds.
+gnokey maketx call -pkgpath gno.land/r/arrdecl -func Set -args 5 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey query vm/qeval --data 'gno.land/r/arrdecl.Stored()'
+stdout '5 int'
+
+-- arrdecl/gnomod.toml --
+module = "gno.land/r/arrdecl"
+gno = "0.9"
+
+-- arrdecl/arrdecl.gno --
+package arrdecl
+
+type A [3]int
+
+var stored *A
+
+func Register(a *A) bool {
+	if a[0] != 0 {
+		return false
+	}
+	stored = a
+	return true
+}
+
+func Stored() int { return stored[0] }
+
+func Set(cur realm, v int) { stored[0] = v }
+
+-- arruser/gnomod.toml --
+module = "gno.land/r/arruser"
+gno = "0.9"
+
+-- arruser/arruser.gno --
+package arruser
+
+import "gno.land/r/arrdecl"
+
+type Local struct{ A arrdecl.A }
+
+var g = &Local{}
+
+func Register(cur realm) { arrdecl.Register(&g.A) }
+
+func Write(cur realm) { g.A[0] = 999 }

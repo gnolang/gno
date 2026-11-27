@@ -189,7 +189,7 @@ func statusServer(t *testing.T, version string) string {
 		}, ""),
 	}
 	mux := http.NewServeMux()
-	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger())
+	rs.RegisterRPCFuncs(mux, funcMap, log.NewNoopLogger(), 0)
 
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)

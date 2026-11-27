@@ -187,6 +187,9 @@ func TestValidateValidatorUpdates(t *testing.T) {
 
 	secpKey := secp256k1.GenPrivKey().PubKey()
 
+	var smallOrderKey ed25519.PubKeyEd25519
+	smallOrderKey[0] = 1 // the identity
+
 	defaultValidatorParams := abci.ValidatorParams{PubKeyTypeURLs: []string{amino.GetTypeURL(ed25519.PubKeyEd25519{})}}
 
 	testCases := []struct {
@@ -236,6 +239,22 @@ func TestValidateValidatorUpdates(t *testing.T) {
 			defaultValidatorParams,
 
 			true,
+		},
+		{
+			"adding a validator with a small-order ed25519 pubkey results in error",
+
+			[]abci.ValidatorUpdate{{PubKey: smallOrderKey, Power: 20}},
+			defaultValidatorParams,
+
+			true,
+		},
+		{
+			"removing a validator with a small-order ed25519 pubkey is OK",
+
+			[]abci.ValidatorUpdate{{PubKey: smallOrderKey, Power: 0}},
+			defaultValidatorParams,
+
+			false,
 		},
 	}
 

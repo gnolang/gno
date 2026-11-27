@@ -31,7 +31,7 @@ func MaxParallelOverride() (int, bool) {
 // MaxParallel reports how many memory-heavy workers a test suite may run
 // concurrently, for suites that must fix the count up front — a pool of GnoVM
 // stores, say, as opposed to workers started one at a time, which can instead
-// ramp against [MemInfo].
+// ramp against [github.com/gnolang/gno/tm2/pkg/meminfo.Read].
 //
 // Such workers cost hundreds of megabytes of live heap each, so sizing their
 // concurrency off GOMAXPROCS — the default for `go test` parallelism — makes
@@ -43,16 +43,4 @@ func MaxParallel() int {
 		return n
 	}
 	return min(runtime.GOMAXPROCS(0), defaultMaxParallel)
-}
-
-// MemInfo is a snapshot of the machine's memory, in bytes.
-type MemInfo struct {
-	// Total is the machine's physical memory.
-	Total uint64
-
-	// Available is the kernel's estimate of what can still be allocated
-	// without pushing the system into swap. Unlike free memory it accounts for
-	// reclaimable caches, and it falls as this process's heap grows — which is
-	// what makes it usable as a feedback signal for admitting more workers.
-	Available uint64
 }

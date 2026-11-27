@@ -6,6 +6,7 @@ package types
 
 import (
 	"context"
+	goerrors "errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -31,7 +32,13 @@ var (
 	ErrUnspecifiedIP     = errors.New("unspecified IP address")
 	ErrInvalidNetAddress = errors.New("invalid net address")
 	ErrEmptyHost         = errors.New("empty host address")
+	ErrEmptyLookupResult = errors.New("host resolved to no IP addresses")
+	ErrHostnameNotIP     = errors.New("encoded address host is not an IP")
 )
+
+// lookupIP resolves a hostname to its IP addresses. A package variable so a
+// test can stand in for the resolver.
+var lookupIP = net.LookupIP
 
 // NetAddress defines information about a peer on the network
 // including its ID, IP address, and port
@@ -90,9 +97,16 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 	}
 
 	if na.IP == nil {
-		ips, err := net.LookupIP(na.Hostname)
+		ips, err := lookupIP(na.Hostname)
 		if err != nil {
 			return nil, fmt.Errorf("unable to look up IP, %w", err)
+		}
+
+		if len(ips) == 0 {
+			// net.LookupIP can return no addresses with a nil error, for a
+			// host the resolver declines to query. Indexing ips[0] here would
+			// panic on a configured address or a peer store entry.
+			return nil, fmt.Errorf("%w, %s", ErrEmptyLookupResult, na.Hostname)
 		}
 
 		na.IP = ips[0]
@@ -156,9 +170,15 @@ func parseNetAddress(idaddr string) (*NetAddress, error) {
 		return nil, fmt.Errorf("unable to verify address ID, %w", err)
 	}
 
-	// Extract the host and port
+	// Extract the host and port. The errors keep the reason and drop the
+	// address, which a peer can make as long as its message.
 	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
+		var addrErr *net.AddrError
+		if goerrors.As(err, &addrErr) {
+			err = goerrors.New(addrErr.Err)
+		}
+
 		return nil, fmt.Errorf("unable to split host and port, %w", err)
 	}
 
@@ -175,7 +195,8 @@ func parseNetAddress(idaddr string) (*NetAddress, error) {
 
 	port, err := strconv.ParseUint(portStr, 10, 16)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse port %s, %w", portStr, err)
+		// A *strconv.NumError, which quotes the port; keep its reason only
+		return nil, fmt.Errorf("unable to parse port, %w", goerrors.Unwrap(err))
 	}
 
 	na := NewNetAddressFromIPPort(ip, uint16(port))
@@ -259,17 +280,21 @@ func (na NetAddress) MarshalAmino() (string, error) {
 	return addrStr, nil
 }
 
+// UnmarshalAmino parses an address without resolving it. MarshalAmino writes
+// the IP and never the hostname, so a decoded hostname comes from no honest
+// encoder, and resolving it would let a peer hold the node on a DNS lookup of
+// its choosing
 func (na *NetAddress) UnmarshalAmino(raw string) (err error) {
-	netAddress, err := NewNetAddressFromString(raw)
+	netAddress, err := parseNetAddress(raw)
 	if err != nil {
 		return err
 	}
 
-	*na = *netAddress
+	if netAddress.IP == nil {
+		return ErrHostnameNotIP
+	}
 
-	// A hostname received from a peer is not re-resolved at dial time,
-	// so the IP validated on receipt is the one dialed
-	na.Hostname = ""
+	*na = *netAddress
 
 	return nil
 }

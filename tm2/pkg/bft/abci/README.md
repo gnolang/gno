@@ -14,16 +14,15 @@ The community has provided a number of additional implementations, see the [Tend
 
 A detailed description of the ABCI methods and message types is contained in:
 
-- [A protobuf file](./types/types.proto)
+- [A protobuf file](./types/abci.proto)
 - [A Go interface](./types/application.go)
 
 ## Protocol Buffers
 
-To compile the protobuf file, first install the protobuf command-line tools, e.g. with `brew install protobuf`. Then run (from the root of the repo):
+`types/abci.proto` is generated from the Go types, with every other amino schema, by running (from the root of the repo):
 
 ```
-make -C misc/devdeps
-make -C misc/genproto
+make -C misc/genproto2
 ```
 
 See `protoc --help` and [the Protocol Buffers site](https://developers.google.com/protocol-buffers) for details on compiling for other languages.

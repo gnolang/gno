@@ -22,6 +22,10 @@ export class CopyController extends BaseController {
 
 		const tempDiv = document.createElement("div");
 		tempDiv.innerHTML = html;
+		// The notice above a render too large to show is not the content.
+		for (const el of tempDiv.querySelectorAll("[data-copy-exclude]")) {
+			el.remove();
+		}
 
 		let text = tempDiv.textContent?.trim() || "";
 

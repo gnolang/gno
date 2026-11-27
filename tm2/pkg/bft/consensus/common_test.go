@@ -453,7 +453,9 @@ func ensureNewTimeout(timeoutCh <-chan events.Event, height int64, round int, ti
 		"Timeout expired while waiting for NewTimeout event")
 }
 
-func ensureNewProposal(proposalCh <-chan events.Event, height int64, round int) {
+// ensureNewProposal returns the completed proposal's BlockID, which a test reads
+// instead of GetRoundState: the machine may hold the lock firing the next event.
+func ensureNewProposal(proposalCh <-chan events.Event, height int64, round int) types.BlockID {
 	select {
 	case <-time.After(ensureTimeout):
 		panic("Timeout expired while waiting for NewProposal event")
@@ -469,6 +471,7 @@ func ensureNewProposal(proposalCh <-chan events.Event, height int64, round int) 
 		if proposalEvent.Round != round {
 			panic(fmt.Sprintf("expected round %v, got %v", round, proposalEvent.Round))
 		}
+		return proposalEvent.BlockID
 	}
 }
 

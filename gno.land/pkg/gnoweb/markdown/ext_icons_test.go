@@ -70,14 +70,30 @@ func TestParseIconTag(t *testing.T) {
 // iconHeadingIDTransformer renumbers every heading once a heading holds an
 // icon; with goldmark's generator that doubled its quadratic deduplication
 // (20,000 took 35 s). linearIDs keeps it linear; plain duplicate headings
-// are covered by TestDuplicateHeadingIDsLinear.
+// are covered by TestDuplicateHeadingIDsLinear. It counts allocations, not
+// time: goldmark's generator allocates for every suffix it tries, so 4n
+// headings allocate about 4 times as much as n when linear and about 20
+// times when quadratic, whatever the runner's load (a timing ratio flaked
+// on busy runners).
 func TestIconHeadingIDsLinear(t *testing.T) {
 	for name, gen := range map[string]func(n int) string{
 		"icon-only":      func(n int) string { return strings.Repeat("## <gno-icon name=\"star\" />\n", n) },
 		"icon-text":      func(n int) string { return strings.Repeat("## <gno-icon name=\"star\" /> a\n", n) },
 		"after-one-icon": func(n int) string { return "## <gno-icon name=\"star\" /> b\n" + strings.Repeat("## a\n", n) },
 	} {
-		t.Run(name, func(t *testing.T) { assertLinear(t, gen, 5000) })
+		t.Run(name, func(t *testing.T) {
+			m := newProductionLikeMarkdown()
+			allocs := func(n int) float64 {
+				src := []byte(gen(n))
+				return testing.AllocsPerRun(1, func() {
+					var buf bytes.Buffer
+					require.NoError(t, m.Convert(src, &buf, parser.WithContext(NewGnoParserContext(GnoContext{}))))
+				})
+			}
+			n := MaxIconsPerConvert / 4 // 4n icons stay under the cap, past which tags take goldmark's raw HTML path
+			small, large := allocs(n), allocs(4*n)
+			assert.Less(t, large, 8*small, "n=%d made %.0f allocations, 4n made %.0f", n, small, large)
+		})
 	}
 }
 

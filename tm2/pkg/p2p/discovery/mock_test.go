@@ -1,8 +1,6 @@
 package discovery
 
 import (
-	"net"
-
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/p2p/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p/types"
@@ -62,7 +60,6 @@ type (
 	addDelegate         func(p2p.PeerConn) error
 	removeDelegate      func(types.ID) bool
 	hasDelegate         func(types.ID) bool
-	hasIPDelegate       func(net.IP) bool
 	getPeerDelegate     func(types.ID) p2p.PeerConn
 	listDelegate        func() []p2p.PeerConn
 	numInboundDelegate  func() uint64
@@ -73,7 +70,6 @@ type mockPeerSet struct {
 	addFn         addDelegate
 	removeFn      removeDelegate
 	hasFn         hasDelegate
-	hasIPFn       hasIPDelegate
 	getFn         getPeerDelegate
 	listFn        listDelegate
 	numInboundFn  numInboundDelegate

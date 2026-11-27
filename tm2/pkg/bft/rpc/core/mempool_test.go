@@ -1,9 +1,16 @@
 package core
 
 import (
+	"fmt"
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
+	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
+	memcfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
+	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
+	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/service"
@@ -266,4 +273,61 @@ func waiterCount(td *txDispatcher, tx types.Tx) int {
 	defer td.mtx.Unlock()
 
 	return len(td.waiters[string(tx)])
+}
+
+// newTestMempool returns a mempool holding one tx of each size given, in that
+// order, admitting txs up to the largest of them.
+func newTestMempool(t *testing.T, sizes ...int) *mempl.CListMempool {
+	t.Helper()
+
+	conn, err := proxy.NewLocalClientCreator(kvstore.NewKVStoreApplication()).NewABCIClient()
+	require.NoError(t, err)
+	require.NoError(t, conn.Start())
+	t.Cleanup(func() { conn.Stop() })
+
+	mp := mempl.NewCListMempool(memcfg.DefaultMempoolConfig(), conn, 0, int64(slices.Max(sizes)))
+	for i, size := range sizes {
+		tx := make(types.Tx, size)
+		copy(tx, fmt.Sprintf("tx-%d", i))
+		require.NoError(t, mp.CheckTx(tx, nil))
+	}
+	return mp
+}
+
+// TestUnconfirmedTxs_ByteBudget covers a mempool of large txs, where a count
+// bound alone lets one response carry 100 of them, 100MB at the default
+// MaxTxBytes.
+func TestUnconfirmedTxs_ByteBudget(t *testing.T) {
+	t.Parallel()
+
+	mb := int(maxUnconfirmedTxsBytes) / 2 // two fill the budget exactly
+	big := int(maxUnconfirmedTxsBytes) + 1
+
+	for _, tc := range []struct {
+		name  string
+		sizes []int
+		want  int
+	}{
+		{"fills the budget exactly", []int{mb, mb, mb}, 2},
+		{"stops at the first tx that does not fit", []int{mb, mb - 10, mb, 10}, 2},
+		{"keeps a first tx larger than the budget", []int{big, 10}, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			mp := newTestMempool(t, tc.sizes...)
+			env := &Environment{Mempool: mp}
+
+			res, err := env.UnconfirmedTxs(&rpctypes.Context{}, maxPerPage)
+			require.NoError(t, err)
+
+			total := 0
+			for _, size := range tc.sizes {
+				total += size
+			}
+			assert.Len(t, res.Txs, tc.want)
+			assert.Equal(t, len(tc.sizes), res.Total)
+			assert.Equal(t, int64(total), res.TotalBytes)
+		})
+	}
 }

@@ -50,6 +50,66 @@ func TestP2PConfig_ValidateBasic(t *testing.T) {
 		assert.ErrorIs(t, cfg.ValidateBasic(), ErrInvalidReceiveRate)
 	})
 
+	t.Run("invalid recv assembly timeout", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultP2PConfig()
+
+		cfg.RecvAssemblyTimeout = -1
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), ErrInvalidRecvAssemblyTimeout)
+	})
+
+	t.Run("invalid max recv buffer bytes", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultP2PConfig()
+
+		cfg.MaxRecvBufferBytes = -1
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), ErrInvalidMaxRecvBufferBytes)
+	})
+
+	t.Run("max recv buffer bytes below one block response", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultP2PConfig()
+
+		cfg.MaxRecvBufferBytes = MinRecvBufferBytes - 1
+		assert.ErrorIs(t, cfg.ValidateBasic(), ErrInvalidMaxRecvBufferBytes)
+
+		cfg.MaxRecvBufferBytes = MinRecvBufferBytes
+		assert.NoError(t, cfg.ValidateBasic())
+
+		cfg.MaxRecvBufferBytes = 0
+		assert.NoError(t, cfg.ValidateBasic())
+	})
+
+	t.Run("invalid max send buffer bytes", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultP2PConfig()
+
+		cfg.MaxSendBufferBytes = -1
+
+		assert.ErrorIs(t, cfg.ValidateBasic(), ErrInvalidMaxSendBufferBytes)
+	})
+
+	t.Run("max send buffer bytes below one block response", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := DefaultP2PConfig()
+
+		cfg.MaxSendBufferBytes = MinSendBufferBytes - 1
+		assert.ErrorIs(t, cfg.ValidateBasic(), ErrInvalidMaxSendBufferBytes)
+
+		cfg.MaxSendBufferBytes = MinSendBufferBytes
+		assert.NoError(t, cfg.ValidateBasic())
+
+		cfg.MaxSendBufferBytes = 0
+		assert.NoError(t, cfg.ValidateBasic())
+	})
+
 	t.Run("valid configuration", func(t *testing.T) {
 		t.Parallel()
 

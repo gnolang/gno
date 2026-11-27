@@ -1,0 +1,83 @@
+# Redeploying a private realm with a changed type must replace the stored type.
+# v2 declares a method before Inc, so a stale v1 type left in the store makes a
+# later transaction dispatch Inc through the wrong method index.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/rlmv1 -pkgpath gno.land/r/demo/staletype -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/rlmv2 -pkgpath gno.land/r/demo/staletype -gas-fee 1000000ugnot -gas-wanted 50000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/demo/staletype -func MakeAndStore -args 42 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/demo/staletype -func ReadStored -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout '\(44 int64\)'
+
+-- rlmv1/gnomod.toml --
+module = "gno.land/r/demo/staletype"
+gno = "0.9"
+private = true
+
+-- rlmv1/staletype.gno --
+package staletype
+
+var stored *Counter
+
+type Counter struct {
+	A int64
+}
+
+func (c *Counter) Inc() {
+	c.A += 1
+}
+
+func MakeAndStore(cur realm, x int64) {
+	stored = &Counter{A: x}
+	stored.Inc()
+}
+
+func ReadStored(cur realm) int64 {
+	if stored == nil {
+		return -1
+	}
+	stored.Inc()
+	return stored.A
+}
+
+-- rlmv2/gnomod.toml --
+module = "gno.land/r/demo/staletype"
+gno = "0.9"
+private = true
+
+-- rlmv2/staletype.gno --
+package staletype
+
+var stored *Counter
+
+type Counter struct {
+	A int64
+}
+
+func (c *Counter) Added() int64 {
+	return c.A
+}
+
+func (c *Counter) Inc() {
+	c.A += 1
+}
+
+func MakeAndStore(cur realm, x int64) {
+	stored = &Counter{A: x}
+	stored.Inc()
+}
+
+func ReadStored(cur realm) int64 {
+	if stored == nil {
+		return -1
+	}
+	stored.Inc()
+	return stored.A
+}

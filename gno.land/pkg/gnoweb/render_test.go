@@ -1,8 +1,10 @@
 package gnoweb
 
 import (
+	"bufio"
 	bytes "bytes"
 	"errors"
+	"io"
 	"log/slog"
 	"strings"
 	"testing"
@@ -179,6 +181,192 @@ func TestRenderRealm_UnderSizeCapRendersNormally(t *testing.T) {
 	assert.NotContains(t, buf.String(), "gno-render-plaintext")
 }
 
+// 4,000 empty forms are 132 KB of markdown and about 12 MB of HTML, since each
+// form renders its own command block.
+func TestRenderRealm_OverOutputCapServesPlainText(t *testing.T) {
+	var logs bytes.Buffer
+	r := NewHTMLRenderer(slog.New(slog.NewTextHandler(&logs, nil)), NewDefaultRenderConfig(), nil)
+	src := []byte("## Forms\n\n" + strings.Repeat("<gno-form exec=\"F\">\n</gno-form>\n\n", 4000))
+	require.Less(t, len(src), maxMarkdownRenderBytes)
+
+	var buf bytes.Buffer
+	_, err := r.RenderRealm(&buf, &weburl.GnoURL{Path: "/r/mock/path"}, src, RealmRenderContext{})
+	require.NoError(t, err)
+	out := buf.String()
+	assert.Less(t, len(out), 2*len(src))
+	assert.NotContains(t, out, "<form")
+	assert.Contains(t, out, "gno-render-plaintext")
+	assert.Contains(t, logs.String(), "path=/r/mock/path len=132010")
+}
+
+// 100 headings of 10 KB of quotes render 6 MB of article and 5 MB of table of
+// contents, so only the two together pass the cap.
+func TestRenderRealm_TocSharesOutputCap(t *testing.T) {
+	r := newTestRenderer()
+	var buf bytes.Buffer
+	meta, err := r.RenderRealm(&buf, &weburl.GnoURL{Path: "/r/mock/path"}, []byte("## A\n"), RealmRenderContext{})
+	require.NoError(t, err)
+	assert.Len(t, meta.Toc.Items, 1)
+	assert.NotContains(t, buf.String(), "b-toc", "the table of contents is charged, never written into the article")
+
+	buf.Reset()
+	src := []byte("# Title\n\nA paragraph long enough to be the page's description.\n\n" + strings.Repeat("## "+strings.Repeat(`"`, 10_000)+"\n\n", 100))
+	meta, err = r.RenderRealm(&buf, &weburl.GnoURL{Path: "/r/mock/path"}, src, RealmRenderContext{})
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "gno-render-plaintext")
+	assert.Empty(t, meta.Toc.Items, "the table of contents links headings the page no longer shows")
+	assert.Empty(t, meta.Title, "the page's title comes from a document it shows as plain text")
+	assert.Empty(t, meta.Description, "the page's description comes from a document it shows as plain text")
+}
+
+// 40,000 code blocks are 440 KB of doc comment and about 11 MB of HTML, since
+// each block renders inside its own disclosure.
+func TestRenderDocumentation_OverOutputCapServesPlainText(t *testing.T) {
+	r := newTestRenderer()
+	src := []byte(strings.Repeat("```\nx\n```\n\n", 40000))
+	require.Less(t, len(src), maxMarkdownRenderBytes)
+
+	var buf bytes.Buffer
+	require.NoError(t, r.RenderDocumentation(&buf, src))
+	out := buf.String()
+	assert.Less(t, len(out), 2*len(src))
+	assert.NotContains(t, out, `<details class="b-doc-example">`)
+	assert.Contains(t, out, "gno-render-plaintext")
+}
+
+// 50,000 blank lines are 50 KB of source and about 9.6 MB of HTML, since each
+// line renders its own numbered span.
+func TestRenderSource_OverOutputCapServesPlainText(t *testing.T) {
+	r := newTestRenderer()
+	var buf bytes.Buffer
+	require.NoError(t, r.RenderSource(&buf, "/r/mock/path/a.gno", bytes.Repeat([]byte("\n"), 50_000)))
+	assert.Less(t, buf.Len(), 100_000)
+	assert.Contains(t, buf.String(), "gno-render-plaintext")
+	assert.Contains(t, buf.String(), "too large to render")
+}
+
+func TestRenderCapped(t *testing.T) {
+	write := func(n int) func(*cappedBuffer) error {
+		return func(w *cappedBuffer) error {
+			_, err := w.Write(make([]byte, n))
+			return err
+		}
+	}
+
+	var out bytes.Buffer
+	fellBack, err := renderCapped(&out, 16, write(16))
+	require.NoError(t, err)
+	assert.False(t, fellBack)
+	assert.Equal(t, 16, out.Len())
+
+	out.Reset()
+	fellBack, err = renderCapped(&out, 16, write(17))
+	require.NoError(t, err)
+	assert.True(t, fellBack)
+	assert.Zero(t, out.Len(), "nothing of a render past the cap reaches w")
+
+	// bufio hands a string longer than its buffer to the writer's WriteString,
+	// past Write, whenever the writer has one.
+	fellBack, err = renderCapped(&out, 8000, func(w *cappedBuffer) error {
+		bw := bufio.NewWriter(w)
+		for range 3 {
+			_, _ = bw.WriteString(strings.Repeat("x", 5000))
+		}
+		return bw.Flush()
+	})
+	require.NoError(t, err)
+	assert.True(t, fellBack)
+
+	assert.PanicsWithValue(t, "boom", func() {
+		_, _ = renderCapped(&out, 16, func(*cappedBuffer) error { panic("boom") })
+	})
+	assert.Panics(t, func() {
+		_, _ = renderCapped(&out, 16, func(*cappedBuffer) error {
+			var m map[string]int
+			m["k"] = 1 // a runtime.Error: an error, and still not the cap
+			return nil
+		})
+	})
+}
+
+// A budget of three and a half docs renders one; a triple doc passes what is
+// left and spends it, so the next small one shows as plain text too, under no
+// second notice.
+func TestPageDocRenderer_SharesOneBudget(t *testing.T) {
+	var logs bytes.Buffer
+	r := NewHTMLRenderer(slog.New(slog.NewTextHandler(&logs, nil)), NewDefaultRenderConfig(), nil)
+	small := []byte("```\nx\n```\n\n```\ny\n```\n")
+	var one bytes.Buffer
+	require.NoError(t, r.RenderDocumentation(&one, small))
+
+	budget := 3*one.Len() + one.Len()/2
+	docs := &pageDocRenderer{HTMLRenderer: r, path: "/r/mock/path", left: budget}
+	var buf bytes.Buffer
+	require.NoError(t, docs.RenderDocumentation(&buf, small))
+	assert.Equal(t, budget-one.Len(), docs.left)
+
+	buf.Reset()
+	require.NoError(t, docs.RenderDocumentation(&buf, bytes.Repeat(small, 3)))
+	assert.Contains(t, buf.String(), "gno-render-plaintext")
+	assert.Contains(t, buf.String(), "too large to render")
+
+	buf.Reset()
+	require.NoError(t, docs.RenderDocumentation(&buf, small))
+	assert.Contains(t, buf.String(), "gno-render-plaintext")
+	assert.NotContains(t, buf.String(), "too large to render")
+	assert.Equal(t, 1, strings.Count(logs.String(), "path=/r/mock/path"))
+}
+
+// A part fits only with what it adds beside it, and is charged both, less what
+// it embeds that the page already paid for.
+func TestRenderPart_ChargesBeside(t *testing.T) {
+	part := func(w io.Writer) error { _, err := w.Write(make([]byte, 100)); return err }
+
+	docs := newDocPage(newTestRenderer(), "", maxRenderOutputBytes-150)
+	fits, err := renderPart(docs, io.Discard, 0, 60, part)
+	require.NoError(t, err)
+	assert.False(t, fits)
+	assert.Equal(t, 150, docs.left)
+
+	fits, err = renderPart(docs, io.Discard, 10, 60, part)
+	require.NoError(t, err)
+	assert.True(t, fits)
+	assert.Equal(t, 0, docs.left)
+}
+
+// A page whose budget a README used up logs its first doc comment's fallback,
+// and only that one.
+func TestPageDocRenderer_LogsBudgetUsedBeforeFirstDoc(t *testing.T) {
+	var logs bytes.Buffer
+	r := NewHTMLRenderer(slog.New(slog.NewTextHandler(&logs, nil)), NewDefaultRenderConfig(), nil)
+	docs := newDocPage(r, "/r/demo/foo", maxRenderOutputBytes)
+	var buf bytes.Buffer
+	require.NoError(t, docs.RenderDocumentation(&buf, []byte("hello *world*")))
+	require.NoError(t, docs.RenderDocumentation(&buf, []byte("hello *world*")))
+	assert.Equal(t, 2, strings.Count(buf.String(), "gno-render-plaintext"))
+	assert.Equal(t, 1, strings.Count(logs.String(), "path=/r/demo/foo "))
+}
+
+// A signature is charged to the page like a doc comment.
+func TestPageDocRenderer_ChargesSignatures(t *testing.T) {
+	docs := newDocPage(newTestRenderer(), "", 0)
+	var buf bytes.Buffer
+	require.NoError(t, docs.RenderSource(&buf, "sig.gno", []byte("func F()")))
+	assert.Equal(t, maxRenderOutputBytes-buf.Len(), docs.left)
+}
+
+// A doc comment past the input cap is charged its plain text, not the rest of
+// the page's budget.
+func TestPageDocRenderer_OverSizeInputKeepsBudget(t *testing.T) {
+	docs := newDocPage(newTestRenderer(), "", 0)
+	var buf bytes.Buffer
+	require.NoError(t, docs.RenderDocumentation(&buf, bytes.Repeat([]byte("a"), maxMarkdownRenderBytes+1)))
+	assert.Equal(t, maxRenderOutputBytes-buf.Len(), docs.left)
+	buf.Reset()
+	require.NoError(t, docs.RenderDocumentation(&buf, []byte("hello *world*")))
+	assert.Contains(t, buf.String(), "<em>world</em>")
+}
+
 func TestRenderDocumentation_OverSizeCapServesEscapedPlainText(t *testing.T) {
 	r := newTestRenderer()
 	src := []byte(strings.Repeat("# Heading <script>\n\n", (maxMarkdownRenderBytes/20)+100))
@@ -280,7 +468,14 @@ func TestRenderer_WriteChromaCSS(t *testing.T) {
 			assert.Contains(t, css, ".chroma-")
 
 			if tc.wantDarkScope {
-				assert.Contains(t, css, `[data-theme="dark"]`)
+				_, dark, ok := strings.Cut(css, `[data-theme="dark"]`)
+				require.True(t, ok)
+				// Dark token rules target the class the HTML carries, and
+				// leave the frame backgrounds to gnoweb.
+				assert.Contains(t, dark, ".chroma-light .chroma-k ")
+				assert.NotContains(t, dark, ".chroma-dark")
+				assert.NotContains(t, dark, "PreWrapper")
+				assert.NotContains(t, dark, "/* Background */")
 			} else {
 				assert.NotContains(t, css, `[data-theme="dark"]`)
 			}

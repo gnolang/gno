@@ -13,3 +13,6 @@ func main() {
 
 // Error:
 // main/iota_identifier_recv.gno:5:1-7:2: builtin identifiers cannot be shadowed: iota
+
+// TypeCheckError:
+// main/iota_identifier_recv.gno:5:7: builtin identifiers cannot be shadowed: iota

@@ -1,6 +1,9 @@
 package gnolang
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestDoOpAssign_DuplicateNameLHS_LeftToRight: `a, a, …, a = 1, 2, …, n` —
 // NameExpr LHS all aliasing the same block slot. Covers the forward-Assign2
@@ -27,6 +30,9 @@ func TestDoOpAssign_DuplicateNameLHS_LeftToRight(t *testing.T) {
 
 		if got, want := blk.Values[0].GetInt(), int64(n); got != want {
 			t.Errorf("n=%d: got %d, want %d (rightmost RHS should win)", n, got, want)
+		}
+		if got := len(m.Values); got != 0 {
+			t.Errorf("n=%d: value stack: got %d values left, want 0", n, got)
 		}
 		m.Release()
 	}
@@ -67,5 +73,47 @@ func TestDoOpAssign_DistinctIndexLHS_InPlaceFrames(t *testing.T) {
 	}
 	if got := baseArray.List[1].GetInt(); got != 20 {
 		t.Errorf("slice[1]: got %d, want 20 (lvs[1] should resolve to index 1)", got)
+	}
+	if got := len(m.Values); got != 0 {
+		t.Errorf("value stack: got %d values left, want 0", got)
+	}
+}
+
+// TestDoOpAssign_PanicPopsFrames: `s[0], *p = 10, 20` with a nil p panics on
+// the second Lhs. The operand frames must leave m.Values whether the op
+// returns or panics.
+func TestDoOpAssign_PanicPopsFrames(t *testing.T) {
+	m := benchMachine()
+	defer m.Release()
+
+	st := m.Alloc.NewType(&SliceType{Elt: IntType})
+	baseArray := m.Alloc.NewListArray(nil, 1)
+	baseArray.List[0] = TypedValue{T: IntType, N: i2n(0)}
+	sv := m.Alloc.NewSlice(baseArray, 0, 1, 1)
+	pt := m.Alloc.NewType(&PointerType{Elt: IntType})
+
+	stmt := &AssignStmt{Lhs: []Expr{&IndexExpr{}, &StarExpr{}}, Op: ASSIGN}
+	m.PushValue(TypedValue{T: st, V: sv})           // Lhs[0].X
+	m.PushValue(TypedValue{T: IntType, N: i2n(0)})  // Lhs[0].Index
+	m.PushValue(TypedValue{T: pt})                  // Lhs[1].X, a nil pointer
+	m.PushValue(TypedValue{T: IntType, N: i2n(10)}) // Rhs[0]
+	m.PushValue(TypedValue{T: IntType, N: i2n(20)}) // Rhs[1]
+	m.PushStmt(stmt)
+
+	func() {
+		defer func() {
+			ex, ok := recover().(*Exception)
+			if !ok || !strings.Contains(ex.Sprint(m), "nil pointer dereference") {
+				t.Fatalf("want a nil dereference Exception, got %v", ex)
+			}
+		}()
+		m.doOpAssign()
+	}()
+
+	if got := baseArray.List[0].GetInt(); got != 10 {
+		t.Errorf("slice[0]: got %d, want 10 (the write before the panic stays)", got)
+	}
+	if got := len(m.Values); got != 0 {
+		t.Errorf("value stack: got %d values left, want 0", got)
 	}
 }

@@ -22,6 +22,7 @@ func chainSelectors() []*Selector {
 			Name:  "func",
 			Hint:  "func:<name>",
 			Label: "Functions",
+			Help:  "Find a function by name",
 			Scope: ScopePackage,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				return h.resolveFuncs(ctx, q, term)
@@ -31,6 +32,7 @@ func chainSelectors() []*Selector {
 			Name:  "type",
 			Hint:  "type:<name>",
 			Label: "Types",
+			Help:  "Find a type by name",
 			Scope: ScopePackage,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				return h.resolveTypes(ctx, q, term)
@@ -40,6 +42,7 @@ func chainSelectors() []*Selector {
 			Name:  "file",
 			Hint:  "file:<name>",
 			Label: "Files",
+			Help:  "Find a file by name",
 			Scope: ScopePackage,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				return h.resolveFiles(ctx, q, term)
@@ -50,6 +53,7 @@ func chainSelectors() []*Selector {
 			Name:  "state",
 			Hint:  "state:<name>",
 			Label: "State",
+			Help:  "Find a value in its state",
 			Scope: ScopePackage,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
 				return []Result{{
@@ -65,6 +69,7 @@ func chainSelectors() []*Selector {
 			Name:  "imports",
 			Hint:  "imports",
 			Label: "Imports",
+			Help:  "Packages it imports",
 			Scope: ScopePackage,
 			Bare:  true,
 			resolve: func(ctx context.Context, h *Handler, q *Query, term string) ([]Result, error) {
@@ -232,6 +237,7 @@ func (h *Handler) resolveImports(ctx context.Context, q *Query, term string) ([]
 		kind, href := classifyImport(imp, h.deps.Domain)
 		out = append(out, Result{
 			Title: imp,
+			Kind:  KindImport,
 			Href:  href,
 			Tags:  []string{kind},
 		})

@@ -19,13 +19,13 @@ func init() {
 	pocInnovationName = "PoCInnovation"
 }
 
-func renderResult(address address, result bool, amount chain.Coin) string {
-	addressFmt := "**" + address.String()[:30] + "**: "
+func renderResult(addr address, result bool, amount chain.Coin) string {
+	addressFmt := "**" + addr.String()[:30] + "**: "
 	resultFmt := "lost"
 	amountFmt := " **" + amount.String() + "** "
 	emoji := "📉"
 
-	data := users.ResolveAddress(address)
+	data := users.ResolveAddress(addr)
 	if data != nil {
 		addressFmt = "**" + data.RenderLink("") + "**: "
 	}

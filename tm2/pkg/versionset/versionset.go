@@ -50,12 +50,39 @@ func (pvs VersionSet) Get(name string) (pv VersionInfo, ok bool) {
 	return
 }
 
+const (
+	// maxVersionSetLen bounds the entries of a VersionSet. A node's set names a
+	// handful of protocol components.
+	maxVersionSetLen = 16
+
+	// maxVersionInfoLen bounds an entry's name and its version, in bytes.
+	maxVersionInfoLen = 256
+)
+
+// Validate returns an error if pvs holds more than maxVersionSetLen entries,
+// or an entry whose name or version is longer than maxVersionInfoLen bytes.
+// The error names no entry, since pvs can come from a peer.
+func (pvs VersionSet) Validate() error {
+	if len(pvs) > maxVersionSetLen {
+		return fmt.Errorf("version set has %d entries, more than %d", len(pvs), maxVersionSetLen)
+	}
+
+	for i, pv := range pvs {
+		if len(pv.Name) > maxVersionInfoLen || len(pv.Version) > maxVersionInfoLen {
+			return fmt.Errorf("version set entry %d is longer than %d bytes", i, maxVersionInfoLen)
+		}
+	}
+
+	return nil
+}
+
 // Returns an error if not compatible.
 // Otherwise, returns the set of compatible interfaces.
 // Only the Major and Minor versions are returned; Patch, Prerelease, and Build
 // portions of Semver2.0 are discarded in the resulting intersection
 // VersionSet. Where both sides carry an entry, the lower of the two
-// major.minors is the negotiated one.
+// major.minors is the negotiated one. The error quotes entries of both sets,
+// so a set from a peer must pass Validate first, as NodeInfo.Validate does.
 func (pvs VersionSet) CompatibleWith(other VersionSet) (res VersionSet, err error) {
 	var errs []string
 	type pvpair [2]*VersionInfo
