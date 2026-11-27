@@ -118,6 +118,41 @@ func TestPackageContentHashSurvivesTheRealStamp(t *testing.T) {
 	}
 }
 
+// A [source] revision is stamped by publish tooling on the uploaded copy only,
+// so an approver hashing their checkout with -pkgdir never has it. The two
+// hashes must still agree. Repository and path are committed with the package
+// and stay bound.
+func TestPackageContentHashIgnoresSourceRevision(t *testing.T) {
+	const pkgPath = "gno.land/r/test/sourced"
+	pkgWith := func(source string) *std.MemPackage {
+		return &std.MemPackage{Name: "sourced", Path: pkgPath, Files: []*std.MemFile{
+			{Name: "gnomod.toml", Body: "module = \"" + pkgPath + "\"\ngno = \"0.9\"\n" + source},
+			{Name: "sourced.gno", Body: "package sourced"},
+		}}
+	}
+	const committed = "[source]\nrepository = \"https://github.com/o/r\"\npath = \"r/sourced\"\n"
+
+	approver, err := PackageContentHash(pkgWith(committed))
+	require.NoError(t, err)
+
+	uploaded := pkgWith(committed + "revision = \"3cc494ec4d1f\"\n")
+	stamped, err := PackageContentHash(uploaded)
+	require.NoError(t, err)
+	assert.Equal(t, approver, stamped, "a stamped revision must not change the approval hash")
+
+	gm, err := parseGnomodForHash(uploaded)
+	require.NoError(t, err)
+	stampGnomod(gm, uploaded, pkgPath, crypto.AddressFromPreimage([]byte("c")), 42, "")
+	keeper, err := PackageContentHash(uploaded)
+	require.NoError(t, err)
+	assert.Equal(t, approver, keeper, "and must survive the keeper's stamp")
+	assert.Contains(t, uploaded.GetFile("gnomod.toml").Body, "3cc494ec4d1f", "the stored copy keeps the revision")
+
+	moved, err := PackageContentHash(pkgWith("[source]\nrepository = \"https://github.com/evil/r\"\npath = \"r/sourced\"\n"))
+	require.NoError(t, err)
+	assert.NotEqual(t, approver, moved, "repository stays bound")
+}
+
 // TestPackageContentHashIsPinned freezes the digest for a fully-populated
 // gnomod.toml.
 //
