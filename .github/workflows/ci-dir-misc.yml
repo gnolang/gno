@@ -38,6 +38,7 @@ jobs:
           - audit-pattern-harness
           - autocounterd
           - genstd
+          - gnodiff
           - gnopreview
           - goscan
           - loop

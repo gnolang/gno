@@ -1,0 +1,15 @@
+// Conversions from floating point truncate toward zero.
+package main
+
+func main() {
+	pos := 1.9
+	neg := -1.9
+	println(int(pos))
+	println(int(neg))
+	var f float64 = 2.5
+	println(int(f))
+	println(int(-f))
+	println(f > 2, f < 3)
+	var z float64
+	println(z == 0)
+}

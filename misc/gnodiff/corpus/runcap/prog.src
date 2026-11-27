@@ -1,0 +1,17 @@
+// Cap of a non-constant string converted to []rune. Gno sets cap == len so
+// the value does not depend on the allocator. gc may hand back spare capacity.
+// The comparison is cap == len, not the raw cap, so a Go allocator change
+// does not move the golden value. Constant conversions and short ASCII
+// agreed on this toolchain.
+// gnodiff:known string-to-[]rune uses cap == len in Gno; gc may use a larger cap
+// gnodiff:expect-go 5 false 2 true 5 true
+// gnodiff:expect-gno 5 true 2 true 5 true
+package main
+
+func main() {
+	s := "héllo"
+	rb := []rune(s)
+	ab := []rune("hi")
+	cb := []rune("héllo")
+	println(len(rb), cap(rb) == len(rb), len(ab), cap(ab) == len(ab), len(cb), cap(cb) == len(cb))
+}

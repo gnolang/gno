@@ -56,6 +56,12 @@ install_gno: install.gno
 .PHONY: test
 test: test.components
 
+# Corpus run for misc/gnodiff. Not part of `make test`: each seed shells out
+# to the Go toolchain.
+.PHONY: gnodiff
+gnodiff:
+	$(MAKE) --no-print-directory -C misc/gnodiff corpus
+
 .PHONY: test.components
 test.components:
 	$(MAKE) --no-print-directory -C tm2      test
@@ -98,7 +104,7 @@ fix:
 	@# ./...` above already covers them. audit-pattern-harness was linted by CI
 	@# and missing here, so its CI failure told the reader to run a target that
 	@# could not fix it.
-	@for d in $(wildcard contribs/*/) misc/audit-pattern-harness/ misc/autocounterd/ misc/gnoe2e/ misc/loop/; do \
+	@for d in $(wildcard contribs/*/) misc/audit-pattern-harness/ misc/autocounterd/ misc/gnoe2e/ misc/gnodiff/ misc/loop/; do \
 		echo "==> go fix $$d"; \
 		( cd "$$d" && CGO_ENABLED=1 GOTOOLCHAIN=$(GO_FIX_TOOLCHAIN) go fix $(GO_FIX_FLAGS) ./... ); \
 	done

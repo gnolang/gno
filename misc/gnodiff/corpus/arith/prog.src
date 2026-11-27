@@ -1,0 +1,15 @@
+// Integer wraparound, division truncation, and bitwise complement.
+package main
+
+func main() {
+	var u8 uint8 = 255
+	println(u8 + 1)
+	var i8 int8 = 127
+	println(i8 + 1)
+	i64 := int64(-1) << 63
+	println(i64 == -9223372036854775808)
+	println(int64(-3)/2, int64(-3)%2)
+	println(^uint8(0))
+	var u32 uint32 = 1
+	println(u32 - 2)
+}

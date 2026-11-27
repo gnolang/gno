@@ -1,0 +1,8 @@
+// Slice index out of range.
+package main
+
+func main() {
+	s := []int{10, 20}
+	println("before")
+	println(s[3])
+}

@@ -1,0 +1,9 @@
+// make of a negative length.
+package main
+
+func main() {
+	n := -1
+	println("before")
+	_ = make([]int, n)
+	println("after")
+}
