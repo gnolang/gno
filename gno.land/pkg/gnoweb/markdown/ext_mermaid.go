@@ -140,12 +140,12 @@ func renderMermaid(w util.BufWriter, _ []byte, node ast.Node, entering bool) (as
 	// rendered file copies (data-copy-exclude drops the drawing).
 	w.WriteString(`"><div class="gno-mermaid__scale" data-copy-exclude>`)
 	w.Write(svg)
-	// In a column, a diagram shrinks to the column but not below two thirds
-	// of its width, where its text stays 9 px or more. The style sheet
-	// cannot know that width, and a style attribute is not allowed: this
-	// empty strut, as wide, holds it (see the MERMAID COMPONENT styles).
+	// In a column, a diagram shrinks to the column but not below three
+	// quarters of its width, where its 12 px labels stay 9 px. The style
+	// sheet cannot know that width, and a style attribute is not allowed:
+	// this empty strut, as wide, holds it (see the MERMAID COMPONENT styles).
 	w.WriteString(`<svg class="gno-mermaid__floor" width="`)
-	w.WriteString(strconv.FormatFloat(math.Round(width*2/3), 'f', -1, 64))
+	w.WriteString(strconv.FormatFloat(math.Round(width*3/4), 'f', -1, 64))
 	w.WriteString(`" height="0" aria-hidden="true"></svg></div><pre class="u-sr-only">`)
 	w.Write(util.EscapeHTML([]byte(n.src)))
 	w.WriteString("</pre></div>\n")
