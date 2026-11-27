@@ -19,9 +19,10 @@ const (
 	actorPadX     = 14.0 // text to box side
 	actorMinWidth = 72.0
 	actorMinH     = 40.0
-	actorGap      = 48.0 // between neighboring actor boxes
+	actorGap      = 80.0 // between neighboring actor boxes
 	figureHeight  = 38.0 // a stick figure, above its label
-	messageGap    = 12.0 // label end to lifeline
+	messageGap    = 18.0 // label end to lifeline
+	rowGap        = 24.0 // below a message or a note, to the next row
 	noteGap       = 12.0 // note to lifeline
 	notePad       = 10.0
 	selfLoopW     = 34.0
@@ -464,7 +465,7 @@ func (d *sequence) layout() (width, height, footTop float64) {
 	}
 
 	// Rows, top to bottom, and the horizontal extent of each event.
-	y := pad + headH + 16
+	y := pad + headH + rowGap
 	top := y
 	condLine := smallSize * leading
 	var stack []*seqBlock
@@ -477,10 +478,10 @@ func (d *sequence) layout() (width, height, footTop float64) {
 		case seqMessage:
 			a, b := parts[e.from].x, parts[e.to].x
 			if e.from == e.to {
-				e.h = tb + 6 + selfLoopH + 14
+				e.h = tb + 6 + selfLoopH + rowGap
 				e.l, e.r = a, a+max(selfLoopW+4, messageGap+tw)
 			} else {
-				e.h = tb + 6 + 14
+				e.h = tb + 6 + rowGap
 				e.l, e.r = min(a, b), max(a, b)
 			}
 			if e.num != "" {
@@ -489,7 +490,7 @@ func (d *sequence) layout() (width, height, footTop float64) {
 			}
 		case seqNote:
 			w, x := tw+2*notePad, parts[e.from].x
-			e.h = tb + 2*notePad + 12
+			e.h = tb + 2*notePad + rowGap
 			switch e.notePos {
 			case noteLeft:
 				e.l, e.r = x-noteGap-w, x-noteGap
