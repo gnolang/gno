@@ -11,7 +11,6 @@ import (
 // must stay in sync with the enum in frontend/js/analytics.ts and the values
 // documented in SIMPLEANALYTICS.md.
 const (
-	OutboundDocs     = "docs"
 	OutboundFaucet   = "faucet"
 	OutboundStatus   = "status"
 	OutboundGitHub   = "github"
@@ -64,6 +63,8 @@ func ClassifyPageType(mode ViewMode, view ViewType) string {
 		return "run"
 	case PlaygroundViewType:
 		return "playground"
+	case DocsViewType:
+		return "docs"
 	}
 	switch mode {
 	case ViewModeHome:
