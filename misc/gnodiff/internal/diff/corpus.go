@@ -89,8 +89,8 @@ func LoadDir(dir string) ([]Program, error) {
 		if err != nil {
 			return err
 		}
-		name := strings.TrimSuffix(rel, ".src")
-		name = strings.TrimSuffix(name, string(filepath.Separator)+"prog")
+		name := strings.TrimSuffix(filepath.ToSlash(rel), ".src")
+		name = strings.TrimSuffix(name, "/prog")
 		src := string(body)
 		out = append(out, Program{
 			Name:      name,
@@ -183,7 +183,7 @@ func directive(src, key string) string {
 			continue
 		}
 		reason := strings.TrimSpace(after)
-		if reason == "" {
+		if reason == "" && key == "known" {
 			return "annotated"
 		}
 		return reason
@@ -202,7 +202,7 @@ func RunCorpus(progs []Program, cfg RunConfig) Report {
 		for _, prog := range progs {
 			rep.Cases = append(rep.Cases, CaseResult{
 				Name:   prog.Name,
-				Class:  ClassReal,
+				Class:  ClassInternal,
 				Known:  prog.Known,
 				Reason: "runner failed",
 				Go:     Result{Kind: KindInternal, Detail: err.Error()},
@@ -230,13 +230,10 @@ func RunCorpus(progs []Program, cfg RunConfig) Report {
 			rep.RejectWording++
 		case ClassLintRun:
 			rep.LintRun++
+		case ClassInternal:
+			rep.Internal++
 		default:
-			if item.Go.Kind == KindInternal || item.Gno.Kind == KindInternal || item.Lint.Kind == KindInternal ||
-				item.Reason == "runner failed" || item.Reason == "lint runner failed" {
-				rep.Internal++
-			} else {
-				rep.Real++
-			}
+			rep.Real++
 		}
 		rep.Cases = append(rep.Cases, item)
 		if cfg.OnCase != nil {
@@ -266,16 +263,7 @@ func runOne(prog Program, cfg RunConfig) CaseResult {
 	if class != ClassReal || !cfg.Minimize {
 		return item
 	}
-	if goRes.Kind == KindInternal || gnoRes.Kind == KindInternal {
-		return item
-	}
-	item.Minimized = Minimize(prog.Source, cfg.MinimizeBudget, func(src string) bool {
-		left := RunGo(context.Background(), src, cfg.Options)
-		right := RunGno(src, cfg.Options)
-		lint := RunLint(src, cfg.Options)
-		cl, _ := Classify(Program{Source: src}, left, right, lint)
-		return cl == ClassReal && left.Kind != KindInternal && right.Kind != KindInternal && lint.Kind != KindInternal
-	})
+	item.Minimized = minimizeDivergence(prog.Source, goRes, gnoRes, cfg.Options, cfg.MinimizeBudget)
 	return item
 }
 
@@ -285,7 +273,8 @@ func (r Report) Text() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "gnodiff: %d programs, %d exact, %d known, %d known-agrees, %d panic-wording, %d reject-wording, %d lint-run, %d real, %d runner failures\n",
 		r.Total, r.Exact, r.Known, r.KnownAgrees, r.PanicWording, r.RejectWording, r.LintRun, r.Real, r.Internal)
-	if r.Real == 0 && r.Internal == 0 && r.Known == 0 && r.PanicWording == 0 {
+	if r.Real == 0 && r.Internal == 0 && r.Known == 0 && r.KnownAgrees == 0 &&
+		r.PanicWording == 0 && r.RejectWording == 0 && r.LintRun == 0 {
 		b.WriteString("no divergences.\n")
 		return b.String()
 	}
@@ -306,6 +295,8 @@ func (r Report) Text() string {
 			label = "REJECT-WORDING"
 		case ClassLintRun:
 			label = "LINT-RUN"
+		case ClassInternal:
+			label = "INTERNAL"
 		}
 		fmt.Fprintf(&b, "%s %s", label, item.Name)
 		if item.Reason != "" {
@@ -360,8 +351,14 @@ func (r Report) Write(dir string) error {
 	}
 	reproDir := filepath.Join(dir, "repro")
 	for _, item := range r.Cases {
-		body := item.Minimized
-		if body == "" {
+		if item.Class != ClassReal {
+			continue
+		}
+		reproBody := item.Minimized
+		if reproBody == "" {
+			reproBody = item.Source
+		}
+		if reproBody == "" {
 			continue
 		}
 		if err := os.MkdirAll(reproDir, 0o755); err != nil {
@@ -369,13 +366,21 @@ func (r Report) Write(dir string) error {
 		}
 		header := fmt.Sprintf("// gnodiff repro %s (%s): %s\n// go: %s\n// gno: %s\n",
 			item.Name, item.Class, item.Reason, oneLine(item.Go.Summary()), oneLine(item.Gno.Summary()))
-		safe := strings.NewReplacer("/", "__", "\\", "__").Replace(item.Name)
-		path := filepath.Join(reproDir, safe+".go")
-		if err := os.WriteFile(path, []byte(header+body), 0o644); err != nil {
+		path := filepath.Join(reproDir, safeReproName(item.Name)+".go")
+		if err := os.WriteFile(path, []byte(header+reproBody), 0o644); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func safeReproName(name string) string {
+	s := strings.NewReplacer("/", "__", "\\", "__", "..", "__", ":", "_").Replace(name)
+	s = strings.Trim(s, "._ ")
+	if s == "" {
+		return "repro"
+	}
+	return s
 }
 
 // wordingText lists every distinct panic-message pair with one repro each,

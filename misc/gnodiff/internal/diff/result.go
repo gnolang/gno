@@ -75,16 +75,17 @@ func clip(s string, n int) string {
 // Behavioral differences (different indexes, one side not panicking) stay
 // visible because the rest of the message is compared verbatim.
 var panicSynonyms = [][2]string{
-	{"invalid memory address or nil pointer dereference", "nil pointer dereference"},
+	{"runtime error: invalid memory address or nil pointer dereference", "runtime error: nil pointer dereference"},
 }
 
-var ptrRE = regexp.MustCompile(`0x[0-9a-fA-F]+`)
+var ptrRE = regexp.MustCompile(`\b0x[0-9a-fA-F]{6,16}\b`)
 var spaceRE = regexp.MustCompile(`[ \t]+`)
 
 // NormalizeOutput canonicalizes program output: newline style, trailing
-// whitespace, a single trimmed end, and pointer addresses. Addresses are
-// masked because println of a pointer is process-specific on both sides;
-// programs that want to compare identity should print a boolean.
+// whitespace, a single trimmed end, and 6- to 16-digit hex pointer addresses.
+// Addresses are masked because println of a pointer is process-specific on
+// both sides; shorter hex values (including 0x0 for nil) are preserved so
+// nil and non-nil pointers do not collapse together.
 func NormalizeOutput(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
 	s = ptrRE.ReplaceAllString(s, "0xPTR")
@@ -146,16 +147,19 @@ const (
 	// ClassKnownAgrees means a // gnodiff:known seed now matches. The
 	// annotation is stale.
 	ClassKnownAgrees Class = "known-agrees"
+	// ClassInternal means one of the runners (gc, GnoVM, or lint) failed
+	// internally rather than producing a language result.
+	ClassInternal Class = "internal"
 )
 
 // Classify compares one gc result with one GnoVM result. lintRes is the
 // go/types pass gno lint uses. A zero Result means that pass was not run.
 func Classify(prog Program, goRes, gnoRes, lintRes Result) (Class, string) {
 	if lintRes.Kind == KindInternal {
-		return ClassReal, "lint runner failed"
+		return ClassInternal, "lint runner failed"
 	}
 	if goRes.Kind == KindInternal || gnoRes.Kind == KindInternal {
-		return ClassReal, "runner failed"
+		return ClassInternal, "runner failed"
 	}
 	if goRes.Truncated || gnoRes.Truncated {
 		if goRes.Truncated != gnoRes.Truncated || goRes.Stdout != gnoRes.Stdout || goRes.Kind != gnoRes.Kind {
@@ -268,24 +272,29 @@ func expectMatch(res Result, want string) bool {
 }
 
 var (
-	indexGoRE   = regexp.MustCompile(`index out of range \[(-?\d+)\] with length (-?\d+)`)
-	indexGnoRE  = regexp.MustCompile(`slice index out of bounds: (-?\d+) \(len=(-?\d+)\)`)
-	boundsGoRE  = regexp.MustCompile(`slice bounds out of range \[(-?\d+):(-?\d+)\]`)
-	boundsGnoRE = regexp.MustCompile(`invalid slice index (-?\d+) > (-?\d+)`)
+	indexGoRE   = regexp.MustCompile(`^runtime error: index out of range \[(-?\d+)\] with length (-?\d+)$`)
+	indexGnoRE  = regexp.MustCompile(`^runtime error: slice index out of bounds: (-?\d+) \(len=(-?\d+)\)$`)
+	boundsGoRE  = regexp.MustCompile(`^runtime error: slice bounds out of range \[(-?\d+):(-?\d+)\]$`)
+	boundsGnoRE = regexp.MustCompile(`^runtime error: invalid slice index (-?\d+) > (-?\d+)$`)
 )
 
-var negShiftRE = regexp.MustCompile(`negative shift amount(?:: \((-?\d+))?`)
+var negShiftRE = regexp.MustCompile(`^runtime error: negative shift amount(?:: \((-?\d+)\b[^)]*\))?$`)
 
-// canonicalRuntimePanic maps panic texts that name the same event. The
-// numbers are kept: index 3 with length 2 must not match index 4, and a
-// negative shift of -1 must not match a shift of -2.
+// canonicalRuntimePanic maps runtime panic texts that name the same event.
+// User panic("...") messages without the "runtime error: " prefix are never
+// folded. Numbers are kept: index 3 with length 2 must not match index 4,
+// and a negative shift of -1 must not match a shift of -2.
 func canonicalRuntimePanic(s string) (string, bool) {
-	switch {
-	case strings.Contains(s, "divide by zero"), strings.Contains(s, "division by zero"):
+	if !strings.HasPrefix(s, "runtime error: ") {
+		return "", false
+	}
+	switch s {
+	case "runtime error: integer divide by zero", "runtime error: division by zero":
 		return "division by zero", true
-	case strings.Contains(s, "negative shift"):
-		if n, ok := shiftAmount(s); ok {
-			return "negative shift " + n, true
+	}
+	if m := negShiftRE.FindStringSubmatch(s); m != nil {
+		if m[1] != "" {
+			return "negative shift " + m[1], true
 		}
 		return "negative shift", true
 	}
@@ -309,7 +318,7 @@ func canonicalRuntimePanic(s string) (string, bool) {
 // `index out of range [0] with length 0`; Gno names the nil slice and does
 // not repeat the index. Any other index is a different event.
 func nilSliceWording(goMsg, gnoMsg string) bool {
-	if !strings.Contains(cleanPanic(gnoMsg), "nil slice index") {
+	if cleanPanic(gnoMsg) != "runtime error: nil slice index (out of bounds)" {
 		return false
 	}
 	m := indexGoRE.FindStringSubmatch(cleanPanic(goMsg))
@@ -325,13 +334,13 @@ func shiftAmount(s string) (string, bool) {
 }
 
 // negShiftWording matches gc's operand-free "negative shift amount" with
-// Gno's "negative shift amount: (N type)" . When both sides print an
+// Gno's "negative shift amount: (N type)". When both sides print an
 // operand, the operands must be equal. gc does not print one, so that
 // specific pair cannot confirm the operand.
 func negShiftWording(goMsg, gnoMsg string) bool {
 	g := cleanPanic(goMsg)
 	n := cleanPanic(gnoMsg)
-	if !strings.Contains(g, "negative shift") || !strings.Contains(n, "negative shift") {
+	if !negShiftRE.MatchString(g) || !negShiftRE.MatchString(n) {
 		return false
 	}
 	ga, gok := shiftAmount(g)
@@ -342,14 +351,16 @@ func negShiftWording(goMsg, gnoMsg string) bool {
 	return true
 }
 
+const numTypePattern = `(?:u?int(?:8|16|32|64)?|uintptr|byte|rune|float(?:32|64))`
+
 var (
-	diagFileRE     = regexp.MustCompile(`(?:\./)?[\w./\\-]+\.g(?:no|o):\d+(?::\d+)?(?:-\d+)?:`)
+	diagFileRE     = regexp.MustCompile(`(?:\./)?(?:[A-Za-z]:)?[\w./\\-]+\.g(?:no|o):\d+(?::\d+)?(?:-\d+(?::\d+)?)?:`)
 	notDeclRE      = regexp.MustCompile(`name (\w+) not declared`)
 	undefRE        = regexp.MustCompile(`undefined: (\w+)`)
 	unusedGoRE     = regexp.MustCompile(`declared and not used: (\w+)`)
 	unusedAltRE    = regexp.MustCompile(`(\w+) declared and not used`)
-	overflowAsRE   = regexp.MustCompile(`\bas ((?:u?int|byte|rune)\d*)\b`)
-	overflowTailRE = regexp.MustCompile(`overflows ((?:u?int|byte|rune)\d*)\b`)
+	overflowAsRE   = regexp.MustCompile(`\bas (` + numTypePattern + `)\b`)
+	overflowTailRE = regexp.MustCompile(`(?:overflows|underflows) (` + numTypePattern + `)\b`)
 )
 
 // normalizeDiag strips file:line prefixes and process noise so two
@@ -419,16 +430,18 @@ func overflowIdentity(detail string) (string, bool) {
 }
 
 func overflowLine(line string) (string, bool) {
-	if strings.Contains(line, "bigint overflows") || strings.Contains(line, "bigint underflows") {
-		return "overflows", true
-	}
-	if m := overflowAsRE.FindStringSubmatch(line); m != nil && strings.Contains(line, "overflow") {
-		return "overflows " + m[1], true
+	if strings.HasPrefix(line, "undefined: ") || strings.HasPrefix(line, "declared and not used: ") {
+		return "", false
 	}
 	if m := overflowTailRE.FindStringSubmatch(line); m != nil {
 		return "overflows " + m[1], true
 	}
-	if strings.Contains(line, "overflow") {
+	if m := overflowAsRE.FindStringSubmatch(line); m != nil &&
+		(strings.Contains(line, "overflows") || strings.Contains(line, "underflows")) {
+		return "overflows " + m[1], true
+	}
+	if strings.Contains(line, "bigint overflows") || strings.Contains(line, "bigint underflows") ||
+		strings.Contains(line, "shift overflow") {
 		return "overflows", true
 	}
 	return "", false

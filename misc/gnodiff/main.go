@@ -24,6 +24,27 @@ func main() {
 	seed := flag.Uint64("seed", 1, "first seed for -generate")
 	flag.Parse()
 
+	if *generate < 0 {
+		fmt.Fprintln(os.Stderr, "-generate must be >= 0")
+		os.Exit(2)
+	}
+	if *generate > 0 && *corpus != "" {
+		fmt.Fprintln(os.Stderr, "-generate and -corpus are mutually exclusive")
+		os.Exit(2)
+	}
+	if *timeout <= 0 {
+		fmt.Fprintln(os.Stderr, "-timeout must be > 0")
+		os.Exit(2)
+	}
+	if *gas <= 0 {
+		fmt.Fprintln(os.Stderr, "-gas must be > 0")
+		os.Exit(2)
+	}
+	if *budget < 0 {
+		fmt.Fprintln(os.Stderr, "-budget must be >= 0")
+		os.Exit(2)
+	}
+
 	if *writeCorpus != "" {
 		if err := gen.WriteCatalog(*writeCorpus); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -71,7 +92,7 @@ func main() {
 			if item.Class == diff.ClassExact {
 				return
 			}
-			fmt.Fprintf(os.Stderr, "  %-8s %s\n", item.Class, item.Name)
+			fmt.Fprintf(os.Stderr, "  %-14s %s\n", item.Class, item.Name)
 		},
 	})
 	if err := rep.Write(*out); err != nil {

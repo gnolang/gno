@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
@@ -42,22 +40,16 @@ func FuzzPrograms(f *testing.F) {
 		}
 		goRes := RunGo(context.Background(), src, opt)
 		gnoRes := RunGno(src, opt)
-		if goRes.Kind == KindInternal || gnoRes.Kind == KindInternal {
-			t.Fatalf("runner failed\n--- go ---\n%s\n--- gno ---\n%s", goRes.Summary(), gnoRes.Summary())
+		lintRes := RunLint(src, opt)
+		class, reason := Classify(Program{Source: src}, goRes, gnoRes, lintRes)
+		if class == ClassInternal {
+			t.Fatalf("runner failed (%s)\n--- go ---\n%s\n--- gno ---\n%s\n--- lint ---\n%s",
+				reason, goRes.Summary(), gnoRes.Summary(), lintRes.Summary())
 		}
-		match, reason := Compare(goRes, gnoRes)
-		if match {
+		if class != ClassReal {
 			return
 		}
-		reduced := Minimize(src, 12, func(candidate string) bool {
-			if Unsupported(candidate) != "" || !parses(candidate) {
-				return false
-			}
-			left := RunGo(context.Background(), candidate, opt)
-			right := RunGno(candidate, opt)
-			ok, _ := Compare(left, right)
-			return !ok && left.Kind != KindInternal && right.Kind != KindInternal
-		})
+		reduced := minimizeDivergence(src, goRes, gnoRes, opt, 12)
 		path := writeFuzzRepro(t, reduced)
 		t.Errorf("divergence (%s)\n--- go ---\n%s\n--- gno ---\n%s\nrepro: %s\n%s",
 			reason, goRes.Summary(), gnoRes.Summary(), path, reduced)
@@ -82,28 +74,18 @@ func FuzzGenerated(f *testing.F) {
 		gnoRes := RunGno(src, opt)
 		lintRes := RunLint(src, opt)
 		class, reason := Classify(Program{Source: src}, goRes, gnoRes, lintRes)
+		if class == ClassInternal {
+			t.Fatalf("runner failed (%s)\n--- go ---\n%s\n--- gno ---\n%s\n--- lint ---\n%s",
+				reason, goRes.Summary(), gnoRes.Summary(), lintRes.Summary())
+		}
 		if class != ClassReal {
 			return
 		}
-		if goRes.Kind == KindInternal || gnoRes.Kind == KindInternal {
-			t.Fatalf("runner failed\n--- go ---\n%s\n--- gno ---\n%s", goRes.Summary(), gnoRes.Summary())
-		}
-		reduced := Minimize(src, 12, func(candidate string) bool {
-			left := RunGo(context.Background(), candidate, opt)
-			right := RunGno(candidate, opt)
-			lint := RunLint(candidate, opt)
-			cl, _ := Classify(Program{Source: candidate}, left, right, lint)
-			return cl == ClassReal && left.Kind != KindInternal && right.Kind != KindInternal
-		})
+		reduced := minimizeDivergence(src, goRes, gnoRes, opt, 12)
 		path := writeFuzzRepro(t, reduced)
 		t.Errorf("real divergence seed %d (%s)\n--- go ---\n%s\n--- gno ---\n%s\nrepro: %s\n%s",
 			seed, reason, goRes.Summary(), gnoRes.Summary(), path, reduced)
 	})
-}
-
-func parses(src string) bool {
-	_, err := parser.ParseFile(token.NewFileSet(), "main.go", src, parser.SkipObjectResolution)
-	return err == nil
 }
 
 func fuzzActive() bool {

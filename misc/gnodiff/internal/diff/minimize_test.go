@@ -30,11 +30,16 @@ func TestMinimizeDropsNoise(t *testing.T) {
 
 func TestMinimizeStopsWhenPredicateRejects(t *testing.T) {
 	src := "package main\nfunc main() { println(1) }\n"
-	got := Minimize(src, 10, func(string) bool { return false })
-	if got != src && got != src+"\n" && !strings.Contains(got, "println(1)") {
-		t.Fatalf("reducer deleted a line the predicate still needed:\n%s", got)
+	calls := 0
+	got := Minimize(src, 10, func(string) bool {
+		calls++
+		return false
+	})
+	if got != src {
+		t.Fatalf("reducer changed program when predicate rejected:\n%s", got)
 	}
-	if !strings.Contains(got, "println(1)") {
-		t.Fatalf("lost println:\n%s", got)
+	// Only 1 non-package line exists; trailing newline must not waste budget.
+	if calls != 1 {
+		t.Fatalf("calls = %d, want 1", calls)
 	}
 }

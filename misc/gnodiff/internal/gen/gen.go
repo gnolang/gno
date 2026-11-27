@@ -98,8 +98,7 @@ func runtimeProgram(r *rand.Rand) string {
 	// that overflows is a separate mode (constOverflowProgram).
 	g.head.WriteString("func idInt(x int) int { return x }\nfunc id64(x int64) int64 { return x }\nfunc idU(x uint64) uint64 { return x }\n\n")
 	feats := g.features()
-	feats[r.IntN(len(feats))]()
-	n := 4 + r.IntN(5)
+	n := 5 + r.IntN(5)
 	for range n {
 		feats[r.IntN(len(feats))]()
 	}

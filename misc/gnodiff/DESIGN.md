@@ -6,7 +6,7 @@ Differential tester for the Gno subset of Go. It does not change the VM.
 
 Each program is run three ways:
 
-- `go run` in a throwaway module (gc).
+- `go run` in a throwaway `go 1.22` module (gc).
 - An in-process GnoVM machine, the same shape as `gno run`: `test.ProdStore`, `ParseFile`, `RunFiles`, `RunMain`, with a gas meter and an allocation ceiling. Gas is recorded and is not a pass/fail signal.
 - `gnolang.TypeCheckMemPackage`, the go/types pass `gno lint` uses.
 
@@ -19,18 +19,19 @@ Each program is run three ways:
 | exact | Same outcome and the same text, or the same path-stripped reject diagnostic, or the same stdout before a non-termination | no |
 | known | `// gnodiff:known`, and any `expect-go` / `expect-gno` lines still match | no |
 | known-agrees | A known seed now matches. The annotation is stale | no |
-| panic-wording | Both sides panic on the same event. Indexes and shift operands are part of the event | no |
+| panic-wording | Both sides panic on the same runtime event. Indexes and shift operands are part of the event | no |
 | lint-run | gc and gno lint reject; the VM runs | no |
 | reject-wording | Both sides reject the same constant that does not fit. The VM says `bigint overflows`, or `bigint underflows` for a negative constant, and does not name the type; gc does. Two different named types, or an overflow against a different error, are real | no |
 | real | Anything else, including a known or lint-run seed whose expect lines moved | yes |
+| internal | One of the runners (gc, GnoVM, or lint) failed internally | yes |
 
 Two rejections whose diagnostics still differ after stripping `file:line` are real. Two non-terminations with different stdout are real. Both non-terminations with empty stdout are exact: the limit that fired is not the language behavior.
 
-Panic folding keeps numbers. `index out of range [3]` does not match `[4]`. A negative shift of `-1` does not match `-2` when both messages carry the operand. gc's negative-shift text has no operand, so that one pair cannot confirm the number Gno prints. The nil-slice wording fold applies only to gc's `[0] with length 0` against Gno's `nil slice index` text. Any other index is real.
+Panic folding applies only to `runtime error:` panics and keeps numbers. `index out of range [3]` does not match `[4]`. A negative shift of `-1` does not match `-2` when both messages carry the operand. gc's negative-shift text has no operand, so that one pair cannot confirm the number Gno prints. The nil-slice wording fold applies only to gc's `[0] with length 0` against Gno's `nil slice index (out of bounds)` text. Any other index is real.
 
-Pointer addresses in stdout are rewritten to `0xPTR`. A program that needs to compare identity should print a boolean.
+6- to 16-digit hex pointer addresses in stdout are rewritten to `0xPTR`. Shorter hex values (including `0x0`) are kept so nil and non-nil pointers do not collapse together. A program that needs to compare identity should print a boolean.
 
-A `panic: ` line is a panic only when a goroutine stack follows it. `println("panic: ...")` stays program output.
+A `panic: ` line is a panic only when `go run` exits non-zero and a `goroutine N [` stack follows it. `println("panic: ...")` stays program output. Runtime fatal errors (`fatal error: stack overflow`, out of memory) are classified as non-termination.
 
 ## Corpus
 
@@ -46,7 +47,7 @@ Hand-written seeds live in `corpus/` as `*.src` (not `.go`, so `go test` does no
 - One seed in 23 is a typed constant that does not fit (`// gnodiff:const-overflow`). gc and lint should reject it. The VM may wrap it, which is `lint-run`, not a new bug.
 - One seed in 23 imports `strconv` and prints `FormatFloat` with verb `f`.
 
-Not generated, and rejected by `Unsupported` if a byte mutant introduces them: goroutines, channels, `select`, `unsafe`, complex numbers, type parameters, integer `range`, and imports other than `math`, `strings`, `strconv`, and `utf8`. `fmt` is test-only in Gno. `int` is 64-bit on both sides here.
+Not generated, and rejected by `Unsupported` if a byte mutant introduces them: goroutines, channels, `select`, `unsafe`, complex numbers, type parameters, integer `range`, Go 1.21+ builtins (`min`, `max`, `clear`), and imports other than `math`, `strings`, `strconv`, and `unicode/utf8`. `fmt` is test-only in Gno. `int` is 64-bit on both sides here.
 
 Map iteration in generated programs is reduced to an order-independent aggregate. `FuzzGenerated` is the fuzz entry. `FuzzPrograms` does not load the seed corpus.
 

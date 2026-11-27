@@ -1,20 +1,24 @@
 package diff
 
-import "strings"
+import (
+	"context"
+	"go/parser"
+	"go/token"
+	"strings"
+)
 
 // Minimize deletes lines from src while diverges reports that the reduced
 // program still disagrees. budget is the number of candidate programs the
 // predicate may be asked about. The package clause is kept so the result
 // stays recognisable as a Go file.
 //
-// The predicate has to be deterministic. A candidate that fails to compile
-// on both sides is not a divergence and is discarded, which stops the
-// reducer from eating the statement that caused the disagreement.
+// The predicate has to be deterministic and preserve the divergence shape so
+// the reducer does not collapse a runtime bug into an unrelated compile error.
 func Minimize(src string, budget int, diverges func(string) bool) string {
 	if budget < 1 {
 		return src
 	}
-	lines := strings.Split(src, "\n")
+	lines := strings.Split(strings.TrimSuffix(src, "\n"), "\n")
 	for budget > 0 {
 		progressed := false
 		for i := 0; i < len(lines); i++ {
@@ -44,4 +48,29 @@ func Minimize(src string, budget int, diverges func(string) bool) string {
 		out += "\n"
 	}
 	return out
+}
+
+func minimizeDivergence(src string, origGo, origGno Result, opt Options, budget int) string {
+	origParses := parses(src)
+	return Minimize(src, budget, func(candidate string) bool {
+		if Unsupported(candidate) != "" {
+			return false
+		}
+		if origParses && !parses(candidate) {
+			return false
+		}
+		left := RunGo(context.Background(), candidate, opt)
+		right := RunGno(candidate, opt)
+		lint := RunLint(candidate, opt)
+		if left.Kind != origGo.Kind || right.Kind != origGno.Kind {
+			return false
+		}
+		cl, _ := Classify(Program{Source: candidate}, left, right, lint)
+		return cl == ClassReal
+	})
+}
+
+func parses(src string) bool {
+	_, err := parser.ParseFile(token.NewFileSet(), "main.go", src, parser.SkipObjectResolution)
+	return err == nil
 }

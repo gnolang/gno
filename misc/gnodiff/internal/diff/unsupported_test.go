@@ -57,6 +57,35 @@ func TestUnsupported(t *testing.T) {
 			name: "user min",
 			src:  "package main\nfunc min(a, b int) int { if a < b { return a }; return b }\nfunc main() { println(min(1, 2)) }\n",
 		},
+		{
+			name: "method selector named min",
+			src:  "package main\ntype S struct{}\nfunc (S) min(a int) int { return a }\nfunc main() { var s S; println(s.min(1)) }\n",
+		},
+		{
+			name: "goroutine after quote rune literal",
+			src:  "package main\nfunc main() { c := '\"'; _ = c; go println(1) }\n",
+			want: "goroutines",
+		},
+		{
+			name: "channel after backtick rune literal",
+			src:  "package main\nfunc main() { c := '`'; _ = c; ch := make(chan int); _ = ch }\n",
+			want: "channels",
+		},
+		{
+			name: "imaginary literal",
+			src:  "package main\nfunc main() { println(1i) }\n",
+			want: "complex",
+		},
+		{
+			name: "complex builtin",
+			src:  "package main\nfunc main() { println(complex(1, 2)) }\n",
+			want: "complex",
+		},
+		{
+			name: "channel arrow",
+			src:  "package main\nfunc main() { <-c }\n",
+			want: "channels",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

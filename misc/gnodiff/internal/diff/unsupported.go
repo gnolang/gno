@@ -2,35 +2,104 @@ package diff
 
 import (
 	"go/parser"
+	"go/scanner"
 	"go/token"
-	"regexp"
 	"strconv"
-	"strings"
 )
 
 // Unsupported reports why src is outside the language subset this fuzzer
 // compares. The empty string means the source is in scope (it may still
-// fail to type-check). The check is a token scan, used to keep the native
-// fuzzer from filing a "divergence" for every mutant that introduces a
-// channel or a goroutine — those are known non-goals, listed in the README.
+// fail to type-check). The check uses go/scanner so comments, strings, raw
+// strings, and rune literals are handled accurately.
 func Unsupported(src string) string {
-	stripped := stripCommentsAndStrings(src)
-	for _, p := range unsupportedPatterns {
-		if p.re.MatchString(stripped) {
-			return p.why
-		}
-	}
-	for _, name := range []string{"min", "max", "clear"} {
-		call := regexp.MustCompile(`\b` + name + `\s*\(`)
-		decl := regexp.MustCompile(`\bfunc\s+` + name + `\b`)
-		if call.MatchString(stripped) && !decl.MatchString(stripped) {
-			return name + " builtin is not in the Gno subset (added after Go 1.17)"
-		}
-	}
-	if why := unsupportedImport(src); why != "" {
+	if why := unsupportedTokens(src); why != "" {
 		return why
 	}
+	return unsupportedImport(src)
+}
+
+type tokItem struct {
+	tok token.Token
+	lit string
+}
+
+func scanTokens(src string) []tokItem {
+	fset := token.NewFileSet()
+	file := fset.AddFile("main.go", fset.Base(), len(src))
+	var s scanner.Scanner
+	s.Init(file, []byte(src), nil, 0)
+	var toks []tokItem
+	for {
+		_, tok, lit := s.Scan()
+		if tok == token.EOF {
+			break
+		}
+		toks = append(toks, tokItem{tok: tok, lit: lit})
+	}
+	return toks
+}
+
+func unsupportedTokens(src string) string {
+	toks := scanTokens(src)
+
+	// Track user-declared functions with names matching Go 1.21+ / complex
+	// builtins so user-defined helpers (e.g. func min(a, b int) int) stay in scope.
+	declaredFunc := map[string]bool{}
+	for i := 0; i+1 < len(toks); i++ {
+		if toks[i].tok == token.FUNC && toks[i+1].tok == token.IDENT {
+			declaredFunc[toks[i+1].lit] = true
+		}
+	}
+
+	for i, it := range toks {
+		switch it.tok {
+		case token.CHAN, token.ARROW:
+			return "channels are not in the Gno subset"
+		case token.SELECT:
+			return "select is not in the Gno subset"
+		case token.GO:
+			return "goroutines are not in the Gno subset"
+		case token.IMAG:
+			return "complex numbers are not in the Gno subset"
+		case token.FUNC, token.TYPE:
+			if i+2 < len(toks) && toks[i+1].tok == token.IDENT && toks[i+2].tok == token.LBRACK {
+				return "type parameters are not in the Gno subset"
+			}
+		case token.RANGE:
+			if i+1 < len(toks) && toks[i+1].tok == token.INT {
+				return "integer range (Go 1.22) is not targeted by this fuzzer"
+			}
+		case token.IDENT:
+			switch it.lit {
+			case "unsafe":
+				return "unsafe is not in the Gno subset"
+			case "complex64", "complex128":
+				return "complex numbers are not in the Gno subset"
+			case "complex", "real", "imag":
+				if isBuiltinCall(toks, i, declaredFunc) {
+					return "complex numbers are not in the Gno subset"
+				}
+			case "min", "max", "clear":
+				if isBuiltinCall(toks, i, declaredFunc) {
+					return it.lit + " builtin is not in the Gno subset (added after Go 1.17)"
+				}
+			}
+		}
+	}
 	return ""
+}
+
+func isBuiltinCall(toks []tokItem, i int, declaredFunc map[string]bool) bool {
+	if i+1 >= len(toks) || toks[i+1].tok != token.LPAREN {
+		return false
+	}
+	if i > 0 {
+		switch toks[i-1].tok {
+		case token.PERIOD, token.FUNC, token.RPAREN:
+			return false
+		}
+	}
+	return !declaredFunc[toks[i].lit]
 }
 
 // allowedImport is the stdlib subset Gno ships for production code and whose
@@ -46,8 +115,8 @@ func allowedImport(path string) bool {
 }
 
 func unsupportedImport(src string) string {
-	f, err := parser.ParseFile(token.NewFileSet(), "main.go", src, parser.ImportsOnly)
-	if err != nil || f == nil {
+	f, _ := parser.ParseFile(token.NewFileSet(), "main.go", src, parser.ImportsOnly)
+	if f == nil {
 		return ""
 	}
 	for _, imp := range f.Imports {
@@ -60,76 +129,4 @@ func unsupportedImport(src string) string {
 		}
 	}
 	return ""
-}
-
-type pattern struct {
-	re  *regexp.Regexp
-	why string
-}
-
-var unsupportedPatterns = []pattern{
-	{regexp.MustCompile(`\bchan\b`), "channels are not in the Gno subset"},
-	{regexp.MustCompile(`\bselect\b`), "select is not in the Gno subset"},
-	{regexp.MustCompile(`\bgo\b`), "goroutines are not in the Gno subset"},
-	{regexp.MustCompile(`\bunsafe\b`), "unsafe is not in the Gno subset"},
-	{regexp.MustCompile(`\bcomplex(?:64|128)\b`), "complex numbers are not in the Gno subset"},
-	{regexp.MustCompile(`\bfunc\s+[A-Za-z_]\w*\[`), "type parameters are not in the Gno subset"},
-	{regexp.MustCompile(`\btype\s+[A-Za-z_]\w*\[`), "type parameters are not in the Gno subset"},
-	{regexp.MustCompile(`\brange\s+[0-9]`), "integer range (Go 1.22) is not targeted by this fuzzer"},
-}
-
-// stripCommentsAndStrings blanks comments and string contents so keyword
-// checks do not fire on prose or on data.
-func stripCommentsAndStrings(src string) string {
-	var b strings.Builder
-	b.Grow(len(src))
-	inLine, inBlock, inStr, inRaw, escape := false, false, false, false, false
-	for i := 0; i < len(src); i++ {
-		c := src[i]
-		var next byte
-		if i+1 < len(src) {
-			next = src[i+1]
-		}
-		switch {
-		case inLine:
-			if c == '\n' {
-				inLine = false
-				b.WriteByte('\n')
-			}
-		case inBlock:
-			if c == '*' && next == '/' {
-				inBlock = false
-				i++
-			}
-		case inRaw:
-			if c == '`' {
-				inRaw = false
-			}
-		case inStr:
-			if escape {
-				escape = false
-				continue
-			}
-			if c == '\\' {
-				escape = true
-				continue
-			}
-			if c == '"' {
-				inStr = false
-			}
-		case c == '/' && next == '/':
-			inLine = true
-			i++
-		case c == '/' && next == '*':
-			inBlock = true
-			i++
-		case c == '"':
-			inStr = true
-		case c == '`':
-			inRaw = true
-		default:
-			b.WriteByte(c)
-		}
-	}
-	return b.String()
 }

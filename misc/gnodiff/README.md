@@ -13,10 +13,11 @@ The design note is [DESIGN.md](DESIGN.md).
 | exact | Same outcome and the same text. Two rejections compare a path-stripped diagnostic. Two non-terminations compare stdout, and match when both outputs are empty | no |
 | known | `// gnodiff:known`, and any `expect-go` / `expect-gno` lines still match | no |
 | known-agrees | A known seed now matches. The annotation is stale and is printed | no |
-| panic-wording | Both sides panic on the same event. Indexes and, when both messages carry one, shift operands are part of the event | no |
+| panic-wording | Both sides panic on the same runtime event. Indexes and, when both messages carry one, shift operands are part of the event | no |
 | reject-wording | Both sides reject a constant that does not fit. The VM says `bigint overflows` or `bigint underflows` and does not name the type; gc does. Different named types, or an overflow against a different error, are real | no |
 | lint-run | gc and gno lint both reject, and the VM still runs the program | no |
-| real | Anything else, including a known or lint-run seed whose expect lines moved, and a runner crash | yes |
+| real | Anything else, including a known or lint-run seed whose expect lines moved | yes |
+| internal | One of the runners (gc, GnoVM, or lint) failed internally | yes |
 
 `gno run` does not type-check. `lint-run` is that gap, not a missed type-check:
 `gno lint` already rejects an unread local and `uint64(8) - uint64(40)`.
@@ -24,9 +25,10 @@ Those are [gnolang/gno#3426](https://github.com/gnolang/gno/issues/3426) and
 [gnolang/gno#6392](https://github.com/gnolang/gno/issues/6392). Panic text is
 [gnolang/gno#6538](https://github.com/gnolang/gno/issues/6538).
 
-Pointer addresses in stdout are rewritten to `0xPTR`. Compare identity with a
-boolean. A line that starts with `panic: ` is a panic only when a goroutine
-stack follows it.
+6- to 16-digit hex pointer addresses in stdout are rewritten to `0xPTR` (shorter
+hex values like `0x0` are preserved). Compare identity with a boolean. A line
+that starts with `panic: ` is a panic only when `go run` exits non-zero and a
+`goroutine N [` stack follows it.
 
 ## Layout
 
@@ -98,7 +100,7 @@ imported `"utf8"`, which both toolchains reject; the import is `unicode/utf8`.
 
 ## Generated run
 
-2500 programs from seed 1, Go 1.25.9: 1929 exact, 458 panic-wording,
+2500 programs from seed 1, Go 1.25.9: 1931 exact, 456 panic-wording,
 100 reject-wording, 13 lint-run, 0 real.
 
 Panic wording was only `integer divide by zero` versus `division by zero`,

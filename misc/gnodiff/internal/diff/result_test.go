@@ -1,6 +1,9 @@
 package diff
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestNormalizePanicSynonym(t *testing.T) {
 	goMsg := "panic: runtime error: invalid memory address or nil pointer dereference"
@@ -78,10 +81,15 @@ func TestNormalizePanicKeepsIndexes(t *testing.T) {
 }
 
 func TestNormalizeOutput(t *testing.T) {
-	got := NormalizeOutput("a \r\nptr 0xcafebabe\n\n")
-	want := "a\nptr 0xPTR"
+	got := NormalizeOutput("a \r\nptr 0xcafebabe 0xc0000120a0\n\n")
+	want := "a\nptr 0xPTR 0xPTR"
 	if got != want {
 		t.Fatalf("NormalizeOutput() = %q, want %q", got, want)
+	}
+	// Short hex values (including nil pointer 0x0) must not be masked.
+	short := NormalizeOutput("nil 0x0 val 0x1 byte 0xff")
+	if short != "nil 0x0 val 0x1 byte 0xff" {
+		t.Fatalf("short hex values were masked: %q", short)
 	}
 }
 
@@ -147,6 +155,36 @@ func TestSplitGoStderr(t *testing.T) {
 	if prog != "panic: hello" {
 		t.Fatalf("prog = %q", prog)
 	}
+	// println("panic: fake") before a real panic must stay in prog.
+	prog, msg = splitGoStderr("panic: fake\npanic: real\n\ngoroutine 1 [running]:\nmain.main()\nexit status 2\n")
+	if prog != "panic: fake" || msg != "real" {
+		t.Fatalf("fake before real: prog=%q msg=%q", prog, msg)
+	}
+	// Nested defer panics are tab-indented; keep the outermost panic message.
+	prog, msg = splitGoStderr("before\npanic: first\n\tpanic: second\n\ngoroutine 1 [running]:\nmain.main()\nexit status 2\n")
+	if prog != "before" || msg != "first" {
+		t.Fatalf("nested panic: prog=%q msg=%q", prog, msg)
+	}
+}
+
+func TestClassifyGoEdges(t *testing.T) {
+	// Exit 0 is never a panic even if program output looks like a panic dump.
+	res := classifyGo("", "panic: hello\ngoroutine 1 [running]:\nexit status 2\n", nil, false, false)
+	if res.Kind != KindOK {
+		t.Fatalf("exit-0 panic-like output: kind=%s panic=%q", res.Kind, res.Panic)
+	}
+	if res.Stdout != "panic: hello\ngoroutine 1 [running]:\nexit status 2" {
+		t.Fatalf("exit-0 output altered: %q", res.Stdout)
+	}
+	// Stack overflow fatal error is non-termination, not a compile rejection.
+	stackErr := "hi\nruntime: goroutine stack exceeds 1000000000-byte limit\nruntime: sp=0xc000100000 stack=[0xc000100000, 0xc000100800]\nfatal error: stack overflow\n\nruntime stack:\nruntime.throw(...)\nexit status 2\n"
+	res = classifyGo("", stackErr, errors.New("exit status 2"), false, false)
+	if res.Kind != KindNonTerm {
+		t.Fatalf("stack overflow kind = %s, want nonterm", res.Kind)
+	}
+	if res.Stdout != "hi" {
+		t.Fatalf("stack overflow stdout = %q, want hi", res.Stdout)
+	}
 }
 
 func TestPanicFoldsKeepOperands(t *testing.T) {
@@ -175,6 +213,21 @@ func TestPanicFoldsKeepOperands(t *testing.T) {
 	if class != ClassReal {
 		t.Fatalf("nil slice with a non-zero index class = %s", class)
 	}
+	// User panic("...") strings without "runtime error: " must never fold.
+	class, _ = Classify(Program{},
+		Result{Kind: KindPanic, Panic: "divide by zero A"},
+		Result{Kind: KindPanic, Panic: "divide by zero B"},
+		Result{})
+	if class != ClassReal {
+		t.Fatalf("user panic with divide-by-zero text class = %s", class)
+	}
+	class, _ = Classify(Program{},
+		Result{Kind: KindPanic, Panic: "negative shift a"},
+		Result{Kind: KindPanic, Panic: "negative shift b"},
+		Result{})
+	if class != ClassReal {
+		t.Fatalf("user panic with negative-shift text class = %s", class)
+	}
 }
 
 func TestOverflowRejectWording(t *testing.T) {
@@ -198,12 +251,42 @@ func TestOverflowRejectWording(t *testing.T) {
 	if class != ClassReal {
 		t.Fatalf("overflow vs undefined class = %s", class)
 	}
+	// An undefined identifier named "overflow" must not match overflow wording.
+	class, _ = Classify(Program{},
+		Result{Kind: KindReject, Detail: "./main.go:4:2: undefined: overflow"},
+		Result{Kind: KindReject, Detail: "main.gno:4:2: bigint overflows target kind"},
+		Result{})
+	if class != ClassReal {
+		t.Fatalf("undefined: overflow vs bigint overflows class = %s", class)
+	}
 	class, _ = Classify(Program{},
 		Result{Kind: KindReject, Detail: "cannot use 1 as int8 value (overflows)"},
 		Result{Kind: KindReject, Detail: "cannot use 1 as int64 value (overflows)"},
 		Result{})
 	if class != ClassReal {
 		t.Fatalf("different overflow types class = %s", class)
+	}
+	class, _ = Classify(Program{},
+		Result{Kind: KindReject, Detail: "constant 1e50 overflows float32"},
+		Result{Kind: KindReject, Detail: "bigint overflows float64"},
+		Result{})
+	if class != ClassReal {
+		t.Fatalf("different float overflow types class = %s", class)
+	}
+	// Multi-line span prefixes must strip cleanly.
+	if got := normalizeDiag("main/main.gno:3:1-6:2: undefined: foo"); got != "undefined: foo" {
+		t.Fatalf("normalizeDiag multi-line span = %q", got)
+	}
+}
+
+func TestClassifyInternal(t *testing.T) {
+	cl, _ := Classify(Program{}, Result{Kind: KindInternal, Detail: "exec"}, Result{Kind: KindOK}, Result{})
+	if cl != ClassInternal {
+		t.Fatalf("go internal class = %s, want internal", cl)
+	}
+	cl, _ = Classify(Program{}, Result{Kind: KindOK}, Result{Kind: KindOK}, Result{Kind: KindInternal, Detail: "lint crash"})
+	if cl != ClassInternal {
+		t.Fatalf("lint internal class = %s, want internal", cl)
 	}
 }
 
