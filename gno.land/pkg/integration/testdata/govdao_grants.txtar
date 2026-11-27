@@ -1,0 +1,271 @@
+# GovDAO grants to a team, end to end on a real node. The team opens an
+# account in the grant wallet and applies through a plain MsgCall; a member
+# sponsors with a MsgRun carrying a review; the approval, executed while the
+# pool is short, fails without being rejectable and succeeds once the pool is
+# funded. Payment 1 waits for its report, a MsgRun cannot be a grantee, the
+# account spends with a memo, reports with a link, is frozen by GovDAO, a
+# member cancels and holds, GovDAO unfreezes it, the team withdraws a
+# request, and GovDAO closes the desk.
+
+loadpkg gno.land/r/gov/dao/init/v0
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/grants/v0
+loadpkg gno.land/r/gov/grants/wallet/v0
+
+adduser bob
+
+gnoland start
+
+# test1 is the only GovDAO member.
+gnokey maketx run -gas-fee 5000001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1 $WORK/run/init_govdao_members.gno
+stdout OK!
+
+# The team opens its account and applies: MsgCalls, string arguments, whole GNOT.
+gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Open -args gnogolf -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Open -args gnogolf -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test bob
+stderr 'already open'
+gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Apply -args gnogolf -args 'Marketing Q1' -args 'Three campaigns.' -args 'start: 2; campaign two live: 3' -args 30 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout '\(1 int\)'
+
+# A MsgRun is its signer, not a realm: it cannot be a grantee.
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1 $WORK/run/apply_from_run.gno
+stderr 'grantees are realms'
+
+# A member sponsors grant 1 with a review, and GovDAO passes it while the pool holds 1 GNOT of 5.
+gnokey maketx send -send 1000000ugnot -to g1ju6euuwzu6xnleax002yepl3dx2k9j593wg0te -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+! gnokey maketx run -gas-fee 4000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/sponsor_without_review.gno
+stderr 'write your own review'
+gnokey maketx run -gas-fee 4000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/sponsor.gno
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:0'
+stdout 'Short by 4 GNOT'
+stdout 'each only after a public report on it'
+stdout 'Sponsor''s review, in full'
+stdout '> Owner known to GovDAO'
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 0 -args YES -gas-fee 2000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# Short pool: execution fails, and cannot be turned into a rejection.
+! gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteOrRejectProposal -args 0 -gas-fee 2000000ugnot -gas-wanted 40_000_000 -chainid=tendermint_test test1
+stderr 'execute again'
+
+# Funded, the same proposal executes, and the sponsor's review stays on the grant.
+gnokey maketx send -send 4000000ugnot -to g1ju6euuwzu6xnleax002yepl3dx2k9j593wg0te -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 0 -gas-fee 2000000ugnot -gas-wanted 40_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/gov/grants/v0.Committed()'
+stdout '\(5000000 int64\)'
+gnokey query vm/qrender --data 'gno.land/r/gov/grants/v0:grant/1'
+stdout 'Waiting for the grantee''s report on payment 1'
+stdout 'Sponsor''s review'
+stdout 'an account in \[the grant wallet\]'
+
+# Payment 1 is no advance: it waits for a report.
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/v0 -func Claim -args 1 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test bob
+stderr 'has no report yet'
+
+# The account spends with a memo, from its own address; the spend is on its page.
+gnokey maketx send -send 100000ugnot -to g13ckj5dsurxxfre75axtgkwyr4g9t5dwy00pav7 -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Spend -args gnogolf -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -args 0.04 -args 'designer, week 1' -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query bank/balances/g13ckj5dsurxxfre75axtgkwyr4g9t5dwy00pav7
+stdout '60000ugnot'
+gnokey query vm/qrender --data 'gno.land/r/gov/grants/wallet/v0:gnogolf'
+stdout '0.06 GNOT'
+stdout 'designer, week 1'
+stdout 'Marketing Q1'
+stdout 'gno-form exec=.Report.'
+
+# Only the owner acts for the account.
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Spend -args gnogolf -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -args 0.01 -args 'theft' -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test bob
+stderr 'only the owner'
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Report -args gnogolf -args 1 -args 'fake report' -args '' -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test bob
+stderr 'only the owner'
+
+# The owner reports with a link; amounts and period are bounded.
+gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Report -args gnogolf -args 1 -args 'Campaign one is live: 3 posts, 40k views.' -args '/r/gov/grants/wallet/v0:gnogolf' -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/grants/v0:grant/1'
+stdout 'What it shows: \['
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/v0 -func Claim -args 1 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test bob
+stderr 'is payable at'
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Report -args gnogolf -args 1 -args 'r' -args 'javascript:alert(1)' -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'link must be'
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Apply -args gnogolf -args 'Zero' -args 'p' -args 'nothing: 0' -args 0 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'whole GNOT, at least 1'
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Apply -args gnogolf -args 'Huge' -args 'p' -args 'all: 4398046511105' -args 0 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'whole GNOT, at least 1'
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Apply -args gnogolf -args 'Long' -args 'p' -args 'a: 1; b: 1' -args 213534 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'periodDays must be between 0 and 366'
+
+# GovDAO freezes the account: it cannot spend, and the desk pays it nothing.
+gnokey maketx run -gas-fee 4000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/freeze.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 1 -args YES -gas-fee 2000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 1 -gas-fee 2000000ugnot -gas-wanted 40_000_000 -chainid=tendermint_test test1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Spend -args gnogolf -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -args 0.01 -args 'while frozen' -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'GovDAO froze account gnogolf'
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/v0 -func Claim -args 1 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test bob
+stderr 'GovDAO froze'
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func TransferOwnership -args gnogolf -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'GovDAO froze account gnogolf'
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Apply -args gnogolf -args 'Q2' -args 'More.' -args 'all: 1' -args 0 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'GovDAO froze'
+gnokey query vm/qrender --data 'gno.land/r/gov/grants/wallet/v0:gnogolf'
+stdout 'Frozen by GovDAO'
+stdout 'Spends do not match the reports'
+
+# A member files a cancellation and holds the next payment in the same MsgRun.
+gnokey maketx run -gas-fee 4000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/cancel_and_hold.gno
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/grants/v0:grant/1'
+stdout 'held by \[proposal #2\]'
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 2 -args YES -gas-fee 2000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 2 -gas-fee 2000000ugnot -gas-wanted 40_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qeval --data 'gno.land/r/gov/grants/v0.Committed()'
+stdout '\(0 int64\)'
+
+# GovDAO unfreezes the account.
+gnokey maketx run -gas-fee 4000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/unfreeze.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 3 -args YES -gas-fee 2000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 3 -gas-fee 2000000ugnot -gas-wanted 40_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# The team withdraws a request it no longer needs.
+gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Apply -args gnogolf -args 'Q2' -args 'More.' -args 'all: 1' -args 0 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout '\(2 int\)'
+gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Withdraw -args gnogolf -args 2 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/grants/v0:grant/2'
+stdout 'withdrawn by the grantee'
+
+# GovDAO closes the desk; with nothing committed, the whole pool goes back to the treasury.
+gnokey maketx run -gas-fee 4000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/close.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 4 -args YES -gas-fee 2000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 4 -gas-fee 2000000ugnot -gas-wanted 40_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query bank/balances/g1ju6euuwzu6xnleax002yepl3dx2k9j593wg0te
+stdout 'data: ""'
+gnokey query bank/balances/g19fggfr4r6ajvd6ctlx9gd5j5fanerxfmyf737t
+stdout '5000000ugnot'
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Apply -args gnogolf -args 'Q3' -args 'More.' -args 'all: 1' -args 0 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'program is closed'
+gnokey query vm/qrender --data 'gno.land/r/gov/grants/wallet/v0:gnogolf'
+stdout 'takes no new request'
+! stdout 'exec="Apply"'
+
+# Handing the account over takes the new owner's acceptance; both steps are journaled, and the old owner loses it.
+gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func TransferOwnership -args gnogolf -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/grants/wallet/v0:gnogolf'
+stdout 'handover offered'
+gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func AcceptOwnership -args gnogolf -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test bob
+stdout OK!
+gnokey query vm/qrender --data 'gno.land/r/gov/grants/wallet/v0:gnogolf'
+stdout 'new owner'
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func TransferOwnership -args gnogolf -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stderr 'only the owner'
+
+-- run/init_govdao_members.gno --
+package main
+
+import dao "gno.land/r/gov/dao/init/v0"
+
+func main(cur realm) {
+	dao.InitWithUsers(cross(cur), "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+}
+
+-- run/apply_from_run.gno --
+package main
+
+import grants "gno.land/r/gov/grants/v0"
+
+func main(cur realm) {
+	grants.Apply(cross(cur), "t", "p", []grants.Tranche{{Deliverable: "all", Amount: 1}}, 0)
+}
+
+-- run/sponsor_without_review.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	grants "gno.land/r/gov/grants/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), grants.NewApproveRequest(cross(cur), 1, " "))
+}
+
+-- run/sponsor.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	grants "gno.land/r/gov/grants/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), grants.NewApproveRequest(cross(cur), 1,
+		"Owner known to GovDAO (test1), a user, not a realm. No conflict of interest."))
+}
+
+-- run/freeze.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	grants "gno.land/r/gov/grants/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), grants.NewFreezeRequest(cross(cur), "gno.land/r/gov/grants/wallet/v0#gnogolf", true, "Spends do not match the reports."))
+}
+
+-- run/unfreeze.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	grants "gno.land/r/gov/grants/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), grants.NewFreezeRequest(cross(cur), "gno.land/r/gov/grants/wallet/v0#gnogolf", false, "Spends explained."))
+}
+
+-- run/cancel_and_hold.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	grants "gno.land/r/gov/grants/v0"
+)
+
+func main(cur realm) {
+	pid := dao.MustCreateProposal(cross(cur), grants.NewCancelRequest(cross(cur), 1, "Campaign three was dropped."))
+	grants.Hold(cross(cur), 1, int64(pid))
+}
+
+-- run/close.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	grants "gno.land/r/gov/grants/v0"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur), grants.NewCloseRequest(cross(cur), address("g19fggfr4r6ajvd6ctlx9gd5j5fanerxfmyf737t"), "Round closed.", false))
+}
