@@ -179,8 +179,31 @@ func TestProposalInputsAreChecked(cur realm, t *testing.T) {
 	uassert.AbortsContains(t, cur, "write a reason", func() { NewCancelRequest(cross(cur), id, "REASON") })
 	testing.SetRealm(testing.NewUserRealm(member))
 	uassert.AbortsContains(t, cur, "reserved", func() { NewCancelRequest(cross(cur), id, "withdrawn by the grantee") })
+	// Invisible text would pass the vote and fail at execution.
+	testing.SetRealm(testing.NewUserRealm(member))
+	uassert.AbortsContains(t, cur, "write a reason", func() { NewCancelRequest(cross(cur), id, "\u200b\u2066") })
 	testing.SetRealm(testing.NewUserRealm(member))
 	uassert.AbortsContains(t, cur, "other than the pool", func() { NewReturnRequest(cross(cur), Address(), 1, "r") })
 	testing.SetRealm(testing.NewUserRealm(member))
 	uassert.AbortsContains(t, cur, "valid address", func() { NewCloseRequest(cross(cur), "nope", "r", false) })
+}
+
+// GovDAO can freeze the wallet itself: no account can then be approved, and
+// its pages still render. Unfrozen at the end, for the tests after it.
+func TestWalletHostCanBeFrozen(cur realm, t *testing.T) {
+	seatMember(cur)
+	id, err := desk.Apply(walletPath+"#hostfreeze", "t", "p", tranches(), 30*day, time.Now())
+	urequire.NoError(t, err)
+	testing.SetRealm(testing.NewUserRealm(member))
+	freeze := dao.MustCreateProposal(cross(cur), NewFreezeRequest(cross(cur), walletPath, true, "Pause wallet intake."))
+	dao.MustVoteOnProposalSimple(cross(cur), int64(freeze), "YES")
+	urequire.True(t, dao.ExecuteProposal(cross(cur), freeze))
+	testing.SetRealm(testing.NewUserRealm(member))
+	uassert.AbortsContains(t, cur, "or its host", func() { NewApproveRequest(cross(cur), id, "Reviewed.") })
+	uassert.True(t, strings.Contains(Render("grant/"+itoa(id)), "Grantee frozen"))
+
+	testing.SetRealm(testing.NewUserRealm(member))
+	unfreeze := dao.MustCreateProposal(cross(cur), NewFreezeRequest(cross(cur), walletPath, false, "Resume."))
+	dao.MustVoteOnProposalSimple(cross(cur), int64(unfreeze), "YES")
+	urequire.True(t, dao.ExecuteProposal(cross(cur), unfreeze))
 }

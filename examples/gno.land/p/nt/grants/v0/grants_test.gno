@@ -90,6 +90,7 @@ func TestApplyValidates(t *testing.T) {
 		{"no grantee", "", "t", "p", two(), month, "grantee"},
 		{"blank title", golf, "  ", "p", two(), month, "title"},
 		{"invisible title", golf, "\u200b\u200e \u2066", "p", two(), month, "title"},
+		{"filler title", golf, "\u3164\u2800\u115f\ufe0f\u034f\x7f", "p", two(), month, "title"},
 		{"long title", golf, strings.Repeat("x", MaxTitle+1), "p", two(), month, "title"},
 		{"multiline title", golf, "a\nb", "p", two(), month, "single line"},
 		{"blank pitch", golf, "t", "", two(), month, "pitch"},

@@ -27,12 +27,14 @@ func TestCloseReturnsEverythingOnce(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(member))
 	first := dao.MustCreateProposal(cross(cur), NewCloseRequest(cross(cur), returnTo, "end of round", true))
 	second := dao.MustCreateProposal(cross(cur), NewCloseRequest(cross(cur), returnTo, "again", true))
+	// Funds that arrive while the vote runs are not part of it.
+	testing.IssueCoins(Address(), coins(1000))
 	dao.MustVoteOnProposalSimple(cross(cur), int64(first), "YES")
 	dao.MustVoteOnProposalSimple(cross(cur), int64(second), "YES")
 	urequire.True(t, dao.ExecuteProposal(cross(cur), first))
 
 	uassert.Equal(t, int64(0), Committed())
-	uassert.Equal(t, int64(0), Balance())
+	uassert.Equal(t, int64(1000), Balance(), "what arrived later waits for a return vote")
 	uassert.Equal(t, before+pool, banker.NewReadonlyBanker().GetCoin(treasury, Denom))
 	uassert.Equal(t, 0, desk.ActiveCount())
 	uassert.False(t, dao.ExecuteOrRejectProposal(cross(cur), second))

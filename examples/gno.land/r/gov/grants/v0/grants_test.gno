@@ -154,6 +154,11 @@ func TestHoldNeedsTheSameBlock(cur realm, t *testing.T) {
 	testing.SkipHeights(1)
 	testing.SetRealm(testing.NewUserRealm(member))
 	uassert.AbortsContains(t, cur, "same MsgRun", func() { Hold(cross(cur), id, int64(cancel)) })
+	// Nor after building a throwaway cancellation: the hold must cite that very build.
+	testing.SetRealm(testing.NewUserRealm(member))
+	_ = NewCancelRequest(cross(cur), id, "throwaway")
+	testing.SetRealm(testing.NewUserRealm(member))
+	uassert.AbortsContains(t, cur, "same MsgRun", func() { Hold(cross(cur), id, int64(cancel)) })
 	uassert.False(t, mustGet(id).Held())
 }
 
@@ -174,6 +179,18 @@ func TestStaleCancellationFails(cur realm, t *testing.T) {
 	uassert.Equal(t, "active", mustGet(id).Status.String())
 }
 
+// Voters read every deliverable in full: nothing past a cut can hide terms.
+func TestApprovalShowsWholeDeliverables(cur realm, t *testing.T) {
+	seatMember(cur)
+	long := strings.Repeat("strict terms ", 18) + "ESCAPECLAUSE"
+	id, err := desk.Apply("gno.land/r/test/longterms", "t", "p", []Tranche{{Deliverable: long, Amount: 80}, {Deliverable: "b", Amount: 320}}, 30*day, time.Now())
+	urequire.NoError(t, err)
+	testing.SetRealm(testing.NewUserRealm(member))
+	pid := dao.MustCreateProposal(cross(cur), NewApproveRequest(cross(cur), id, "Reviewed: test grantee."))
+	p, _ := dao.GetProposal(pid)
+	uassert.True(t, strings.Contains(p.Description(), "ESCAPECLAUSE"))
+}
+
 // A namespace counts its own realms' grants, never the wallet accounts the
 // gov namespace hosts for everyone.
 func TestNamespaceSkipsHostedAccounts(t *testing.T) {
@@ -187,6 +204,10 @@ func TestNamespaceSkipsHostedAccounts(t *testing.T) {
 	uassert.Equal(t, "gno.land/r/gov/x", list[0].Grantee)
 	_, n = nsGrants("team1", 0)
 	uassert.Equal(t, 1, n)
+	// A wallet account's namespace may carry a dot; its page must open.
+	_, err := desk.Apply(walletPath+"#dot.ns", "t", "p", tranches(), 30*day, time.Now())
+	urequire.NoError(t, err)
+	uassert.False(t, strings.HasPrefix(Render("ns/dot.ns"), "# Not found"))
 }
 
 // A passed approval the pool cannot cover panics instead of failing, so

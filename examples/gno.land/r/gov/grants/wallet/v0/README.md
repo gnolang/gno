@@ -19,6 +19,8 @@ The way to take GovDAO grants from [`r/gov/grants/v0`](../../v0) without deployi
 4. **Spend** with a memo; every spend and every change of owner is in the account's public journal.
    Hand the account to a multisig account or a DAO realm with `TransferOwnership`; it changes hands
    when the new owner calls `AcceptOwnership`, so an address that cannot act never ends up owning it.
+   Offering the account to yourself withdraws an offer, even while GovDAO has the account frozen.
+   An account page warns when its owner can no longer deploy under the account's namespace.
    A realm owner must call this wallet from its own code (`AcceptOwnership`, then `Spend`): a realm
    that never calls out, such as a safe that only lets targets pull payloads, cannot own an account.
 

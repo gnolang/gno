@@ -102,6 +102,10 @@ stderr 'whole GNOT, at least 1'
 ! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Apply -args gnogolf -args 'Long' -args 'p' -args 'a: 1; b: 1' -args 213534 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
 stderr 'periodDays must be between 0 and 366'
 
+# An offer made before a freeze: the owner can still withdraw it while frozen.
+gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func TransferOwnership -args gnogolf -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
+
 # GovDAO freezes the account: it cannot spend, and the desk pays it nothing.
 gnokey maketx run -gas-fee 4000000ugnot -gas-wanted 60_000_000 -chainid=tendermint_test test1 $WORK/run/freeze.gno
 stdout OK!
@@ -113,8 +117,12 @@ stdout OK!
 stderr 'GovDAO froze account gnogolf'
 ! gnokey maketx call -pkgpath gno.land/r/gov/grants/v0 -func Claim -args 1 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test bob
 stderr 'GovDAO froze'
-! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func TransferOwnership -args gnogolf -args $bob_user_addr -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func TransferOwnership -args gnogolf -args g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
 stderr 'GovDAO froze account gnogolf'
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func AcceptOwnership -args gnogolf -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test bob
+stderr 'GovDAO froze account gnogolf'
+gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func TransferOwnership -args gnogolf -args g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout OK!
 ! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Apply -args gnogolf -args 'Q2' -args 'More.' -args 'all: 1' -args 0 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
 stderr 'GovDAO froze'
 gnokey query vm/qrender --data 'gno.land/r/gov/grants/wallet/v0:gnogolf'
@@ -140,6 +148,10 @@ gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -a
 stdout OK!
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 3 -gas-fee 2000000ugnot -gas-wanted 40_000_000 -chainid=tendermint_test test1
 stdout OK!
+
+# The offer withdrawn while frozen cannot be taken up after the unfreeze.
+! gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func AcceptOwnership -args gnogolf -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test bob
+stderr 'not offered to you'
 
 # The team withdraws a request it no longer needs.
 gnokey maketx call -pkgpath gno.land/r/gov/grants/wallet/v0 -func Apply -args gnogolf -args 'Q2' -args 'More.' -args 'all: 1' -args 0 -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1

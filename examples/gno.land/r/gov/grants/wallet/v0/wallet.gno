@@ -134,8 +134,8 @@ func Spend(cur realm, name string, to address, amount, memo string) {
 	if !ok {
 		panic("amount is in GNOT, more than 0, with at most 6 decimals: 12 or 0.5")
 	}
-	// Zero-width and bidi characters alone would leave an empty journal line.
-	if strings.TrimSpace(sanitize.StripBidiAndZeroWidth(memo)) == "" || len(memo) > MaxMemo {
+	// Invisible characters alone would leave an empty journal line.
+	if !gp.Visible(memo) || len(memo) > MaxMemo {
 		panic("a memo of 1 to " + strconv.Itoa(MaxMemo) + " bytes is required")
 	}
 	a.record(entry{At: time.Now().Unix(), To: to, Amount: ugnot, Memo: memo})
@@ -150,10 +150,17 @@ func Spend(cur realm, name string, to address, amount, memo string) {
 // account, or a realm whose code calls this wallet. It changes hands once newOwner calls AcceptOwnership,
 // which proves it can act: an address that never can, such as another
 // account's, cannot lock the account. Until then the owner keeps it and can
-// offer it again. Owner only, and never while GovDAO has the account frozen;
-// both steps are journaled.
+// offer it again, or withdraw the offer by offering the account to itself,
+// which works even while GovDAO has the account frozen. Owner only; any
+// other offer is refused while the account is frozen. Every step is journaled.
 func TransferOwnership(cur realm, name string, newOwner address) {
 	a := mustOwn(cur, name)
+	if newOwner == a.owner {
+		a.offered = ""
+		a.record(entry{At: time.Now().Unix(), To: newOwner, Memo: "handover withdrawn"})
+		chain.Emit("OwnershipOffered", "account", name, "to", "")
+		return
+	}
 	mustNotFrozen(name)
 	if !newOwner.IsValid() {
 		panic("invalid new owner: a user's, a multisig's or a realm's address")
@@ -337,6 +344,10 @@ func accountPage(name string, a *account, page int) string {
 		"\n</gno-frame>\n<gno-columns-sep />\n<gno-frame>\n<gno-icon name=\"coins\" /> " + from + "\n\n### " + gnot(received) +
 		"\n</gno-frame>\n<gno-columns-sep />\n<gno-frame>\n<gno-icon name=\"send\" /> Spent\n\n### " + gnot(a.spent) +
 		"\n</gno-frame>\n</gno-columns>\n\n")
+	if ns, _, _ := strings.Cut(name, "/"); !names.IsAuthorizedAddressForNamespace(a.owner, ns) {
+		b.WriteString("> [!WARNING] Owner outside the namespace\n> The owner cannot deploy under " + sanitize.InlineCode("r/"+ns) +
+			": the account was handed on, or the name was removed or renamed since it opened. Check who controls it before voting.\n\n")
+	}
 	if a.offered != "" {
 		b.WriteString("Handover offered to " + sanitize.InlineCode(a.offered.String()) +
 			": it becomes the owner when it accepts with AcceptOwnership. Until then the owner keeps the account.\n\n")
@@ -369,12 +380,15 @@ func accountPage(name string, a *account, page int) string {
 	field := "<gno-input name=\"name\" type=\"text\" value=\"" + sanitize.HTMLEscape(name) + "\" readonly=\"true\" />\n"
 	b.WriteString("## <gno-icon name=\"edit\" /> Act (owner)\n\n")
 	closed := !frozen && grants.Closed()
+	hostFrozen := !frozen && grants.Frozen(path)
 	if frozen {
 		b.WriteString("GovDAO froze this account: it cannot apply, spend or change hands until GovDAO unfreezes it.\n\n")
 	} else if closed {
 		b.WriteString("GovDAO closed [the grants desk](/r/gov/grants/v0): it takes no new request.\n\n")
+	} else if hostFrozen {
+		b.WriteString("GovDAO froze the grant wallet: no account can ask for a grant until GovDAO unfreezes it.\n\n")
 	}
-	if !frozen && !closed {
+	if !frozen && !closed && !hostFrozen {
 		b.WriteString("<gno-details summary=\"Ask GovDAO for a grant\">\n\n" +
 			"Amounts are whole GNOT. A payment falls due once you report its deliverable done and GovDAO's review window passes; " +
 			"anyone then releases it with Claim on the grant's page at the desk. A first payment of at most " +

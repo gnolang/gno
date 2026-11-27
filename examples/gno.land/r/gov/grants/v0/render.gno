@@ -579,9 +579,9 @@ func approveText(g gp.Grant, sponsor, review string) string {
 			due = "advance, " + days(r.Window) + " after approval"
 		}
 		b.WriteString("| " + itoa(i+1) + " | " + gnot(t.Amount) + " | " + due + " | " +
-			sanitize.TableCell(clamp(t.Deliverable, 120)) + " |\n")
+			sanitize.TableCell(t.Deliverable) + " |\n")
 	}
-	b.WriteString("\nPitch, in the grantee's words: " + sanitize.InlineText(clamp(g.Pitch, 400)) + "\n")
+	b.WriteString("\nPitch, in the grantee's words (the full text is on the grant page): " + sanitize.InlineText(clamp(g.Pitch, 400)) + "\n")
 	b.WriteString("\nSponsor's review, in full:\n\n" + quote(review))
 	return b.String()
 }
@@ -778,7 +778,7 @@ func realmLinks(grantee string) string {
 }
 
 // hosted reports whether grantee is an account in the grant wallet.
-func hosted(grantee string) bool { return gp.Host(grantee) == walletPath }
+func hosted(grantee string) bool { return strings.HasPrefix(grantee, walletPath+"#") }
 
 // granteePage is where a grantee shows what it does with its grants.
 func granteePage(grantee string) string {
@@ -811,7 +811,7 @@ func isName(s string) bool {
 		return false
 	}
 	for _, c := range s {
-		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '_' || c == '-') {
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '_' || c == '-' || c == '.') {
 			return false
 		}
 	}

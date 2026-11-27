@@ -67,6 +67,15 @@ func TestOnlyTheOwnerActs(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(bob))
 	uassert.AbortsContains(t, cur, "not offered to you", func() { AcceptOwnership(cross(cur), "owned") })
 
+	// The owner withdraws an offer by offering the account to itself.
+	testing.SetRealm(testing.NewUserRealm(alice))
+	TransferOwnership(cross(cur), "owned", bob)
+	testing.SetRealm(testing.NewUserRealm(alice))
+	TransferOwnership(cross(cur), "owned", alice)
+	testing.SetRealm(testing.NewUserRealm(bob))
+	uassert.AbortsContains(t, cur, "not offered to you", func() { AcceptOwnership(cross(cur), "owned") })
+	uassert.True(t, strings.Contains(Render("owned"), "handover withdrawn"))
+
 	testing.SetRealm(testing.NewUserRealm(alice))
 	TransferOwnership(cross(cur), "owned", bob)
 	uassert.Equal(t, alice, Owner("owned"))
@@ -103,6 +112,8 @@ func TestSpend(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 	uassert.AbortsContains(t, cur, "memo", func() { Spend(cross(cur), "spender", bob, "1", "\u200b\u202e") })
 	testing.SetRealm(testing.NewUserRealm(alice))
+	uassert.AbortsContains(t, cur, "memo", func() { Spend(cross(cur), "spender", bob, "1", "\u3164\u2800") })
+	testing.SetRealm(testing.NewUserRealm(alice))
 	uassert.AbortsContains(t, cur, "invalid recipient", func() { Spend(cross(cur), "spender", "nope", "1", "m") })
 	for _, stuck := range []address{Address("spender"), chain.PackageAddress(path)} {
 		testing.SetRealm(testing.NewUserRealm(alice))
@@ -138,8 +149,10 @@ func TestPages(cur realm, t *testing.T) {
 	Open(cross(cur), "pages")
 	for i := 0; i < pageSize; i++ {
 		testing.SetRealm(testing.NewUserRealm(alice))
-		TransferOwnership(cross(cur), "pages", alice)
+		TransferOwnership(cross(cur), "pages", alice) // a withdrawal, journaled
 	}
+	testing.SetRealm(testing.NewUserRealm(alice))
+	TransferOwnership(cross(cur), "pages", bob)
 	page := Render("pages")
 	for _, fn := range []string{"Apply", "Report", "Spend", "Withdraw", "TransferOwnership", "AcceptOwnership"} {
 		uassert.True(t, strings.Contains(page, `<gno-form exec="`+fn+`">`), fn)

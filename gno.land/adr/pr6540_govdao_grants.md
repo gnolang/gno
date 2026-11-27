@@ -33,7 +33,8 @@ change to GovDAO.
   sends it there: a treasury payment proposal when the GovDAO treasury holds funds, or the holder
   of the Ecosystem Treasury account. Coins leave only to a grantee's address (derived from the
   caller) or, by proposal (`NewReturnRequest`, `NewCloseRequest`), to the address the vote names,
-  normally where they came from. Approval requires full coverage on
+  normally where they came from, never more than the amount the proposal showed: funds that reach
+  the pool while a close is voted stay for a return vote. Approval requires full coverage on
   top of what is committed, so every approved grant is payable.
 - **Grantees are code, hosted by default.** `r/gov/grants/wallet/v0` holds one account per
   namespace (`gnogolf`, or `gnogolf/cup`), opened by whoever may deploy under that namespace
@@ -64,17 +65,19 @@ change to GovDAO.
 - **Brakes.** Cancel by proposal at any time; a cancellation fails if the grant's status changed
   since it was proposed (a request approved meanwhile is a funded grant voters did not weigh).
   The author of the newest proposal, if it is the cancellation of that grant (exact stored title
-  and an executor created by the desk, never called) and the desk built it for that author in the
-  same block, can push the next payment back 14 days, once per payment. The same-block rule stands
-  in for a status check GovDAO does not expose: a hold cannot follow a vote already lost. GovDAO can freeze a grantee (`NewFreezeRequest`): the
+  and an executor created by the desk, never called) and that executor is the build the desk made
+  last, for that author, in the same block, can push the next payment back 14 days, once per
+  payment. The same-block rule stands in for a status check GovDAO does not expose: a hold cannot
+  follow a vote already lost, even by building a throwaway cancellation first. GovDAO can freeze a grantee (`NewFreezeRequest`): the
   desk pays it nothing, it cannot apply or be approved, and a wallet account cannot spend or change
   hands, until it is unfrozen. Freezing a realm also stops identities it hosts from applying or
-  being approved, even when it never applied under its own path; those already approved stay
+  being approved, even when it never applied under its own path (the wallet itself included);
+  those already approved stay
   payable until each is frozen, and their pages do not show them as frozen. Other wallet accounts
   of the same namespace are grantees of their own, and the freeze proposal says so. The grantee can
   withdraw. Anyone can expire a request pending 60 days, or a grant whose next payment is still
   unreported 60 days after its period. `NewCloseRequest` stops new requests and approvals and
-  returns the uncommitted pool; running grants go on unless the vote also cancels them, so a move
+  returns the uncommitted pool, up to what it held when proposed; running grants go on unless the vote also cancels them, so a move
   to a v1 desk does not re-vote every running grant; a later close can still cancel them all. Close walks only active grants, which only
   GovDAO creates.
 - **Bounded work.** Active grants and pending requests are listed separately, pending ones oldest
@@ -88,8 +91,9 @@ change to GovDAO.
   executable (tested on a node); a stale one returns an error so it can be rejected. Every change
   of a grant's status emits an event naming it, including a superseded request and each grant a
   closing vote cancels.
-- **Voters and observers.** Proposal descriptions lead with facts the desk computes; grantee and
-  sponsor words are escaped, clamped and labelled, and quoted line by line on the pages, so they
+- **Voters and observers.** Proposal descriptions lead with facts the desk computes and show every
+  deliverable in full, so no term hides past a cut; grantee and sponsor words are escaped and
+  labelled (only the pitch is clamped, and says where the full text is), and quoted line by line on the pages, so they
   cannot open a heading, link or code fence.
 - **Pages.** gnoweb extensions only: cards, alerts, collapsible sections, icons, and one-click
   call forms for the calls anyone may make (Claim, Expire) and for an account's owner. "Needs

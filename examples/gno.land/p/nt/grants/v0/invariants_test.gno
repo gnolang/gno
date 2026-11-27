@@ -31,6 +31,7 @@ func randomRun(t *testing.T, seed uint64) {
 		now           = t0
 		final         = map[int]string{}
 	)
+	claims := 0
 	rnd := func(n int) int {
 		seed = seed*6364136223846793005 + 1442695040888963407
 		return int((seed >> 33) % uint64(n))
@@ -38,9 +39,18 @@ func randomRun(t *testing.T, seed uint64) {
 
 	for step := 0; step < 400; step++ {
 		now = now.Add(time.Duration(rnd(10*24)) * time.Hour)
+		op := rnd(10)
 		id := rnd(p.Size()+2) + 1
+		// Reports, claims and holds go to running grants, or the payment
+		// checks below would almost never see a claim.
+		if l := p.Active(0, p.ActiveCount()); len(l) > 0 && (op == 4 || op == 5 || op == 8) {
+			id = l[rnd(len(l))].ID
+		}
+		if l := p.Waiting(0, p.WaitingCount()); len(l) > 0 && op == 3 {
+			id = l[rnd(len(l))].ID
+		}
 		before, _ := p.Get(id)
-		switch rnd(10) {
+		switch op {
 		case 0, 1:
 			n := rnd(3) + 1
 			ts := make([]Tranche, n)
@@ -59,6 +69,7 @@ func randomRun(t *testing.T, seed uint64) {
 		case 5:
 			_, amount, err := p.Claim(id, now)
 			if err == nil {
+				claims++
 				if !mayPay(p.Rules(), before, now.Unix()) {
 					t.Fatalf("step %d: grant %d paid before it was due", step, id)
 				}
@@ -88,6 +99,7 @@ func randomRun(t *testing.T, seed uint64) {
 		}
 		check(t, p, step, balance, final)
 	}
+	t.Logf("claims=%d", claims)
 }
 
 func check(t *testing.T, p *Program, step int, balance int64, final map[int]string) {
@@ -161,7 +173,9 @@ func mayPay(r Rules, g Grant, now int64) bool {
 		return false
 	}
 	for _, h := range g.Holds {
-		if h.Tranche == next && now < h.At+secs(r.HoldFor) {
+		// HoldFor after the hold, and after when it would have been paid.
+		d := secs(r.HoldFor)
+		if h.Tranche == next && (now < h.At+d || now < since+secs(r.Window)+d || next > 0 && now < g.PaidAt[next-1]+secs(g.Period)+d) {
 			return false
 		}
 	}

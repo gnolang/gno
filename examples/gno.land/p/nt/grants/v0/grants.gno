@@ -816,6 +816,11 @@ func checkLink(link string) error {
 	return nil
 }
 
+// CheckReason reports whether reason is one Cancel and Close accept, so a
+// desk can refuse it when it builds a proposal rather than when the vote
+// executes.
+func CheckReason(reason string) error { return checkReason(reason) }
+
 // checkReason accepts a grantor's reason, never the one a grantee's own
 // withdrawal carries, so a cancellation cannot pass for one.
 func checkReason(reason string) error {
@@ -844,14 +849,20 @@ func checkProse(field, s string, max int) error {
 	return nil
 }
 
-// checkText accepts text of at most max bytes with something visible in it:
-// spaces and format characters (zero-width, bidi controls), which renderers
-// strip, do not count.
+// Visible reports whether s shows anything once rendered: spaces, control
+// and format characters (zero-width, bidi), fillers and variation selectors
+// do not count. A grantee realm or a wallet can check its own text with it.
+func Visible(s string) bool { return strings.TrimFunc(s, invisible) != "" }
+
+// checkText accepts visible text of at most max bytes.
 func checkText(field, s string, max int) error {
-	if len(s) > max || strings.TrimFunc(s, invisible) == "" {
+	if len(s) > max || !Visible(s) {
 		return errors.New("grants: " + field + " must be 1 to " + strconv.Itoa(max) + " bytes")
 	}
 	return nil
 }
 
-func invisible(r rune) bool { return unicode.IsSpace(r) || unicode.Is(unicode.Cf, r) }
+func invisible(r rune) bool {
+	return unicode.IsSpace(r) || r == 0x2800 || // braille blank
+		unicode.In(r, unicode.Cc, unicode.Cf, unicode.Other_Default_Ignorable_Code_Point, unicode.Variation_Selector)
+}

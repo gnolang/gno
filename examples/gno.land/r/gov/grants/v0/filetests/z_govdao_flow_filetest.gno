@@ -239,7 +239,7 @@ func main(cur realm) {
 // | 1 | 0.00008 GNOT | advance, 14 days after approval | v3 design published |
 // | 2 | 0.00032 GNOT | after a report | v3 live |
 //
-// Pitch, in the grantee's words: New courses and a weekly cup to bring players to gno\.land\.
+// Pitch, in the grantee's words (the full text is on the grant page): New courses and a weekly cup to bring players to gno\.land\.
 //
 // Sponsor's review, in full:
 //

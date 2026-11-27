@@ -66,15 +66,17 @@ type Tranche = gp.Tranche
 var (
 	desk   *gp.Program
 	frozen = avl.NewTree() // grantee -> why GovDAO froze it
-	// built is the cancellation built last, so Hold can tell it was built in
-	// the caller's own MsgRun.
-	built cancelRef
+	// built is the cancellation built last, so Hold can tell that the
+	// proposal it cites is that very build, made in the caller's own MsgRun.
+	built  cancelRef
+	builds int // cancellations built so far; each executor names its build
 )
 
 type cancelRef struct {
 	id     int
 	by     address
 	height int64
+	seq    int
 }
 
 func init() {
@@ -222,7 +224,7 @@ func Hold(cur realm, id int, pid int64) {
 	if p.Title() != cancelTitle(g) || p.ExecutorCreationRealm() != path {
 		panic("grants: proposal " + i64(pid) + " is not the cancellation of grant #" + itoa(id))
 	}
-	if built != (cancelRef{id, cur.Previous().Address(), runtime.ChainHeight()}) {
+	if built != (cancelRef{id, cur.Previous().Address(), runtime.ChainHeight(), built.seq}) || p.ExecutorString() != cancelExec(id, built.seq) {
 		panic("grants: Hold must follow the cancellation in the same MsgRun")
 	}
 	check(desk.Hold(id, pid, time.Now()))
@@ -297,7 +299,8 @@ func NewCancelRequest(cur realm, id int, reason string) dao.ProposalRequest {
 		panic("grants: grant #" + itoa(id) + " is " + g.Status.String())
 	}
 	mustReason(reason)
-	built = cancelRef{id, cur.Previous().Address(), runtime.ChainHeight()}
+	builds++
+	built = cancelRef{id, cur.Previous().Address(), runtime.ChainHeight(), builds}
 	grantee, was := g.Grantee, g.Status
 	cb := func(cur realm) error {
 		if now := mustGet(id); now.Status != was {
@@ -313,7 +316,7 @@ func NewCancelRequest(cur realm, id int, reason string) dao.ProposalRequest {
 	return dao.NewProposalRequest(
 		cancelTitle(g),
 		cancelText(g, reason),
-		dao.NewSimpleExecutor(0, cur, cb, "Cancels grant #"+itoa(id)+" of "+path),
+		dao.NewSimpleExecutor(0, cur, cb, cancelExec(id, builds)),
 	)
 }
 
@@ -397,6 +400,12 @@ func NewCloseRequest(cur realm, to address, reason string, cancelGrants bool) da
 	}
 	mustDestination(to)
 	mustReason(reason)
+	// The most the vote can send: what voters were shown, never what
+	// arrives in the pool while it is voted.
+	max := Available()
+	if cancelGrants {
+		max = Balance()
+	}
 	cb := func(cur realm) error {
 		var cancelled []gp.Grant
 		if cancelGrants {
@@ -409,7 +418,11 @@ func NewCloseRequest(cur realm, to address, reason string, cancelGrants bool) da
 			chain.Emit("GrantCancelled", "id", itoa(g.ID), "grantee", g.Grantee)
 		}
 		chain.Emit("DeskClosed", "cancelled", itoa(len(cancelled)))
-		if a := Available(); a > 0 {
+		a := Available()
+		if a > max {
+			a = max
+		}
+		if a > 0 {
 			pay(cur, to, a)
 		}
 		return nil
@@ -417,10 +430,11 @@ func NewCloseRequest(cur realm, to address, reason string, cancelGrants bool) da
 	dest := sanitize.InlineCode(to.String())
 	effect := "its active grants (" + itoa(desk.ActiveCount()) + " when proposed) "
 	if cancelGrants {
-		effect += "are cancelled, paid tranches staying paid, and the whole pool (" + gnot(Balance()) + " when proposed) goes to " + dest + "."
+		effect += "are cancelled, paid tranches staying paid, and the pool goes to " + dest + ", up to " + gnot(max) + ", its balance now."
 	} else {
-		effect += "go on as approved, and the uncommitted funds (" + gnot(Available()) + " when proposed) go to " + dest + "."
+		effect += "go on as approved, and the uncommitted funds go to " + dest + ", up to " + gnot(max) + ", what is free now."
 	}
+	effect += " Funds that reach the pool later stay there for a return vote."
 	return dao.NewProposalRequest(
 		"Close the grants desk, funds to "+to.String(),
 		"If this passes, the grants desk takes no new request or approval, pending requests can no longer be approved, "+
@@ -451,6 +465,12 @@ func send(cur realm, to address, amount int64) {
 		SendCoins(cur.Address(), to, chain.NewCoins(chain.NewCoin(Denom, amount)))
 }
 
+// cancelExec describes a cancellation's executor, naming its build so Hold
+// can match the proposal to the build it follows.
+func cancelExec(id, seq int) string {
+	return "Cancels grant #" + itoa(id) + " of " + path + " (build " + itoa(seq) + ")"
+}
+
 func cancelTitle(g gp.Grant) string { return "Cancel grant #" + itoa(g.ID) + ": " + g.Title }
 
 func approveTitle(g gp.Grant) string {
@@ -473,11 +493,12 @@ func mustGet(id int) gp.Grant {
 }
 
 func mustReason(reason string) {
-	if strings.TrimSpace(reason) == "" || len(reason) > gp.MaxReason || reason == "REASON" {
-		panic("grants: write a reason of 1 to " + itoa(gp.MaxReason) + " bytes")
-	}
 	if reason == gp.WithdrawnReason {
 		panic("grants: that reason is reserved for a grantee's own withdrawal")
+	}
+	// As the desk checks it when the vote executes, so a passed vote cannot fail on it.
+	if gp.CheckReason(reason) != nil || reason == "REASON" {
+		panic("grants: write a reason of 1 to " + itoa(gp.MaxReason) + " bytes")
 	}
 }
 
