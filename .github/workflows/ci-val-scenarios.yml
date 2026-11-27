@@ -72,6 +72,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -112,11 +113,27 @@ jobs:
       - name: Save images
         run: docker save gno-val-scenario-core:local gnogenesis:local valsignerd:local | gzip > /tmp/val-scenario-images.tar.gz
 
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: hashFiles('examples/gnomod.lock') != ''
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Package pinned example versions
+        if: hashFiles('examples/gnomod.lock') != ''
+        run: |
+          make -C examples gnopm-sync
+          if [ -d examples/.gnopm/gno.land ]; then
+            tar -C examples -czf /tmp/val-scenario-pins.tar.gz .gnopm/gno.land
+          fi
+
       - name: Upload images artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: val-scenario-images
-          path: /tmp/val-scenario-images.tar.gz
+          path: |
+            /tmp/val-scenario-images.tar.gz
+            /tmp/val-scenario-pins.tar.gz
           retention-days: 1
 
   run-scenarios:
@@ -143,6 +160,12 @@ jobs:
 
       - name: Load Docker images
         run: docker load < /tmp/val-scenario-images.tar.gz
+
+      - name: Restore pinned example versions
+        run: |
+          if [ -f /tmp/val-scenario-pins.tar.gz ]; then
+            tar -C examples -xzf /tmp/val-scenario-pins.tar.gz
+          fi
 
       - name: Run ${{ matrix.name }}
         env:

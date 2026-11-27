@@ -2,7 +2,6 @@ package integration
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -16,15 +15,15 @@ import (
 )
 
 // ResolveExamplePath returns the on-disk directory for a Gno import path
-// inside an examples tree. Checks examplesRoot/<pkgPath> first, then
-// examplesRoot/quarantined/<pkgPath>.
+// inside an examples tree. Resolves pkgPath against the module path every
+// gnomod.toml under examplesRoot declares, which a package's directory does not
+// have to repeat, and falls back to examplesRoot/quarantined/<pkgPath>.
 //
 // XXX: hardcoded fallback. packages.Load is gnowork-aware but reads the
 // workspace root from os.Getwd(); LoadConfig exposes no explicit knob.
 func ResolveExamplePath(examplesRoot, pkgPath string) string {
-	primary := filepath.Join(examplesRoot, pkgPath)
-	if _, err := os.Stat(filepath.Join(primary, "gnomod.toml")); err == nil {
-		return primary
+	if dir := gnomod.FindModuleDir(examplesRoot, pkgPath); dir != "" {
+		return dir
 	}
 	return filepath.Join(examplesRoot, "quarantined", pkgPath)
 }

@@ -47,4 +47,5 @@ jobs:
       # its job's timeout-minutes exactly: at equal values the job is cancelled
       # at the same moment the test binary would have dumped the goroutine
       # stacks naming whatever hung.
+      materialize-example-versions: true
       tests-extra-args: "-p 1 -timeout 25m -coverpkg=github.com/gnolang/gno/misc/gnoe2e/..."
