@@ -115,6 +115,17 @@ body (`GetStaticTypeOf`, `GetSlot`, `GetPathForName`, `GetIsConst`,
 whether the shadow is in scope yet. Strictly more surface than last-wins, for
 the same result.
 
+**Stop copying, and number the case's own names from the statement's end.**
+Each case's static block would hold only its own names, starting at the
+`if`/`switch`'s name count, while the case stays at depth 1 in the shared
+runtime block. Each name then exists once and lookup needs no last-wins rule.
+The cost is that every place mapping a slot index back to a case's names
+(`ExpandWith`, `GetBlockNodeForPath`, heap-item marking) subtracts that start
+index, and that every case block with an init statement changes layout, not
+only those that shadow. Left to #6529, which proposes the same idea for every
+scope of a function; this change keeps the existing layout and touches only
+the blocks that shadow.
+
 **Leave the single slot and only relax the type check.** Would silence the
 panic but not the clobbering, and could not represent both bindings being live
 at different points in the same case.
@@ -219,6 +230,10 @@ at different points in the same case.
 - `tests/files/switch54.gno` — `type` shadows in a switch case, an `else`
   branch and a type switch clause, use before the shadow, and a `type` shadow
   followed by `fallthrough`.
+- `tests/files/switch55.gno` — `goto` back over a shadow, `else if` with a
+  closure made before the shadow, a pointer and a `defer` holding the outer
+  name, `v, w := v+1, 3`, a shadowed second init name, and a switch reused in a
+  loop.
 
 Each was run under real `go run` first; the `// Output:` blocks are Go's actual
 output.
