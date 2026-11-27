@@ -297,6 +297,24 @@ func (goo *MsgCall) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) 
 
 func (goo MsgRun) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
+	{
+		repr, err := goo.MaxSend.MarshalAmino()
+		if err != nil {
+			return offset, err
+		}
+		if repr != "" {
+			{
+				before := offset
+				offset = amino.PrependString(buf, offset, string(repr))
+				valueLen := before - offset
+				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 5, amino.Typ3ByteLength)
+				} else {
+					offset = before
+				}
+			}
+		}
+	}
 	if goo.Package != nil {
 		{
 			before := offset
@@ -404,6 +422,15 @@ func (goo MsgRun) SizeBinary2(cdc *amino.Codec) (int, error) {
 			s += 1 + amino.UvarintSize(uint64(cs)) + cs
 		}
 	}
+	{
+		repr, err := goo.MaxSend.MarshalAmino()
+		if err != nil {
+			return 0, err
+		}
+		if repr != "" {
+			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+		}
+	}
 	return s, nil
 }
 
@@ -479,6 +506,20 @@ func (goo *MsgRun) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 					return err
 				}
 				goo.Package = &pv
+			}
+		case 5:
+			if typ3 != amino.Typ3ByteLength {
+				return fmt.Errorf("field 5: expected typ3 %v, got %v", amino.Typ3ByteLength, typ3)
+			}
+			var repr string
+			v, n, err := amino.DecodeString(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			repr = string(v)
+			if err := goo.MaxSend.UnmarshalAmino(repr); err != nil {
+				return err
 			}
 		default:
 			return fmt.Errorf("unknown field number %d for MsgRun", fnum)

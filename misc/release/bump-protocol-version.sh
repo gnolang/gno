@@ -26,6 +26,11 @@
 
 set -euo pipefail
 
+# Regex bracket ranges follow the locale's collation: under en_US.UTF-8 on
+# glibc, [A-Za-z] also matches letters such as é, which the node's version
+# parser refuses. In the C locale the shape checks match the parser.
+export LC_ALL=C
+
 # GNO_REPO_ROOT lets cut-release.sh point this script at a worktree of the
 # commit being tagged rather than the checkout it was invoked from. The commit
 # may predate this script, so the script has to travel to the tree, not the

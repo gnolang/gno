@@ -1,0 +1,27 @@
+-- input.md --
+
+<gno-form exec="Transfer&quot; $(echo injected) &quot;">
+  <gno-input name="to" />
+</gno-form>
+
+<gno-form exec="transfer">
+  <gno-input name="to" />
+</gno-form>
+
+<gno-form exec="">
+  <gno-input name="to" />
+</gno-form>
+
+-- output.html --
+<!-- Error: &#34;Transfer\&#34; $(echo injected) \&#34;&#34;: &#39;exec&#39; attribute is not an exported function name -->
+<!-- Error: &#34;transfer&#34;: &#39;exec&#39; attribute is not an exported function name -->
+<form class="gno-form" method="post" action="/r/test" autocomplete="off" spellcheck="false">
+<div class="gno-form_header">
+<span><span class="font-bold">/r/test</span> Form</span>
+<span class="tooltip" data-tooltip="Processed securely by /r/test"><svg class="w-3 h-3"><use href="#ico-info"></use></svg></span>
+</div>
+<div class="gno-form_input"><label for="to">Enter value</label>
+<input type="text" id="to" name="to" placeholder="Enter value" />
+</div>
+<div class="gno-form_input"><input type="submit" value="Submit to /r/test Realm" /></div>
+</form>

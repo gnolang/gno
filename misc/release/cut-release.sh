@@ -32,11 +32,17 @@
 #   # what the mainnet launch should have been tagged with
 #   misc/release/cut-release.sh v1.2.0 --commit 9c8eb132e
 #
-#   # a consensus-breaking upgrade, with the halt proposal to go with it; the
-#   # commit is the code commit the ledger entry names, not the branch tip
-#   misc/release/cut-release.sh v1.3.0 --commit <code-commit> --halt-height 120000 --push
+#   # a coordinated upgrade's final, cut once its candidate has passed on the
+#   # testnet, before the halt height is chosen; the commit is the code commit,
+#   # not the branch tip, which may carry deployment docs on top of it
+#   misc/release/cut-release.sh v1.3.0 --commit <code-commit> --push
 
 set -euo pipefail
+
+# Regex bracket ranges follow the locale's collation: under en_US.UTF-8 on
+# glibc, [A-Za-z] also matches letters such as é, which the node's version
+# parser refuses. In the C locale the shape checks match the parser.
+export LC_ALL=C
 
 readonly REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
@@ -68,11 +74,15 @@ VERSION=""
 # `set -u` turns cleanup into an error.
 SCRATCH=""
 WORKTREE=""
+# Set once the run has ended on purpose. bash 3.2 ends a script aborted by
+# set -u with the EXIT trap's own status, so cleanup fails any other ending.
+DONE=0
 cleanup() {
 	if [[ -n ${WORKTREE} ]]; then
 		git -C "${REPO_ROOT}" worktree remove --force "${WORKTREE}" >/dev/null 2>&1 || true
 	fi
 	[[ -z ${SCRATCH} ]] || rm -rf "${SCRATCH}"
+	[[ ${DONE} -eq 1 ]] || exit 1
 }
 trap cleanup EXIT
 
@@ -92,6 +102,7 @@ parse_args() {
 		case "$1" in
 		-h | --help)
 			usage
+			DONE=1
 			exit 0
 			;;
 		--chain)
@@ -232,13 +243,14 @@ check_on_master() {
 }
 
 # The ledger is what operators read to know which version to run and what a
-# replaying node follows; a final release without an entry is invisible to
-# both, so it is refused, and so is one whose ledger fails `upgrades check`, the
-# check CI runs: a supervisor or the daily ledger job reads the whole file, not
-# one row, and operators read the UPGRADES.md rendered from it. The entry is
-# written before the cut, its image digest and binaries null until CI has built
-# them. A release candidate only warns: it rehearses the final version's entry,
-# which may not be written yet.
+# replaying node follows, so a final release is refused when its ledger fails
+# `upgrades check`, the check CI runs: a supervisor or the daily ledger job reads
+# the whole file, not one row, and operators read the UPGRADES.md rendered from
+# it. The entry itself is written once the chain runs the release, when
+# everything it records is known, its halt time included, so a release without
+# one only warns; one whose entry names other code than the commit being tagged
+# is refused. A release candidate only warns: the final release cut after it,
+# on its commit, is checked the same way.
 check_ledger_entry() {
 	local dir="${REPO_ROOT}/misc/deployments/${CHAIN}.gno.land"
 	[[ -f ${dir}/upgrades.json ]] || return 0
@@ -263,9 +275,9 @@ ${out}"
 	local named
 	if named="$(cd "${REPO_ROOT}" && go run ./misc/deployments/upgrades commit "${dir}" "${VERSION}" 2>/dev/null)"; then
 		ok "upgrades.json has an entry for ${VERSION}"
-		# The entry is committed on top of the code it names, so the branch tip
-		# is the ledger commit: cutting without --commit would tag that one
-		# while the entry names the code.
+		# An entry must name the code being tagged. The branch tip may be a
+		# deployment-docs commit on top of that code, which a cut without
+		# --commit would tag instead.
 		if [[ ${named} == "${COMMIT}" ]]; then
 			ok "the entry names the commit being tagged"
 			return
@@ -278,13 +290,7 @@ ${out}"
 		fi
 		return
 	fi
-	local hint="add the entry to misc/deployments/${CHAIN}.gno.land/upgrades.json and run
-       go run ./misc/deployments/upgrades render misc/deployments/${CHAIN}.gno.land"
-	if [[ ${VERSION} == *-* ]]; then
-		warn "upgrades.json has no entry for ${VERSION%%-*} yet; ${hint}"
-	else
-		die "upgrades.json has no entry for ${VERSION}. ${hint}"
-	fi
+	warn "upgrades.json has no entry for ${VERSION%%-*} yet: it is written once the chain runs it"
 }
 
 # Everything below inspects the commit being tagged, which is usually not the
@@ -409,8 +415,8 @@ classify() {
 	if [[ ${new_major} != "${prev_major}" ]]; then
 		info "MAJOR bump: a new network, incompatible genesis. See RELEASING.md."
 	elif [[ ${new_minor} != "${prev_minor}" ]]; then
-		info "MINOR bump: coordinated upgrade. Validators must halt together;"
-		info "    pass --halt-height to emit the GovDAO proposal."
+		info "MINOR bump: coordinated upgrade. Validators must halt together: once"
+		info "    the height is chosen, misc/deployments/<chain>.gno.land/govdao-exec.sh set-halt <H> ${VERSION} proposes it."
 	else
 		info "PATCH: no validator coordination needed."
 		if [[ ${breaking} -gt 0 ]]; then
@@ -490,22 +496,30 @@ $(printf '%s\n' "${consensus}" | head -10 | sed 's/^/       /')
 # file left behind when the tag is undone. The proposal is a governance action,
 # and misc/govdao-scripts/set-halt.sh is what performs it.
 print_halt_proposal() {
-	# The wrapper is named govdao-exec.sh in most deployments and govdao in a
-	# couple of older ones; both dispatch into misc/govdao-scripts/.
 	local wrapper=""
 	local dir name
-	for dir in "misc/deployments/${CHAIN}.gno.land" "misc/deployments/${CHAIN}"; do
-		for name in govdao-exec.sh govdao; do
-			if [[ -x "${REPO_ROOT}/${dir}/${name}" ]]; then
-				wrapper="${dir}/${name}"
-				break 2
-			fi
+	if [[ ${VERSION} == *-* ]]; then
+		# A candidate's halt is the testnet's, and candidates are cut from
+		# chain/mainnet too, so CHAIN names the wrong network: the command
+		# names none, and cannot be pasted as it stands.
+		wrapper="misc/deployments/<chain>.gno.land/govdao-exec.sh"
+	else
+		# The wrapper is named govdao-exec.sh in most deployments and govdao in
+		# a couple of older ones; both dispatch into misc/govdao-scripts/.
+		for dir in "misc/deployments/${CHAIN}.gno.land" "misc/deployments/${CHAIN}"; do
+			for name in govdao-exec.sh govdao; do
+				if [[ -x "${REPO_ROOT}/${dir}/${name}" ]]; then
+					wrapper="${dir}/${name}"
+					break 2
+				fi
+			done
 		done
-	done
-	[[ -n ${wrapper} ]] || die "no govdao wrapper under misc/deployments for --chain ${CHAIN}"
+		[[ -n ${wrapper} ]] || die "no govdao wrapper under misc/deployments for --chain ${CHAIN}"
+	fi
 
 	info "coordinated upgrade: the GovDAO proposal for it is"
 	printf '\n    %s set-halt %s %s\n\n' "${wrapper}" "${HALT_HEIGHT}" "${VERSION}"
+	[[ ${VERSION} != *-* ]] || warn "a release candidate's halt is the testnet's: run it from that network's folder, never mainnet's"
 	info "which creates this proposal:"
 	cat <<EOF
 
@@ -533,8 +547,9 @@ tag_message() {
 	printf '%s %s\n\nReleased from chain/%s at %s.' \
 		"${CHAIN}" "${VERSION}" "${CHAIN}" "${COMMIT:0:9}"
 	[[ -z ${PREVIOUS} ]] || printf '\nPrevious release: %s.' "${PREVIOUS}"
-	[[ -z ${HALT_HEIGHT} ]] || printf '\nCoordinated upgrade at height %s, halt_min_version %s.' \
-		"${HALT_HEIGHT}" "${VERSION}"
+	# No height: a tag never moves, and the height can change until the halt
+	# proposal executes.
+	[[ -z ${HALT_HEIGHT} ]] || printf '\nCoordinated upgrade, halt_min_version %s.' "${VERSION}"
 	printf '\n'
 }
 
@@ -581,3 +596,4 @@ main() {
 }
 
 main "$@"
+DONE=1

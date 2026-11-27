@@ -12,6 +12,12 @@ const (
 // MaxUsernameLen exposes the gate's cap on a /u/ name to the external tests.
 const MaxUsernameLen = maxUsernameLen
 
+// GenerateBreadcrumbPaths exposes the header's breadcrumb builder to the
+// external tests, with the bound on its links.
+var GenerateBreadcrumbPaths = generateBreadcrumbPaths
+
+const MaxBreadcrumbParts = maxBreadcrumbParts
+
 // SitemapLocs exposes what the sitemap lists to the external tests, so they
 // can open each page it names. No route of the router's own shadows an alias.
 func (h *HTTPHandler) SitemapLocs(ctx context.Context) []string {

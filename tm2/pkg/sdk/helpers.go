@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // Log clipping limits — defense in depth backstop for adversarial
@@ -170,7 +172,13 @@ func ABCIResultFromError(err error) (res Result) {
 	return
 }
 
+// ABCIResponseQueryFromError answers a query with err. A query stopped by its
+// deadline answers QueryTimeoutError, found by type wherever it is wrapped.
 func ABCIResponseQueryFromError(err error) (res abci.ResponseQuery) {
+	var dl store.DeadlineExceededError
+	if errors.As(err, &dl) {
+		err = std.ErrQueryTimeout("query exceeded the node's wall-clock timeout, " + dl.Error())
+	}
 	res.Error = ABCIError(err)
 	res.Log = clipLog(fmt.Sprintf("%#v", err))
 	return

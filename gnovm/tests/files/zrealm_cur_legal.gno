@@ -1,38 +1,42 @@
 // PKGPATH: gno.land/r/demo/curlegal
 package curlegal
 
-// POSITIVE CONTROL for the three rejections: everything here is legal and must
-// stay legal. Without this, tightening any of the rules into an over-rejection
-// would pass CI.
+// `cur` is reserved by name, but only its declaration is: threading `cur`
+// unchanged into a no-cross crossing helper, crossing with cross(cur), and a
+// realm-typed binding under another name are all ordinary uses.
 
 func helper(cur realm) string { return cur.PkgPath() }
+
+// A function type or interface method may name its first realm parameter
+// `cur`: it is the crossing shape, and the check carves it out by position.
+type Crosser interface{ Do(cur realm) string }
+
+type CrossFn func(cur realm) string
+
+type impl struct{}
+
+func (impl) Do(cur realm) string { return cur.PkgPath() }
 
 func main(cur realm) {
 	// threading cur unchanged into a no-cross crossing helper
 	println("threaded:", helper(cur))
-	// and through cross()
+
 	println("crossed:", helper(cross(cur)))
 
-	// the DEFINE form of range binds a NEW name; it is not a write to the
-	// parameter slot and cannot be cur-called, so it stays legal.
-	for _, cur := range []realm{cur.Previous()} {
-		println("range-define pkgpath:", cur.PkgPath())
+	var c Crosser = impl{}
+	var f CrossFn = helper
+	println("iface:", c.Do(cur), "fn:", f(cur))
+
+	// a realm-typed binding under another name is an ordinary realm value,
+	// not any frame's identity; declaring it is fine.
+	for _, prev := range []realm{cur} {
+		println("range pkgpath:", prev.PkgPath())
 	}
 
-	// a non-realm variable named `cur` is untouched by all three rules,
-	// including taking its address.
-	{
-		cur := 41
-		p := &cur
-		*p = *p + 1
-		for _, cur = range []int{7} {
-		}
-		println("int cur:", cur)
-	}
 }
 
 // Output:
 // threaded: gno.land/r/demo/curlegal
 // crossed: gno.land/r/demo/curlegal
-// range-define pkgpath:
-// int cur: 7
+// iface: gno.land/r/demo/curlegal fn: gno.land/r/demo/curlegal
+// range pkgpath: gno.land/r/demo/curlegal

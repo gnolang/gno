@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"go/token"
 	"html/template"
+	"io"
 	"log/slog"
 	"maps"
 	"net"
@@ -25,12 +26,15 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/components"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/chainmap"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/omnisearch"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/playground"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/run"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/feature/state"
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -140,6 +144,14 @@ type HTTPHandlerConfig struct {
 // bucket throttled everyone at a rate the edge would have allowed.
 const defaultRateLimitPerMinute = 1200
 
+// The /_/api/eval budget per client. An Actions page evaluates each of its
+// zero-argument functions on load, so the burst covers a load and a reload
+// of a realm with a dozen of them, with room left for typing.
+const (
+	evalRateLimitBurst     = 40
+	evalRateLimitPerMinute = 60
+)
+
 // validate checks if the HTTPHandlerConfig is valid.
 func (cfg *HTTPHandlerConfig) validate() error {
 	if cfg.ClientAdapter == nil {
@@ -163,6 +175,10 @@ type HTTPHandler struct {
 	Aliases  map[string]AliasTarget
 	Timeout  time.Duration
 	policy   pagePolicy
+
+	// Features
+	Playground *playground.Handler
+	Run        *run.Handler
 	// State is the feature/state handler that owns every ?state* URL.
 	// Built in NewHTTPHandler so the wire-in dispatch hook is a single
 	// method call (ADR-003 §Architecture).
@@ -174,8 +190,8 @@ type HTTPHandler struct {
 	ChainMap *chainmap.Handler
 	// trustedProxies are the networks whose X-Forwarded-Host is believed.
 	trustedProxies []*net.IPNet
-	// packageText caches the whole-package texts of $download.
-	packageText packageTextCache
+	// pkgFiles caches the package files $download and playground copies read.
+	pkgFiles packageFileCache
 	// counterparts caches the project listings behind the breadcrumb switch.
 	counterparts counterpartCache
 }
@@ -210,6 +226,26 @@ func NewHTTPHandler(logger *slog.Logger, cfg *HTTPHandlerConfig) (*HTTPHandler, 
 		return nil, fmt.Errorf("invalid trusted proxies config: %w", err)
 	}
 	h.trustedProxies = trustedProxies
+	h.Playground = playground.New(playground.Deps{
+		Client:   &playgroundClientAdapter{cfg.ClientAdapter},
+		Packages: playgroundPackages{h},
+		Logger:   logger,
+		Domain:   cfg.Meta.Domain,
+		// Its own bucket: evals run caller-chosen code on the node, so
+		// they get a tighter budget than page reads.
+		Limiter: state.NewIPLimiter(state.RateLimitConfig{
+			PerMinute:      evalRateLimitPerMinute,
+			Burst:          evalRateLimitBurst,
+			TrustedProxies: trustedProxies,
+		}),
+		Timeout: h.requestTimeout(),
+	})
+	h.Run = run.New(run.Deps{
+		Domain:      cfg.Meta.Domain,
+		Remote:      cfg.Meta.RemoteHelp,
+		ChainId:     cfg.Meta.ChainId,
+		Highlighter: &rendererSnippetHighlighter{renderer: cfg.Renderer},
+	})
 	h.State = state.New(state.Deps{
 		Client:      cfg.ClientAdapter,
 		Highlighter: &rendererSnippetHighlighter{renderer: cfg.Renderer},
@@ -314,6 +350,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			Remote:            h.Static.RemoteHelp,
 			AssetsVersion:     h.Static.AssetsVersion,
 			AnalyticsHostname: h.Static.AnalyticsHostname,
+			CSPNonce:          CSPNonceFromContext(r.Context()),
 		},
 		FooterData: components.FooterData{
 			Analytics: components.AnalyticsData{
@@ -380,6 +417,17 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// $play opens the package in the playground.
+	if gnourl.WebQuery.Has("play") && (gnourl.IsRealm() || gnourl.IsPure()) && !gnourl.IsDir() {
+		to := playground.CopyURL(gnourl.Path, gnourl.File)
+		http.Redirect(w, r, to, http.StatusFound)
+		components.RedirectView(components.RedirectData{
+			To:        to,
+			Analytics: h.Static.RedirectAnalytics(),
+		}).Render(w)
+		return
+	}
+
 	// Head metadata names the URL the client asked for, not the alias
 	// target: /about and /r/gnoland/pages:p/about serve one page, and
 	// /about is the address to publish.
@@ -424,7 +472,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		// Looked up only once State.Handle returns a view: json, fragment
 		// and rate-limited answers render no header, so they pay for none.
 		indexData.HeaderData.Breadcrumb.Counterpart = h.startCounterpart(r.Context(), gnourl)()
-		scrubHeaderOnError(&indexData, status)
+		settleHeader(&indexData, status)
 		indexData.BodyView = view
 		h.setHead(w, &indexData.HeadData, &sp, status)
 		w.WriteHeader(status)
@@ -464,12 +512,13 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 			u.Query = maps.Clone(u.Query)
 			u.Query.Del("q")
 		}
+		indexData.HeaderData.SearchQuery = omnisearch.QueryTerm(gnourl)
 		// An unbounded URL space where each URL costs a path listing: not
 		// something to invite crawlers into, and cheap to cache briefly.
 		// finalRobots keeps a page that asked for less at noindex, nofollow.
 		w.Header().Set("X-Robots-Tag", noIndexNoFollow.String())
 		w.Header().Set("Cache-Control", "max-age=5")
-		scrubHeaderOnError(&indexData, status)
+		settleHeader(&indexData, status)
 		indexData.BodyView = view
 		h.setHead(w, &indexData.HeadData, &sp, status)
 		w.WriteHeader(status)
@@ -487,6 +536,8 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 		indexData.Mode = components.ViewModePackage
 	case gnourl.IsUser():
 		indexData.Mode = components.ViewModeUser
+	case gnourl.IsPlayground():
+		indexData.Mode = components.ViewModePlayground
 	default:
 		indexData.Mode = components.ViewModeRealm
 	}
@@ -499,7 +550,7 @@ func (h *HTTPHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	sp.render.markdown = negotiatesMarkdown(r.Header.Get("Accept"))
 	status, bodyView := h.prepareIndexBodyView(r, &indexData, &sp.render)
-	scrubHeaderOnError(&indexData, status)
+	settleHeader(&indexData, status)
 
 	// The realm and static-markdown paths return a markdown view; serve its
 	// raw source verbatim with a text/markdown Content-Type, bypassing the layout.
@@ -665,6 +716,8 @@ func (h *HTTPHandler) prepareIndexBodyView(r *http.Request, indexData *component
 		status, view := h.GetPackageView(ctx, gnourl, indexData, pr)
 		indexData.HeaderData.Breadcrumb.Counterpart = counterpart()
 		return status, view
+	case gnourl.IsPlayground():
+		return h.Playground.GetPlaygroundView(ctx, gnourl)
 	default:
 		h.Logger.Debug("invalid path: path is neither a pure package or a realm")
 		return http.StatusBadRequest, components.StatusErrorComponent("invalid path")
@@ -704,6 +757,35 @@ func (h *HTTPHandler) GetPackageView(ctx context.Context, gnourl *weburl.GnoURL,
 	// Handle Help page
 	if gnourl.WebQuery.Has("help") {
 		return h.GetHelpView(ctx, gnourl)
+	}
+
+	// Handle Run page: a script against an existing realm or package, or
+	// one of its files. A listing, a user, a missing file, a path with no
+	// package, or a $source page renders as if $run were not there, its
+	// header tabs included.
+	if gnourl.WebQuery.Has("run") && !gnourl.WebQuery.Has("source") &&
+		(gnourl.IsRealm() || gnourl.IsPure()) && !gnourl.IsDir() {
+		jdoc, err := h.Client.Doc(ctx, gnourl.Path, 0)
+		if err == nil && gnourl.IsFile() {
+			var files []string
+			files, err = h.Client.ListFiles(ctx, gnourl.Path, 0)
+			if err == nil && !slices.Contains(files, gnourl.File) {
+				err = ErrClientFileNotFound
+			}
+		}
+		switch {
+		case err == nil:
+			return h.Run.GetRunView(gnourl, jdoc.Funcs)
+		case !errors.Is(err, ErrClientPackageNotFound) && !errors.Is(err, ErrClientFileNotFound):
+			h.Logger.Error("unable to fetch the package to run", "error", err)
+			return GetClientErrorStatusView(gnourl, err, 0)
+		}
+	}
+	if gnourl.WebQuery.Has("run") {
+		u := &indexData.HeaderData.RealmURL
+		// Clone: the map is shared with the request's GnoURL.
+		u.WebQuery = maps.Clone(u.WebQuery)
+		u.WebQuery.Del("run")
 	}
 
 	// Handle Source page: with a file -> source code view; without -> package overview.
@@ -1134,27 +1216,40 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 		return GetClientErrorStatusView(gnourl, err, 0)
 	}
 
-	// renderDoc renders a markdown documentation string to a Component.
-	// Returns nil for empty input; renderer errors degrade to escaped text.
-	renderDoc := func(src string) components.Component {
+	docs := newPageDocRenderer(h.Renderer, gnourl.Path, 0)
+	// renderDoc renders a markdown documentation string to a Component, with
+	// the bytes it charged to the page. Returns nil for empty input; renderer
+	// errors degrade to escaped text.
+	renderDoc := func(src string) (components.Component, int) {
 		if strings.TrimSpace(src) == "" {
-			return nil
+			return nil, 0
 		}
 		var buf bytes.Buffer
-		if err := h.Renderer.RenderDocumentation(&buf, []byte(src)); err != nil {
+		if err := docs.RenderDocumentation(&buf, []byte(src)); err != nil {
 			h.Logger.Warn("render doc failed — falling back to escaped plain text",
 				"error", err)
-			return components.NewReaderComponent(bytes.NewBufferString(template.HTMLEscapeString(src)))
+			return components.NewReaderComponent(bytes.NewBufferString(template.HTMLEscapeString(src))), 0
 		}
-		return components.NewReaderComponent(&buf)
+		return components.NewReaderComponent(&buf), buf.Len()
 	}
 
+	// The package doc shows first, so it renders first against the page budget.
+	pkgDoc, _ := renderDoc(jdoc.PackageDoc)
 	fsigs := callableFuncs(jdoc)
 
 	// Get selected function
 	selArgs := make(map[string]string)
 	selFn := gnourl.WebQuery.Get("func")
 	selSend := gnourl.WebQuery.Get(".send")
+	// The send value is printed into the gnokey command the page offers to
+	// copy, so only a coin list gnokey would parse is kept, in canonical form:
+	// ParseCoins accepts whitespace, newlines included, that the copy button
+	// would otherwise split the command on.
+	if coins, err := std.ParseCoins(selSend); err != nil {
+		selSend = ""
+	} else {
+		selSend = coins.String()
+	}
 	if selFn != "" {
 		for _, fn := range fsigs {
 			if selFn != fn.Name {
@@ -1169,48 +1264,76 @@ func (h *HTTPHandler) GetHelpView(ctx context.Context, gnourl *weburl.GnoURL) (i
 			break
 		}
 	}
-
-	// Wrap each function with its pre-rendered documentation Component.
-	functions := make([]components.HelpFunction, 0, len(fsigs))
-	for _, fn := range fsigs {
-		functions = append(functions, components.HelpFunction{
-			JSONFunc:     fn,
-			DocComponent: renderDoc(fn.Doc),
-		})
+	truncated := len(fsigs) > components.MaxHelpFunctions
+	if truncated {
+		fsigs = fsigs[:components.MaxHelpFunctions]
 	}
 
-	realmName := displayPackageName(gnourl.Path)
-	return http.StatusOK, components.HelpView(components.HelpData{
+	data := components.HelpData{
 		SelectedFunc: selFn,
 		SelectedArgs: selArgs,
 		SelectedSend: selSend,
-		RealmName:    realmName,
+		RealmName:    displayPackageName(gnourl.Path),
 		// TODO: get chain domain and use that.
 		ChainId:   h.Static.ChainId,
 		PkgPath:   path.Join(h.Static.Domain, gnourl.Path),
 		Remote:    h.Static.RemoteHelp,
-		Functions: functions,
-		Doc:       renderDoc(jdoc.PackageDoc),
+		Doc:       pkgDoc,
 		Domain:    h.Static.Domain,
 		Origin:    gnourl.Origin,
 		Community: h.showRealmNotice(gnourl),
-	})
+	}
+
+	// Each function's card is charged to the page, its doc comment once and
+	// its line in the table of contents with it: the list stops at the first
+	// card past what is left.
+	data.Functions = make([]components.HelpFunction, 0, len(fsigs))
+	for _, fn := range fsigs {
+		docComp, docLen := renderDoc(fn.Doc)
+		hf := components.HelpFunction{JSONFunc: fn, DocComponent: docComp}
+		var tocItem, card bytes.Buffer
+		err := components.RenderHelpTocItem(&tocItem, hf)
+		fits := err == nil
+		if fits {
+			fits, err = renderPart(docs, &card, docLen, tocItem.Len(), func(w io.Writer) error {
+				return components.RenderHelpCard(w, data, hf)
+			})
+		}
+		if err != nil {
+			h.Logger.Error("unable to render help card", "func", fn.Name, "error", err)
+			return http.StatusInternalServerError, components.StatusErrorComponent("rendering error")
+		}
+		if !fits {
+			truncated = true
+			break
+		}
+		hf.Card = components.NewReaderComponent(&card)
+		// The card holds the doc's HTML, so the drained doc buffer can go.
+		hf.DocComponent = nil
+		data.Functions = append(data.Functions, hf)
+	}
+	data.Truncated = truncated
+
+	return http.StatusOK, components.HelpView(data)
 }
 
-// renderReadme renders the README.md file and returns the component and the raw content
-func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, pkgPath string, pr *pageRender) (components.Component, []byte) {
+// renderReadme renders the README.md file and returns the component, the raw
+// content and the size of its HTML.
+func (h *HTTPHandler) renderReadme(ctx context.Context, gnourl *weburl.GnoURL, pkgPath string, pr *pageRender) (components.Component, []byte, int) {
 	file, _, err := h.Client.File(ctx, pkgPath, ReadmeFileName, 0)
 	if err != nil {
 		h.Logger.Warn("fetch README.md", "path", pkgPath, "error", err)
-		return nil, nil
+		return nil, nil, 0
 	}
 
+	rctx := h.renderContext(pr)
+	rctx.File = ReadmeFileName
 	var buf bytes.Buffer
-	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, h.renderContext(pr)); err != nil {
+	if _, err := h.Renderer.RenderRealm(&buf, gnourl, file, rctx); err != nil {
 		h.Logger.Error("render README.md", "error", err)
-		return nil, nil
+		return nil, nil, 0
 	}
-	return components.NewReaderComponent(&buf), file
+	return components.NewReaderComponent(&buf), file, buf.Len()
 }
 
 func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL, pr *pageRender) (int, *components.View) {
@@ -1254,7 +1377,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL, 
 	switch fileName {
 	case ReadmeFileName:
 		// Try to render README.md with markdown processing
-		readmeComp, raw := h.renderReadme(ctx, gnourl, pkgPath, pr)
+		readmeComp, raw, _ := h.renderReadme(ctx, gnourl, pkgPath, pr)
 		if readmeComp != nil && raw != nil {
 			fileSource = readmeComp
 			fileLines = bytes.Count(raw, []byte("\n")) + 1
@@ -1273,7 +1396,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL, 
 		}
 
 		var buff bytes.Buffer
-		if err := h.Renderer.RenderSource(&buff, fileName, file); err != nil {
+		if err := h.Renderer.RenderSource(&buff, path.Join(pkgPath, fileName), file); err != nil {
 			h.Logger.Error("unable to render source file", "file", fileName, "error", err)
 			return http.StatusInternalServerError, components.StatusErrorComponent("rendering error")
 		}
@@ -1285,6 +1408,11 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL, 
 
 	fileSizeStr := fmt.Sprintf("%.2f Kb", sizeKB)
 
+	var fileEdit string
+	if playground.InCopy(fileName) {
+		fileEdit = playground.CopyURL(gnourl.Path, fileName)
+	}
+
 	return http.StatusOK, components.SourceView(components.SourceData{
 		PkgPath:      gnourl.Path,
 		Files:        files,
@@ -1293,6 +1421,7 @@ func (h *HTTPHandler) GetSourceView(ctx context.Context, gnourl *weburl.GnoURL, 
 		FileLines:    fileLines,
 		FileSize:     fileSizeStr,
 		FileDownload: gnourl.Path + "$download&file=" + fileName,
+		FileEdit:     fileEdit,
 		FileSource:   fileSource,
 	})
 }
@@ -1326,7 +1455,7 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 	}
 
 	// Get README.md file if it exists
-	readmeComp, _ := h.renderReadme(ctx, gnourl, pkgPath, pr)
+	readmeComp, _, _ := h.renderReadme(ctx, gnourl, pkgPath, pr)
 	return http.StatusOK, components.DirectoryView(
 		pkgPath,
 		files,
@@ -1370,13 +1499,13 @@ func (h *HTTPHandler) ServeSourceDownload(ctx context.Context, gnourl *weburl.Gn
 	// Get source file
 	source, _, err := h.Client.File(ctx, pkgPath, fileName, 0)
 	if err != nil {
-		status, _ := GetClientErrorStatusView(gnourl, err, 0)
+		status, msg := clientErrorMessage(err, 0)
 		if status == http.StatusNotFound {
 			h.Logger.Warn("unable to get source file", "file", fileName, "error", err)
 		} else {
 			h.Logger.Error("unable to get source file", "file", fileName, "error", err)
 		}
-		http.Error(w, "not found", status)
+		http.Error(w, msg, status)
 		return
 	}
 
@@ -1626,7 +1755,7 @@ func (h *HTTPHandler) setHead(w http.ResponseWriter, head *components.HeadData, 
 		lead = pageLead{}
 	}
 	if lead.title == "" {
-		lead.title = pathTitle(sp.url)
+		lead.title = pathTitle(sp.url, h.Static.Domain)
 	}
 	head.Title = h.titleWithDomain(lead.title)
 	card := sp.kind.card(sp.target, h.Static.Domain)
@@ -1679,29 +1808,48 @@ func errorTitle(status int) string {
 // before calling.
 func (h *HTTPHandler) setHeaderForRealm(indexData *components.IndexData, gnourl *weburl.GnoURL) {
 	indexData.HeaderData = components.HeaderData{
-		Breadcrumb: generateBreadcrumbPaths(gnourl),
+		Breadcrumb: generateBreadcrumbPaths(gnourl, h.Static.Domain),
 		RealmURL:   *gnourl,
 		ChainId:    h.Static.ChainId,
 		Remote:     h.Static.RemoteHelp,
 		Mode:       indexData.Mode,
 		Origin:     gnourl.Origin,
 	}
-	if h.showRealmNotice(gnourl) {
+	// A copy shows its package's tabs, and the notice that package's own
+	// pages show: the code is a community package's all the same.
+	noticed := gnourl
+	if gnourl.IsPlayground() {
+		if u := playground.ParseFrom(h.Static.Domain, gnourl.Query.Get("from")); u != nil {
+			indexData.HeaderData.CopyOf = u
+			noticed = u
+		}
+	}
+	if h.showRealmNotice(noticed) {
 		indexData.HeaderData.Notice = h.Static.RealmNotice
 	}
 }
 
-// scrubHeaderOnError keeps an error page's header from vouching for the
+// settleHeader sets what only the page's outcome tells. PackagePath names the
+// package a page shows, and an error page's header stops vouching for the
 // request. The Ask AI menu is dropped, as its prompts would send the assistant
 // to views that do not exist: the menu is built from HeaderData.Origin at
 // render time, and nothing else in the header reads it. The file web-query
 // value is dropped too, so a name the package does not hold is not echoed
-// back through the Source tab, which otherwise carries the open file.
-func scrubHeaderOnError(indexData *components.IndexData, status int) {
+// back through the Source tab, which otherwise carries the open file, and so
+// are a playground copy's tabs, for a package that could not be copied.
+func settleHeader(indexData *components.IndexData, status int) {
 	if status == http.StatusOK {
+		// Only the page's status and mode tell a package from a listing or a
+		// 404 at the same URL, and an alias keeps its search chain-wide.
+		u := &indexData.HeaderData.RealmURL
+		if indexData.Mode != components.ViewModeExplorer && indexData.SearchBase == "" && (u.IsRealm() || u.IsPure()) {
+			indexData.HeaderData.PackagePath = u.Path
+		}
 		return
 	}
 	indexData.HeaderData.Origin = ""
+	indexData.HeaderData.CopyOf = nil
+	indexData.HeaderData.Error = true
 	if u := &indexData.HeaderData.RealmURL; u.WebQuery.Has("file") {
 		// Clone: the map is shared with the request's GnoURL.
 		u.WebQuery = maps.Clone(u.WebQuery)
@@ -1709,20 +1857,62 @@ func scrubHeaderOnError(indexData *components.IndexData, status int) {
 	}
 }
 
-func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
-	split := strings.Split(url.Path, "/")
+// MaxHeaderBytes caps a request's line and headers, to which net/http adds
+// 4 KiB; gnoweb and gnodev serve with it. Each breadcrumb link repeats the URL
+// before it, so a URL of L bytes writes up to 16 copies of it: 64 KiB made a
+// 5.4 MB breadcrumb. 16 KiB still holds the longest playground share link,
+// 8,000 characters. It does not bound a request body.
+const MaxHeaderBytes = 16 << 10
 
+// maxBreadcrumbParts bounds the links in each breadcrumb row. Every link
+// carries the segments before it, so the row grows with the square of its
+// segment count; the last link holds whatever is left.
+const maxBreadcrumbParts = 16
+
+func generateBreadcrumbPaths(url *weburl.GnoURL, domain string) components.BreadcrumbData {
+	// The playground shows the package it was opened from (?from=), or its
+	// own path and shared code, then its pill. The z compression flag
+	// means nothing to a reader: it is no field, but goes along with the
+	// code when the breadcrumb is submitted, which would otherwise reopen
+	// the compressed bytes as text.
+	if url.IsPlayground() {
+		// "_" has no page of its own: both segments lead to the playground.
+		data := components.BreadcrumbData{Parts: []components.BreadcrumbPart{
+			{Name: "_", URL: "/_/play"},
+			{Name: "play", URL: "/_/play"},
+		}, Queries: breadcrumbQueries(url.Query, "code")}
+		if url.Query.Has("code") && url.Query.Has("z") {
+			data.Hidden = []components.QueryParam{{Key: "z"}}
+		}
+		if from := playground.ParseFrom(domain, url.Query.Get("from")); from != nil {
+			data = generateBreadcrumbPaths(from, domain)
+		}
+		data.View = components.BreadcrumbPart{Name: "playground", URL: "/_/play"}
+		return data
+	}
+
+	// One linked part per path segment, up to maxBreadcrumbParts; the first one ("r", "p", "u") links to
+	// its listing, hence the trailing slash.
 	var data components.BreadcrumbData
-	var name string
-	for i := range split {
-		if name = split[i]; name == "" {
+	split := strings.Split(url.Path, "/")
+	for i, name := range split {
+		if name == "" {
 			continue
 		}
 
-		data.Parts = append(data.Parts, components.BreadcrumbPart{
-			Name: name,
-			URL:  strings.Join(split[:i+1], "/"),
-		})
+		end := i + 1
+		if len(data.Parts) == maxBreadcrumbParts-1 {
+			end = len(split)
+			name = strings.TrimRight(strings.Join(split[i:end], "/"), "/")
+		}
+		u := strings.TrimRight(strings.Join(split[:end], "/"), "/")
+		if len(data.Parts) == 0 {
+			u += "/"
+		}
+		data.Parts = append(data.Parts, components.BreadcrumbPart{Name: name, URL: u})
+		if end == len(split) {
+			break
+		}
 	}
 
 	if url.IsRealm() || url.IsPure() {
@@ -1736,25 +1926,90 @@ func generateBreadcrumbPaths(url *weburl.GnoURL) components.BreadcrumbData {
 			return a == ""
 		})
 
-		for i := range nonEmptyArgs {
+		for i := range min(len(nonEmptyArgs), maxBreadcrumbParts) {
+			end := i + 1
+			if i == maxBreadcrumbParts-1 {
+				end = len(nonEmptyArgs)
+			}
 			data.ArgParts = append(data.ArgParts, components.BreadcrumbPart{
-				Name: nonEmptyArgs[i],
-				URL:  url.Path + ":" + strings.Join(nonEmptyArgs[:i+1], "/"),
+				Name: strings.Join(nonEmptyArgs[i:end], "/"),
+				URL:  url.Path + ":" + strings.Join(nonEmptyArgs[:end], "/"),
 			})
 		}
 	}
 
-	// Add query params
-	for key, values := range url.Query {
-		for _, v := range values {
-			data.Queries = append(data.Queries, components.QueryParam{
-				Key:   key,
-				Value: v,
-			})
-		}
-	}
+	data.Queries = breadcrumbQueries(url.Query)
 
 	return data
+}
+
+// breadcrumbQueries lists the query's parameters in key order, so the
+// breadcrumb reads the same on every load; with keys, only those.
+func breadcrumbQueries(query url.Values, keys ...string) []components.QueryParam {
+	if len(keys) == 0 {
+		keys = slices.Sorted(maps.Keys(query))
+	}
+	var params []components.QueryParam
+	for _, key := range keys {
+		for _, v := range query[key] {
+			params = append(params, components.QueryParam{Key: key, Value: v})
+		}
+	}
+	return params
+}
+
+var _ playground.ClientAdapter = (*playgroundClientAdapter)(nil)
+
+// playgroundClientAdapter adapts ClientAdapter for the playground feature,
+// which cannot import gnoweb (cycle).
+type playgroundClientAdapter struct {
+	client ClientAdapter
+}
+
+// Eval keeps the chain's answer about the expression and hides why the node
+// could not be reached: pages answer the same errors with a generic message.
+func (a *playgroundClientAdapter) Eval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+	res, err := a.client.PublicEval(ctx, pkgPath, expr)
+	switch {
+	case err == nil:
+		return res, nil
+	case errors.Is(err, ErrClientTimeout), errors.Is(err, context.DeadlineExceeded):
+		return nil, fmt.Errorf("%w: %w", playground.ErrEvalTimeout, err)
+	case errors.Is(err, ErrClientBadRequest), errors.Is(err, context.Canceled):
+		return nil, fmt.Errorf("%w: %w", playground.ErrEvalUnavailable, err)
+	case errors.Is(err, ErrClientResponse):
+		// The reader sees the node's own words, as gnokey prints them,
+		// without gnoweb's internal prefix.
+		return nil, errors.New(strings.TrimPrefix(err.Error(), ErrClientResponse.Error()+": "))
+	default:
+		return nil, err
+	}
+}
+
+var _ playground.PackageFetcher = playgroundPackages{}
+
+// playgroundPackages hands a playground copy the files it opens, its errors
+// turned into the playground's.
+type playgroundPackages struct{ h *HTTPHandler }
+
+func (p playgroundPackages) PackageFiles(ctx context.Context, pkgPath string) ([]playground.File, error) {
+	files, err := p.h.packageFiles(ctx, pkgPath, copyRead)
+	switch {
+	case err == nil:
+	case errors.Is(err, ErrClientPackageNotFound):
+		return nil, fmt.Errorf("%w: %w", playground.ErrPackageNotFound, err)
+	case errors.Is(err, errPackageTooLarge):
+		return nil, fmt.Errorf("%w: %w", playground.ErrPackageTooLarge, err)
+	case errors.Is(err, ErrClientTimeout), errors.Is(err, context.DeadlineExceeded):
+		return nil, fmt.Errorf("%w: %w", playground.ErrPackageTimeout, err)
+	default:
+		return nil, err
+	}
+	out := make([]playground.File, len(files))
+	for i, f := range files {
+		out[i] = playground.File{Name: f.name, Content: string(f.source)}
+	}
+	return out, nil
 }
 
 // GetOverviewView renders the package overview landing page at /r/<pkg>$source.
@@ -1771,6 +2026,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		readme   components.Component
 		subpaths []string
 	)
+	var readmeLen int
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() (err error) {
@@ -1795,7 +2051,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 	g.Go(func() error {
 		// A missing or unrenderable README must not fail the whole overview;
 		// the error is intentionally dropped so the page degrades to no README.
-		readme, _ = h.renderReadme(gctx, gnourl, pkgPath, pr)
+		readme, _, readmeLen = h.renderReadme(gctx, gnourl, pkgPath, pr)
 		return nil
 	})
 	g.Go(func() error {
@@ -1832,7 +2088,7 @@ func (h *HTTPHandler) GetOverviewView(ctx context.Context, gnourl *weburl.GnoURL
 		Subpaths:    subpaths,
 		Readme:      readme,
 		Domain:      h.Static.Domain,
-		DocRenderer: h.Renderer,
+		DocRenderer: newPageDocRenderer(h.Renderer, pkgPath, readmeLen),
 	}
 	in.DepsURL = h.ChainMap.DepsURL(pkgPath)
 	data := components.BuildOverview(in)

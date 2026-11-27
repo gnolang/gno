@@ -1,22 +1,13 @@
 package main
 
-type T struct{ G int }
-
-func (t *T) SetG(v int) { t.G = v }
-
-type S struct {
-	F int
-	T T
-}
+import "strconv"
 
 func main() {
-	var x any = S{F: 1}
-	x.(S).F++
-	println(x.(S).F)
+	_ = &strconv.Atoi
 }
 
-// Error:
-// main/addressable_12c_err.gno:14:2-11: cannot assign to x<VPBlock(1,0)>.(typeval{main.S}).F
-
 // TypeCheckError:
-// main/addressable_12c_err.gno:14:2: cannot assign to x.(S).F (neither addressable nor a map index expression)
+// main/addressable_12c_err.gno:6:7: invalid operation: cannot take address of strconv.Atoi (value of type func(s string) (int, error))
+
+// Error:
+// main/addressable_12c_err.gno:6:6-19: invalid operation: cannot take address of strconv<VPBlock(2,0)>.Atoi (value of type func(string) (int, .uverse.error))

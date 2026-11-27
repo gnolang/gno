@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -560,4 +561,53 @@ func hashStores(stores map[types.StoreKey]types.CommitStore) []byte {
 		}.GetHash()
 	}
 	return merkle.SimpleHashFromMap(m)
+}
+
+// TestLastCommitIDConcurrentWithCommit models the production wiring: the query
+// connection runs on its own mutex (proxy.NewReadOnlyABCIClient), so
+// BaseApp.Info and BaseApp.Query read WrittenCommitID concurrently with the
+// consensus goroutine's Commit(). LastCommitID is read as well, to keep its
+// atomic covered. Run under -race.
+func TestLastCommitIDConcurrentWithCommit(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	ms := newMultiStoreWithMounts(db)
+	require.NoError(t, ms.LoadLatestVersion())
+
+	const commits = 200
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+
+	// Two readers that park between reads. The race detector needs the read to
+	// overlap the write, not to spin: busy-waiting holds every core for the
+	// length of the test, and `go test ./...` schedules the rest of the module
+	// behind it.
+	for range 2 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				// Info and height-0 queries read WrittenCommitID. The race
+				// detector is the assertion: a torn read keeps Version
+				// monotonic and pairs it with a stale Hash.
+				ms.LastCommitID()
+				ms.WrittenCommitID()
+				time.Sleep(time.Microsecond)
+			}
+		})
+	}
+
+	store1 := ms.getStoreByName("store1")
+	for i := range commits {
+		store1.Set(nil, []byte{byte(i)}, []byte("v"))
+		ms.Commit()
+	}
+	close(stop)
+	wg.Wait()
+
+	require.Equal(t, int64(commits), ms.LastCommitID().Version)
 }

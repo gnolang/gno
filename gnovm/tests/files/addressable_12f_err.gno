@@ -1,22 +1,18 @@
 package main
 
-type T struct{ G int }
+type I interface{ M() }
 
-func (t *T) SetG(v int) { t.G = v }
+type T struct{}
 
-type S struct {
-	F int
-	T T
-}
+func (T) M() {}
 
 func main() {
-	var x any = S{F: 1}
-	x.(S).T.SetG(9)
-	println(x.(S).T.G)
+	var i I = T{}
+	_ = &i.M
 }
 
-// Error:
-// main/addressable_12f_err.gno:14:2-14: cannot call pointer method SetG on main.T
-
 // TypeCheckError:
-// main/addressable_12f_err.gno:14:10: cannot call pointer method SetG on T
+// main/addressable_12f_err.gno:11:7: invalid operation: cannot take address of i.M (value of type func())
+
+// Error:
+// main/addressable_12f_err.gno:11:6-10: invalid operation: cannot take address of i<VPBlock(1,0)>.M (value of type func())

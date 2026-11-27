@@ -412,25 +412,38 @@ func TestSign_MultisignTx(t *testing.T) {
 		sigs := []string{
 			filepath.Join(t.TempDir(), "sig0.json"),
 			filepath.Join(t.TempDir(), "sig1.json"),
+			filepath.Join(t.TempDir(), "sig2.json"),
 		}
 
 		genSignature("k0", sigs[0])
 		genSignature("k1", sigs[1])
+		genSignature("k2", sigs[2])
+
+		multisign := func(sigFiles ...string) error {
+			args := []string{
+				"multisign",
+				"--insecure-password-stdin",
+				"--home", kbHome,
+				"--tx-path", txFile.Name(),
+			}
+			for _, sigFile := range sigFiles {
+				args = append(args, "--signature", sigFile)
+			}
+			args = append(args, multisigName)
+			return NewRootCmdWithBaseConfig(commands.NewTestIO(), baseOptions).
+				ParseAndRun(context.Background(), args)
+		}
+
+		// All three is more than the threshold, which the chain refuses, so
+		// multisign refuses it too and leaves the tx alone.
+		require.ErrorContains(t, multisign(sigs...),
+			"multisignature has 3 signatures, want exactly the threshold 2")
+		unchanged, err := os.ReadFile(txFile.Name())
+		require.NoError(t, err)
+		require.Equal(t, rawTx, unchanged)
 
 		// Generate the multisig
-		io := commands.NewTestIO()
-		multiCmd := NewRootCmdWithBaseConfig(io, baseOptions)
-
-		args := []string{
-			"multisign",
-			"--insecure-password-stdin",
-			"--home", kbHome,
-			"--tx-path", txFile.Name(),
-			"--signature", sigs[0],
-			"--signature", sigs[1],
-			multisigName,
-		}
-		require.NoError(t, multiCmd.ParseAndRun(context.Background(), args))
+		require.NoError(t, multisign(sigs[0], sigs[1]))
 
 		// Make sure the multisig is valid
 		signedRaw, err := os.ReadFile(txFile.Name())
@@ -451,4 +464,158 @@ func TestSign_MultisignTx(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, msPub.VerifyBytes(signBytes, aggSig.Signature))
 	})
+
+	t.Run("nested multisig signature past its threshold", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			kbHome      = t.TempDir()
+			baseOptions = BaseOptions{
+				InsecurePasswordStdin: true,
+				Home:                  kbHome,
+			}
+
+			multisigName = "multisig-nested"
+			privKeys     = []secp256k1.PrivKeySecp256k1{
+				secp256k1.GenPrivKey(),
+				secp256k1.GenPrivKey(),
+				secp256k1.GenPrivKey(),
+			}
+
+			// A 2-of-2 whose second constituent is itself a 1-of-2.
+			innerKeys = []crypto.PubKey{privKeys[1].PubKey(), privKeys[2].PubKey()}
+			innerPub  = multisig.NewPubKeyMultisigThreshold(1, innerKeys)
+			msPub     = multisig.NewPubKeyMultisigThreshold(2, []crypto.PubKey{privKeys[0].PubKey(), innerPub})
+		)
+
+		kb, err := keys.NewKeyBaseFromDir(kbHome)
+		require.NoError(t, err)
+
+		msInfo, err := kb.CreateMulti(multisigName, msPub)
+		require.NoError(t, err)
+
+		tx := std.Tx{
+			Fee: std.Fee{
+				GasWanted: 10,
+				GasFee: std.Coin{
+					Amount: 10,
+					Denom:  "ugnot",
+				},
+			},
+			Msgs: []std.Msg{
+				bank.MsgSend{
+					FromAddress: msInfo.GetAddress(),
+				},
+			},
+		}
+
+		txPath := filepath.Join(t.TempDir(), "tx.json")
+		rawTx, err := amino.MarshalJSON(tx)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(txPath, rawTx, 0o644))
+
+		signBytes, err := tx.GetSignBytes("dev", 0, 0)
+		require.NoError(t, err)
+
+		sign := func(i int) []byte {
+			sig, err := privKeys[i].Sign(signBytes)
+			require.NoError(t, err)
+			return sig
+		}
+		writeSig := func(pub crypto.PubKey, sig []byte) string {
+			raw, err := amino.MarshalJSON(std.Signature{PubKey: pub, Signature: sig})
+			require.NoError(t, err)
+			path := filepath.Join(t.TempDir(), "sig.json")
+			require.NoError(t, os.WriteFile(path, raw, 0o644))
+			return path
+		}
+		// The signature file for the nested key, as assembled elsewhere.
+		innerSig := func(signers ...int) string {
+			ms := multisig.NewMultisig(len(innerKeys))
+			for _, i := range signers {
+				require.NoError(t, ms.AddSignatureFromPubKey(sign(i), privKeys[i].PubKey(), innerKeys))
+			}
+			return writeSig(innerPub, ms.Marshal())
+		}
+		multisign := func(sigFiles ...string) error {
+			args := []string{
+				"multisign",
+				"--insecure-password-stdin",
+				"--home", kbHome,
+				"--tx-path", txPath,
+			}
+			for _, sigFile := range sigFiles {
+				args = append(args, "--signature", sigFile)
+			}
+			args = append(args, multisigName)
+			return NewRootCmdWithBaseConfig(commands.NewTestIO(), baseOptions).
+				ParseAndRun(context.Background(), args)
+		}
+
+		outerSig := writeSig(privKeys[0].PubKey(), sign(0))
+
+		// Two signatures on the 1-of-2 is past its threshold, which the chain
+		// refuses at every level, so multisign refuses it too and leaves the tx
+		// alone, although the top level has exactly its 2.
+		require.ErrorContains(t, multisign(outerSig, innerSig(1, 2)),
+			"constituent 1: multisignature has 2 signatures, want exactly the threshold 1")
+		unchanged, err := os.ReadFile(txPath)
+		require.NoError(t, err)
+		require.Equal(t, rawTx, unchanged)
+
+		require.NoError(t, multisign(outerSig, innerSig(2)))
+
+		signedRaw, err := os.ReadFile(txPath)
+		require.NoError(t, err)
+
+		var signedTx std.Tx
+		require.NoError(t, amino.UnmarshalJSON(signedRaw, &signedTx))
+		require.Len(t, signedTx.Signatures, 1)
+		assert.True(t, msPub.VerifyBytes(signBytes, signedTx.Signatures[0].Signature))
+	})
+}
+
+func TestValidateNestedMultisigsRecurses(t *testing.T) {
+	t.Parallel()
+
+	leaves := make([]crypto.PubKey, 4)
+	for i := range leaves {
+		leaves[i] = secp256k1.GenPrivKey().PubKey()
+	}
+
+	// Three levels: a 2-of-2 holding a 1-of-2 holding a 1-of-2.
+	innerKeys := []crypto.PubKey{leaves[2], leaves[3]}
+	midKeys := []crypto.PubKey{leaves[1], multisig.NewPubKeyMultisigThreshold(1, innerKeys)}
+	outerKeys := []crypto.PubKey{leaves[0], multisig.NewPubKeyMultisigThreshold(1, midKeys)}
+	outerPub := multisig.NewPubKeyMultisigThreshold(2, outerKeys).(multisig.PubKeyMultisigThreshold)
+
+	// Only the shape is checked, so any bytes stand in for a leaf signature.
+	leafSig := []byte("signature")
+	combine := func(n int, sigs map[int][]byte) *multisig.Multisignature {
+		ms := multisig.NewMultisig(n)
+		for i, sig := range sigs {
+			require.NoError(t, ms.AddSignature(sig, i))
+		}
+		return ms
+	}
+	outerSig := func(innerSigs map[int][]byte) multisig.Multisignature {
+		mid := combine(len(midKeys), map[int][]byte{1: combine(len(innerKeys), innerSigs).Marshal()})
+		return *combine(len(outerKeys), map[int][]byte{0: leafSig, 1: mid.Marshal()})
+	}
+
+	require.NoError(t, validateNestedMultisigs(outerSig(map[int][]byte{1: leafSig}), outerPub))
+	require.EqualError(t,
+		validateNestedMultisigs(outerSig(map[int][]byte{0: leafSig, 1: leafSig}), outerPub),
+		"constituent 1: constituent 1: multisignature has 2 signatures, want exactly the threshold 1")
+
+	// A leaf signature where a nested multisignature belongs does not decode.
+	require.EqualError(t,
+		validateNestedMultisigs(*combine(len(outerKeys), map[int][]byte{0: leafSig, 1: leafSig}), outerPub),
+		"signature for constituent 1 is not a multisignature")
+
+	// Nor does a nested multisignature the chain would refuse as not canonical.
+	mid := combine(len(midKeys), map[int][]byte{1: combine(len(innerKeys), map[int][]byte{1: leafSig}).Marshal()})
+	require.EqualError(t,
+		validateNestedMultisigs(*combine(len(outerKeys), map[int][]byte{0: leafSig, 1: padBitArrayVarint(t, mid.Marshal())}), outerPub),
+		"signature for constituent 1 is not a multisignature")
 }

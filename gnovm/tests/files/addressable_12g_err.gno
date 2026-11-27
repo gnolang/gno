@@ -1,23 +1,17 @@
 package main
 
-type T struct{ G int }
-
-func (t *T) SetG(v int) { t.G = v }
-
-type S struct {
-	F int
-	T T
-}
+func fn() {}
 
 func main() {
-	var x any = S{F: 1}
-	f := x.(S).T.SetG
-	f(9)
-	println(x.(S).T.G)
+	// &fn refers to the package func; the local declared after it does not
+	// shadow this use.
+	_ = &fn
+	fn := 1
+	_ = fn
 }
 
 // Error:
-// main/addressable_12g_err.gno:14:7-19: cannot call pointer method SetG on main.T
+// main/addressable_12g_err.gno:8:6-9: invalid operation: cannot take address of fn<VPBlock(3,0)> (value of type func())
 
 // TypeCheckError:
-// main/addressable_12g_err.gno:14:15: cannot call pointer method SetG on T
+// main/addressable_12g_err.gno:8:7: invalid operation: cannot take address of fn (value of type func())

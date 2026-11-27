@@ -136,6 +136,9 @@ func (r *Repl) RunStatements(code string) {
 		defer func() {
 			if rec := recover(); rec != nil {
 				r.rec = rec
+				// The machine outlives this statement; drop the exception
+				// so later defers and recover() don't see it.
+				r.m.Exception = nil
 				switch rec := rec.(type) {
 				case *gno.PreprocessError:
 					err := rec.Unwrap()

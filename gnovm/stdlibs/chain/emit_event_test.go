@@ -2,13 +2,17 @@ package chain
 
 import (
 	"encoding/json"
+	"math/rand"
 	"strings"
 	"testing"
+	"unsafe"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -237,4 +241,43 @@ func TestEmit_MultipleEvents(t *testing.T) {
 	}
 
 	assert.Equal(t, string(expectRes), string(res))
+}
+
+// eventSize must track amino's encoding of an Event, across varint length
+// boundaries and nil vs empty attributes.
+func TestEventSizeMatchesMarshalAny(t *testing.T) {
+	t.Parallel()
+	r := rand.New(rand.NewSource(1))
+	lens := []int{0, 1, 127, 128, 4095, 4096}
+	pick := func() string { return strings.Repeat("x", lens[r.Intn(len(lens))]) }
+	for i := range 3000 {
+		e := Event{Type: pick(), PkgPath: pick()}
+		if np := r.Intn(MaxEventPairs + 1); np > 0 || r.Intn(2) == 0 {
+			e.Attributes = make([]EventAttribute, np)
+		}
+		for j := range e.Attributes {
+			e.Attributes[j] = EventAttribute{Key: pick(), Value: pick()}
+		}
+		require.Equal(t, len(amino.MustMarshalAny(e)), eventSize(e), "case %d", i)
+	}
+}
+
+// An emitted substring must not keep its source string alive.
+func TestEmitCopiesStrings(t *testing.T) {
+	t.Parallel()
+	m := gno.NewMachine(pkgPath, nil)
+	pushFuncFrame(m, "main")
+	pushFuncFrame(m, "Emit")
+	elgs := sdk.NewEventLogger()
+	m.Context = execctx.ExecContext{EventLogger: elgs}
+
+	src := strings.Repeat("x", 1<<20)
+	X_emit(m, src[:1], []string{src[1:2], src[2:3]})
+
+	evt := elgs.Events()[0].(Event)
+	for _, s := range []string{evt.Type, evt.Attributes[0].Key, evt.Attributes[0].Value} {
+		p := uintptr(unsafe.Pointer(unsafe.StringData(s)))
+		base := uintptr(unsafe.Pointer(unsafe.StringData(src)))
+		assert.False(t, p >= base && p < base+uintptr(len(src)), "%q shares the source string's memory", s)
+	}
 }

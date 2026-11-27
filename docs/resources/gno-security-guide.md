@@ -217,8 +217,25 @@ has any method with a body that writes its receiver, calling that
 method on the returned pointer succeeds — borrow rule #2 borrows `m.Realm`
 back to `/r/V`, and the write commits.
 
+Slicing the result does not narrow this. `users[low:high]` keeps a
+capacity of `cap(users) - low`, so after `return users[:1]` the caller
+can reslice with `s[:cap(s)]` and call those methods on the elements
+you left out. Nor do the elements have to be pointers: if `users` is
+a `[]User`, `Users()[0].SetName("x")` takes the address of the element
+inside your backing array, and the method writes it in place.
+
 **Rule**: getters return either values (copies), unexported method
 results, or read-only views. Never a pointer to internal mutable state.
+The copy must not reach your state through any of its fields.
+`make` + `copy` gives a `[]User` its own backing array, and copying
+each pointee does the same for a `[]*User`, but both copies are
+shallow: a `Profile *Profile` or `Tags []string` field still points
+into your state, and any method that writes through it commits there
+(`Users()[0].Profile.SetBio("x")`). Return a snapshot that copies
+those fields too, or leaves them out. A three-index slice
+(`users[:n:n]`) stops the caller reslicing past `n`, but the elements
+it returns still share your backing array and stay mutable through
+their methods.
 
 #### 5.1a `/p/`-type with unexported fields but exported mutation methods
 
@@ -466,16 +483,15 @@ invoke it later — borrow rule #2 will still borrow to your realm. Don't
 return bound method values of `/p/`-types unless you know the
 method body is safe under attacker invocation.
 
-### 7.2 Conversion-time panic is not Gno-recoverable
+### 7.2 Conversion-time panic is recoverable inside a call
 
-`doOpConvert` Case 1 (foreign-readonly source conversion refused)
-panics with raw Go `panic(...)`, which is **not** caught by Gno
-`defer { recover() }`. The write-time readonly check at
-`machine.go:2555` uses `m.Panic(typedString(...))` and **is**
-catchable. This is an implementation inconsistency, not a bug — but
-attacker code cannot rely on `recover()` to differentiate failure
-modes. (Likely worth normalizing to `m.PanicString` for consistency;
-tracked.)
+A refused conversion, Case 1 (foreign-readonly source) or Case 2
+(foreign `/r/`-declared target), explicit `T(x)` or implicit, panics
+with `m.PanicString`, like the write-time readonly check. A
+`defer { recover() }` in the converting realm catches it, and the
+refused conversion has written nothing. Only a refusal in a
+package-level `var` initializer, with no call on the stack, is one
+nothing recovers, and the transaction aborts.
 
 ### 7.3 Storage-construction-time check (Phase 2)
 

@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 var _ fmt.Stringer
@@ -45,6 +46,7 @@ func init() {
 	amino.RegisterGenproto2Type(reflect.TypeOf((*NoSignaturesError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*GasOverflowError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*RestrictedTransferError)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeOf((*QueryTimeoutError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SessionExpiredError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SessionNotFoundError)(nil)).Elem())
 	amino.RegisterGenproto2Type(reflect.TypeOf((*SessionLimitError)(nil)).Elem())
@@ -750,7 +752,7 @@ func (goo *Coin) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) err
 		repr = string(v)
 	}
 	if len(bz) != 0 {
-		return fmt.Errorf("trailing bytes after primitive repr: %X", bz)
+		return fmt.Errorf("%d trailing bytes after primitive repr", len(bz))
 	}
 	return goo.UnmarshalAmino(repr)
 }
@@ -1175,20 +1177,22 @@ func (goo *Fee) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) erro
 
 func (goo Signature) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
-	{
-		repr, err := goo.SessionAddr.MarshalAmino()
-		if err != nil {
-			return offset, err
-		}
-		if repr != "" {
-			{
-				before := offset
-				offset = amino.PrependString(buf, offset, string(repr))
-				valueLen := before - offset
-				if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
-					offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
-				} else {
-					offset = before
+	if goo.SessionAddr != (crypto.Address{}) {
+		{
+			repr, err := goo.SessionAddr.MarshalAmino()
+			if err != nil {
+				return offset, err
+			}
+			if repr != "" {
+				{
+					before := offset
+					offset = amino.PrependString(buf, offset, string(repr))
+					valueLen := before - offset
+					if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+						offset = amino.PrependFieldNumberAndTyp3(buf, offset, 3, amino.Typ3ByteLength)
+					} else {
+						offset = before
+					}
 				}
 			}
 		}
@@ -1234,13 +1238,15 @@ func (goo Signature) SizeBinary2(cdc *amino.Codec) (int, error) {
 	if len(goo.Signature) != 0 {
 		s += 1 + amino.ByteSliceSize(goo.Signature)
 	}
-	{
-		repr, err := goo.SessionAddr.MarshalAmino()
-		if err != nil {
-			return 0, err
-		}
-		if repr != "" {
-			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+	if goo.SessionAddr != (crypto.Address{}) {
+		{
+			repr, err := goo.SessionAddr.MarshalAmino()
+			if err != nil {
+				return 0, err
+			}
+			if repr != "" {
+				s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
+			}
 		}
 	}
 	return s, nil
@@ -2212,6 +2218,38 @@ func (goo *RestrictedTransferError) UnmarshalBinary2(cdc *amino.Codec, bz []byte
 		switch fnum {
 		default:
 			return fmt.Errorf("unknown field number %d for RestrictedTransferError", fnum)
+		}
+	}
+	return nil
+}
+
+func (goo QueryTimeoutError) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
+	var err error
+	return offset, err
+}
+
+func (goo QueryTimeoutError) SizeBinary2(cdc *amino.Codec) (int, error) {
+	var s int
+	return s, nil
+}
+
+func (goo *QueryTimeoutError) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) error {
+	*goo = QueryTimeoutError{}
+	var lastFieldNum uint32
+	for len(bz) > 0 {
+		fnum, typ3, n, err := amino.DecodeFieldNumberAndTyp3(bz)
+		_ = typ3
+		if err != nil {
+			return err
+		}
+		if fnum <= lastFieldNum {
+			return fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v", fnum, lastFieldNum)
+		}
+		lastFieldNum = fnum
+		bz = bz[n:]
+		switch fnum {
+		default:
+			return fmt.Errorf("unknown field number %d for QueryTimeoutError", fnum)
 		}
 	}
 	return nil

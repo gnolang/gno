@@ -1,22 +1,17 @@
 package main
 
-type T struct{ G int }
+type T struct{ n int }
 
-func (t *T) SetG(v int) { t.G = v }
-
-type S struct {
-	F int
-	T T
-}
+func (t *T) Inc() { t.n++ }
 
 func main() {
-	var x any = [2]int{1, 1}
-	x.([2]int)[0] = 9
-	println(x.([2]int)[0])
+	// A method expression is a func value. (*T) here is a pointer type
+	// expression, not an indirection of anything.
+	_ = &(*T).Inc
 }
 
-// Error:
-// main/addressable_12e_err.gno:14:2-19: cannot assign to x<VPBlock(1,0)>.([(const (2 int))](const-type int))[(const (0 int))]
-
 // TypeCheckError:
-// main/addressable_12e_err.gno:14:2: cannot assign to x.([2]int)[0] (neither addressable nor a map index expression)
+// main/addressable_12e_err.gno:10:7: invalid operation: cannot take address of (*T).Inc (value of type func(*T))
+
+// Error:
+// main/addressable_12e_err.gno:10:6-15: invalid operation: cannot take address of *(typeval{main.T}).Inc (value of type func(*main.T))

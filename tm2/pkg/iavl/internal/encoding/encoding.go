@@ -1,7 +1,6 @@
 package encoding
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -9,12 +8,6 @@ import (
 	"math/bits"
 	"sync"
 )
-
-var bufPool = &sync.Pool{
-	New: func() any {
-		return new(bytes.Buffer)
-	},
-}
 
 var varintPool = &sync.Pool{
 	New: func() any {
@@ -111,20 +104,6 @@ func Encode32BytesHash(w io.Writer, bz []byte) error {
 	}
 	_, err = w.Write(bz)
 	return err
-}
-
-// encodeBytesSlice length-prefixes the byte slice and returns it.
-func EncodeBytesSlice(bz []byte) ([]byte, error) {
-	buf := bufPool.Get().(*bytes.Buffer)
-	buf.Reset()
-	defer bufPool.Put(buf)
-
-	err := EncodeBytes(buf, bz)
-
-	bytesCopy := make([]byte, buf.Len())
-	copy(bytesCopy, buf.Bytes())
-
-	return bytesCopy, err
 }
 
 // encodeBytesSize returns the byte size of the given slice including length-prefixing.

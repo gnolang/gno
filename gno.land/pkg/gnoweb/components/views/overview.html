@@ -328,7 +328,7 @@ UI - Function symbol card
   {{ with .SignatureComponent }}
   {{ template "ui/pkg_code_block" (dict "Component" . "SourceURL" $.SourceURL "CopyID" $.AnchorID) }}
   {{ end }}
-  {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
+  {{ with .Doc }}{{ with render . }}<div class="b-pkg-symbol__doc c-doc-view">{{ . }}</div>{{ end }}{{ end }}
 </article>
 {{ end }}
 
@@ -348,7 +348,7 @@ UI - Type symbol card (with nested methods)
   {{ with .SignatureComponent }}
   {{ template "ui/pkg_code_block" (dict "Component" . "SourceURL" $.SourceURL "CopyID" $.AnchorID) }}
   {{ end }}
-  {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
+  {{ with .Doc }}{{ with render . }}<div class="b-pkg-symbol__doc c-doc-view">{{ . }}</div>{{ end }}{{ end }}
   {{ with .Methods }}
   <div class="b-pkg-symbol__methods">
     <h4 class="u-sr-only">Methods on {{ $.Name }}</h4>
@@ -371,6 +371,6 @@ UI - Value group card (const / var)
   {{ with .SignatureComponent }}
   {{ template "ui/pkg_code_block" (dict "Component" . "SourceURL" $.SourceURL "CopyID" $.AnchorID) }}
   {{ end }}
-  {{ with .Doc }}<div class="b-pkg-symbol__doc c-doc-view">{{ render . }}</div>{{ end }}
+  {{ with .Doc }}{{ with render . }}<div class="b-pkg-symbol__doc c-doc-view">{{ . }}</div>{{ end }}{{ end }}
 </article>
 {{ end }}

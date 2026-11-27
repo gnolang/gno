@@ -1,0 +1,8 @@
+{{/* The comment over a command that signs with a key on this computer
+(Fast mode), on $help's calls and $run's script alike. */}}
+{{ define "ui/insecure_warning" -}}
+# WARNING: This command is running in an INSECURE mode.
+# It is strongly recommended to use a hardware device for signing
+# and avoid trusting any computer connected to the internet,
+# as your private keys could be exposed.
+{{- end }}

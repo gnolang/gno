@@ -110,31 +110,59 @@ func typeDecl(t *doc.JSONType) string {
 	return "type " + t.Name + " " + t.Type
 }
 
-// renderSignature syntax-highlights a Gno signature snippet as HTML.
+// renderSignature returns a Component syntax-highlighting a Gno signature
+// snippet as HTML when the template writes it.
 // Returns nil for empty signatures; falls back to HTML-escaped text on renderer failure.
 func renderSignature(sig string, render DocRenderer) Component {
 	if strings.TrimSpace(sig) == "" {
 		return nil
 	}
-	var buf bytes.Buffer
-	if err := render.RenderSource(&buf, "sig.gno", []byte(sig)); err != nil {
-		return rawHTMLComponent(template.HTMLEscapeString(sig))
-	}
-	return rawHTMLComponent(buf.String())
+	return lazyComponent{src: sig, render: render, sig: true}
 }
 
-// renderDocString renders a doc string through the DocRenderer into a Component.
+// renderDocString returns a Component rendering a doc string through the
+// DocRenderer when the template writes it.
 // A nil or empty doc returns nil so the template can use {{ with .Doc }}.
 // Renderer failures degrade to a plain HTML-escaped string.
 func renderDocString(src string, render DocRenderer) Component {
 	if strings.TrimSpace(src) == "" {
 		return nil
 	}
+	return lazyComponent{src: src, render: render}
+}
+
+// lazyComponent renders src when the template writes it, so a symbol the
+// overview's caps cut is never rendered. On failure it writes src HTML-escaped.
+type lazyComponent struct {
+	src    string
+	render DocRenderer
+	sig    bool // highlight src as Gno source rather than render it as a doc
+}
+
+func (c lazyComponent) Render(w io.Writer) error {
 	var buf bytes.Buffer
-	if err := render.RenderDocumentation(&buf, []byte(src)); err != nil {
-		escaped := template.HTMLEscapeString(src)
-		return rawHTMLComponent(escaped)
+	var err error
+	if c.sig {
+		err = c.render.RenderSource(&buf, "sig.gno", []byte(c.src))
+	} else {
+		err = c.render.RenderDocumentation(&buf, []byte(c.src))
 	}
+	if err != nil {
+		_, err = io.WriteString(w, template.HTMLEscapeString(c.src))
+		return err
+	}
+	_, err = buf.WriteTo(w)
+	return err
+}
+
+// renderNow renders c at once, so a template treats a doc rendering to
+// nothing as absent.
+func renderNow(c Component) Component {
+	if c == nil {
+		return nil
+	}
+	var buf bytes.Buffer
+	_ = c.Render(&buf) // writing to a bytes.Buffer never fails
 	return rawHTMLComponent(buf.String())
 }
 

@@ -232,21 +232,11 @@ Main:
 					if fv.PkgPath == uversePkgPath {
 						// TODO: should support min, max, real, imag
 						switch fv.Name {
-						case "len":
+						case "len", "cap":
 							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
-								break Main
+							if _, ok := arrayOrPtrToArray(at); !ok {
+								assertValidConstValue(store, last, currExpr.Args[0])
 							}
-							assertValidConstValue(store, last, currExpr.Args[0])
-							break Main
-						case "cap":
-							at := evalStaticTypeOf(store, last, currExpr.Args[0])
-							if _, ok := unwrapPointerType(baseOf(at)).(*ArrayType); ok {
-								// ok
-								break Main
-							}
-							assertValidConstValue(store, last, currExpr.Args[0])
 							break Main
 						}
 					}
@@ -861,36 +851,12 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 		return
 	}
 
-	xt := baseOf(evalStaticTypeOf(store, last, x.X))
-	// Ranging over a pointer to array iterates the array itself (int keys,
-	// array-element values), so unwrap it to the array type. Mirrors the
-	// PointerKind handling in preprocess.
-	if pt, ok := xt.(*PointerType); ok {
-		xt = baseOf(pt.Elem())
+	yieldedKeyType, yieldedValueType := rangeKeyValueTypes(evalStaticTypeOf(store, last, x.X))
+	if kt != nil && yieldedKeyType != nil {
+		mustAssignableTo(store, x, yieldedKeyType, kt)
 	}
-	if kt != nil {
-		switch cxt := xt.(type) {
-		case *MapType:
-			mustAssignableTo(store, x, cxt.Key, kt)
-		case *SliceType, *ArrayType:
-			mustAssignableTo(store, x, IntType, kt)
-		case PrimitiveType:
-			if cxt.Kind() == StringKind {
-				mustAssignableTo(store, x, IntType, kt)
-			}
-		}
-	}
-	if vt != nil {
-		switch cxt := xt.(type) {
-		case *MapType:
-			mustAssignableTo(store, x, cxt.Value, vt)
-		case *SliceType, *ArrayType:
-			mustAssignableTo(store, x, cxt.Elem(), vt)
-		case PrimitiveType:
-			if cxt.Kind() == StringKind {
-				mustAssignableTo(store, x, Int32Type, vt) // rune
-			}
-		}
+	if vt != nil && yieldedValueType != nil {
+		mustAssignableTo(store, x, yieldedValueType, vt)
 	}
 }
 
@@ -1050,8 +1016,12 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 			shouldPanic = false
 		} else if clx.Path.Type == VPUverse {
 			panic(fmt.Sprintf("cannot assign to uverse %v", clx.Name))
-		} else if last.GetIsConst(store, clx.Name) {
+		} else if last.GetIsConstAt(store, clx.Path) {
 			panic(fmt.Sprintf("cannot assign to const %v", clx.Name))
+		} else if nsrc := last.GetBlockNodeForPath(store, clx.Path).GetNameSources()[clx.Path.Index]; nsrc.Type == NSFuncDecl {
+			// Path-keyed, not name-keyed: an assignment before a shadowing
+			// declaration in the same block targets the outer binding.
+			panic(fmt.Sprintf("cannot assign to func %v", clx.Name))
 		} else {
 			shouldPanic = false
 		}
@@ -1066,43 +1036,6 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	}
 	if shouldPanic {
 		panic(fmt.Sprintf("cannot assign to %v", lx))
-	}
-}
-
-// isAddressable reports whether x is addressable per the Go spec: a variable,
-// a pointer indirection, a slice indexing operation, or a field selector or
-// array indexing operation of an addressable operand. Assigning to, taking
-// the address of, slicing (if an array) and auto-referencing x for a pointer
-// method all require it. go/types enforces this too, but the VM must not rely
-// on it: ArrayValue.Copy shares interface-held values, which is only sound if
-// nothing can write through them.
-func isAddressable(store Store, last BlockNode, x Expr) bool {
-	switch cx := x.(type) {
-	case *NameExpr, *StarExpr:
-		return true
-	case *SelectorExpr:
-		switch cx.Path.Type {
-		case VPBlock: // package-qualified variable
-			return true
-		case VPField:
-			return isAddressable(store, last, cx.X)
-		case VPDerefField, VPSubrefField: // field reached through a pointer
-			return true
-		default: // method value
-			return false
-		}
-	case *IndexExpr:
-		// p[i] on a pointer to array is already rewritten to (*p)[i].
-		switch baseOf(evalStaticTypeOf(store, last, cx.X)).(type) {
-		case *SliceType:
-			return true
-		case *ArrayType:
-			return isAddressable(store, last, cx.X)
-		default: // map or string
-			return false
-		}
-	default: // e.g. a type assertion, call or composite literal
-		return false
 	}
 }
 

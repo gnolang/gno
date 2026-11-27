@@ -36,6 +36,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+          cache: false
 
       # Install Rust toolchain. tmkms isn't published as a pre-built
       # binary, so we build it from source.

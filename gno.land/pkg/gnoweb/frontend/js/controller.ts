@@ -1,9 +1,17 @@
 import {
+	addressSlotText,
+	argSlotText,
 	debounce,
-	escapeShellSpecialChars,
+	downloadBlob,
+	evalArgs,
 	findAllInclusive,
 	findFirstInclusive,
+	makeCopyIcon,
+	makeIcon,
+	paramValue,
+	postEval,
 	setPrefCookie,
+	shellQuote,
 	toCamelCase,
 	toKebabCase,
 } from "./utils.js";
@@ -247,11 +255,19 @@ export abstract class BaseController {
 
 // Re-export utilities for convenience
 export {
+	addressSlotText,
+	argSlotText,
 	debounce,
-	escapeShellSpecialChars,
+	downloadBlob,
+	evalArgs,
 	findAllInclusive,
 	findFirstInclusive,
+	makeCopyIcon,
+	makeIcon,
+	paramValue,
+	postEval,
 	setPrefCookie,
+	shellQuote,
 	toCamelCase,
 	toKebabCase,
 };

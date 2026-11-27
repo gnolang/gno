@@ -23,11 +23,10 @@ stdout 'Link'
 ! gnokey query vm/qeval_json --data "gno.land/r/test/deep.Deep(5000)"
 stderr 'export depth limit exceeded'
 
-# vm/qeval is bounded too: it renders with TypedValue.String(), which truncates,
-# but it runs the same export walk first as a size oracle — so the walk's own
-# recursion is the unbounded cost on this endpoint as well.
-! gnokey query vm/qeval --data "gno.land/r/test/deep.Deep(5000)"
-stderr 'export depth limit exceeded'
+# vm/qeval runs no export walk: TypedValue.String() stops descending at its
+# nesting limit, so the same value renders to a short, truncated response.
+gnokey query vm/qeval --data "gno.land/r/test/deep.Deep(5000)"
+stdout '\.\.\.'
 
 # The node survived the rejected queries and still answers.
 gnokey query vm/qeval_json --data "gno.land/r/test/deep.Small()"

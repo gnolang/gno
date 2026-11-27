@@ -304,10 +304,10 @@ func TestRecvingBackingArrayFreedWhenNoLongerNeeded(t *testing.T) {
 // cost of releasing the backing array too eagerly. Releasing it on every message
 // that merely grew past RecvBufferCapacity puts a realloc-and-regrow on the path
 // of every such message -- and that is the steady state on the channels carrying
-// the largest messages: blockchain and consensus data configure 200KB against
-// multi-MB blocks, the mempool channel leaves it at the 4KB default against
-// MaxTxBytes-sized txs. Measured on a 2MB message with a 200KB capacity, that
-// costs 2.50ms, 9.07MB and 10 allocs, against 47.6us and no allocations here.
+// the largest messages: blockchain configures 200KB against multi-MB blocks,
+// the mempool channel leaves it at the 4KB default against MaxTxBytes-sized
+// txs. Measured on a 2MB message with a 200KB capacity, that costs 2.50ms,
+// 9.07MB and 10 allocs, against 47.6us and no allocations here.
 func TestRecvingBufferReusedForRepeatedLargeMessages(t *testing.T) {
 	t.Parallel()
 

@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -153,8 +155,22 @@ func (d *rpcRealmDirectory) fetchPaths(ctx context.Context) (PathsResult, error)
 	// no cursor to ask with, so "at least this many" is the honest reading —
 	// and over-reporting truncation on an exactly-full chain is the harmless
 	// direction to be wrong in.
-	res.Truncated = len(res.Realms) >= searchPathLimit || len(res.Packages) >= searchPathLimit
+	res.Truncated = d.atCap(res.Realms) || d.atCap(res.Packages)
 	return res, nil
+}
+
+// atCap reports a listing at the node's path limit, or close enough to its
+// response cap that the next path might not have fitted. The size adds back
+// the domain the client strips from each path.
+func (d *rpcRealmDirectory) atCap(paths []string) bool {
+	if len(paths) >= searchPathLimit {
+		return true
+	}
+	size := 0
+	for _, p := range paths {
+		size += len(d.domain) + len(p) + 1
+	}
+	return size+std.PkgPathLimit > vm.MaxQueryOutputBytes
 }
 
 // list fetches paths under prefix, bounded by the semaphore, dropping the empty

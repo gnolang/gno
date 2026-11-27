@@ -76,6 +76,44 @@ func TestDoOpEnterCrossingOutOfGas(t *testing.T) {
 	require.False(t, fr1.DidCrossing)
 }
 
+// TestHarnessSeedsCur pins the testing-stdlib exemption on the caller frame:
+// t.Run hands a crossing sub-test the top-level test's cur, so the
+// stale-capture check must not fire for a call dispatched by package testing.
+func TestHarnessSeedsCur(t *testing.T) {
+	t.Run("testing caller", func(t *testing.T) {
+		m := &Machine{}
+		m.Frames = append(m.Frames,
+			Frame{Func: &FuncValue{PkgPath: TestingBasePkgPath}},
+			Frame{Func: &FuncValue{Crossing: true}},
+		)
+		require.True(t, m.harnessSeedsCur())
+	})
+
+	t.Run("realm caller", func(t *testing.T) {
+		m := &Machine{}
+		m.Frames = append(m.Frames,
+			Frame{Func: &FuncValue{PkgPath: "gno.land/r/test/realm_a"}},
+			Frame{Func: &FuncValue{Crossing: true}},
+		)
+		require.False(t, m.harnessSeedsCur())
+	})
+
+	t.Run("no caller frame", func(t *testing.T) {
+		m := &Machine{}
+		m.Frames = append(m.Frames, Frame{Func: &FuncValue{Crossing: true}})
+		require.False(t, m.harnessSeedsCur())
+	})
+}
+
+// TestFuncDisplayName pins the closure fallback: a function literal has no
+// Name, and an empty name made the identity panic unactionable.
+func TestFuncDisplayName(t *testing.T) {
+	require.Equal(t, "gno.land/r/test/realm_a.Target",
+		funcDisplayName(&FuncValue{PkgPath: "gno.land/r/test/realm_a", Name: "Target"}))
+	require.Equal(t, "gno.land/r/test/realm_a.<func literal>",
+		funcDisplayName(&FuncValue{PkgPath: "gno.land/r/test/realm_a"}))
+}
+
 // TestDoOpEnterCrossingRealmMismatchChargesNoGas covers the implicit-switch
 // gate: reaching a call frame whose LastRealm differs from the current realm
 // with no cross(fn)(...) ancestor panics, and -- because the charge lands only

@@ -19,7 +19,6 @@ type Indexer interface {
 	// source holds pkgPath as a Go string literal, delimiters included, so
 	// that a path never matches inside a longer one.
 	DeploysQuoting(ctx context.Context, pkgPath string, lower, upper int) ([]indexer.Tx, error)
-	URL() string
 }
 
 // ImportReader reads a live package's non-test imports from the chain. It

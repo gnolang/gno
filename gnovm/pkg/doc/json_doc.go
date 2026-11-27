@@ -349,24 +349,18 @@ func (d *Documentable) extractJSONFields(fieldList *ast.FieldList) []*JSONField 
 				}
 			}
 
+			// Formatted once per field and shared by its names: the type can be
+			// as long as the source, and so can the list of names.
+			typ := mustFormatNode(d.pkgData.fset, field.Type, false, nil)
+			doc := commentBuf.String()
 			if len(field.Names) == 0 {
 				// if there are no names, then the field is unnamed, but still has a type
-				f := &JSONField{
-					Name: "",
-					Type: mustFormatNode(d.pkgData.fset, field.Type, false, nil),
-					Doc:  commentBuf.String(),
-				}
-				results = append(results, f)
+				results = append(results, &JSONField{Name: "", Type: typ, Doc: doc})
 			} else {
 				// fields can be of the format: (a, b int, c string)
 				// so we need to iterate over the names
 				for _, name := range field.Names {
-					f := &JSONField{
-						Name: name.Name,
-						Type: mustFormatNode(d.pkgData.fset, field.Type, false, nil),
-						Doc:  commentBuf.String(),
-					}
-					results = append(results, f)
+					results = append(results, &JSONField{Name: name.Name, Type: typ, Doc: doc})
 				}
 			}
 		}
@@ -392,15 +386,12 @@ func (d *Documentable) extractValueSpecs(pkg *doc.Package, specs []ast.Spec) []*
 			}
 		}
 
+		// Rendered once and shared by the spec's names, as in extractJSONFields.
+		doc := string(pkg.Markdown(commentBuf.String()))
 		// Const declaration can be of the form: const a, b, c = 1, 2, 3
 		// so we need to iterate over the names
 		for _, name := range constSpec.Names {
-			jsonValue := &JSONValue{
-				Name: name.Name,
-				Type: typeString,
-				Doc:  string(pkg.Markdown(commentBuf.String())),
-			}
-			values = append(values, jsonValue)
+			values = append(values, &JSONValue{Name: name.Name, Type: typeString, Doc: doc})
 		}
 	}
 	return values

@@ -5,6 +5,11 @@ package components
 // without importing the feature, which already imports components.
 const DepsViewType ViewType = "deps-view"
 
+// SearchViewType identifies feature/omnisearch's results page, for the same
+// reason: it is laid out as a listing, rail and all, so it takes the dev chrome
+// a listing has.
+const SearchViewType ViewType = "omnisearch-view"
+
 // DepGraph is the dependency graph around one package (ui/pkg_graph): what it
 // imports, read from the chain, and what imports it, which only an indexer
 // can propose.

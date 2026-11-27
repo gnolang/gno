@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -325,4 +326,20 @@ func TestDeferredCommitsCloseWritesNothing(t *testing.T) {
 
 	reopened := newDeferTestApp(t, db, nil, AllowDeferredCommits())
 	require.Equal(t, int64(1), reopened.LastBlockHeight(), "Close wrote a held commit")
+}
+
+// TestQueryCustomPanicAnswersAsError pins that a panic in a custom query
+// handler, here a store key over the cap, comes back as an error response.
+func TestQueryCustomPanicAnswersAsError(t *testing.T) {
+	t.Parallel()
+
+	app := newDeferTestApp(t, memdb.NewMemDB(), nil)
+	app.InitChain(abci.RequestInitChain{ChainID: deferTestChain})
+	deferTestBlock(t, app, 1)
+
+	res := queryCustom(app, strings.Repeat("a", 2000))
+	require.NotNil(t, res.Error)
+	require.Contains(t, res.Log, "exceeds the maximum")
+
+	require.Equal(t, []byte("v1"), queryCustom(app, "k1").Value)
 }

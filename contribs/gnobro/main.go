@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	gopath "path"
 	"strings"
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -290,6 +291,7 @@ func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg b
 	// setup logger
 	logger := newLogger(io.Out(), cfg.jsonlog)
 
+	var browsers sync.Map // ssh.Session to the browser it runs
 	teaHandler := func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 		shortid := fmt.Sprintf("%.10s", s.Context().SessionID())
 
@@ -316,6 +318,7 @@ func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg b
 			"sid", s.Context().SessionID(),
 			"user", s.User())
 		model := browser.New(bcfgCopy, gnocl)
+		browsers.Store(s, model)
 
 		return model, []tea.ProgramOption{
 			tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
@@ -338,7 +341,8 @@ func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg b
 			StructuredMiddlewareWithLogger(
 				ctx, logger, slog.LevelInfo,
 			),
-			// XXX: add ip throttler
+			LimitSessionsMiddleware(),
+			ReleaseSessionMiddleware(&browsers),
 		),
 	)
 	if err != nil {
@@ -471,6 +475,75 @@ func ValidatePathCommandMiddleware(pathPrefix string) wish.Middleware {
 			}
 
 			s.Exit(1)
+		}
+	}
+}
+
+// Every session runs its own browser, whose memory grows with the terminal it
+// renders, to about 100 MB at the size cap. maxSessions bounds the total
+// whatever the number of client hosts, and maxSessionsPerHost keeps a single
+// address, or a single IPv6 /64, from taking every slot.
+const (
+	maxSessions        = 12
+	maxSessionsPerHost = 4
+)
+
+func LimitSessionsMiddleware() wish.Middleware {
+	var (
+		mu     sync.Mutex
+		total  int
+		byHost = map[string]int{}
+	)
+	return func(next ssh.Handler) ssh.Handler {
+		return func(s ssh.Session) {
+			host, _, _ := net.SplitHostPort(s.RemoteAddr().String())
+			if ip := net.ParseIP(host); ip != nil && ip.To4() == nil {
+				host = ip.Mask(net.CIDRMask(64, 128)).String() // one subnet, so a client cannot rotate through its /64
+			}
+
+			mu.Lock()
+			if total >= maxSessions || byHost[host] >= maxSessionsPerHost {
+				mu.Unlock()
+				fmt.Fprintln(s.Stderr(), "too many sessions")
+				s.Exit(1)
+				return
+			}
+			total++
+			byHost[host]++
+			mu.Unlock()
+
+			defer func() {
+				mu.Lock()
+				total--
+				if byHost[host]--; byHost[host] == 0 {
+					delete(byHost, host)
+				}
+				mu.Unlock()
+			}()
+			next(s)
+		}
+	}
+}
+
+// ReleaseSessionMiddleware frees what a session leaves behind once its handler
+// returns, served or refused: the browser it ran, and its window changes.
+func ReleaseSessionMiddleware(browsers *sync.Map) wish.Middleware {
+	return func(next ssh.Handler) ssh.Handler {
+		return func(s ssh.Session) {
+			next(s)
+			if b, ok := browsers.LoadAndDelete(s); ok {
+				if c, ok := b.(interface{ Close() }); ok {
+					c.Close()
+				}
+			}
+			// A window change nobody reads blocks the session's requests for good;
+			// the channel closes once the session ends.
+			if _, winch, ok := s.Pty(); ok {
+				go func() {
+					for range winch {
+					}
+				}()
+			}
 		}
 	}
 }

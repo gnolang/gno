@@ -16,7 +16,8 @@ import (
 const (
 	fileNameLimit = 256
 	pkgNameLimit  = 256
-	pkgPathLimit  = 256
+	// PkgPathLimit is the longest package path ValidateBasic accepts.
+	PkgPathLimit = 256
 )
 
 var (
@@ -106,8 +107,8 @@ func (mpkg *MemPackage) ValidateBasic() error {
 	if len(mpkg.Name) > pkgNameLimit {
 		return fmt.Errorf("name length %d exceeds limit %d", len(mpkg.Name), pkgNameLimit)
 	}
-	if len(mpkg.Path) > pkgPathLimit {
-		return fmt.Errorf("path length %d exceeds limit %d", len(mpkg.Path), pkgPathLimit)
+	if len(mpkg.Path) > PkgPathLimit {
+		return fmt.Errorf("path length %d exceeds limit %d", len(mpkg.Path), PkgPathLimit)
 	}
 	if !rePkgName.MatchString(mpkg.Name) {
 		return fmt.Errorf("invalid package name %q", mpkg.Name)

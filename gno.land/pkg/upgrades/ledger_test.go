@@ -146,6 +146,8 @@ func TestValidate_refusesEachBrokenInvariant(t *testing.T) {
 		{"binary platform not os/arch", func(l *Ledger) { l.Upgrades[1].Binaries["linux"] = l.Upgrades[1].Binaries["linux/amd64"] }, "platform"},
 		{"ran_as malformed", func(l *Ledger) { s := "sha-31b6650"; l.Upgrades[1].RanAs = &s }, "ran_as"},
 		{"missing release link", func(l *Ledger) { l.Upgrades[1].Release = "" }, "release"},
+		{"release link for another version", func(l *Ledger) { l.Upgrades[1].Release = "https://github.com/gnolang/gno/releases/tag/v1.2.0" }, "release"},
+		{"release link outside the repository", func(l *Ledger) { l.Upgrades[1].Release = "https://github.com/someone/gno/releases/tag/v1.3.0" }, "release"},
 		{"rolling with a halt height", func(l *Ledger) { h := int64(200000); l.Upgrades[3].HaltHeight = &h }, "rolling"},
 		{"rolling with a halt time", func(l *Ledger) { t2 := l.Upgrades[1].HaltTime.Add(1); l.Upgrades[3].HaltTime = &t2 }, "rolling"},
 		{"rolling with a version floor", func(l *Ledger) { s := "v1.4.1"; l.Upgrades[3].HaltMinVersion = &s }, "rolling"},
@@ -168,11 +170,9 @@ func TestValidate_refusesEachBrokenInvariant(t *testing.T) {
 	}
 }
 
-// A release's binaries exist only once CI has built it, and its entry is
-// written before that: cut-release.sh refuses a final release without one.
-// null says "not built yet", as it does for the image digest; an empty object
-// is refused, so a pending entry cannot pass for a built one with no
-// downloads.
+// A release's binaries exist only once CI has built it. null says "not built
+// yet", as it does for the image digest; an empty object is refused, so a
+// pending entry cannot pass for a built one with no downloads.
 func TestValidate_binariesArePendingUntilTheBuild(t *testing.T) {
 	t.Parallel()
 
@@ -232,6 +232,24 @@ func TestRender_pendingCellsNeverShowNull(t *testing.T) {
 	rolling := lines[6]
 	assert.Contains(t, rolling, "| rolling | — | — | — |", "a rolling patch has no halt height, halt time, floor or proposal — none of them pending")
 	assert.Contains(t, rolling, "*(pending)*", "its image digest is pending like any other entry's")
+}
+
+// A proposal id is only meaningful on the chain that made it, so its link goes
+// to that chain's gnoweb, and a chain with no known gnoweb gets no link.
+func TestRender_proposalLinksToItsChain(t *testing.T) {
+	t.Parallel()
+	for chainID, want := range map[string]string{
+		"gnoland-1": "| [#0](https://gno.land/r/gov/dao:0) |",
+		"onyx-1":    "| [#0](https://onyx.testnets.gno.land/r/gov/dao:0) |",
+		"test-1":    "| #0 |",
+	} {
+		t.Run(chainID, func(t *testing.T) {
+			t.Parallel()
+			l := parseValid(t)
+			l.ChainID = chainID
+			assert.Contains(t, l.RenderTable(), want)
+		})
+	}
 }
 
 func TestSplice_replacesOnlyTheGeneratedBlock(t *testing.T) {
@@ -345,6 +363,9 @@ func TestRepositoryLedgers(t *testing.T) {
 		t.Run(filepath.Base(dir), func(t *testing.T) {
 			t.Parallel()
 			assert.NoError(t, Check(dir))
+			l, err := Load(dir)
+			require.NoError(t, err)
+			assert.Contains(t, govdaoURLs, l.ChainID, "%s: its proposals render without links until govdaoURLs names its gnoweb", dir)
 		})
 	}
 }

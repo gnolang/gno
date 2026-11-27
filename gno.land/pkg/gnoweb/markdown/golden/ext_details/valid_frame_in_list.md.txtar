@@ -1,0 +1,17 @@
+-- input.md --
+- <gno-details summary="A">
+  <gno-frame>
+  x
+  </gno-details>
+-- output.html --
+<ul>
+<li>
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>A</span></summary>
+<div>
+<!-- unexpected/invalid frame tag omitted -->
+<p>x</p>
+</div>
+</details>
+</li>
+</ul>

@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -507,4 +508,19 @@ func TestFindByPrefixDeDupesSplitPackages(t *testing.T) {
 			return true
 		})
 	}
+}
+
+// TestMemPackageReadsPastPkgPathLimit pins that a path longer than any stored
+// package reads as missing, even where its key would exceed the store's key
+// length cap, so a query naming one answers "not found" instead of panicking.
+func TestMemPackageReadsPastPkgPathLimit(t *testing.T) {
+	base := dbadapter.StoreConstructor(memdb.NewMemDB(), storetypes.StoreOptions{}).CacheWrap()
+	iavl := dbadapter.StoreConstructor(memdb.NewMemDB(), storetypes.StoreOptions{}).CacheWrap()
+	st := NewStore(nil, base, iavl)
+
+	path := "gno.land/r/" + strings.Repeat("a", storetypes.MaxKeyLen)
+	assert.Nil(t, st.GetMemPackage(path))
+	assert.Nil(t, st.GetMemPackageAll(path))
+	assert.Nil(t, st.GetMemFile(path, "x.gno"))
+	assert.Nil(t, st.GetInertPackage(path))
 }

@@ -1,14 +1,13 @@
 // MAXALLOC: 1000000
 package main
 
-// Regression: an allocator buffer under construction must stay counted.
+// Regression: a value assigned to "_" must not stay held.
 //
-// `_ = expr` assigns through Block.GetBlankRef, so the block pins expr for
-// its whole life even though nothing can ever read it back. Block's
-// VisitAssociated walked only Values and Parent, so the value stayed live on
-// the Go heap while invisible to Reset()+Recount(): one blank assignment per
-// recursion level held 60MB under a 1MB cap, while the same expression bound
-// to a name was correctly refused.
+// `_ = expr` once stored expr through Block.GetBlankRef, so the block pinned
+// it for its whole life even though nothing can ever read it back, and a
+// collection that skipped the blank slot left it uncounted. Nothing reads
+// "_", so the assignment now stores nothing: each recursion level's 300KB is
+// garbage a collection frees, as in Go, and the program completes.
 func consume(n int) {
 	if n == 0 {
 		return
@@ -22,5 +21,5 @@ func main() {
 	println("survived")
 }
 
-// Error:
-// allocation limit exceeded
+// Output:
+// survived

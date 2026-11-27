@@ -1,5 +1,12 @@
 name: ci / contribs
 
+# One job tests every module in contribs/ and then checks `make generate`,
+# instead of a lint, build and test job per module. Every module depends on
+# gno.land, gnovm and tm2, so a job per module compiled that tree once per job,
+# 39 times per run, and each job was billed at least a minute. Lint and `go fix`
+# only report on a module's own code, so they run from ci-dir-contribs-lint.yml
+# when contribs/ itself changes.
+
 on:
   push:
     branches:
@@ -25,45 +32,68 @@ permissions:
   contents: read
 
 jobs:
-  setup:
+  test:
+    name: test
     runs-on: ubuntu-latest
-    outputs:
-      programs: ${{ steps.set-matrix.outputs.programs }}
-      go-versions: ${{ steps.get-go-versions.outputs.go-versions }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      - id: set-matrix
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      # See "Go build cache" in _ci-go.yml.
+      - name: Restore Go cache
+        id: go-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: go-${{ runner.os }}-test-contribs-${{ github.sha }}
+          restore-keys: go-${{ runner.os }}-test-contribs-
+      - name: Go test
         run: |
-          echo "programs=$(printf '%s\n' contribs/*/ | cut -d/ -f2 | jq -R -s -c 'split("\n")[:-1]')" >> "$GITHUB_OUTPUT"
-
-      - id: get-go-versions
-        run: |
-          contribs_programs=$(printf '%s\n' contribs/*/ | cut -d/ -f2)
-          versions_map="{"
-
-          for p in $contribs_programs; do
-            # Fetch the go version of the contribs entry, and save it
-            # to a versions map we can reference later in the workflow
-            go_version=$(grep "^go [0-9]" "contribs/$p/go.mod" | cut -d ' ' -f2)
-            versions_map="$versions_map\"$p\":\"$go_version\","
+          failed=""
+          for mod in contribs/*/go.mod; do
+            m=${mod%/go.mod}
+            echo "::group::$m"
+            cov="$RUNNER_TEMP/cover/$m"
+            mkdir -p "$cov/go" "$cov/txtar"
+            (cd "$m" && GOCOVERDIR="$cov/go" TXTARCOVERDIR="$cov/txtar" \
+              go test -covermode=set -timeout 30m ./... -test.gocoverdir="$cov/go") || failed="$failed $m"
+            # Module paths differ (github.com/gnolang/contribs/gnogenesis, ...),
+            # so ask go rather than assume github.com/gnolang/gno/$m.
+            filter="-pkg=$(cd "$m" && go list -m)/..."
+            echo 'go coverage results:'
+            go tool covdata percent "$filter" -i="$cov/go" || true
+            echo 'txtar coverage results:'
+            go tool covdata percent "$filter" -i="$cov/txtar" || true
+            echo "::endgroup::"
           done
-
-          # Close out the JSON
-          versions_map="${versions_map%,}"
-          versions_map="$versions_map}"
-          echo "go-versions=$versions_map" >> "$GITHUB_OUTPUT"
-
-  main:
-    needs: setup
-    strategy:
-      fail-fast: false
-      matrix:
-        program: ${{ fromJson(needs.setup.outputs.programs) }}
-    name: ${{ matrix.program }}
-    uses: ./.github/workflows/_ci-go.yml
-    with:
-      modulepath: contribs/${{ matrix.program }}
-      go-version: ${{ (fromJson(needs.setup.outputs.go-versions))[matrix.program] }}
+          if [ -n "$failed" ]; then
+            echo "::error::tests failed in:$failed"
+            exit 1
+          fi
+      # After the tests, so the `go build` it runs in gnodev and gnobro reuses
+      # their compile: CGO_ENABLED=1 overrides contribs/Makefile's default of 0,
+      # which would rebuild everything without cgo.
+      - name: Check generated files are up to date
+        if: ${{ !cancelled() }}
+        run: |
+          make -k -C contribs generate CGO_ENABLED=1
+          if [ -n "$(git status --porcelain -- contribs)" ]; then
+            echo "::error::'make -C contribs generate' changes files; run it and commit the result:"
+            git status --porcelain -- contribs
+            git diff -- contribs
+            exit 1
+          fi
+      - name: Prune Go cache to what this run used
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        run: find ~/.cache/go-build -type f -mmin +120 -delete
+      - name: Save Go cache
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}

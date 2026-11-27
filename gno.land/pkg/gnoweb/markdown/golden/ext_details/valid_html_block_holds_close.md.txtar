@@ -1,0 +1,18 @@
+-- input.md --
+<gno-details summary="HTML">
+<div>
+</gno-details>
+
+after
+</gno-details>
+
+footer
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>HTML</span></summary>
+<div>
+<!-- raw HTML omitted -->
+<p>after</p>
+</div>
+</details>
+<p>footer</p>
