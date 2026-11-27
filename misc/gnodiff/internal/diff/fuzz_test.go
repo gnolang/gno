@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 	"unicode/utf8"
 
 	"github.com/gnolang/gno/misc/gnodiff/internal/gen"
@@ -27,7 +26,7 @@ func FuzzPrograms(f *testing.F) {
 	// The seed corpus is not a fuzz input. FuzzGenerated is the entry that
 	// spends time on programs both sides can run.
 	f.Add("package main\n\nfunc main() {\n\tprintln(1)\n}\n")
-	opt := Options{Timeout: 8 * time.Second}
+	opt := Options{Timeout: defaultTimeout}
 	f.Fuzz(func(t *testing.T, src string) {
 		if len(src) == 0 || len(src) > 8<<10 || !utf8.ValidString(src) {
 			return
@@ -64,7 +63,7 @@ func FuzzGenerated(f *testing.F) {
 	}
 	f.Add(uint64(1))
 	f.Add(uint64(2))
-	opt := Options{Timeout: 8 * time.Second}
+	opt := Options{Timeout: defaultTimeout}
 	f.Fuzz(func(t *testing.T, seed uint64) {
 		src := gen.Generate(seed)
 		if Unsupported(src) != "" || !parses(src) {

@@ -1,9 +1,0 @@
-// Pointers to distinct zero-sized values. Go may collapse them; Gno does not.
-package main
-
-func main() {
-	a := new(struct{})
-	b := new(struct{})
-	println(a == b)
-	println(a == a)
-}

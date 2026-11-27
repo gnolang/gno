@@ -165,6 +165,12 @@ func TestSplitGoStderr(t *testing.T) {
 	if prog != "before" || msg != "first" {
 		t.Fatalf("nested panic: prog=%q msg=%q", prog, msg)
 	}
+	// Signal panics insert a "[signal SIGSEGV: ...]" line before the stack.
+	sigsegv := "before\npanic: runtime error: invalid memory address or nil pointer dereference\n[signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x46fbac]\n\ngoroutine 1 [running]:\nmain.main()\nexit status 2\n"
+	prog, msg = splitGoStderr(sigsegv)
+	if prog != "before" || msg != "runtime error: invalid memory address or nil pointer dereference" {
+		t.Fatalf("sigsegv split = (%q, %q)", prog, msg)
+	}
 }
 
 func TestClassifyGoEdges(t *testing.T) {
@@ -228,6 +234,14 @@ func TestPanicFoldsKeepOperands(t *testing.T) {
 	if class != ClassReal {
 		t.Fatalf("user panic with negative-shift text class = %s", class)
 	}
+	// slice bounds with capacity must not match low > high bounds wording.
+	class, _ = Classify(Program{},
+		Result{Kind: KindPanic, Panic: "runtime error: slice bounds out of range [2:5] with capacity 3"},
+		Result{Kind: KindPanic, Panic: "runtime error: invalid slice index 2 > 5"},
+		Result{})
+	if class != ClassReal {
+		t.Fatalf("slice bounds with capacity vs lo>hi class = %s, want real", class)
+	}
 }
 
 func TestOverflowRejectWording(t *testing.T) {
@@ -276,6 +290,22 @@ func TestOverflowRejectWording(t *testing.T) {
 	// Multi-line span prefixes must strip cleanly.
 	if got := normalizeDiag("main/main.gno:3:1-6:2: undefined: foo"); got != "undefined: foo" {
 		t.Fatalf("normalizeDiag multi-line span = %q", got)
+	}
+	// An extra unrelated diagnostic alongside overflow must stay real.
+	class, _ = Classify(Program{},
+		Result{Kind: KindReject, Detail: "./main.go:4:10: constant 128 overflows int8\n./main.go:5:2: undefined: foo"},
+		Result{Kind: KindReject, Detail: "main.gno:4:8-20: bigint overflows target kind"},
+		Result{})
+	if class != ClassReal {
+		t.Fatalf("mixed overflow + undefined class = %s, want real", class)
+	}
+	// Extra diagnostics on one side must not be dropped when another line matches an identity.
+	class, _ = Classify(Program{},
+		Result{Kind: KindReject, Detail: "./main.go:3:2: undefined: missing\n./main.go:4:2: cannot use \"a\" as int"},
+		Result{Kind: KindReject, Detail: "main/main.gno:3:2-9: name missing not declared:\n--- preprocess stack ---\nstack 2: main"},
+		Result{})
+	if class != ClassReal {
+		t.Fatalf("extra reject diagnostic class = %s, want real", class)
 	}
 }
 

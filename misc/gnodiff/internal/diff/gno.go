@@ -172,6 +172,7 @@ func looksLikeCompile(msg string) bool {
 		"invalid operation",
 		"expected ",
 		"undefined:",
+		"not declared",
 		"cannot ",
 		"mismatched",
 		"not enough arguments",
@@ -197,8 +198,6 @@ func looksLikeCompile(msg string) bool {
 		"multiple-value",
 		"evaluated but not used",
 		"no new variables",
-		".gno:",
-		".go:",
 	}
 	low := strings.ToLower(msg)
 	for _, n := range needles {

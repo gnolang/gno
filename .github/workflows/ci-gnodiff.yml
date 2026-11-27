@@ -15,6 +15,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-gnodiff-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   corpus:
     runs-on: ubuntu-latest
@@ -31,10 +35,16 @@ jobs:
         run: go test ./...
       - name: Seed corpus
         working-directory: misc/gnodiff
-        run: go run . -out gnodiff-out
+        run: |
+          # setup-go installs a problem matcher that turns gc's expected
+          # reject diagnostics in report output into red PR annotations.
+          echo "::remove-matcher owner=go::"
+          go run . -out gnodiff-out
       - name: Generated batch
         working-directory: misc/gnodiff
-        run: go run . -generate 600 -seed 20261126 -minimize=true -budget 8 -timeout 30s -out gnodiff-out/generated
+        run: |
+          echo "::remove-matcher owner=go::"
+          go run . -generate 600 -seed 20261126 -minimize=true -budget 8 -timeout 30s -out gnodiff-out/generated
       - name: Upload report
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

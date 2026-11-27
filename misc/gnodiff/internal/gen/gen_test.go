@@ -6,6 +6,8 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -31,7 +33,7 @@ func TestGenerateParses(t *testing.T) {
 }
 
 func TestGenerateTypechecks(t *testing.T) {
-	for seed := uint64(1); seed <= 80; seed++ {
+	for seed := uint64(1); seed <= 150; seed++ {
 		src := Generate(seed)
 		fset := token.NewFileSet()
 		file, err := parser.ParseFile(fset, "main.go", src, 0)
@@ -49,6 +51,17 @@ func TestGenerateTypechecks(t *testing.T) {
 		if err != nil {
 			t.Fatalf("seed %d: %v\n%s", seed, err, src)
 		}
+	}
+}
+
+func TestWriteCatalog(t *testing.T) {
+	dir := t.TempDir()
+	if err := WriteCatalog(dir); err != nil {
+		t.Fatal(err)
+	}
+	sample := filepath.Join(dir, "arith", "addwrap_int8.src")
+	if _, err := os.Stat(sample); err != nil {
+		t.Fatalf("expected %s: %v", sample, err)
 	}
 }
 

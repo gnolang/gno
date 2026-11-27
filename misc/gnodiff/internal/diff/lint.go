@@ -37,14 +37,15 @@ func RunLint(src string, opt Options) (res Result) {
 
 	lintMu.Lock()
 	defer lintMu.Unlock()
-	st, err := lintGetterLocked(opt.RootDir)
+	env, err := lintEnvLocked(opt.RootDir)
 	if err != nil {
 		return Result{Kind: KindInternal, Detail: err.Error()}
 	}
 	_, tcErr := gnolang.TypeCheckMemPackage(mpkg, gnolang.TypeCheckOptions{
-		Getter:     st,
-		TestGetter: st,
-		Mode:       gnolang.TCLatestRelaxed,
+		Getter:   env.store,
+		Mode:     gnolang.TCLatestRelaxed,
+		Cache:    env.cache,
+		ProdOnly: true,
 	})
 	if tcErr != nil {
 		return Result{Kind: KindReject, Detail: clip(tcErr.Error(), detailLimit)}
@@ -52,19 +53,23 @@ func RunLint(src string, opt Options) (res Result) {
 	return Result{Kind: KindOK}
 }
 
+type lintEnv struct {
+	store gnolang.Store
+	cache gnolang.TypeCheckCache
+}
+
 var (
-	lintMu    sync.Mutex
-	lintRoot  string
-	lintStore gnolang.Store
+	lintMu   sync.Mutex
+	lintEnvs = map[string]*lintEnv{}
 )
 
-func lintGetterLocked(root string) (st gnolang.Store, err error) {
-	if lintStore != nil && lintRoot == root {
-		return lintStore, nil
+func lintEnvLocked(root string) (env *lintEnv, err error) {
+	if existing, ok := lintEnvs[root]; ok {
+		return existing, nil
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			st = nil
+			env = nil
 			err = fmt.Errorf("lint store: %v", r)
 		}
 	}()
@@ -72,7 +77,10 @@ func lintGetterLocked(root string) (st gnolang.Store, err error) {
 	if s == nil {
 		return nil, fmt.Errorf("lint store was not created")
 	}
-	lintRoot = root
-	lintStore = s
-	return lintStore, nil
+	env = &lintEnv{
+		store: s,
+		cache: gnolang.TypeCheckCache{},
+	}
+	lintEnvs[root] = env
+	return env, nil
 }

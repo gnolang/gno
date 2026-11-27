@@ -363,42 +363,43 @@ var (
 	overflowTailRE = regexp.MustCompile(`(?:overflows|underflows) (` + numTypePattern + `)\b`)
 )
 
-// normalizeDiag strips file:line prefixes and process noise so two
-// rejections can be compared on the diagnostic itself. The same missing
-// name ("undefined: n" and "name n not declared") is one diagnostic.
-// "overflows uint64" and "undefined: foo" stay different.
+// normalizeDiag strips file:line prefixes, Gno preprocess stacks, and process
+// noise so two rejections can be compared on all diagnostics they report.
+// The same missing name ("undefined: n" and "name n not declared") is one
+// diagnostic. Extra diagnostics on either side are preserved.
 func normalizeDiag(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
-	var ids []string
-	var other []string
+	if idx := strings.Index(s, "--- preprocess stack ---"); idx >= 0 {
+		s = s[:idx]
+	}
+	var lines []string
 	for line := range strings.SplitSeq(s, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "# ") || strings.HasPrefix(line, "exit status") {
 			continue
 		}
 		line = strings.TrimSpace(diagFileRE.ReplaceAllString(line, ""))
+		line = strings.TrimSuffix(line, ":")
+		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
 		line = spaceRE.ReplaceAllString(line, " ")
 		if id, ok := diagIdentity(line); ok {
-			ids = append(ids, id)
+			lines = append(lines, id)
 			continue
 		}
-		other = append(other, line)
+		lines = append(lines, line)
 	}
-	// A recognized identity is the diagnostic. Stack frames after it are not.
-	if len(ids) > 0 {
-		return strings.Join(ids, "\n")
-	}
-	return strings.Join(other, "\n")
+	return strings.Join(lines, "\n")
 }
 
 // overflowWording is a constant that does not fit, rejected on both sides,
 // with different text. gc names the type ("overflows int32", or "as int8
 // value ... (overflows)"). The VM says "bigint overflows" or, for a
 // negative constant, "bigint underflows", and does not repeat the type.
-// When both messages name a type, the types must match.
+// When both messages name a type, the types must match. Any non-overflow
+// diagnostic on either side fails the match.
 func overflowWording(goDetail, gnoDetail string) bool {
 	g, gok := overflowIdentity(goDetail)
 	n, nok := overflowIdentity(gnoDetail)
@@ -412,21 +413,23 @@ func overflowWording(goDetail, gnoDetail string) bool {
 }
 
 func overflowIdentity(detail string) (string, bool) {
+	norm := normalizeDiag(detail)
+	if norm == "" {
+		return "", false
+	}
 	var found string
-	ok := false
-	for line := range strings.SplitSeq(normalizeDiag(detail), "\n") {
+	for line := range strings.SplitSeq(norm, "\n") {
 		id, matched := overflowLine(line)
 		if !matched {
-			continue
+			return "", false
 		}
-		ok = true
 		if found == "" || found == "overflows" {
 			found = id
 		} else if id != "overflows" && id != found {
 			return "", false
 		}
 	}
-	return found, ok
+	return found, found != ""
 }
 
 func overflowLine(line string) (string, bool) {

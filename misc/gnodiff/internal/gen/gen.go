@@ -64,32 +64,53 @@ func Generate(seed uint64) string {
 func constOverflowProgram(r *rand.Rand) string {
 	exprs := []string{
 		"uint64(8) - uint64(40)",
+		"uint32(1) - uint32(5)",
 		"int8(128)",
+		"int8(-129)",
 		"int16(32768)",
+		"int16(-32769)",
+		"int32(2147483648)",
 		"int32(-2147483649)",
 		"uint8(256)",
+		"uint8(-1)",
+		"uint16(65536)",
 		"uint16(-1)",
 		"uint32(4294967296)",
+		"uint32(-1)",
 		"int64(9223372036854775808)",
+		"uint64(-1)",
+		"int8(1) << 7",
+		"uint8(1) << 8",
 	}
 	expr := exprs[r.IntN(len(exprs))]
 	return constMark + "package main\n\nfunc main() {\n\tprintln(" + expr + ")\n}\n"
 }
 
 func floatFormatProgram(r *rand.Rand) string {
-	prec := 1 + r.IntN(4)
+	vals := []string{"0.0", "-0.0", "1.5", "-1.25", "3.14159", "1e10", "1e-5"}
+	verbs := []byte{'f', 'e', 'g'}
+	bitSizes := []int{32, 64}
+	v1 := vals[r.IntN(len(vals))]
+	v2 := vals[r.IntN(len(vals))]
+	verb := verbs[r.IntN(len(verbs))]
+	prec := r.IntN(5)
+	bits := bitSizes[r.IntN(len(bitSizes))]
 	return fmt.Sprintf(`package main
 
-import "strconv"
+import (
+	"math"
+	"strconv"
+)
 
 func main() {
-	println(strconv.FormatFloat(1.5, 'f', %d, 64))
-	println(strconv.FormatFloat(-0.0, 'f', 1, 64))
-	var x float64 = 1.25
-	println(strconv.FormatFloat(x, 'f', %d, 64))
-	println(strconv.FormatFloat(-x, 'f', 1, 64))
+	println(strconv.FormatFloat(%s, %q, %d, %d))
+	var x float64 = %s
+	println(strconv.FormatFloat(x, %q, %d, %d))
+	println(strconv.FormatFloat(-x, %q, %d, 64))
+	println(strconv.FormatFloat(math.Inf(1), %q, %d, 64))
+	println(strconv.FormatFloat(math.NaN(), %q, %d, 64))
 }
-`, prec, prec)
+`, v1, verb, prec, bits, v2, verb, prec, bits, verb, prec, verb, prec, verb, prec)
 }
 
 func runtimeProgram(r *rand.Rand) string {
@@ -106,7 +127,8 @@ func runtimeProgram(r *rand.Rand) string {
 	case 0:
 		g.b.WriteString("\tprintln(\"before\")\n\tvar z int = 0\n\tprintln(1 / z)\n")
 	case 1:
-		g.b.WriteString("\tprintln(\"before\")\n\txs := []int{1, 2}\n\tprintln(xs[5])\n")
+		idx := 2 + r.IntN(5)
+		fmt.Fprintf(&g.b, "\tprintln(\"before\")\n\txs := []int{1, 2}\n\tprintln(xs[%d])\n", idx)
 	}
 	var out strings.Builder
 	out.WriteString("package main\n\n")
@@ -154,9 +176,9 @@ func (g *builder) emit(pkg, body string) {
 	id := fmt.Sprintf("%d", g.seq)
 	g.seq++
 	if pkg != "" {
-		g.head.WriteString(strings.ReplaceAll(pkg, "ID", id))
+		g.head.WriteString(strings.ReplaceAll(pkg, "$ID", id))
 	}
-	g.b.WriteString(strings.ReplaceAll(body, "ID", id))
+	g.b.WriteString(strings.ReplaceAll(body, "$ID", id))
 }
 
 func (g *builder) decl() {
