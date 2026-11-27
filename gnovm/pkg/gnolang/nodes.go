@@ -1876,13 +1876,10 @@ func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNod
 		bn = bn.GetParentNode(store)
 	}
 
-	// If bn is a faux child block node, check also its faux parent.
-	switch bn := bn.(type) {
-	case *IfCaseStmt, *SwitchClauseStmt:
-		pn := bn.GetParentNode(store)
-		if path.Index < pn.GetNumNames() {
-			return pn
-		}
+	// A path into the names bn copied from its faux parent belongs to that
+	// parent, not to bn. numFauxCopiedNames is zero for every other node.
+	if path.Index < bn.GetStaticBlock().numFauxCopiedNames() {
+		return bn.GetParentNode(store)
 	}
 
 	return bn
@@ -1966,8 +1963,8 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 		}
 		return i, ok
 	}
-	for i, name := range sb.Names {
-		if name == n {
+	for i := len(sb.Names) - 1; i >= 0; i-- {
+		if sb.Names[i] == n {
 			if debug {
 				sb.debugLogGetLocalIndex(n, i, true)
 			}
@@ -1980,16 +1977,14 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 	return 0, false
 }
 
-// buildNameIndex populates nameIndex from Names. Uses first-wins semantics
-// on duplicates to match the linear-scan path's "first match" contract.
-// (Names should be unique through Define2; the first-wins guard exists for
-// directly-constructed test fixtures and corrupted-on-disk blocks.)
+// buildNameIndex populates nameIndex from Names. Uses last-wins semantics on
+// duplicates to match the linear-scan path's "last match" contract. A block
+// holds a name twice only when a case body shadows a name copied in from its
+// faux parent (see numFauxCopiedNames); the later slot is the live one.
 func (sb *StaticBlock) buildNameIndex() {
 	sb.nameIndex = make(map[Name]uint16, len(sb.Names))
 	for i, name := range sb.Names {
-		if _, ok := sb.nameIndex[name]; !ok {
-			sb.nameIndex[name] = uint16(i)
-		}
+		sb.nameIndex[name] = uint16(i)
 	}
 }
 
@@ -2311,22 +2306,67 @@ func (sb *StaticBlock) Reserve(isConst bool, nx *NameExpr, origin Node, nstype N
 	if nx.Name == iotaIdentifier || nx.Name == iotaIdentifier+".loopvar" {
 		panic(fmt.Sprintf("builtin identifiers cannot be shadowed: %s", iotaIdentifier))
 	}
-	_, exists := sb.GetLocalIndex(nx.Name)
-	if !exists {
-		sb.Define2(isConst, nx.Name, nil, anyValue(nil), NameSource{nx, origin, nstype, index})
+	if nx.Name == blankIdentifier {
+		return // ignore, as in Define2; the blank identifier never gets a slot.
 	}
+	if idx, exists := sb.GetLocalIndex(nx.Name); exists {
+		if idx >= sb.numFauxCopiedNames() {
+			// The name is the case's own, so nothing left to shadow.
+			// That includes a type switch's variable, reserved at
+			// exactly numFauxCopiedNames: Go declares it in each
+			// clause's own block, so a clause body redeclaring it is
+			// an error, not a shadow.
+			return
+		}
+		// The slot is one copied in from the faux parent. Reserving it
+		// again is the copy loop re-running over an already initialized
+		// block node, which must stay idempotent; only a declaration in
+		// the case itself shadows the copy. Compare by declaration, not
+		// by *NameExpr: the type switch variable's caller builds a fresh
+		// NameExpr on every pass.
+		if src := sb.NameSources[idx]; src.Origin == origin &&
+			src.Type == nstype && src.Index == index {
+			return
+		}
+	}
+	sb.checkDefinable(nx.Name, anyValue(nil))
+	sb.defineNew(isConst, nx.Name, nil, anyValue(nil), NameSource{nx, origin, nstype, index})
 }
 
-// The declared type st may not be the same as the static tv;
-// e.g. var x MyInterface = MyStruct{}.
-// Setting st and tv to nil/zero reserves (predefines) name for definition later.
-func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsrc NameSource) {
-	if debug {
-		debug.Printf(
-			"StaticBlock.Define2(%v, %s, %v, %v)\n", // XXX add nsrc
-			isConst, n, st, tv)
+// numFauxCopiedNames returns how many leading names of this block were copied
+// in from its faux parent rather than declared in it: an IfStmt's or
+// SwitchStmt's init names, copied into every case so that the case and its
+// parent can share one runtime block with a flat index space. Names at or past
+// this index are the case's own, and may shadow a copy. See copyFromFauxBlock.
+//
+// This boundary is also what keeps the name-keyed per-block state coherent
+// while a name occupies two slots: a path into the copied region resolves to
+// the parent node (GetBlockNodeForPath), so a copy and the shadow of it never
+// share a block node for ATTR_HEAP_USES or SetIsHeapItem to collide in.
+func (sb *StaticBlock) numFauxCopiedNames() uint16 {
+	if fauxChildBlockNode(sb.Source) {
+		return sb.Parent.GetNumNames()
 	}
-	// TODO check that tv.T implements t.
+	return 0
+}
+
+// defineFauxCopy writes tv to slot idx, which must already hold n: one of this
+// block's faux-copied names, or a type switch's variable, reserved at exactly
+// numFauxCopiedNames. Unlike Define it writes by index, so it never retargets
+// a shadowing slot the case body declared for the same name.
+func (sb *StaticBlock) defineFauxCopy(idx uint16, n Name, tv TypedValue) {
+	if sb.Names[idx] != n {
+		panic(fmt.Sprintf(
+			"faux copy slot %d holds %s, not %s", idx, sb.Names[idx], n))
+	}
+	sb.Block.Values[idx] = tv
+	sb.Types[idx] = tv.T
+}
+
+// checkDefinable panics on a name, value or block state that no definition may
+// proceed with. Define2 runs it before any lookup; Reserve runs it before
+// appending a shadow's slot. defineNew relies on its callers having run it.
+func (sb *StaticBlock) checkDefinable(n Name, tv TypedValue) {
 	if len(n) == 0 {
 		panic("name cannot be zero")
 	}
@@ -2345,6 +2385,19 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 	if tv.T == nil && tv.V != nil {
 		panic("StaticBlock.Define2() requires .T if .V is set")
 	}
+}
+
+// The declared type st may not be the same as the static tv;
+// e.g. var x MyInterface = MyStruct{}.
+// Setting st and tv to nil/zero reserves (predefines) name for definition later.
+func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsrc NameSource) {
+	if debug {
+		debug.Printf(
+			"StaticBlock.Define2(%v, %s, %v, %v)\n", // XXX add nsrc
+			isConst, n, st, tv)
+	}
+	// TODO check that tv.T implements t.
+	sb.checkDefinable(n, tv)
 	if n == blankIdentifier {
 		return // ignore
 	}
@@ -2412,25 +2465,45 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue, nsr
 		*/
 	} else {
 		// The general case without re-definition.
-		sb.Names = append(sb.Names, n)
-		sb.HeapItems = append(sb.HeapItems, false)
-		if isConst {
-			sb.Consts = append(sb.Consts, n)
+		sb.defineNew(isConst, n, st, tv, nsrc)
+	}
+}
+
+// defineNew appends a new slot for n, whether or not n is already defined in
+// this block. Only Define2 (for a name that is genuinely new) and Reserve (for
+// a declaration shadowing a faux-copied name) may append a slot, and both run
+// checkDefinable first.
+//
+// A name may therefore occupy two slots, but only in a faux case block and
+// only with the second past numFauxCopiedNames. GetLocalIndex resolving to the
+// last slot depends on that; the assertion below keeps it honest.
+func (sb *StaticBlock) defineNew(isConst bool, n Name, st Type, tv TypedValue, nsrc NameSource) {
+	if debugAssert {
+		if idx, exists := sb.GetLocalIndex(n); exists &&
+			idx >= sb.numFauxCopiedNames() {
+			panic(fmt.Sprintf(
+				"StaticBlock.defineNew(%s) would duplicate slot %d of %T",
+				n, idx, sb.Source))
 		}
-		sb.NumNames++
-		// Deterministic growth: cap(Block.Values) is charged by
-		// GetShallowSize, so it must not come from Go's growslice.
-		sb.Block.Values = growBlockValues(sb.Block.Values, len(sb.Block.Values)+1)
-		sb.Block.Values[len(sb.Block.Values)-1] = tv
-		sb.Types = append(sb.Types, st)
-		sb.NameSources = append(sb.NameSources, nsrc)
-		// Maintain nameIndex consistent with Names: build at threshold-cross,
-		// otherwise insert incrementally if the map already exists.
-		if sb.nameIndex == nil && sb.NumNames > nameIndexThreshold {
-			sb.buildNameIndex()
-		} else if sb.nameIndex != nil {
-			sb.nameIndex[n] = sb.NumNames - 1
-		}
+	}
+	sb.Names = append(sb.Names, n)
+	sb.HeapItems = append(sb.HeapItems, false)
+	if isConst {
+		sb.Consts = append(sb.Consts, n)
+	}
+	sb.NumNames++
+	// Deterministic growth: cap(Block.Values) is charged by
+	// GetShallowSize, so it must not come from Go's growslice.
+	sb.Block.Values = growBlockValues(sb.Block.Values, len(sb.Block.Values)+1)
+	sb.Block.Values[len(sb.Block.Values)-1] = tv
+	sb.Types = append(sb.Types, st)
+	sb.NameSources = append(sb.NameSources, nsrc)
+	// Maintain nameIndex consistent with Names: build at threshold-cross,
+	// otherwise insert incrementally if the map already exists.
+	if sb.nameIndex == nil && sb.NumNames > nameIndexThreshold {
+		sb.buildNameIndex()
+	} else if sb.nameIndex != nil {
+		sb.nameIndex[n] = sb.NumNames - 1
 	}
 }
 

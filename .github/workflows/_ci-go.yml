@@ -1,4 +1,19 @@
 # Reusable workflow for Go modules: lint + build + test with coverage.
+#
+# Go build cache: setup-go's cache is off (`cache: false`) in the CI
+# workflows. It keys every job on go.sum alone, so whichever job finishes first
+# saves the only entry, and that was often one that compiled nothing. Instead
+# the jobs that compile most keep a build cache per job kind, restored from the
+# newest one. Only runs on the default branch save it, after pruning what the
+# run did not use (Go refreshes an entry's mtime when it is used): a pull
+# request's cache could not be read by other pull requests and would only push
+# the default branch's out of the repository's 10 GB. Modules are not cached;
+# they download in seconds.
+#
+# The prune deletes files not modified in the last 120 minutes, and Go (and
+# golangci-lint) refresh an entry's mtime at most once an hour, so a run longer
+# than about an hour can drop entries it used early on. Keep the timeout-minutes
+# of every job that saves a cache under 60.
 on:
   workflow_call:
     inputs:
@@ -11,11 +26,6 @@ on:
       tests-ts-seq:
         required: false
         type: boolean
-      go-version:
-        description: "Go version to use; defaults to the version in go.mod"
-        required: false
-        type: string
-        default: ""
 
 permissions: {}
 
@@ -32,13 +42,26 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: ${{ inputs.go-version }}
-          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+          go-version-file: go.mod
+          cache: false
+      # Also holds golangci-lint's analysis cache, and the build cache of the
+      # toolchain the `go fix` step uses.
+      - name: Restore Go cache
+        id: go-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/.cache/golangci-lint
+          key: go-${{ runner.os }}-lint-${{ inputs.modulepath }}-${{ github.sha }}
+          restore-keys: go-${{ runner.os }}-lint-${{ inputs.modulepath }}-
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           working-directory: ${{ inputs.modulepath }}
           args: --config=${{ github.workspace }}/.github/golangci.yml
-          version: v2.11.4 # sync with misc/devdeps
+          version: v2.11.4 # sync with misc/devdeps and the other golangci-lint-action steps
+          # Cached by the steps around this one.
+          skip-cache: true
           # `config verify` downloads the JSONSchema from golangci-lint.run on
           # every lint job. That is a network dependency in the critical path:
           # when the fetch times out the job fails with a schema-loading error
@@ -68,6 +91,17 @@ jobs:
             printf '%s\n' "$changes"
             exit 1
           fi
+      - name: Prune Go cache to what this run used
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        run: find ~/.cache/go-build ~/.cache/golangci-lint -type f -mmin +120 -delete
+      - name: Save Go cache
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/.cache/golangci-lint
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
 
   build:
     name: build
@@ -81,8 +115,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: ${{ inputs.go-version }}
-          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+          go-version-file: go.mod
+          cache: false
       - name: Check generated files are up to date
         working-directory: ${{ inputs.modulepath }}
         run: |
@@ -108,8 +142,15 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: ${{ inputs.go-version }}
-          go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+          go-version-file: go.mod
+          cache: false
+      - name: Restore Go cache
+        id: go-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: go-${{ runner.os }}-test-${{ inputs.modulepath }}-${{ github.sha }}
+          restore-keys: go-${{ runner.os }}-test-${{ inputs.modulepath }}-
       - name: Go test
         working-directory: ${{ inputs.modulepath }}
         env:
@@ -134,3 +175,12 @@ jobs:
           go tool covdata percent "$filter" -i="$GOCOVERDIR"
           (set +x; echo 'txtar coverage results:')
           go tool covdata percent "$filter" -i="$TXTARCOVERDIR"
+      - name: Prune Go cache to what this run used
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        run: find ~/.cache/go-build -type f -mmin +120 -delete
+      - name: Save Go cache
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}

@@ -33,11 +33,17 @@ on:
 
 permissions: {}
 
+# Every job here starts by compiling the gno binary (`go run ./gnovm/cmd/gno`).
+# The test job saves that build to a cache on the default branch (see "Go build
+# cache" in _ci-go.yml) and the other jobs, here and in ci-dir-examples.yml,
+# restore it.
 jobs:
   fmt:
     name: fmt
     if: inputs.run-fmt
-    runs-on: ubuntu-latest
+    # A light job: ubuntu-slim (1 vCPU, a third of the price) where minutes
+    # are billed, i.e. in private repositories; free ubuntu-latest otherwise.
+    runs-on: ${{ github.event.repository.private && 'ubuntu-slim' || 'ubuntu-latest' }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -49,6 +55,13 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
           go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+          cache: false
+      - name: Restore Go cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: go-${{ runner.os }}-gno-${{ github.sha }}
+          restore-keys: go-${{ runner.os }}-gno-
       - run: go run ./gnovm/cmd/gno -C "${INPUTS_PATH}" fmt -diff ./...
         env:
           INPUTS_PATH: ${{ inputs.path }}
@@ -68,6 +81,13 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
           go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+          cache: false
+      - name: Restore Go cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: go-${{ runner.os }}-gno-${{ github.sha }}
+          restore-keys: go-${{ runner.os }}-gno-
       - run: go run ./gnovm/cmd/gno lint -C "${INPUTS_PATH}" -v ./...
         env:
           INPUTS_PATH: ${{ inputs.path }}
@@ -87,6 +107,14 @@ jobs:
         with:
           go-version: ${{ inputs.go-version }}
           go-version-file: ${{ inputs.go-version == '' && 'go.mod' || '' }}
+          cache: false
+      - name: Restore Go cache
+        id: go-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: go-${{ runner.os }}-gno-${{ github.sha }}
+          restore-keys: go-${{ runner.os }}-gno-
 
       - name: Setup debug env
         if: inputs.debug
@@ -100,3 +128,16 @@ jobs:
         run: go run ./gnovm/cmd/gno test -C "${INPUTS_PATH}" -v -print-runtime-metrics -print-events ./...
         env:
           INPUTS_PATH: ${{ inputs.path }}
+
+      # Both callers (examples, gnovm/stdlibs) build the same binary, so
+      # whichever saves first is as good as the other; the second save is
+      # refused as a duplicate key and only logs a warning.
+      - name: Prune Go cache to what this run used
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        run: find ~/.cache/go-build -type f -mmin +120 -delete
+      - name: Save Go cache
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/go-build
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}
