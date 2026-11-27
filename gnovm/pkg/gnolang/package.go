@@ -135,3 +135,16 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	MemPackageType(""),
 	MemPackageFilter(""),
 ))
+
+func init() {
+	// Every interface type reachable from the types above, plus Object,
+	// the top-level type of a stored object. See loadObjectSafe.
+	amino.RegisterInterfaceSetter[BlockNode]()
+	amino.RegisterInterfaceSetter[Decl]()
+	amino.RegisterInterfaceSetter[Expr]()
+	amino.RegisterInterfaceSetter[Node]()
+	amino.RegisterInterfaceSetter[Object]()
+	amino.RegisterInterfaceSetter[Stmt]()
+	amino.RegisterInterfaceSetter[Type]()
+	amino.RegisterInterfaceSetter[Value]()
+}
