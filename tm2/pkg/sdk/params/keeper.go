@@ -204,12 +204,10 @@ func (pk ParamsKeeper) SetStrings(ctx sdk.Context, key string, value []string) i
 }
 
 func (pk ParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr any) {
-	parts := strings.Split(key, ":")
-	if len(parts) != 2 {
+	moduleName, structName, ok := strings.Cut(key, ":")
+	if !ok || strings.IndexByte(structName, ':') >= 0 {
 		panic("struct key expected format <module>:<struct name>")
 	}
-	moduleName := parts[0]
-	structName := parts[1] // <submodule>
 	if !pk.IsRegistered(moduleName) {
 		panic("unregistered module name")
 	}
@@ -218,8 +216,7 @@ func (pk ParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr any) {
 	}
 	gctx := ctx.GasContext()
 	stor := ctx.Store(pk.key)
-	kvz := getStructFieldsFromStore(gctx, strctPtr, stor, storeKey(key))
-	decodeStructFields(strctPtr, kvz)
+	readStructFieldsFromStore(gctx, strctPtr, stor, StoreKeyPrefix+key+":")
 }
 
 func (pk ParamsKeeper) SetStruct(ctx sdk.Context, key string, strct any) {
