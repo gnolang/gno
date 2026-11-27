@@ -104,6 +104,32 @@ func TestSequenceComments(t *testing.T) {
 	assert.Equal(t, []string{"vote #42"}, s.events[1].text)
 }
 
+func TestSequenceWrapPrefix(t *testing.T) {
+	// Mermaid reads a wrap: or nowrap: prefix of a label as a setting, not
+	// as text (its extractWrap).
+	s, _ := parseSeq(t,
+		"participant A as nowrap: Alice",
+		"A->>John: wrap: Hello John",
+		"Note right of John: nowrap:A note",
+		"loop wrap: Every minute",
+		"A->>John: :wrap:x",
+		"end",
+		"alt nowrap: yes",
+		"A->>John: Wrap: unwrap: kept",
+		"else wrap: no",
+		"end",
+	)
+	assert.Equal(t, []string{"Alice"}, s.parts[0].label)
+	var texts [][]string
+	for _, e := range s.events {
+		texts = append(texts, e.text)
+	}
+	assert.Equal(t, [][]string{
+		{"Hello John"}, {"A note"}, {"Every minute"}, {"x"}, nil,
+		{"yes"}, {"Wrap: unwrap: kept"}, {"no"}, nil,
+	}, texts)
+}
+
 func TestSequenceAutonumber(t *testing.T) {
 	// Mermaid counts every message, numbered or not; a bare autonumber
 	// resumes the count with the current step.

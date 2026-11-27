@@ -171,7 +171,7 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 			p := d.parts[i]
 			p.actor = kw == "actor"
 			if hasAlias {
-				p.label = label(alias)
+				p.label = seqLabel(alias)
 			}
 		case "note":
 			e, err := parseNote(l, rest, participant)
@@ -181,7 +181,7 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 			d.events = append(d.events, e)
 		case "loop", "alt", "opt", "par", "critical", "break":
 			b := &seqBlock{parent: open}
-			e := &seqEvent{kind: seqOpen, keyword: kw, text: label(rest), block: b, n: l.n}
+			e := &seqEvent{kind: seqOpen, keyword: kw, text: seqLabel(rest), block: b, n: l.n}
 			b.open = e
 			open = b
 			d.blocks = append(d.blocks, b)
@@ -190,7 +190,7 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 			if open == nil || open.open.keyword != sectionOf[kw] {
 				return nil, errorf(l.n, "%q outside its block", kw)
 			}
-			e := &seqEvent{kind: seqSection, text: label(rest)}
+			e := &seqEvent{kind: seqSection, text: seqLabel(rest)}
 			open.sections = append(open.sections, e)
 			d.events = append(d.events, e)
 		case "end":
@@ -292,6 +292,16 @@ func statements(lines []line) ([]line, error) {
 	return out, nil
 }
 
+// seqLabel returns the lines of a label as label does, without the wrap: or
+// nowrap: prefix Mermaid reads as a setting rather than text.
+func seqLabel(s string) []string {
+	s = strings.TrimSpace(s)
+	if rest, ok := strings.CutPrefix(strings.TrimPrefix(strings.TrimPrefix(s, ":"), "no"), "wrap:"); ok {
+		s = rest
+	}
+	return label(s)
+}
+
 // validName reports whether s can name a participant: Mermaid ends a name
 // at a comma, a colon or an arrow, so a name holding one would be read
 // differently by Mermaid.
@@ -331,7 +341,7 @@ func parseMessage(l line, participant func(int, string) (int, error)) (*seqEvent
 			if err != nil {
 				return nil, err
 			}
-			return &seqEvent{kind: seqMessage, from: f, to: t, arrow: a.a, text: label(text)}, nil
+			return &seqEvent{kind: seqMessage, from: f, to: t, arrow: a.a, text: seqLabel(text)}, nil
 		}
 	}
 	return nil, errorf(l.n, "unsupported statement %q", firstWord(l.text))
@@ -342,7 +352,7 @@ func parseNote(l line, rest string, participant func(int, string) (int, error)) 
 	if !ok {
 		return nil, errorf(l.n, "note without a colon")
 	}
-	e := &seqEvent{kind: seqNote, text: label(text)}
+	e := &seqEvent{kind: seqNote, text: seqLabel(text)}
 	pos, who, _ := strings.Cut(strings.TrimSpace(where), " ")
 	switch lowerASCII(pos) {
 	case "left", "right":
