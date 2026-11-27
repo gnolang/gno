@@ -91,13 +91,49 @@ func TestScan(t *testing.T) {
 	var m meta
 	lines, err := scan("\n---\ntitle: \"From front\"\nconfig:\n  title: nested\n---\n%%{init: {\n  \"theme\": \"dark\"\n}}%%\npie\n  %% a comment\n\t\"50%% off\" : 1\naccDescr { Our share }\n", &m)
 	require.NoError(t, err)
-	assert.Equal(t, "From front", plain(m.title), "a title nested under config is not the diagram's")
+	assert.Equal(t, "From front", m.title, "a title nested under config is not the diagram's")
 	assert.Equal(t, []line{{n: 10, text: "pie"}, {n: 12, indent: 1, text: `"50%% off" : 1`}, {n: 13, text: "accDescr { Our share }"}}, lines,
 		"only whole-line comments are dropped, as Mermaid does")
 	body, err := accessibility(lines[1:], &m)
 	require.NoError(t, err)
 	assert.Equal(t, "Our share", m.accDescr)
 	assert.Equal(t, lines[1:2], body)
+}
+
+func TestFrontmatterTitle(t *testing.T) {
+	// The title is a YAML scalar on one line.
+	for value, want := range map[string]string{
+		`My chart # draft`:    "My chart",
+		`C# notes`:            "C# notes",
+		`'It''s'`:             "It's",
+		`"a \"b\" \\ \u00e9"`: `a "b" \ é`,
+		`"'kept'"  # quoted`:  "'kept'",
+		`# only a comment`:    "",
+		``:                    "",
+	} {
+		var m meta
+		_, err := scan("---\ntitle: "+value+"\n---\npie", &m)
+		require.NoError(t, err, value)
+		assert.Equal(t, want, m.title, value)
+	}
+	var m meta
+	_, err := scan("---\nTitle: x\n---\npie", &m)
+	require.NoError(t, err)
+	assert.Empty(t, m.title, "YAML keys are case-sensitive")
+
+	for _, value := range []string{
+		">", "|-", "~", "null", "'unclosed", `"unclosed`, `"x" y`, `'x'#c`, `"\q"`, `"\ud800"`,
+		"[a, b]", "&anchor x", "*alias", "- x", "Time: 10:30", "a\n  continued", "\n  next line",
+	} {
+		_, err := scan("---\ntitle: "+value+"\n---\npie", &meta{})
+		var e *Error
+		assert.True(t, errors.As(err, &e), "%q: got %v", value, err)
+	}
+
+	// Render draws the title as YAML reads it, without unquoting it again.
+	out, _, err := Render("---\ntitle: \"'Q' #59;\"\n---\npie\n\"a\" : 1")
+	require.NoError(t, err)
+	assert.Contains(t, string(out), ">&#39;Q&#39; #59;<")
 }
 
 // toLines makes the lines of a diagram's body, numbered from 1.

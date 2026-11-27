@@ -20,6 +20,7 @@ package mermaid
 import (
 	"cmp"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -76,8 +77,8 @@ type diagram interface {
 }
 
 // parseFunc parses the statements of a diagram. args is the rest of its
-// header line, after the type keyword. m.title holds the title of the
-// frontmatter, if any, which a title statement replaces.
+// header line, after the type keyword. m.title holds the title as drawn:
+// the frontmatter's, if any, which a title statement replaces.
 type parseFunc func(args string, lines []line, m *meta) (diagram, error)
 
 // kinds are the supported diagram types, by the keyword that opens them, with
@@ -133,7 +134,7 @@ func Render(src string) (svg []byte, width float64, err error) {
 	}
 	var w svgWriter
 	bodyW, bodyH := d.draw(&w)
-	title := plain(m.title)
+	title := m.title
 	// Checked before document copies the body, which its buffer stopped
 	// writing past MaxOutputLen.
 	width, height := max(bodyW, titleWidth(title)), bodyH+titleHeight(title)
@@ -154,7 +155,8 @@ func Render(src string) (svg []byte, width float64, err error) {
 // scan splits src into lines, dropping blank lines, %% comments and the
 // %%{init: …}%% directives, which may span lines (a diagram is drawn with
 // gnoweb's theme, whatever configuration it asks for), and a leading YAML
-// frontmatter, whose title it keeps in m.
+// frontmatter, whose title it keeps in m as YAML reads it. Mermaid reads the
+// frontmatter before the entity codes, so the title's stay as written.
 func scan(src string, m *meta) ([]line, error) {
 	var out []line
 	raw := strings.Split(src, "\n")
@@ -166,9 +168,15 @@ func scan(src string, m *meta) ([]line, error) {
 		start := i
 		for i++; i < len(raw) && strings.TrimSpace(raw[i]) != "---"; i++ {
 			// Only a top-level key: config may nest a title of its own.
-			if v, ok := statement(strings.TrimRight(raw[i], " \t\r"), "title"); ok {
-				m.title = v
+			key := frontTitle.FindStringSubmatch(strings.TrimRight(raw[i], " \t\r"))
+			if key == nil {
+				continue
 			}
+			t, ok := yamlScalar(key[1])
+			if !ok || i+1 < len(raw) && continues(raw[i+1]) {
+				return nil, errorf(i+1, "unsupported frontmatter title")
+			}
+			m.title = t
 		}
 		if i == len(raw) {
 			return nil, errorf(start+1, "frontmatter is not closed")
@@ -193,6 +201,71 @@ func scan(src string, m *meta) ([]line, error) {
 		out = append(out, line{n: i + 1, indent: indent, text: text})
 	}
 	return out, nil
+}
+
+// frontTitle matches the title key of a frontmatter line and its value.
+// YAML keys are case-sensitive, and a key needs a space after its colon.
+var frontTitle = regexp.MustCompile(`^title[ \t]*:(?:[ \t](.*))?$`)
+
+// yamlScalar reads v, a value on one line, as YAML reads a string: a plain
+// value ends at a comment, a single-quoted one doubles its quotes and a
+// double-quoted one takes the escapes \" \\ \n \t and \uXXXX; only a comment
+// may follow the closing quote. ok is false for anything else YAML could
+// read there, which would not be the string written: a null, a block
+// scalar, a collection, an anchor, an unclosed quote.
+func yamlScalar(v string) (s string, ok bool) {
+	v = strings.TrimSpace(v)
+	if v == "" || v[0] != '"' && v[0] != '\'' {
+		// A comment starts at a # after a space, or in place of the value.
+		v, _, _ = strings.Cut(" "+strings.ReplaceAll(v, "\t", " "), " #")
+		v = strings.TrimSpace(v)
+		switch {
+		case v == "":
+			return "", true
+		case v == "~", v == "null", v == "Null", v == "NULL",
+			strings.ContainsRune("[]{},&*!|>%@`", rune(v[0])),
+			strings.HasPrefix(v+" ", "- "), strings.HasPrefix(v+" ", "? "),
+			strings.Contains(v+" ", ": "):
+			return "", false
+		}
+		return v, true
+	}
+	q := v[0]
+	var b strings.Builder
+	for i := 1; i < len(v); i++ {
+		switch c := v[i]; {
+		case c == '\'' && q == '\'' && strings.HasPrefix(v[i+1:], "'"):
+			b.WriteByte(c)
+			i++
+		case c == q:
+			rest := v[i+1:]
+			if after := strings.TrimLeft(rest, " \t"); after != "" && (after == rest || after[0] != '#') {
+				return "", false
+			}
+			return b.String(), true
+		case c == '\\' && q == '"':
+			// Of the escapes UnquoteChar reads, only YAML's \" \\ \n \t \u.
+			if i+1 == len(v) || !strings.ContainsRune(`"\ntu`, rune(v[i+1])) {
+				return "", false
+			}
+			r, _, tail, err := strconv.UnquoteChar(v[i:], q)
+			if err != nil {
+				return "", false
+			}
+			b.WriteRune(r)
+			i = len(v) - len(tail) - 1
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return "", false // unclosed
+}
+
+// continues reports whether line goes on with the value of the key above it:
+// it is indented, and more than a comment.
+func continues(line string) bool {
+	text := strings.TrimSpace(line)
+	return text != "" && text[0] != '#' && (line[0] == ' ' || line[0] == '\t')
 }
 
 // accessibility takes the accTitle and accDescr statements, which every
@@ -270,13 +343,13 @@ func statement(text, keyword string) (string, bool) {
 }
 
 // title reports whether text is a title statement, `title Text` or
-// `title: Text`, and returns the title.
+// `title: Text`, and returns the title as drawn (see plain).
 func title(text string) (string, bool) {
 	if v, ok := statement(text, "title"); ok {
-		return v, true
+		return plain(v), true
 	}
 	if rest, ok := cutPrefixFold(text, "title "); ok {
-		return strings.TrimSpace(rest), true
+		return plain(rest), true
 	}
 	return "", false
 }

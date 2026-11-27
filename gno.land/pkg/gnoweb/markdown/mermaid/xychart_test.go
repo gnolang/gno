@@ -54,7 +54,7 @@ func TestXYChartAxes(t *testing.T) {
 		`y-axis Gas 0 --> 50`,
 		`bar [1, 2, 3, 4]`,
 	)
-	assert.Equal(t, "Gas", plain(m.title))
+	assert.Equal(t, "Gas", m.title)
 	assert.Equal(t, "Time [s]", c.xTitle, "a bracket in a quoted title is not the list")
 	assert.Equal(t, []string{"a", "b, c"}, c.categories)
 	assert.Equal(t, "Gas", c.yTitle)
