@@ -61,8 +61,10 @@ Attach files to your email rather than linking to them on outside hosts.
    reply says that the outcome came from automated verification.
 4. The team reviews verified findings and follows up with you.
 
-We will respond to every report within 3 business days. The verification outcome
-follows when the reproduction finishes, usually within a few days.
+We will triage every report within 3 business days. The verification outcome
+follows when the reproduction finishes, usually within a few days. Fixing the
+vulnerability and publishing the fix can take up to 90 days from your report,
+as described under [Disclosure](#disclosure).
 
 If you haven't received an acknowledgement within a day, your email may have
 been marked as spam, or our reporting system may be down. Let us know on
