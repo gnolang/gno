@@ -210,6 +210,10 @@ queries) means it never shrinks. Budget for logs separately, and set
 Per-network requirements, when they differ, are in that network's deployment
 directory.
 
+## Become a validator
+
+Follow the target network's `VALIDATOR.md` in [`misc/deployments`](../../../misc/deployments) (mainnet: [`mainnet.gno.land/VALIDATOR.md`](../../../misc/deployments/mainnet.gno.land/VALIDATOR.md)), and ask in `#technical-start-here` on [Discord](https://discord.com/invite/gnoland) if you have a question.
+
 ## Upgrades
 
 Chains stop and restart on purpose. A coordinated upgrade halts every node at
