@@ -134,7 +134,9 @@ UI - Overview body
   </p>
   {{ end }}
 
-  {{ if and (not .Readme) (not .PackageDoc) (not .Bugs) (not .Funcs) (not .Types) (not .Consts) (not .Vars) }}
+  {{ if .DocUnavailable }}
+  {{ template "ui/doc_unavailable" }}
+  {{ else if and (not .Readme) (not .PackageDoc) (not .Bugs) (not .Funcs) (not .Types) (not .Consts) (not .Vars) }}
   <p class="b-pkg-notice" role="status">No documentation or exported symbols in this package.</p>
   {{ end }}
 
@@ -227,26 +229,10 @@ UI - Overview body
 {{/* --- Files --- */}}
 <section class="b-pkg-section" id="files">
   <h2 class="b-pkg-section__header">
-    <a href="{{ .PkgPath }}/" class="c-with-icon b-pkg-section__link" title="Open the file directory"><svg class="c-icon" aria-hidden="true"><use href="#ico-file"></use></svg><span>Source Files</span></a>
+    <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-file"></use></svg><span>Source Files</span></span>
     <span class="count">{{ len .Files }}</span>
   </h2>
-  <ul class="b-pkg-list b-pkg-section__body">
-    {{ range .Files }}
-    <li class="b-pkg-list__item">
-      <a href="{{ .Link }}" class="b-pkg-list__link">
-        <span class="c-with-icon u-font-mono">
-          <svg class="c-icon" aria-hidden="true"><use href="#ico-file"></use></svg>
-          <span>{{ .Name }}</span>
-        </span>
-        <span class="b-pkg-list__tags">
-          {{ if .IsReadme }}<span class="b-tag">readme</span>{{ end }}
-          {{ if .IsLicense }}<span class="b-tag">license</span>{{ end }}
-          {{ if .IsTest }}<span class="b-tag">test</span>{{ end }}
-        </span>
-      </a>
-    </li>
-    {{ end }}
-  </ul>
+  {{ template "ui/file_list" .Files }}
 </section>
 
 {{/* --- Subpackages --- */}}
@@ -256,18 +242,7 @@ UI - Overview body
     <span class="c-with-icon"><svg class="c-icon" aria-hidden="true"><use href="#ico-folder"></use></svg><span>Directories</span></span>
     <span class="count">{{ len . }}</span>
   </h2>
-  <ul class="b-pkg-list b-pkg-section__body">
-    {{ range . }}
-    <li class="b-pkg-list__item">
-      <a href="{{ .Path }}" class="b-pkg-list__link">
-        <span class="c-with-icon u-font-mono">
-          <svg class="c-icon" aria-hidden="true"><use href="#ico-folder"></use></svg>
-          <span>{{ .Name }}</span>
-        </span>
-      </a>
-    </li>
-    {{ end }}
-  </ul>
+  {{ template "ui/pkg_cards" (dict "Cards" . "Nested" true) }}
 </section>
 {{ end }}
 

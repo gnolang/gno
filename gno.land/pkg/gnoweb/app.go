@@ -261,11 +261,7 @@ func NewRouter(logger *slog.Logger, cfg *AppConfig) (http.Handler, error) {
 	// Register faucet URL to `/faucet` if specified
 	if cfg.FaucetURL != "" {
 		mux.Handle("/faucet", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, cfg.FaucetURL, http.StatusFound)
-			components.RedirectView(components.RedirectData{
-				To:        cfg.FaucetURL,
-				Analytics: staticMeta.RedirectAnalytics(),
-			}).Render(w)
+			serveRedirect(w, r, cfg.FaucetURL, staticMeta)
 		}))
 	}
 

@@ -52,28 +52,14 @@ func starterRef(alias string, funcs []*doc.JSONFunc) (ref, call string, crossing
 		if fn.Type != "" || !token.IsExported(fn.Name) {
 			continue
 		}
-		switch {
-		case fn.Name == "Render" && isRender(fn, "string"):
+		switch ok, crossing := components.RenderShape(fn); {
+		case ok && !crossing:
 			return "_ = " + alias + ".Render", fmt.Sprintf("println(%s.Render(\"\"))", alias), false
-		case fn.Name == "Render" && isRender(fn, "realm", "string"):
+		case ok:
 			return "_ = " + alias + ".Render", fmt.Sprintf("println(%s.Render(cross(cur), \"\"))", alias), true
 		case ref == "":
 			ref = "_ = " + alias + "." + fn.Name
 		}
 	}
 	return ref, "", false
-}
-
-// isRender reports whether fn takes params of the given types and returns a
-// string, the shapes Render is called with.
-func isRender(fn *doc.JSONFunc, params ...string) bool {
-	if len(fn.Params) != len(params) || len(fn.Results) != 1 || fn.Results[0].Type != "string" {
-		return false
-	}
-	for i, p := range fn.Params {
-		if p.Type != params[i] {
-			return false
-		}
-	}
-	return true
 }
