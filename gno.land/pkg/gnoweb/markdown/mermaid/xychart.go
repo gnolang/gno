@@ -46,7 +46,7 @@ func parseXYChart(args string, lines []line, m *meta) (diagram, error) {
 		}
 		word, rest, _ := strings.Cut(l.text, " ")
 		rest = strings.TrimSpace(rest)
-		switch strings.ToLower(word) {
+		switch lowerASCII(word) {
 		case "x-axis":
 			if err := d.parseXAxis(l, rest); err != nil {
 				return nil, err
@@ -63,7 +63,10 @@ func parseXYChart(args string, lines []line, m *meta) (diagram, error) {
 			if err != nil {
 				return nil, err
 			}
-			s := series{bar: strings.EqualFold(word, "bar"), values: make([]float64, len(items))}
+			if len(items) == 0 {
+				return nil, errorf(l.n, "empty %s series", word)
+			}
+			s := series{bar: equalFold(word, "bar"), values: make([]float64, len(items))}
 			for i, it := range items {
 				if s.values[i], err = parseNumber(it); err != nil {
 					return nil, errorf(l.n, "%q is not a number", it)
@@ -95,7 +98,9 @@ func parseXYChart(args string, lines []line, m *meta) (diagram, error) {
 	if d.yMin == d.yMax {
 		d.autoRange()
 	}
-	if step := niceStep(d.yMax - d.yMin); !(step > 0) || math.IsInf(step, 0) {
+	// Tick labels have at most 15 decimals: a smaller step labels every tick
+	// the same.
+	if step := niceStep(d.yMax - d.yMin); !(step >= 1e-15) || math.IsInf(step, 0) {
 		return nil, errorf(0, "y range too small")
 	}
 	return d, nil
@@ -216,7 +221,7 @@ func niceStep(span float64) float64 {
 func (d *xychart) ticks() (vals []float64, labels []string) {
 	step := niceStep(d.yMax - d.yMin)
 	decimals := min(max(0, int(-math.Floor(math.Log10(step)))), 15)
-	first := math.Ceil(d.yMin/step) * step
+	first := math.Ceil(d.yMin/step-1e-9) * step // -0.6/0.2 is -2.9999999999999996
 	for i := range maxTicks + 1 {
 		v := first + float64(i)*step
 		if v > d.yMax+step/1e6 {

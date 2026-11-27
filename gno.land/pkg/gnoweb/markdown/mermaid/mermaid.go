@@ -159,7 +159,8 @@ func scan(src string, m *meta) ([]line, error) {
 	if i < len(raw) && strings.TrimSpace(raw[i]) == "---" {
 		start := i
 		for i++; i < len(raw) && strings.TrimSpace(raw[i]) != "---"; i++ {
-			if v, ok := statement(strings.TrimSpace(raw[i]), "title"); ok {
+			// Only a top-level key: config may nest a title of its own.
+			if v, ok := statement(strings.TrimRight(raw[i], " \t\r"), "title"); ok {
 				m.title = v
 			}
 		}
@@ -202,7 +203,13 @@ func accessibility(lines []line, m *meta) ([]line, error) {
 			m.accDescr = v
 			continue
 		}
-		if rest, ok := cutPrefixFold(l.text, "accDescr"); ok && strings.TrimSpace(rest) == "{" {
+		rest, ok := cutPrefixFold(l.text, "accDescr")
+		rest = strings.TrimSpace(rest)
+		if inner, closed := strings.CutSuffix(rest, "}"); ok && closed && strings.HasPrefix(inner, "{") {
+			m.accDescr = strings.TrimSpace(inner[1:]) // accDescr { on one line }
+			continue
+		}
+		if ok && rest == "{" {
 			var desc []string
 			for i++; i < len(lines) && lines[i].text != "}"; i++ {
 				desc = append(desc, lines[i].text)
@@ -218,10 +225,24 @@ func accessibility(lines []line, m *meta) ([]line, error) {
 	return out, nil
 }
 
+// lowerASCII lowercases the ASCII letters of s and only them: Mermaid's
+// keywords ignore ASCII case, so "rİght" is not "right".
+func lowerASCII(s string) string {
+	return strings.Map(func(r rune) rune {
+		if 'A' <= r && r <= 'Z' {
+			return r + 'a' - 'A'
+		}
+		return r
+	}, s)
+}
+
+// equalFold reports whether s and t are equal ignoring ASCII case.
+func equalFold(s, t string) bool { return len(s) == len(t) && lowerASCII(s) == lowerASCII(t) }
+
 // cutPrefixFold is strings.CutPrefix ignoring ASCII case, as Mermaid's
 // keywords do.
 func cutPrefixFold(s, prefix string) (string, bool) {
-	if len(s) < len(prefix) || !strings.EqualFold(s[:len(prefix)], prefix) {
+	if len(s) < len(prefix) || !equalFold(s[:len(prefix)], prefix) {
 		return s, false
 	}
 	return s[len(prefix):], true

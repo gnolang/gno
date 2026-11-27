@@ -150,15 +150,20 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 		}
 		word, rest, _ := strings.Cut(l.text, " ")
 		rest = strings.TrimSpace(rest)
-		switch kw := strings.ToLower(word); kw {
+		switch kw := lowerASCII(word); kw {
 		case "participant", "actor":
 			id, alias, hasAlias := rest, "", false
 			if i := indexFold(rest, " as "); i >= 0 {
 				id, alias, hasAlias = rest[:i], rest[i+4:], true
 			}
-			i, err := participant(l.n, strings.TrimSpace(id))
+			id = strings.TrimSpace(id)
+			_, declared := ids[id]
+			i, err := participant(l.n, id)
 			if err != nil {
 				return nil, err
+			}
+			if declared && !hasAlias {
+				break // as in Mermaid, a participant declared again keeps its shape
 			}
 			p := d.parts[i]
 			p.actor = kw == "actor"
@@ -194,26 +199,37 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 		case "autonumber":
 			numbering = true
 			f := strings.Fields(rest)
-			if len(f) == 1 && strings.EqualFold(f[0], "off") {
+			if len(f) == 1 && equalFold(f[0], "off") {
 				numbering = false
 				break
 			}
 			if len(f) > 2 {
 				return nil, errorf(l.n, "malformed autonumber")
 			}
+			// As in Mermaid: a start alone sets the step to 1, and a start or
+			// a step of 0 keeps the current one.
+			if len(f) == 1 {
+				step = 1
+			}
 			for i, v := range f {
 				n, err := strconv.Atoi(v)
 				if err != nil || n < 0 || n > maxAutonumber {
 					return nil, errorf(l.n, "malformed autonumber")
 				}
-				if i == 0 {
+				switch {
+				case n == 0:
+				case i == 0:
 					next = n
-				} else {
+				default:
 					step = n
 				}
 			}
 		case "activate", "deactivate":
-			// Activation bars are not drawn.
+			// Activation bars are not drawn, but Mermaid refuses an unknown
+			// participant.
+			if _, ok := ids[rest]; !ok {
+				return nil, errorf(l.n, "%s of an unknown participant %q", kw, rest)
+			}
 		default:
 			e, err := parseMessage(l, participant)
 			if err != nil {
@@ -239,7 +255,7 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 // strings.ToLower, it keeps byte offsets in s.
 func indexFold(s, sub string) int {
 	for i := 0; i+len(sub) <= len(s); i++ {
-		if strings.EqualFold(s[i:i+len(sub)], sub) {
+		if equalFold(s[i:i+len(sub)], sub) {
 			return i
 		}
 	}
@@ -320,14 +336,14 @@ func parseNote(l line, rest string, participant func(int, string) (int, error)) 
 	}
 	e := &seqEvent{kind: seqNote, text: label(text)}
 	pos, who, _ := strings.Cut(strings.TrimSpace(where), " ")
-	switch strings.ToLower(pos) {
+	switch lowerASCII(pos) {
 	case "left", "right":
 		e.notePos = noteLeft
-		if strings.EqualFold(pos, "right") {
+		if equalFold(pos, "right") {
 			e.notePos = noteRight
 		}
 		of, name, _ := strings.Cut(strings.TrimSpace(who), " ")
-		if !strings.EqualFold(of, "of") {
+		if !equalFold(of, "of") {
 			return nil, errorf(l.n, "note %s without of", pos)
 		}
 		who = name
@@ -359,9 +375,10 @@ func badgeWidth(num string) float64 {
 }
 
 // badgeX returns the center of a message's autonumber badge: on the
-// sender's lifeline, or past its arrowhead when the arrow has one there.
+// sender's lifeline, or past its arrowhead when the arrow has one there,
+// on the top of a self message's loop.
 func badgeX(e *seqEvent, a, b float64) float64 {
-	if !e.arrow.both || e.from == e.to {
+	if !e.arrow.both {
 		return a
 	}
 	dir := 1.0

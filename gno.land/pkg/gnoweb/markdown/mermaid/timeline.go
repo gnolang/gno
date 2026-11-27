@@ -36,6 +36,9 @@ func parseTimeline(args string, lines []line, m *meta) (diagram, error) {
 			m.title = t
 			continue
 		}
+		if strings.HasPrefix(l.text, "#") {
+			continue // a comment, in Mermaid's timeline syntax
+		}
 		if rest, ok := cutPrefixFold(l.text, "section "); ok {
 			// Mermaid ends a section at a colon and reads the rest as an event.
 			if strings.Contains(rest, ":") {

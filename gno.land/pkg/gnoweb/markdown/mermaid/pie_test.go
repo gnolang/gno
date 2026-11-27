@@ -64,6 +64,14 @@ func TestPieColors(t *testing.T) {
 	assert.NotEqual(t, p.sliceColor(len(palette)-1), p.sliceColor(len(palette)))
 }
 
+func TestPieLegend(t *testing.T) {
+	d, err := parsePie("showData", []line{{text: `"a" : -0`}, {text: `"b" : 1e-300`}, {text: `"c" : 1`}}, &meta{})
+	require.NoError(t, err)
+	p := d.(*pie)
+	assert.Equal(t, "a 0% (0)", p.legend(p.slices[0]))
+	assert.Equal(t, "b 0% (1e-300)", p.legend(p.slices[1]))
+}
+
 func TestPercent(t *testing.T) {
 	assert.Equal(t, "65.6%", percent(42, 64))
 	assert.Equal(t, "50%", percent(1, 2))

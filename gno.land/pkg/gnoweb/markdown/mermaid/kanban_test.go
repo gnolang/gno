@@ -21,7 +21,40 @@ func TestKanbanErrors(t *testing.T) {
 		"double brackets": {"kanban\ncol\n  t1[[x]]", "malformed label"},
 		"icon":            {"kanban\ncol\n  card\n  ::icon(fa fa-book)", "icons"},
 		"class":           {"kanban\ncol\n  card:::urgent", "icons and classes"},
+		"shallower line":  {"kanban\n  Todo\n    Write docs\n Release", "indented less than the columns"},
+		"unclosed quote":  {"kanban\ncol\n  card@{ label: \"a, b }", "unclosed quote"},
 	})
+}
+
+func TestKanbanMetadata(t *testing.T) {
+	// Commas and colons inside quotes are part of the value; the label is
+	// decoded once, so an encoded tag stays text.
+	for meta, want := range map[string]kanbanCard{
+		`label: "Standup, 10:00"`:          {label: []string{"Standup, 10:00"}, priority: -1},
+		`label: "a, priority: High, b: c"`: {label: []string{"a, priority: High, b: c"}, priority: -1},
+		`label: "one#60;br#62;two"`:        {label: []string{"one<br>two"}, priority: -1},
+		`ticket: 'T·', assigned: '·bob'`:   {label: []string{"x"}, details: "T· · ·bob", priority: -1},
+		`assigned: 'bob', priority: 'Low'`: {label: []string{"x"}, details: "bob", priority: 1},
+	} {
+		card, err := parseKanbanNode(line{text: "x@{ " + meta + " }"})
+		require.NoError(t, err, meta)
+		assert.Equal(t, want, card, meta)
+	}
+}
+
+func TestKanbanColumnLevel(t *testing.T) {
+	// The first line sets the column level, as in Mermaid: a deeper line is
+	// a card of the last column, at any depth.
+	d, err := parseKanban("", []line{
+		{indent: 2, text: "Todo"},
+		{indent: 4, text: "a"},
+		{indent: 3, text: "b"},
+		{indent: 2, text: "Done"},
+	}, &meta{})
+	require.NoError(t, err)
+	k := d.(*kanban)
+	require.Len(t, k.columns, 2)
+	assert.Len(t, k.columns[0].cards, 2)
 }
 
 func TestKanbanParse(t *testing.T) {

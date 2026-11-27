@@ -29,6 +29,7 @@ func TestTimelineParse(t *testing.T) {
 		{text: "2025"},
 		{text: "2026 : at 10:30 : https://gno.land : x :"},
 		{text: "Title Gno"},
+		{text: "# a comment"},
 	}, &m)
 	require.NoError(t, err)
 	tl := d.(*timeline)

@@ -180,7 +180,7 @@ func decodeEntities(s string) string {
 	return b.String()
 }
 
-// wrap breaks each of lines at spaces so it fits width when set at size. A
+// wrap breaks each of lines at its spaces so it fits width when set at size. A
 // word wider than width is broken too, after a / . - _ or , when it has one,
 // and between any two characters otherwise, so an address, a path or a run
 // of East Asian text never overflows.
@@ -190,7 +190,8 @@ func wrap(lines []string, size, width float64, bold bool) []string {
 	for _, l := range lines {
 		var cur strings.Builder
 		curW := 0.0
-		for _, word := range strings.Fields(l) {
+		// Words end at spaces only: a no-break space (#nbsp;) holds.
+		for _, word := range strings.FieldsFunc(l, func(r rune) bool { return r == ' ' }) {
 			ww := textWidth(word, size, bold)
 			if ww > width {
 				if cur.Len() > 0 {
@@ -235,7 +236,8 @@ func breakWord(word string, size, width float64, bold bool) []string {
 			if strings.ContainsRune("/.-_,", prev) || wide(prev) {
 				cut, cutW = i, w
 			}
-			if w+rw > width && i > start {
+			// A break at the cut may still leave too much: then break here too.
+			for w+rw > width && i > start {
 				if cut > start {
 					out = append(out, word[start:cut])
 					start, w = cut, w-cutW

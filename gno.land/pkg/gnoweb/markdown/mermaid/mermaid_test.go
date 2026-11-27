@@ -47,6 +47,17 @@ func TestGolden(t *testing.T) {
 	}
 }
 
+func TestAccessibilityAndFrontmatter(t *testing.T) {
+	var m meta
+	lines, err := scan("---\ntitle: Top\nconfig:\n  title: nested\n---\ntimeline\naccDescr { Our roadmap }\n2020 : a", &m)
+	require.NoError(t, err)
+	assert.Equal(t, "Top", m.title, "a title nested under config is not the diagram's")
+	body, err := accessibility(lines[1:], &m)
+	require.NoError(t, err)
+	assert.Equal(t, "Our roadmap", m.accDescr)
+	assert.Len(t, body, 1)
+}
+
 func TestTabs(t *testing.T) {
 	// Mermaid separates words with tabs as with spaces.
 	for _, src := range []string{
@@ -162,6 +173,17 @@ func TestWrap(t *testing.T) {
 	assert.Equal(t, "see gno.land/r/gov/dao/v3/impl/memberstore", strings.Replace(strings.Join(got, ""), "see", "see ", 1))
 	for _, l := range append(got, wrap([]string{"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", "漢字漢字漢字漢字"}, fontSize, 60, false)...) {
 		assert.LessOrEqual(t, textWidth(l, fontSize, false), max(width, 60.0), l)
+	}
+
+	// A no-break space holds its words together.
+	nbsp := textWidth("word\u00a0word", fontSize, false) + 1
+	assert.Equal(t, []string{"word word", "word\u00a0word"}, wrap([]string{"word word word\u00a0word"}, fontSize, nbsp, false))
+
+	// No piece is wider than the line, even when a break after a separator
+	// leaves a wide character to carry.
+	w60 := textWidth("ab.", fontSize, false) + 1
+	for _, p := range breakWord("ab.WWWWWWWW", fontSize, w60, false) {
+		assert.LessOrEqual(t, textWidth(p, fontSize, false), w60, p)
 	}
 
 	// A piece never starts with a combining mark or splits an emoji

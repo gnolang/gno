@@ -32,6 +32,8 @@ func TestSequenceErrors(t *testing.T) {
 		"arrow in name":     {"sequenceDiagram\nweb-xhr->>B: q", "participant name"},
 		"autonumber":        {"sequenceDiagram\nautonumber one\nA->>B: x", "autonumber"},
 		"autonumber big":    {"sequenceDiagram\nautonumber 99999999999\nA->>B: x", "autonumber"},
+		"activate unknown":  {"sequenceDiagram\nA->>B: x\nactivate C", "unknown participant"},
+		"non-ASCII keyword": {"sequenceDiagram\nNote r\u0130ght of A: x", "note"},
 		"header":            {"sequenceDiagram A->>B: x", "sequenceDiagram line"},
 		"participants":      {many, "participants"},
 		"unclosed accDescr": {"sequenceDiagram\naccDescr {\n  text", "accDescr block"},
@@ -111,4 +113,39 @@ func TestSequenceAutonumber(t *testing.T) {
 	}
 	assert.Equal(t, []string{"", "2", "10", "", "20"}, nums)
 	assert.Equal(t, "Numbers", m.title, "keywords ignore case")
+
+	// As in Mermaid, 0 keeps the current start or step, and a start alone
+	// resets the step to 1.
+	for src, want := range map[string][]string{
+		"autonumber 0\nA->>B: x\nA->>B: y":                             {"1", "2"},
+		"autonumber 10 0\nA->>B: x\nA->>B: y":                          {"10", "11"},
+		"autonumber 1 10\nA->>B: x\nautonumber 50\nA->>B: y\nA->>B: z": {"1", "50", "51"},
+	} {
+		lines := strings.Split(src, "\n")
+		s, _ := parseSeq(t, lines...)
+		var nums []string
+		for _, e := range s.events {
+			nums = append(nums, e.num)
+		}
+		assert.Equal(t, want, nums, src)
+	}
+}
+
+func TestSequenceRedeclare(t *testing.T) {
+	// As in Mermaid, declaring a participant again without an alias keeps
+	// its shape; with one, it takes the new shape and label.
+	s, _ := parseSeq(t, "A->>B: x", "actor A", "actor B as Bee")
+	assert.False(t, s.parts[0].actor)
+	assert.True(t, s.parts[1].actor)
+	assert.Equal(t, []string{"Bee"}, s.parts[1].label)
+}
+
+func TestSequenceSelfBadge(t *testing.T) {
+	// A two-headed self message draws its badge past the head at the top of
+	// the loop, not over it.
+	s, _ := parseSeq(t, "autonumber", "A<<->>A: ping")
+	e := s.events[0]
+	a := 0.0
+	bx, bw := badgeX(e, a, a), badgeWidth(e.num)
+	assert.GreaterOrEqual(t, bx-bw/2, a+10, "the head ends 10 px past the lifeline")
 }

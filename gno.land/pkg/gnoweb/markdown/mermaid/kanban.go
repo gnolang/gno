@@ -46,11 +46,16 @@ func parseKanban(args string, lines []line, _ *meta) (diagram, error) {
 		if err != nil {
 			return nil, err
 		}
-		if colIndent < 0 || l.indent <= colIndent {
+		if colIndent < 0 {
+			colIndent = l.indent // as in Mermaid, the first line sets the column level
+		}
+		if l.indent < colIndent {
+			return nil, errorf(l.n, "line indented less than the columns")
+		}
+		if l.indent == colIndent {
 			if card.details != "" || card.priority >= 0 {
 				return nil, errorf(l.n, "metadata on a column")
 			}
-			colIndent = l.indent
 			d.columns = append(d.columns, &kanbanColumn{label: card.label})
 			continue
 		}
@@ -88,32 +93,55 @@ func parseKanbanNode(l line) (kanbanCard, error) {
 		if !ok {
 			return card, errorf(l.n, "unclosed metadata")
 		}
-		var ticket, assigned string
-		for _, kv := range strings.Split(body, ",") {
+		pairs, ok := splitMetadata(body)
+		if !ok {
+			return card, errorf(l.n, "unclosed quote")
+		}
+		var details []string
+		for _, kv := range pairs {
 			k, v, ok := strings.Cut(kv, ":")
 			if !ok {
 				return card, errorf(l.n, "malformed metadata")
 			}
-			v = plain(v)
 			switch strings.TrimSpace(k) {
 			case "label":
-				text = v
-			case "ticket":
-				ticket = v
-			case "assigned":
-				assigned = v
+				text = unquote(strings.TrimSpace(v)) // label decodes it
+			case "ticket", "assigned":
+				if v = plain(v); v != "" {
+					details = append(details, v)
+				}
 			case "priority":
-				if p, ok := priorities[strings.ToLower(v)]; ok {
+				if p, ok := priorities[lowerASCII(plain(v))]; ok {
 					card.priority = p
 				}
 			}
 		}
-		card.details = strings.Trim(ticket+" · "+assigned, " ·")
+		card.details = strings.Join(details, " · ")
 	}
 	if card.label = label(text); card.label == nil {
 		return card, errorf(l.n, "empty label")
 	}
 	return card, nil
+}
+
+// splitMetadata splits `key: value, …` at the commas outside quotes, as
+// Mermaid's YAML reading of it does; ok is false for an unclosed quote.
+func splitMetadata(s string) (pairs []string, ok bool) {
+	var quote byte
+	start := 0
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			}
+		case c == '"' || c == '\'':
+			quote = c
+		case c == ',':
+			pairs, start = append(pairs, s[start:i]), i+1
+		}
+	}
+	return append(pairs, s[start:]), quote == 0
 }
 
 func (d *kanban) draw(w *svgWriter) (float64, float64) {

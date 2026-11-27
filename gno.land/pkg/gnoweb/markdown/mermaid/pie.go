@@ -45,7 +45,7 @@ func parsePie(args string, lines []line, m *meta) (diagram, error) {
 			m.title = t
 			continue
 		}
-		if strings.EqualFold(l.text, "showData") {
+		if equalFold(l.text, "showData") {
 			d.showData = true
 			continue
 		}
@@ -83,7 +83,7 @@ func parseSlice(l line) (slice, error) {
 	if err != nil || v < 0 {
 		return slice{}, errorf(l.n, "slice value must be a non-negative number")
 	}
-	return slice{label: decodeEntities(name), value: v}, nil
+	return slice{label: decodeEntities(name), value: math.Abs(v)}, nil // -0 is 0
 }
 
 // percent formats a share with at most one decimal.
@@ -94,7 +94,11 @@ func percent(part, total float64) string {
 func (d *pie) legend(s slice) string {
 	text := s.label + " " + percent(s.value, d.total)
 	if d.showData {
-		text += " (" + strconv.FormatFloat(s.value, 'f', -1, 64) + ")"
+		format := byte('f')
+		if s.value != 0 && s.value < 1e-6 {
+			format = 'g' // as JavaScript writes it, not 300 digits
+		}
+		text += " (" + strconv.FormatFloat(s.value, format, -1, 64) + ")"
 	}
 	return text
 }
