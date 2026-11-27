@@ -360,7 +360,7 @@ func normalizeDiag(s string) string {
 	s = strings.ReplaceAll(s, "\r\n", "\n")
 	var ids []string
 	var other []string
-	for _, line := range strings.Split(s, "\n") {
+	for line := range strings.SplitSeq(s, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "# ") || strings.HasPrefix(line, "exit status") {
 			continue
@@ -403,7 +403,7 @@ func overflowWording(goDetail, gnoDetail string) bool {
 func overflowIdentity(detail string) (string, bool) {
 	var found string
 	ok := false
-	for _, line := range strings.Split(normalizeDiag(detail), "\n") {
+	for line := range strings.SplitSeq(normalizeDiag(detail), "\n") {
 		id, matched := overflowLine(line)
 		if !matched {
 			continue
