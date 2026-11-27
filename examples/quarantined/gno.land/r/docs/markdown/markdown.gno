@@ -1383,6 +1383,156 @@ Second law: $dS \geq \frac{\delta Q}{T}$
 - **Not supported**: ±\ref± and ±\eqref± (there is no equation numbering), and macro expansion (±\newcommand± and ±\def± are accepted but their definitions are not expanded)
 - **Complex equations**: Schrödinger, Maxwell, Fourier transforms, etc.
 
+### Diagrams
+
+A ±± ±±±mermaid ±± code block is drawn as a diagram, on the server, as an SVG that follows the light and dark themes and needs no script. gnoweb draws a subset of [Mermaid](https://mermaid.js.org): sequence diagrams, pie charts, XY charts, timelines and kanban boards. Another diagram type, or a statement outside the subset, shows the block as code. Diagrams are drawn when gnoweb runs with ±-mermaid± (±-web-mermaid± in gnodev); otherwise every block shows as code.
+
+A diagram keeps its natural size, centered, and scrolls sideways when it is wider than the page, so its text stays the size of the page's.
+
+#### Sequence diagrams
+
+±±±±markdown
+±±±mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant D as r/gov/dao
+    participant T as r/gov/treasury
+    User->>D: Propose(cross, ...)
+    D-->>User: proposal id
+    Note over D: voting period<br/>7 days
+    D->>T: Execute(cross)
+    alt enough funds
+        T-->>D: ok
+    else not enough
+        T--xD: panic
+    end
+±±±
+±±±±
+
+±±±mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant D as r/gov/dao
+    participant T as r/gov/treasury
+    User->>D: Propose(cross, ...)
+    D-->>User: proposal id
+    Note over D: voting period<br/>7 days
+    D->>T: Execute(cross)
+    alt enough funds
+        T-->>D: ok
+    else not enough
+        T--xD: panic
+    end
+±±±
+
+#### Pie charts
+
+±±±±markdown
+±±±mermaid
+pie showData
+    title Votes on proposal #42
+    "Yes" : 42
+    "No" : 17
+    "Abstain" : 5.5
+±±±
+±±±±
+
+±±±mermaid
+pie showData
+    title Votes on proposal #42
+    "Yes" : 42
+    "No" : 17
+    "Abstain" : 5.5
+±±±
+
+#### XY charts
+
+±±±±markdown
+±±±mermaid
+xychart-beta
+    title "Gas used per month"
+    x-axis "2026" [jan, feb, mar, apr]
+    y-axis "Gas (millions)" 0 --> 100
+    bar [32, 51, 74, 40]
+    line [30, 48, 70, 45]
+±±±
+±±±±
+
+±±±mermaid
+xychart-beta
+    title "Gas used per month"
+    x-axis "2026" [jan, feb, mar, apr]
+    y-axis "Gas (millions)" 0 --> 100
+    bar [32, 51, 74, 40]
+    line [30, 48, 70, 45]
+±±±
+
+#### Timelines
+
+±±±±markdown
+±±±mermaid
+timeline
+    title gno.land
+    section Testnets
+        2022 : test1 : test2
+        2024 : test4 : test5
+    section Mainnet
+        2025 : Beta mainnet
+        2026 : v1.7
+±±±
+±±±±
+
+±±±mermaid
+timeline
+    title gno.land
+    section Testnets
+        2022 : test1 : test2
+        2024 : test4 : test5
+    section Mainnet
+        2025 : Beta mainnet
+        2026 : v1.7
+±±±
+
+#### Kanban boards
+
+±±±±markdown
+±±±mermaid
+kanban
+  todo[To review]
+    g1[Grant: IBC relayer]@{ ticket: G-12, assigned: 'alice', priority: 'High' }
+  done[Paid]
+    g2[Grant: audit of r/gov/dao]@{ priority: 'Low' }
+±±±
+±±±±
+
+±±±mermaid
+kanban
+  todo[To review]
+    g1[Grant: IBC relayer]@{ ticket: G-12, assigned: 'alice', priority: 'High' }
+  done[Paid]
+    g2[Grant: audit of r/gov/dao]@{ priority: 'Low' }
+±±±
+
+#### Width
+
+To choose the width, write the source in a ±<gno-mermaid>± block instead, with no code fence inside. Its ±width± attribute is ±fit± (shrunk to the container when wider, never enlarged) or ±full± (as wide as the container). Another attribute or value shows the source as code.
+
+±±±markdown
+<gno-mermaid width="fit">
+pie title Treasury
+    "Grants" : 60
+    "Operations" : 40
+</gno-mermaid>
+±±±
+
+<gno-mermaid width="fit">
+pie title Treasury
+    "Grants" : 60
+    "Operations" : 40
+</gno-mermaid>
+
 ### And more...
 
 XXX: TODO
