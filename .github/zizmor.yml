@@ -1,0 +1,7 @@
+rules:
+  # self-repository wants this repository's own workflows called as
+  # `uses: $/...` rather than `uses: ./...`, but actionlint v1.7.12 (the latest
+  # release, pinned in meta-actions-lint.yml) rejects that form. Turn the audit
+  # back on once actionlint accepts it.
+  self-repository:
+    disable: true

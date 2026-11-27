@@ -659,3 +659,42 @@ func TestReachableSurface_RepeatIsNotCycle(t *testing.T) {
 		}()
 	}
 }
+
+// A type declared in a nested block is keyed to the block's own location, so a
+// block without one is refused: a block the preprocessor built has a span
+// derived from its parent's, and a block evaluated outside a file has none.
+func TestDeclareWith_NestedBlockNeedsOwnLocation(t *testing.T) {
+	const pkgPath = "gno.land/r/test/blocks"
+	loc := Location{PkgPath: pkgPath, File: "a.gno", Span: Span{Pos: Pos{Line: 3, Column: 2}, End: Pos{Line: 6, Column: 3}}}
+	parsed := &BlockStmt{}
+	parsed.SetLocation(loc)
+	if got := declareWith(pkgPath, parsed, "t", IntType).ParentLoc; got != loc {
+		t.Fatalf("parsed block: ParentLoc = %v, want %v", got, loc)
+	}
+
+	derived := loc
+	derived.Num = 1
+	for _, bad := range []Location{{}, derived} {
+		bs := &BlockStmt{}
+		bs.SetLocation(bad)
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Fatalf("block at %q: declareWith did not panic", bad)
+				}
+			}()
+			declareWith(pkgPath, bs, "t", IntType)
+		}()
+	}
+
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+	m.RunFiles(m.MustParseFile("testdata.gno", "package testdata\n"))
+	defer func() {
+		want := "expected type expr but got *gnolang.BlockStmt"
+		if r := recover(); !strings.Contains(fmt.Sprint(r), want) {
+			t.Fatalf("Eval: want a panic naming %q, got %v", want, r)
+		}
+	}()
+	m.Eval(m.MustParseExpr("func() int { { type t int; return int(t(1)) } }()"))
+}

@@ -7,24 +7,33 @@ import (
 	"slices"
 
 	"github.com/cockroachdb/pebble"
-	"github.com/cockroachdb/pebble/bloom"
 
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
 )
 
-// DefaultPebbleOptions returns pebble.Options tuned for gno.land production.
+// Sizes measured by replaying gnoland-1 blocks; see
+// tm2/adr/pr6480_pebble_block_cache_size.md.
+const (
+	// blockCacheSize replaces pebble's 8 MiB default. pebble reserves
+	// 2 x MemTableSize of the cache for memtables (the live one and one kept
+	// for reuse), so the default 4 MiB memtable took all 8 MiB and no block
+	// stayed cached. 64 MiB leaves 32 MiB for blocks next to 16 MiB
+	// memtables. The cache fills only as blocks are read.
+	blockCacheSize = 64 << 20
+	// memTableSize replaces pebble's 4 MiB default, which flushed and
+	// compacted several times per busy block.
+	memTableSize = 16 << 20
+)
+
+// DefaultPebbleOptions returns the pebble.Options every node database opens
+// with. The caller holds a reference on the returned Cache: drop it with
+// Unref once pebble.Open has taken its own.
 func DefaultPebbleOptions() *pebble.Options {
-	cache := pebble.NewCache(500 << 20) // 500 MB
-	opts := &pebble.Options{
-		Cache:                    cache,
-		MemTableSize:             64 << 20, // 64 MB
-		MaxConcurrentCompactions: func() int { return 3 },
-		Levels: []pebble.LevelOptions{
-			{FilterPolicy: bloom.FilterPolicy(10)},
-		},
+	return &pebble.Options{
+		Cache:        pebble.NewCache(blockCacheSize),
+		MemTableSize: memTableSize,
 	}
-	return opts
 }
 
 func init() {
@@ -40,8 +49,12 @@ type PebbleDB struct {
 	db *pebble.DB
 }
 
+// NewPebbleDB opens a database with DefaultPebbleOptions. It is the creator
+// the db registry uses, so every node database opens through it.
 func NewPebbleDB(name string, dir string) (*PebbleDB, error) {
-	return NewPebbleDBWithOpts(name, dir, &pebble.Options{})
+	opts := DefaultPebbleOptions()
+	defer opts.Cache.Unref() // pebble.Open takes its own reference
+	return NewPebbleDBWithOpts(name, dir, opts)
 }
 
 func NewPebbleDBWithOpts(name string, dir string, o *pebble.Options) (*PebbleDB, error) {
