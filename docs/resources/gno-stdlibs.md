@@ -805,18 +805,6 @@ at the current block time. [GetCoins](#getcoins) includes this locked part in
 the total, so a page that shows only `GetCoins` shows a number the holder may
 not be able to move.
 
-```go
-locked := banker.GetLockedCoins(addr)
-spendable := banker.GetCoin(addr, "ugnot") - locked.AmountOf("ugnot")
-if spendable < 0 {
-    spendable = 0
-}
-```
-
-`GetCoin` reads the one balance. `GetLockedCoins` returns every denomination the
-schedule locks; that set is fixed when the account is created. Prefer it to
-calling `GetCoins` just to subtract.
-
 An address with no account, or an account with no schedule, returns an empty
 set. The figure is the schedule's remainder, the same one a transfer consults.
 It is not clamped to the balance: fees can debit coins the schedule still calls
@@ -832,7 +820,16 @@ Read-only, like `GetCoins`. Every banker type may call it, and it changes nothin
 
 ```go
 locked := banker.GetLockedCoins(addr)
+spendable := banker.GetCoin(addr, "ugnot") - locked.AmountOf("ugnot")
+if spendable < 0 {
+    spendable = 0
+}
 ```
+
+Prefer [GetCoin](#getcoin) to [GetCoins](#getcoins) when computing one
+denomination's spendable balance: `GetCoin` reads only that balance, while
+`GetLockedCoins` covers only the fixed set of denominations in the account's
+vesting schedule rather than every denomination the address has been sent.
 
 :::info Cost matches GetCoins
 

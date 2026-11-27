@@ -72,10 +72,20 @@ grown by a third party. A single-denom reader can wait.
   of the genesis table. `r/moul/vesting/v0` is not in this tree; it keeps
   taking the schedule from its caller until someone updates that realm.
 - Native gas for the new binding equals `bankerGetCoins`. Store gas is one
-  account read. A re-run of the native-gas fitter drops the row, because it
-  has no samples; the row has to be put back beside `bankerGetCoins`.
-- `banker.gno` is committed into genesis as stdlib source, so the pinned
+  account read. `native_bench_output.txt` holds no samples for it, so
+  re-running the fitter against that checked-in snapshot drops the row;
+  `BenchmarkNative_Banker_GetLockedCoins_*` and its `NATIVE_SPECS` entry in
+  `gen_native_table.py` are wired so the next reference-hardware calibration
+  run fits it directly.
+- Adding a stdlib method and native binding is a consensus-breaking change:
+  on a running chain it ships in a coordinated upgrade rather than a rolling
+  one. `banker.gno` is committed into genesis as stdlib source, so the pinned
   multistore hash in `TestAppHashCrossrealm38` moves. The crossrealm38
   scenario does not read a lock. Gas rows are not committed state.
+- Widening `chain/banker.Banker`, `chain/banker.BankerInterface`, and
+  `execctx.BankerInterface` breaks out-of-tree mocks and chain embedders that
+  implement them directly; all in-tree implementors (`SDKBanker`,
+  `RunSDKBanker` by embedding, `TestBanker`, the calibration mock, and test
+  mocks) are updated here.
 - `gno test` does not model vesting. A filetest that calls `GetLockedCoins`
   sees an empty set.
