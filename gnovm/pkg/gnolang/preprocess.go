@@ -1454,7 +1454,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// this is fine, e.g. for TRANS_ASSIGN_LHS (define) etc.
 					} else if nt.Kind() == FuncKind {
 						if ftype != TRANS_CALL_FUNC && n.Path.Type == VPBlock &&
-							isFuncDeclAt(last.GetBlockNodeForPath(store, n.Path), n.Path.Index) {
+							isDeclaredFuncAt(last.GetBlockNodeForPath(store, n.Path), n.Path.Index) {
 							markFuncHandle(n, nt)
 						}
 					} else if nt.Kind() == PackageKind {
@@ -2435,8 +2435,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if t.Elem().Kind() != ArrayKind {
 						panic(fmt.Sprintf("cannot slice variable of type %v", t))
 					}
-				case SliceKind, ArrayKind, StringKind:
+				case SliceKind, StringKind:
 					// good.
+				case ArrayKind:
+					if !isAddressable(store, last, n.X) {
+						panic(fmt.Sprintf(
+							"invalid operation: %s (slice of unaddressable value)",
+							n.X.String()))
+					}
 				default:
 					panic(fmt.Sprintf("cannot slice variable of type %v", t))
 				}
@@ -2643,6 +2649,25 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						"cannot take address of multi-value call (results: %s)",
 						tt.String()))
 				}
+				if xt == nil {
+					// untyped nil has no static type; reported here so the
+					// checks below can format xt without a nil dereference.
+					panic(fmt.Sprintf(
+						"invalid operation: cannot take address of %s",
+						n.X.String()))
+				}
+				// Go spec: "As an exception to the addressability requirement,
+				// x may also be a (possibly parenthesized) composite literal."
+				// The exception is the operand of & only, so it is applied
+				// here rather than inside isAddressable, which is also used
+				// for slicing. go2gno drops parentheses, so a parenthesized
+				// literal arrives as a bare *CompositeLitExpr.
+				_, isComposite := n.X.(*CompositeLitExpr)
+				if !isComposite && !isAddressable(store, last, n.X) {
+					panic(fmt.Sprintf(
+						"invalid operation: cannot take address of %s (value of type %s)",
+						n.X.String(), xt.String()))
+				}
 				n.SetAttribute(ATTR_REF_ELEM_TYPE, xt)
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
@@ -2702,6 +2727,27 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// automatically take the address of that
 						// value: t.Mp is equivalent to (&t).Mp."
 						//
+						// The address taken here is synthesized rather
+						// than written, so it never reaches the RefExpr
+						// case above; the spec's addressability
+						// requirement has to be enforced where the
+						// address is built. Without it a pointer method
+						// on an unaddressable receiver either wrote
+						// through to state the caller cannot name
+						// (m["k"].Inc() mutated the stored map element),
+						// silently discarded the write (T{}.Inc()), or
+						// reached the runtime as an opaque "illegal
+						// assignment X expression" (mk().Inc()).
+						//
+						// Reported against xt, the type actually written
+						// as the receiver, rather than nxt2, which for a
+						// promoted method is the embedded type the trail
+						// resolved to.
+						if !isAddressable(store, last, n.X) {
+							panic(fmt.Sprintf(
+								"cannot call pointer method %s on %s",
+								n.Sel, xt.String()))
+						}
 						// convert to (&x).m, but leave xt as is.
 						rx := &RefExpr{X: n.X}
 						rx.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
@@ -2731,6 +2777,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						// Case 2: If tr[0] is deref type, but xt
 						// is not pointer type, replace n.X with
 						// &RefExpr{X: n.X}.
+						//
+						// No addressability check, unlike Case 1: the deref
+						// step means the field was reached through a pointer,
+						// and Go never requires an address for a value method,
+						// so a check could only reject valid code.
 						rx := &RefExpr{X: n.X}
 						rx.SetAttribute(ATTR_REF_ELEM_TYPE, nxt2)
 						n.X = rx
@@ -2785,7 +2836,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					// Produce const expr if typed or untyped const.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
-					if ftype != TRANS_CALL_FUNC && isFuncDeclAt(pn, n.Path.Index) {
+					if ftype != TRANS_CALL_FUNC && isDeclaredFuncAt(pn, n.Path.Index) {
 						markFuncHandle(n, tt)
 					}
 					if isUntyped(tt) || pn.GetIsConstAt(store, n.Path) {
@@ -5115,6 +5166,107 @@ func isConst(x Expr) bool {
 	return ok
 }
 
+// isAddressable reports whether x is addressable, as the Go spec defines it:
+// "either a variable, pointer indirection, or slice indexing operation; or a
+// field selector of an addressable struct operand; or an array indexing
+// operation of an addressable array."
+//
+// The spec's composite literal exception ("As an exception to the
+// addressability requirement, x may also be a (possibly parenthesized)
+// composite literal") is deliberately not applied here. A composite literal is
+// addressable only as the direct operand of &, never as the base of a
+// selector, index, or slice expression. The RefExpr case applies the exception
+// at its own call site, which is what keeps &T{} legal while rejecting
+// &T{}.field, &[...]T{}[0], and [...]T{}[:].
+//
+// This is deliberately NOT assertValidAssignLhs: addressable and assignable
+// are different sets, and neither contains the other. A map index is
+// assignable but not addressable (`m[k] = v` is legal, `&m[k]` is not), so
+// reusing that predicate here would re-admit the cases this function exists to
+// reject. The converse direction is the useful one -- Go's assignability rule
+// is "addressable, or a map index expression" -- but that is a fix to the
+// assignment path, not to this one.
+func isAddressable(store Store, last BlockNode, x Expr) bool {
+	switch cx := x.(type) {
+	case *StarExpr:
+		// pointer indirection. Not every StarExpr is one: `*T` as a type
+		// expression survives preprocess as a StarExpr too (the *StarExpr
+		// case above admits a TypeKind operand), and it is the base of a
+		// method expression like (*T).M, which is a func value rather than
+		// an indirection of anything.
+		xt := evalStaticTypeOf(store, last, cx.X)
+		return xt != nil && xt.Kind() != TypeKind
+	case *NameExpr:
+		// a name is addressable only when it denotes a variable. Resolved by
+		// Path, not by name, so a later local shadowing a func does not answer
+		// for this use. Types and constants were folded before this runs.
+		if cx.Path.Type == VPUverse {
+			return false
+		}
+		return !isFuncDeclAt(last.GetBlockNodeForPath(store, cx.Path), cx.Path.Index)
+	case *IndexExpr:
+		xt := evalStaticTypeOf(store, last, cx.X)
+		if xt == nil {
+			return false
+		}
+		switch xt.Kind() {
+		case SliceKind:
+			return true
+		case PointerKind:
+			// p[i] on a pointer to array is (*p)[i]. The *IndexExpr case
+			// already rewrites it that way, so this is only a fallback.
+			return true
+		case ArrayKind:
+			// an array element is addressable iff the array is.
+			return isAddressable(store, last, cx.X)
+		default:
+			// map and string index expressions never are.
+			return false
+		}
+	case *SelectorExpr:
+		switch cx.Path.Type {
+		case VPValMethod, VPPtrMethod, VPInterface,
+			VPDerefValMethod, VPDerefPtrMethod, VPDerefInterface:
+			// a method value is a newly built func value, not a field.
+			return false
+		case VPField, VPSubrefField, VPDerefField:
+			// a field access; addressability follows the base, below.
+		case VPBlock:
+			// pkg.X: the same rule as the *NameExpr case, asked of the
+			// imported package's own block, whose slot for the import holds
+			// the *PackageValue.
+			if nx, ok := cx.X.(*NameExpr); ok {
+				if tv := last.GetSlot(store, nx.Name, true); tv != nil {
+					if pv, ok := tv.V.(*PackageValue); ok {
+						return !isFuncDeclAt(pv.GetPackageNode(store), cx.Path.Index)
+					}
+				}
+			}
+			return isAddressable(store, last, cx.X)
+		default:
+			// VPUverse, and any path type added later: not a field
+			// access, so not addressable. Failing closed here matters --
+			// falling through would consult the base instead, and an
+			// addressable base would wrongly make the selection
+			// addressable.
+			return false
+		}
+		if bt := evalStaticTypeOf(store, last, cx.X); bt != nil &&
+			bt.Kind() == PointerKind {
+			// implicit indirection: (*p).field.
+			return true
+		}
+		return isAddressable(store, last, cx.X)
+	default:
+		return false
+	}
+}
+
+// isFuncDeclAt reports whether slot idx of bn was declared by a func decl.
+func isFuncDeclAt(bn BlockNode, idx uint16) bool {
+	return bn.GetNameSources()[idx].Type == NSFuncDecl
+}
+
 func isConstType(x Expr) bool {
 	_, ok := x.(*constTypeExpr)
 	return ok
@@ -6975,7 +7127,7 @@ func wrapFuncHandles(n Node) Node {
 // isNamedAt reports whether index in bn is a declared function or a /p/ or
 // stdlib package-level variable.
 func isNamedAt(bn BlockNode, index uint16) bool {
-	return isFuncDeclAt(bn, index) || isLibVarAt(bn, index)
+	return isDeclaredFuncAt(bn, index) || isLibVarAt(bn, index)
 }
 
 // isLibVarAt reports whether index in bn is a package-level variable of a /p/
@@ -6990,7 +7142,7 @@ func isLibVarAt(bn BlockNode, index uint16) bool {
 	return int(index) < len(nss) && nss[index].Type == NSValueDecl
 }
 
-func isFuncDeclAt(bn BlockNode, index uint16) bool {
+func isDeclaredFuncAt(bn BlockNode, index uint16) bool {
 	// A name declared inside a FuncDecl's own block is a receiver, parameter or
 	// result (its source is that FuncDecl too), never a declared function.
 	if _, ok := bn.(*FuncDecl); ok {
