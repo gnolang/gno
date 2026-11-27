@@ -629,6 +629,14 @@ func Go2Gno(fs *token.FileSet, gon ast.Node, fileComments []*ast.CommentGroup) (
 	case *ast.TypeSwitchStmt:
 		switch as := gon.Assign.(type) {
 		case *ast.AssignStmt:
+			// A blank type switch variable gets no slot, which the
+			// preprocessor and doOpTypeSwitch both assume it has. Go's
+			// parser rejects it while resolving declarations, which
+			// ParseFile asks for, so this only fires on the ParseExpr and
+			// ParseStmts paths.
+			if as.Lhs[0].(*ast.Ident).Name == blankIdentifier {
+				panicWithPos("no new variables on left side of :=")
+			}
 			return &SwitchStmt{
 				Init:         toStmt(fs, gon.Init),
 				X:            toExpr(fs, as.Rhs[0].(*ast.TypeAssertExpr).X),
