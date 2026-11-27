@@ -271,6 +271,18 @@ func TestWrap(t *testing.T) {
 			assert.Equal(t, strings.Repeat("🇫🇷", utf8.RuneCountInString(p)/2), p)
 		}
 	}
+
+	// A run of joining runes longer than any character as drawn breaks too,
+	// rather than overflowing the box.
+	for _, word := range []string{strings.Repeat("\u1161", 400), strings.Repeat("🏽", 100)} {
+		r, _ := utf8.DecodeRuneInString(word)
+		pieces := breakWord(word, fontSize, 50, false)
+		require.Greater(t, len(pieces), 1, "%U", r)
+		for _, p := range pieces {
+			assert.LessOrEqual(t, utf8.RuneCountInString(p), maxJoined+1, "%U", r)
+		}
+		assert.Equal(t, word, strings.Join(pieces, ""))
+	}
 }
 
 func TestJoinsBelowMarks(t *testing.T) {

@@ -230,19 +230,29 @@ func wrap(lines []string, size, width float64, bold bool) []string {
 	return out
 }
 
+// maxJoined is the longest run of joining runes breakWord keeps whole, more
+// than a character as drawn holds (the longest emoji is 10 runes), so a
+// longer run, such as a pile of combining marks, still wraps.
+const maxJoined = 16
+
 // breakWord cuts word into pieces no wider than width, each but the last
 // ending after a break character when one fits. It never breaks inside a
 // character as drawn (see joins), so no piece starts with a lone accent,
-// half an emoji or half a flag.
+// half an emoji or half a flag, but in a run of more than maxJoined joining
+// runes, which no character holds.
 func breakWord(word string, size, width float64, bold bool) []string {
 	var out []string
 	start, w := 0, 0.0
 	cut, cutW := -1, 0.0 // the last place to break, and the width before it
 	prev := rune(-1)
-	flags := 0 // the regional indicators just before r
+	flags := 0  // the regional indicators just before r
+	joined := 0 // the joining runes just before r
 	for i, r := range word {
 		rw := runeEm(r, bold) * size / 1000
-		if !joins(prev, r, flags) {
+		if joins(prev, r, flags) && joined < maxJoined {
+			joined++
+		} else {
+			joined = 0
 			if strings.ContainsRune("/.-_,", prev) || wide(prev) {
 				cut, cutW = i, w
 			}
