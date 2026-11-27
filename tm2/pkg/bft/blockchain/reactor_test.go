@@ -250,12 +250,10 @@ func TestFastSyncBlocksLargerThanSendBudgetShare(t *testing.T) {
 		Channels:      []byte{BlockchainChannel},
 	})
 
-	// The pool applies a block once it holds the next one, so the last
-	// block stays unapplied.
+	// Fast sync hands over to consensus once the pool is caught up, which
+	// can leave the store two blocks short of the peer.
 	syncer := reactorPairs[1].reactor
-	assert.Eventually(t, func() bool {
-		return syncer.store.Height() >= maxBlockHeight-1
-	}, 30*time.Second, 50*time.Millisecond, "sync stalled")
+	assert.Eventually(t, syncer.pool.IsCaughtUp, 30*time.Second, 50*time.Millisecond, "sync stalled")
 }
 
 // NOTE: This is too hard to test without
