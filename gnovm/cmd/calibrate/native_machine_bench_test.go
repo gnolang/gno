@@ -28,7 +28,10 @@ type mockBanker struct {
 }
 
 func newMockBanker() *mockBanker {
-	return &mockBanker{coins: map[crypto.Bech32Address]std.Coins{}}
+	return &mockBanker{
+		coins:  map[crypto.Bech32Address]std.Coins{},
+		locked: map[crypto.Bech32Address]std.Coins{},
+	}
 }
 
 // All ops are no-op except GetCoins (which returns the preload). We're
@@ -210,7 +213,7 @@ func benchBankerGetLockedCoins(b *testing.B, n int) {
 	for i := range n {
 		cs[i] = std.Coin{Denom: fmt.Sprintf("d%05d", i), Amount: int64(i + 1)}
 	}
-	bk.locked = map[crypto.Bech32Address]std.Coins{addr: cs}
+	bk.locked[addr] = cs
 	setBlockValueFromGo(m, 0, uint8(0)) // btReadonly
 	setBlockValueFromGo(m, 1, string(addr))
 	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/banker", "bankerGetLockedCoins"), nReturns: 2}
