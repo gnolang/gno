@@ -9,7 +9,7 @@ a timelock, and expiry. It does not move coins. The factory realm
 safes, authenticates callers with a live `cur`, and sends.
 
 See that realm's README for `gnodev` / `gnokey` usage, and
-[`gno.land/adr/prxxxx_multisig_treasury.md`](../../../../../../gno.land/adr/prxxxx_multisig_treasury.md)
+[`gno.land/adr/pr6541_multisig_treasury.md`](../../../../../../gno.land/adr/pr6541_multisig_treasury.md)
 for why this is a realm rather than a tm2 multisig account.
 
 A safe's funds live at `chain.DerivePkgSubAddr(host, "s/<id>")`, the

@@ -9,7 +9,7 @@ its signers can move what that address holds.
 
 The rules live in [`gno.land/p/nt/multisig/v0`](../../../../p/nt/multisig/v0).
 The design notes are in
-[`gno.land/adr/prxxxx_multisig_treasury.md`](../../../../../../gno.land/adr/prxxxx_multisig_treasury.md).
+[`gno.land/adr/pr6541_multisig_treasury.md`](../../../../../../gno.land/adr/pr6541_multisig_treasury.md).
 
 This is not the tm2 multisig that holds the genesis treasuries. Those
 are accounts. This is a realm: it can queue a payment, hold GRC20, and
@@ -32,9 +32,12 @@ approvals. A proposal that has reached the threshold cannot be
 cancelled until someone revokes a vote. Revoking under the threshold
 restarts the timelock.
 
-Signers are whatever `cur.Previous().Address()` is. A user must call
-with `maketx call`. `maketx run` is a different address. A realm can be
-a signer if its own address is on the list.
+Signers are authenticated by `cur.Previous().Address()`. An EOA can
+call via `maketx call` or `maketx run` (batching e.g. propose +
+approve in one transaction); a published realm can be a signer if its
+own package address is on the list, while a relaying realm cannot act
+on `OriginCaller`'s behalf. `Deposit` inspects `OriginSend`, so it
+requires a direct `maketx call` (`cur.Previous().IsUserCall()`).
 
 Limits: 32 signers, 64 pending proposals, 128 retained proposals
 (older finished ones are dropped; an unconsumed call authorization
@@ -95,8 +98,8 @@ gnokey query vm/qeval \
 
 ## Put coins in
 
-Send to the safe address, not to the factory. A `-send` on `Create`
-lands on the factory and stays there.
+Send to the safe address, not to the factory. Non-payable calls such
+as `Create` reject `-send` at the VM layer.
 
 ```sh
 gnokey maketx send \
@@ -107,15 +110,16 @@ gnokey maketx send \
   devtest
 ```
 
-`Deposit` is the alternative when the coins are attached to a call.
-It only works as a direct user call, and the amount has to fit in
-that message's `-send`:
+`Deposit` is the alternative when coins are attached to a call. It
+only accepts a direct user call (`IsUserCall`) and forwards the entire
+`-send` envelope to the safe so nothing can be left stranded on the
+factory:
 
 ```sh
 gnokey maketx call \
   -pkgpath "gno.land/r/nt/multisig/v0" \
   -func "Deposit" \
-  -args 1 -args "ugnot" -args 1000000 \
+  -args 1 \
   -send "1000000ugnot" \
   -gas-fee 1000000ugnot -gas-wanted 3000000 \
   -broadcast -chainid dev -remote 127.0.0.1:26657 \
