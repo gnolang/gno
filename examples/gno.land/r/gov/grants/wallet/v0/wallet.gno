@@ -156,6 +156,9 @@ func Spend(cur realm, name string, to address, amount, memo string) {
 func TransferOwnership(cur realm, name string, newOwner address) {
 	a := mustOwn(cur, name)
 	if newOwner == a.owner {
+		if a.offered == "" {
+			panic("no handover offer to withdraw")
+		}
 		a.offered = ""
 		a.record(entry{At: time.Now().Unix(), To: newOwner, Memo: "handover withdrawn"})
 		chain.Emit("OwnershipOffered", "account", name, "to", "")
@@ -344,7 +347,8 @@ func accountPage(name string, a *account, page int) string {
 		"\n</gno-frame>\n<gno-columns-sep />\n<gno-frame>\n<gno-icon name=\"coins\" /> " + from + "\n\n### " + gnot(received) +
 		"\n</gno-frame>\n<gno-columns-sep />\n<gno-frame>\n<gno-icon name=\"send\" /> Spent\n\n### " + gnot(a.spent) +
 		"\n</gno-frame>\n</gno-columns>\n\n")
-	if ns, _, _ := strings.Cut(name, "/"); !names.IsAuthorizedAddressForNamespace(a.owner, ns) {
+	// A paused names check refuses everyone: that says nothing about this owner.
+	if ns, _, _ := strings.Cut(name, "/"); !names.IsPaused() && !names.IsAuthorizedAddressForNamespace(a.owner, ns) {
 		b.WriteString("> [!WARNING] Owner outside the namespace\n> The owner cannot deploy under " + sanitize.InlineCode("r/"+ns) +
 			": the account was handed on, or the name was removed or renamed since it opened. Check who controls it before voting.\n\n")
 	}
@@ -419,6 +423,11 @@ func accountPage(name string, a *account, page int) string {
 	if !frozen {
 		b.WriteString("<gno-details summary=\"Hand the account over\">\n\n<gno-form exec=\"TransferOwnership\">\n" + field +
 			"<gno-input name=\"newOwner\" type=\"text\" placeholder=\"g1… new owner: a multisig account, or a realm that calls this wallet\" />\n" +
+			"</gno-form>\n\n</gno-details>\n\n")
+	}
+	if a.offered != "" && frozen {
+		b.WriteString("<gno-details summary=\"Withdraw the handover offer\">\n\n<gno-form exec=\"TransferOwnership\">\n" + field +
+			"<gno-input name=\"newOwner\" type=\"text\" value=\"" + sanitize.HTMLEscape(a.owner.String()) + "\" readonly=\"true\" />\n" +
 			"</gno-form>\n\n</gno-details>\n\n")
 	}
 	if a.offered != "" && !frozen {

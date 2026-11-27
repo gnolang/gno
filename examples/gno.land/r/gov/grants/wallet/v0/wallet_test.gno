@@ -57,6 +57,10 @@ func TestOnlyTheOwnerActs(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(bob))
 	uassert.AbortsContains(t, cur, "open it first", func() { Spend(cross(cur), "missing", bob, "1", "m") })
 
+	// Withdrawing needs an offer: nothing to journal otherwise.
+	testing.SetRealm(testing.NewUserRealm(alice))
+	uassert.AbortsContains(t, cur, "no handover offer", func() { TransferOwnership(cross(cur), "owned", alice) })
+
 	// An offer to an address that can never act, such as another account's,
 	// leaves the account with its owner.
 	testing.SetRealm(testing.NewUserRealm(alice))
@@ -147,9 +151,11 @@ func TestParseGNOT(t *testing.T) {
 func TestPages(cur realm, t *testing.T) {
 	testing.SetRealm(testing.NewUserRealm(alice))
 	Open(cross(cur), "pages")
-	for i := 0; i < pageSize; i++ {
+	for i := 0; i < pageSize/2; i++ { // an offer and its withdrawal, both journaled
 		testing.SetRealm(testing.NewUserRealm(alice))
-		TransferOwnership(cross(cur), "pages", alice) // a withdrawal, journaled
+		TransferOwnership(cross(cur), "pages", bob)
+		testing.SetRealm(testing.NewUserRealm(alice))
+		TransferOwnership(cross(cur), "pages", alice)
 	}
 	testing.SetRealm(testing.NewUserRealm(alice))
 	TransferOwnership(cross(cur), "pages", bob)
