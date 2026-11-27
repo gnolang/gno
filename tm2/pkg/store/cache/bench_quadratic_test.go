@@ -52,3 +52,38 @@ func BenchmarkWritesOnly16000(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkCacheStoreMeteredWrite(b *testing.B) {
+	const numKeys = 1024
+	keys := make([][]byte, numKeys)
+	for i := range keys {
+		keys[i] = fmt.Appendf(nil, "oid:%040x:%04d", i, i+1)
+	}
+	value := []byte("value")
+	operations := []struct {
+		name string
+		run  func(types.Store, *types.GasContext, []byte)
+	}{
+		{"Set", func(st types.Store, gctx *types.GasContext, key []byte) {
+			st.Set(gctx, key, value)
+		}},
+		{"Delete", func(st types.Store, gctx *types.GasContext, key []byte) {
+			st.Delete(gctx, key)
+		}},
+	}
+	for _, op := range operations {
+		b.Run(op.name, func(b *testing.B) {
+			st := cache.New(dbadapter.Store{DB: memdb.NewMemDB()})
+			gctx := &types.GasContext{Meter: types.NewGasMeter(1 << 62), Config: types.DefaultGasConfig()}
+			for _, key := range keys {
+				st.Set(gctx, key, value)
+			}
+			b.ReportAllocs()
+			i := 0
+			for b.Loop() {
+				op.run(st, gctx, keys[i%numKeys])
+				i++
+			}
+		})
+	}
+}

@@ -155,7 +155,7 @@ func (store *cacheStore) Get(gctx *types.GasContext, key []byte) (value []byte) 
 		} else {
 			value = store.parent.Get(nil, key)
 		}
-		store.setCacheValue(key, value, false, false)
+		store.setCacheValue(string(key), value, false, false)
 	} else {
 		// Cache hit — no gas.
 		value = cacheValue.value
@@ -171,10 +171,11 @@ func (store *cacheStore) Set(gctx *types.GasContext, key []byte, value []byte) {
 	types.AssertValidKey(key)
 	types.AssertValidValue(value)
 
+	k := string(key)
+
 	// Write gas deduplication: refund previous charge for this key,
 	// then charge for the new operation. Last operation wins.
 	if gctx != nil {
-		k := string(key)
 		if prev, exists := store.chargedGas[k]; exists && prev > 0 {
 			gctx.RefundGas(prev)
 			if trace.StoreGasEnabled {
@@ -200,7 +201,7 @@ func (store *cacheStore) Set(gctx *types.GasContext, key []byte, value []byte) {
 		}
 	}
 
-	store.setCacheValue(key, value, false, true)
+	store.setCacheValue(k, value, false, true)
 }
 
 // Implements types.Store.
@@ -215,9 +216,10 @@ func (store *cacheStore) Delete(gctx *types.GasContext, key []byte) {
 	defer store.mtx.Unlock()
 	types.AssertValidKey(key)
 
+	k := string(key)
+
 	// Write gas deduplication: refund previous charge, charge delete.
 	if gctx != nil {
-		k := string(key)
 		if prev, exists := store.chargedGas[k]; exists && prev > 0 {
 			gctx.RefundGas(prev)
 			if trace.StoreGasEnabled {
@@ -242,7 +244,7 @@ func (store *cacheStore) Delete(gctx *types.GasContext, key []byte) {
 		}
 	}
 
-	store.setCacheValue(key, nil, true, true)
+	store.setCacheValue(k, nil, true, true)
 }
 
 // Implements types.Store.
@@ -453,14 +455,14 @@ func (store *cacheStore) dirtyItems(start, end []byte) {
 // etc
 
 // Only entrypoint to mutate store.cache.
-func (store *cacheStore) setCacheValue(key, value []byte, deleted bool, dirty bool) {
-	store.cache[string(key)] = &cValue{
+func (store *cacheStore) setCacheValue(key string, value []byte, deleted bool, dirty bool) {
+	store.cache[key] = &cValue{
 		value:   value,
 		deleted: deleted,
 		dirty:   dirty,
 	}
 	if dirty {
-		store.unsortedCache[string(key)] = struct{}{}
+		store.unsortedCache[key] = struct{}{}
 	}
 }
 
