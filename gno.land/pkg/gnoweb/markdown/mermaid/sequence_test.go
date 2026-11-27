@@ -41,6 +41,9 @@ func TestSequenceErrors(t *testing.T) {
 		"# before ;":        {"sequenceDiagram\nA->>B: x # c; C->>D: y", `"#" before ";"`},
 		"entity at start":   {"sequenceDiagram\nA->>B: x\n#59;", "unsupported statement"},
 		"entity name":       {"sequenceDiagram\nA->>B: x\n#quot;C#quot;->>B: y", "participant name"},
+		"central to":        {"sequenceDiagram\nAlice->>()John: Hello", "central connection"},
+		"central from":      {"sequenceDiagram\nAlice()->>John: x", "central connection"},
+		"central both":      {"sequenceDiagram\nJohn()->>()Alice: x", "central connection"},
 	})
 }
 

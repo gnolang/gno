@@ -319,6 +319,10 @@ func parseMessage(l line, participant func(int, string) (int, error)) (*seqEvent
 			}
 			from := strings.TrimSpace(head[:i])
 			to := strings.TrimSpace(strings.TrimLeft(head[i+len(a.tok):], "+- "))
+			// Mermaid's central connection, Alice->>()John, is not drawn.
+			if strings.HasSuffix(from, "()") || strings.HasPrefix(to, "()") {
+				return nil, errorf(l.n, "unsupported central connection")
+			}
 			f, err := participant(l.n, from)
 			if err != nil {
 				return nil, err
