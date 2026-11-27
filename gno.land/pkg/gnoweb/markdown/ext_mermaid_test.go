@@ -78,6 +78,40 @@ func TestMermaidTag(t *testing.T) {
 	assert.NotContains(t, html, "<svg")
 }
 
+func TestMermaidStrayTag(t *testing.T) {
+	// A gno-mermaid tag line that opens no block renders as a comment, on
+	// every deployment, rather than turning into an HTML block that hides
+	// the lines after it.
+	for name, c := range map[string]struct {
+		src  string
+		want []string
+	}{
+		"close after its blockquote": {
+			"> <gno-mermaid>\n> pie\n> \"a\" : 1\n</gno-mermaid>\nVote ends **tomorrow**.\nQuorum: 60%.\n\nFooter",
+			[]string{"<p>Vote ends <strong>tomorrow</strong>.\nQuorum: 60%.</p>", "<p>Footer</p>"},
+		},
+		"self-closing": {
+			"<gno-mermaid width=\"fit\"/>\npie\n\"a\" : 1\n\n\"b\" : 2\n</gno-mermaid>",
+			[]string{"<p>pie\n&quot;a&quot; : 1</p>", "<p>&quot;b&quot; : 2</p>"},
+		},
+		"second close": {
+			"<gno-mermaid>\npie\n\"a\" : 1\n</gno-mermaid>\n</gno-mermaid>\nafter\n",
+			[]string{"<p>after</p>"},
+		},
+	} {
+		for _, enabled := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s enabled=%t", name, enabled), func(t *testing.T) {
+				html, _ := renderMermaidDoc(t, c.src, enabled)
+				for _, want := range c.want {
+					assert.Contains(t, html, want)
+				}
+				assert.Contains(t, html, "<!-- unexpected/invalid mermaid tag omitted -->")
+				assert.NotContains(t, html, "raw HTML omitted")
+			})
+		}
+	}
+}
+
 func TestMermaidNotInForeign(t *testing.T) {
 	// The <gno-foreign> sandbox does not load the extension: a fence there
 	// stays code, even with diagrams enabled.

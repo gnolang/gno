@@ -31,6 +31,10 @@ type mermaidNode struct {
 	width string
 	// bad marks a <gno-mermaid> opener with another attribute or value.
 	bad bool
+	// stray marks a tag line that opens no block: a self-closing opener or a
+	// close tag with no block to end. It has no child and renders as a
+	// comment.
+	stray bool
 	// budget is nil for a source not to draw.
 	budget *mermaidBudget
 }
@@ -105,6 +109,10 @@ func renderMermaid(w util.BufWriter, _ []byte, node ast.Node, entering bool) (as
 		return ast.WalkContinue, nil
 	}
 	n := node.(*mermaidNode)
+	if n.stray {
+		w.WriteString("<!-- unexpected/invalid mermaid tag omitted -->\n")
+		return ast.WalkContinue, nil
+	}
 	b := n.budget
 	if b == nil || b.tries == maxMermaidTries {
 		return ast.WalkContinue, nil // show the code
@@ -170,6 +178,17 @@ func isMermaidClose(line []byte) bool {
 	return size > 0 && size == len(line) && !selfClosing && attrs == 0
 }
 
+// isMermaidTag reports whether a trimmed line holds only a <gno-mermaid> or
+// </gno-mermaid> tag, of any form.
+func isMermaidTag(line []byte) bool {
+	prefix := mermaidOpenPrefix
+	if len(line) > 1 && line[1] == '/' {
+		prefix = mermaidClosePrefix
+	}
+	size, _ := scanGnoTag(line, prefix, len(line), nil)
+	return size > 0 && size == len(line)
+}
+
 // mermaidParser reads a <gno-mermaid> block. Like a fence, its body is
 // collected verbatim, opaque to the other block parsers, up to a
 // </gno-mermaid> line; a block its container or the document ends first is
@@ -178,13 +197,21 @@ type mermaidParser struct{}
 
 func (mermaidParser) Trigger() []byte { return []byte{'<'} }
 
+// Open reads an opener. Any other gno-mermaid tag line (a self-closing
+// opener, a close tag after its container ended the block, a second close)
+// yields a stray leaf, never nil: nil would hand the line to the type-7 HTML
+// block parser, which swallows every line up to the next blank one.
 func (mermaidParser) Open(_ ast.Node, reader text.Reader, _ parser.Context) (ast.Node, parser.State) {
 	line, _ := reader.PeekLine()
-	tag, valid, width := parseMermaidOpenTag(trimTagLine(line))
-	if !tag {
+	line = trimTagLine(line)
+	if !isMermaidTag(line) {
 		return nil, parser.NoChildren
 	}
 	reader.AdvanceToEOL()
+	tag, valid, width := parseMermaidOpenTag(line)
+	if !tag {
+		return &mermaidNode{stray: true}, parser.NoChildren
+	}
 	n := &mermaidNode{width: width, bad: !valid}
 	n.AppendChild(n, ast.NewCodeBlock())
 	return n, parser.NoChildren
@@ -192,6 +219,9 @@ func (mermaidParser) Open(_ ast.Node, reader text.Reader, _ parser.Context) (ast
 
 func (mermaidParser) Continue(node ast.Node, reader text.Reader, _ parser.Context) parser.State {
 	n := node.(*mermaidNode)
+	if n.stray { // one line
+		return parser.Close
+	}
 	line, seg := reader.PeekLine()
 	if len(line) == 0 { // the end of the document
 		return parser.Close
