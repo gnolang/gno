@@ -65,7 +65,6 @@ func TestMermaidTag(t *testing.T) {
 			assert.NotContains(t, html, "gno-mermaid>", "the tags never reach the page")
 		})
 	}
-
 }
 
 func TestMermaidStrayTag(t *testing.T) {
