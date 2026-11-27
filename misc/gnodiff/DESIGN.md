@@ -1,56 +1,105 @@
-# gnodiff
+# gnodiff design
 
-Differential tester for the Gno subset of Go. It does not change the VM.
+Differential tester comparing GnoVM against the standard Go toolchain (`gc`)
+on the Gno subset of Go. This tool lives under `misc/gnodiff` and does not
+modify the VM.
 
-## What is compared
+## Architecture
 
-Each program is run three ways:
+Each program is evaluated three ways:
 
-- `go run` in a throwaway `go 1.22` module (gc).
-- An in-process GnoVM machine, the same shape as `gno run`: `test.ProdStore`, `ParseFile`, `RunFiles`, `RunMain`, with a gas meter and an allocation ceiling. Gas is recorded and is not a pass/fail signal.
-- `gnolang.TypeCheckMemPackage`, the go/types pass `gno lint` uses.
+1. **`RunGo` (`go run .`)**: compiles and executes the program in a throwaway
+   `go 1.22` module with `CGO_ENABLED=0`, `GOWORK=off`, `GOPROXY=off`,
+   `GOSUMDB=off`, `GOTOOLCHAIN=local`, and a hard timeout + process-group kill.
+   Pinning `go 1.22` matches Gno's per-iteration loop variables without letting
+   newer Go 1.23+ syntax slip past `gc`. `println` output is read from stderr
+   and separated from a panic dump only when the process exits non-zero and a
+   top-level `panic: ` header precedes a `goroutine N [...]` stack trace.
+   Runtime fatal errors (`fatal error: stack overflow`, out of memory) map to
+   `KindNonTerm`.
+2. **`RunGno` (in-process GnoVM)**: fresh `test.ProdStore`, `ParseFile`,
+   `RunFiles`, `RunMain`, with a gas meter and `MaxAllocBytes` ceiling.
+   Gas is recorded for inspection and is not a pass/fail signal. Recovery
+   tracks execution stage (`stageSetup`, `stageLoad`, `stageRun`):
+   `*gnolang.PreprocessError` is unwrapped cleanly (keeping out-of-gas as
+   `KindNonTerm` and `runtime.Error` / `"should not happen"` as `KindInternal`),
+   and unexpected panics during `stageRun` always map to `KindInternal`.
+   Stdout printed before a panic or non-termination is preserved and compared.
+3. **`RunLint` (`gnolang.TypeCheckMemPackage`)**: the `go/types` pass used by
+   `gno lint`, run with `ProdOnly: true` and a per-root `TypeCheckCache`
+   guarded by a mutex. Any panic inside the type-checker maps to `KindInternal`.
 
-`gno run` does not type-check. A program gc and lint both reject, and the VM still executes, is class `lint-run` ("run accepts what lint rejects"). That is not reported as a typechecker miss. `gno lint` already rejects an unread local and an overflowing typed constant such as `uint64(8) - uint64(40)`. Those two are filed as [gnolang/gno#3426](https://github.com/gnolang/gno/issues/3426) and [gnolang/gno#6392](https://github.com/gnolang/gno/issues/6392). Panic text differences are [gnolang/gno#6538](https://github.com/gnolang/gno/issues/6538).
+## Classification invariants
 
-## Classes
+`gno run` does not type-check. A program that both `gc` and `gno lint` reject
+while the VM still executes is classified as `lint-run` rather than a missed
+type-check. Representative seeds are `corpus/control/unused_local`
+([gnolang/gno#3426](https://github.com/gnolang/gno/issues/3426)) and
+`corpus/const/unsigned_sub`
+([gnolang/gno#6392](https://github.com/gnolang/gno/issues/6392)).
 
-| Class | Meaning | Fails the run |
-| --- | --- | --- |
-| exact | Same outcome and the same text, or the same path-stripped reject diagnostic, or the same stdout before a non-termination | no |
-| known | `// gnodiff:known`, and any `expect-go` / `expect-gno` lines still match | no |
-| known-agrees | A known seed now matches. The annotation is stale | no |
-| panic-wording | Both sides panic on the same runtime event. Indexes and shift operands are part of the event | no |
-| lint-run | gc and gno lint reject; the VM runs | no |
-| reject-wording | Both sides reject the same constant that does not fit. The VM says `bigint overflows`, or `bigint underflows` for a negative constant, and does not name the type; gc does. Two different named types, or an overflow against a different error, are real | no |
-| real | Anything else, including a known or lint-run seed whose expect lines moved | yes |
-| internal | One of the runners (gc, GnoVM, or lint) failed internally | yes |
+Key soundness rules in `Classify`:
 
-Two rejections whose diagnostics still differ after stripping `file:line` are real. Two non-terminations with different stdout are real. Both non-terminations with empty stdout are exact: the limit that fired is not the language behavior.
+- **Dedicated `internal` class.** Runner failures (`KindInternal` from gc,
+  GnoVM, or lint) classify as `ClassInternal`, distinct from `ClassReal`
+  language divergences, and fail the run without writing misleading repros.
+- **Anchored runtime panic folding.** `panic-wording`
+  ([gnolang/gno#6538](https://github.com/gnolang/gno/issues/6538)) only folds
+  exact `runtime error: ...` messages for the same event, keeping numeric
+  operands (`index [3]` vs `[4]`, negative shift `-1` vs `-2` when both sides
+  carry an amount, and nil-slice index `0` with length `0` only). User panics
+  without `runtime error: ` never fold into runtime panics, and
+  `slice bounds out of range [lo:hi] with capacity N` never folds into
+  `lo > hi`.
+- **All reject diagnostics compared.** `normalizeDiag` strips file paths (with
+  multi-line spans) and Gno's `--- preprocess stack ---` trailer while keeping
+  every diagnostic line. `reject-wording` requires every diagnostic line on
+  both sides to be a constant overflow/underflow (`bigint overflows` /
+  `bigint underflows` vs gc's `overflows <type>`); mixed errors or different
+  named types stay `real`.
+- **Non-termination.** Two non-terminations compare stdout printed prior to
+  timeout/out-of-gas; both-empty non-terminations agree because the limit that
+  fired is not language semantics.
+- **Drift and staleness detection.** Seeds marked `// gnodiff:known` validate
+  their `expect-go` / `expect-gno` directives (drift becomes `real`) and flip
+  to `known-agrees` if both toolchains start agreeing.
+- **Output normalization.** Normalizes line endings, trailing whitespace, and
+  6- to 16-digit hex addresses (`0xPTR`) while preserving shorter hex values
+  such as `0x0`, `0x1`, and `0xff`.
 
-Panic folding applies only to `runtime error:` panics and keeps numbers. `index out of range [3]` does not match `[4]`. A negative shift of `-1` does not match `-2` when both messages carry the operand. gc's negative-shift text has no operand, so that one pair cannot confirm the number Gno prints. The nil-slice wording fold applies only to gc's `[0] with length 0` against Gno's `nil slice index (out of bounds)` text. Any other index is real.
+## Corpus and generator
 
-6- to 16-digit hex pointer addresses in stdout are rewritten to `0xPTR`. Shorter hex values (including `0x0`) are kept so nil and non-nil pointers do not collapse together. A program that needs to compare identity should print a boolean.
+- **Hand-written seeds (`corpus/`):** 16 `.src` files (named `.src` so `go test`
+  does not vet intentionally rejected or lint-run cases), including the three
+  annotated seeds (`runcap`, `control/unused_local`, `const/unsigned_sub`).
+- **In-memory catalog (`internal/gen.RawCatalog`):** integer width arithmetic
+  and conversion grid plus language feature programs, combined with `corpus/`
+  at runtime by `LoadCorpus` (309 programs total).
+- **Deterministic generator (`internal/gen.Generate`):** driven by a seeded
+  PCG PRNG. Most seeds are type-correct runtime programs composing randomized
+  feature snippets (closures, defer/recover, interfaces/type switches, struct
+  embedding and method values, labeled break/continue, goto, fallthrough,
+  arrays/slices, overlapping `copy`/`append`, `string`/`[]byte`, struct-keyed
+  maps, shadowing, float truncation/NaN, and per-width wraparound). One seed
+  in 23 emits a typed constant overflow (`// gnodiff:const-overflow`), and one
+  in 23 exercises `strconv.FormatFloat` across verbs `f`/`e`/`g`, bit sizes
+  `32`/`64`, and `Inf`/`NaN`.
+- **Token-accurate subset guard (`Unsupported`):** uses `go/scanner` and
+  `go/parser` (`ImportsOnly`) to reject out-of-scope constructs (goroutines,
+  channels/`<-`, `select`, `unsafe`, complex types/literals/builtins, generics,
+  integer `range`, Go 1.21+ `min`/`max`/`clear` builtins, and imports outside
+  `math`, `strings`, `strconv`, and `unicode/utf8`).
 
-A `panic: ` line is a panic only when `go run` exits non-zero and a `goroutine N [` stack follows it. `println("panic: ...")` stays program output. Runtime fatal errors (`fatal error: stack overflow`, out of memory) are classified as non-termination.
+## Trade-offs
 
-## Corpus
-
-Hand-written seeds live in `corpus/` as `*.src` (not `.go`, so `go test` does not vet them). The enumerated grid — integer widths, conversions, and one program per language area — is `internal/gen.RawCatalog` and is built in memory by `LoadCorpus`. It is not checked in.
-
-`[]rune` of a non-constant string is a known difference: Gno sets `cap == len` (determinism); gc may not. The seed prints `cap == len`, not the raw cap.
-
-## Generator
-
-`Generate(seed)` is deterministic.
-
-- Most seeds are type-correct programs: closures (including per-iteration loop variables), defer/recover, interfaces and type switches, struct embedding, method values, labeled break/continue, goto, fallthrough, arrays versus slices, overlapping `copy` and `append` aliasing, `string`/`[]byte` conversions, maps with struct keys, shadowing, float truncation and NaN (printed as integers and booleans), and per-width wrap using variables.
-- One seed in 23 is a typed constant that does not fit (`// gnodiff:const-overflow`). gc and lint should reject it. The VM may wrap it, which is `lint-run`, not a new bug.
-- One seed in 23 imports `strconv` and prints `FormatFloat` with verb `f`.
-
-Not generated, and rejected by `Unsupported` if a byte mutant introduces them: goroutines, channels, `select`, `unsafe`, complex numbers, type parameters, integer `range`, Go 1.21+ builtins (`min`, `max`, `clear`), and imports other than `math`, `strings`, `strconv`, and `unicode/utf8`. `fmt` is test-only in Gno. `int` is 64-bit on both sides here.
-
-Map iteration in generated programs is reduced to an order-independent aggregate. `FuzzGenerated` is the fuzz entry. `FuzzPrograms` does not load the seed corpus.
-
-## Running
-
-`make gnodiff` runs the hand seeds plus the in-memory catalog. `go test` in this module does not. `.github/workflows/ci-gnodiff.yml` runs the fast tests, that corpus, and 600 generated programs. The per-program gc timeout on the generated batch is 30s so a cold compile is not recorded as non-termination.
+- **Sequential execution:** `RunCorpus` runs programs one at a time rather than
+  in parallel goroutines. Each `RunGo` invokes `go run .`; sequential execution
+  keeps memory/CPU predictable on 2-core CI runners and avoids spurious timeouts
+  from `go build` cache contention.
+- **Fresh `ProdStore` per `RunGno`:** prevents any program from leaking state
+  into the next, while `RunLint` shares a per-root `ProdStore` and
+  `TypeCheckCache` behind a mutex since `TypeCheckMemPackage` is read-only
+  against the store.
+- **Kind-preserving line minimizer:** `minimizeDivergence` is deterministic,
+  budget-bounded, and keeps only reductions that preserve `(go.Kind, gno.Kind)`,
+  parseability (when the original parsed), and `ClassReal`.
