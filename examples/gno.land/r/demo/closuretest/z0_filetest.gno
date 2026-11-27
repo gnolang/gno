@@ -5,8 +5,8 @@ package main
 import "gno.land/r/demo/closuretest"
 
 func main(cur realm) {
-	println(closuretest.Step())
-	println(closuretest.Step())
+	println(closuretest.Step(cross(cur)))
+	println(closuretest.Step(cross(cur)))
 	println(closuretest.Render(""))
 }
 
