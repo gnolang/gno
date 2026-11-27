@@ -3,8 +3,8 @@
 //
 // An account is named after a namespace: "gnogolf", or "gnogolf/cup" for a
 // second project. Whoever may deploy under that namespace (r/sys/names) opens
-// it and owns it, and can hand it over, for instance to a multisig or a DAO
-// realm, which takes it over by accepting it. Each account is a sub-realm identity of this realm,
+// it and owns it, and can hand it over, for instance to a multisig account or to
+// a DAO realm whose code calls this wallet, which takes it by accepting it. Each account is a sub-realm identity of this realm,
 // gno.land/r/gov/grants/wallet/v0#<name>, with an address of its own: the
 // desk pays its grants there, and only its owner moves coins out, each spend
 // with a memo in the account's public journal. There is no other way out: no
@@ -146,8 +146,8 @@ func Spend(cur realm, name string, to address, amount, memo string) {
 	chain.Emit("Spend", "account", name, "to", to.String(), "amount", strconv.FormatInt(ugnot, 10))
 }
 
-// TransferOwnership offers account name to newOwner: a user's, a multisig's
-// or a realm's address. It changes hands once newOwner calls AcceptOwnership,
+// TransferOwnership offers account name to newOwner: a user or multisig
+// account, or a realm whose code calls this wallet. It changes hands once newOwner calls AcceptOwnership,
 // which proves it can act: an address that never can, such as another
 // account's, cannot lock the account. Until then the owner keeps it and can
 // offer it again. Owner only, and never while GovDAO has the account frozen;
@@ -303,7 +303,7 @@ func home(page int) string {
 	}
 	b.WriteString("## <gno-icon name=\"plus\" /> Open an account\n\n" +
 		"Name it after a namespace you may deploy under: your registered name, or your g1 address (`gnogolf`, or `gnogolf/cup` " +
-		"for a second project, once that name is yours). You become its owner, and can hand the account to a multisig or a DAO " +
+		"for a second project, once that name is yours). You become its owner, and can hand the account to a multisig account or to a DAO realm whose code calls this wallet " +
 		"realm later; voters will then read that realm's code.\n\n" +
 		"<gno-form exec=\"Open\">\n<gno-input name=\"name\" type=\"text\" placeholder=\"gnogolf\" />\n</gno-form>\n")
 	return b.String()
@@ -404,7 +404,7 @@ func accountPage(name string, a *account, page int) string {
 		"<gno-form exec=\"Withdraw\">\n" + field + "<gno-input name=\"id\" type=\"number\" placeholder=\"Grant id\" />\n</gno-form>\n\n</gno-details>\n\n")
 	if !frozen {
 		b.WriteString("<gno-details summary=\"Hand the account over\">\n\n<gno-form exec=\"TransferOwnership\">\n" + field +
-			"<gno-input name=\"newOwner\" type=\"text\" placeholder=\"g1… new owner, a multisig or a DAO realm's address\" />\n" +
+			"<gno-input name=\"newOwner\" type=\"text\" placeholder=\"g1… new owner: a multisig account, or a realm that calls this wallet\" />\n" +
 			"</gno-form>\n\n</gno-details>\n\n")
 	}
 	if a.offered != "" && !frozen {

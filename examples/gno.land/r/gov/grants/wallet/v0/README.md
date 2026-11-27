@@ -17,8 +17,10 @@ The way to take GovDAO grants from [`r/gov/grants/v0`](../../v0) without deployi
    `chain.PackageAddress("gno.land/r/gov/grants/wallet/v0#<name>")`. A first payment of at most the
    desk's advance share (20%) needs no report: claim it, then report on payment 2.
 4. **Spend** with a memo; every spend and every change of owner is in the account's public journal.
-   Hand the account to a multisig or a DAO realm with `TransferOwnership`; it changes hands when the
-   new owner calls `AcceptOwnership`, so an address that cannot act never ends up owning it.
+   Hand the account to a multisig account or a DAO realm with `TransferOwnership`; it changes hands
+   when the new owner calls `AcceptOwnership`, so an address that cannot act never ends up owning it.
+   A realm owner must call this wallet from its own code (`AcceptOwnership`, then `Spend`): a realm
+   that never calls out, such as a safe that only lets targets pull payloads, cannot own an account.
 
 There is no other way for coins to leave an account, no admin and no upgrade path. GovDAO can
 freeze an account through the desk; a frozen account cannot apply, spend or change hands, and

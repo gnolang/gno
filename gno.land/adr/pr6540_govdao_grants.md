@@ -37,9 +37,9 @@ change to GovDAO.
   top of what is committed, so every approved grant is payable.
 - **Grantees are code, hosted by default.** `r/gov/grants/wallet/v0` holds one account per
   namespace (`gnogolf`, or `gnogolf/cup`), opened by whoever may deploy under that namespace
-  (`r/sys/names`), owned by one address that can be a multisig or a DAO realm (a handover takes
-  the new owner's `AcceptOwnership`, so no account can be handed to an address that never acts,
-  such as another account's), and identified as
+  (`r/sys/names`), owned by one address: a user, a multisig account, or a realm whose code calls
+  the wallet (a handover takes the new owner's `AcceptOwnership`, so no account can be handed to an
+  address that never acts, such as another account's), and identified as
   the sub-realm `wallet/v0#<name>` with its own address. Only the owner spends, each spend with a
   memo in the account's public journal. GovDAO reviews this code once, so a grant to an account
   needs no code review of its own: Thomas's diversion concern is bounded by code every account
@@ -111,6 +111,10 @@ change to GovDAO.
   of GovDAO. The desk does: its proposals, its hold and its pages are GovDAO's. Making it generic
   before a second grantor exists would mean guessing what "approve", "hold" and "freeze" mean for
   DAOs that decide differently. Deferred; see "Next: a desk for any DAO".
+- **Time-based vesting** (#6542 proposes `r/nt/vesting/v0`). A vault releases coins on a schedule
+  whatever is delivered, and only a user's direct call can fund one, so GovDAO could not. Grants
+  here are paid against reports instead. The two fit side by side: a funded team can vest, from its
+  owner's address, what it pays its own contributors.
 - **Reuse `p/moul/grants/v0`.** Its grantees are addresses and its members vote on each milestone; here identity is the caller's realm, the whole grant is reserved, and payments follow
   reports without a vote unless GovDAO objects.
 - **Link the open vote from a member-supplied proposal id.** A member could point it at a
