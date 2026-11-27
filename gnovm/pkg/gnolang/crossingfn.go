@@ -33,7 +33,7 @@ func (m *Machine) testRunnerCall() bool {
 	if n < 1 || m.Frames[n].LastPackage == nil || m.Frames[n].LastPackage.PkgPath != TestingBasePkgPath {
 		return false
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if fv := m.Frames[i].Func; fv != nil && fv.PkgPath != TestingBasePkgPath {
 			return false
 		}

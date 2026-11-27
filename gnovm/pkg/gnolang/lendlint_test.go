@@ -229,7 +229,7 @@ func TestLendLintRows(t *testing.T) {
 	var head []string
 	var rows, notRef []lendRow
 	inNotRef := false
-	for _, line := range strings.Split(strings.TrimRight(string(raw), "\n"), "\n") {
+	for line := range strings.SplitSeq(strings.TrimRight(string(raw), "\n"), "\n") {
 		if r, ok := parseLendRow(line); ok {
 			if inNotRef {
 				notRef = append(notRef, r)

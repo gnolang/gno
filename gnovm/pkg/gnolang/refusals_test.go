@@ -122,10 +122,10 @@ func TestRefusalTextsInDocs(t *testing.T) {
 		want.WriteString(refusalDocRow(r) + "\n")
 	}
 	// The table on the page must be exactly the generated one, in both directions.
-	i := strings.Index(doc, head)
+	_, after, ok := strings.Cut(doc, head)
 	got := ""
-	if i >= 0 {
-		got = doc[i+len(head):]
+	if ok {
+		got = after
 		if j := strings.Index(got, "\n\n"); j >= 0 {
 			got = got[:j+1]
 		}
