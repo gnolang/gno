@@ -256,14 +256,14 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 
 // statements splits lines at the semicolons that separate statements in
 // Mermaid, all but those that end an entity code such as #59;, and drops the
-// comment lines, which start with a # that starts no entity code. Mermaid
-// also ends a line at such a # anywhere else, where it stays text here; a
-// semicolon after it is refused, since Mermaid would not read the statement
-// that follows.
+// comments (see hashComment): a line, or its last statement, starting with a
+// # that starts no entity code. Mermaid also ends a line at such a #
+// anywhere else, where it stays text here; a semicolon after it is refused,
+// since Mermaid would not read the statement that follows.
 func statements(lines []line) ([]line, error) {
 	var out []line
 	for _, l := range lines {
-		if strings.HasPrefix(l.text, "#") && entityEnd(l.text, 0) < 0 {
+		if hashComment(l.text) {
 			continue
 		}
 		start, hash := 0, false
@@ -285,7 +285,7 @@ func statements(lines []line) ([]line, error) {
 				start = i + 1
 			}
 		}
-		if s := strings.TrimSpace(l.text[start:]); s != "" {
+		if s := strings.TrimSpace(l.text[start:]); s != "" && !hashComment(s) {
 			out = append(out, line{n: l.n, text: s})
 		}
 	}

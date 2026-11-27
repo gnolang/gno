@@ -134,6 +134,13 @@ func entityEnd(s string, i int) int {
 	return j + 1
 }
 
+// hashComment reports whether text, a line or a statement, is a comment in
+// a sequence diagram or a timeline, as in Mermaid: it starts with a # that
+// starts no entity code.
+func hashComment(text string) bool {
+	return strings.HasPrefix(text, "#") && entityEnd(text, 0) < 0
+}
+
 func isAlnum(c byte) bool {
 	return c >= '0' && c <= '9' || c|0x20 >= 'a' && c|0x20 <= 'z'
 }
