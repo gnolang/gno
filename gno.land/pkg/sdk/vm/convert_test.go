@@ -49,7 +49,7 @@ func TestConvertEmptyNumbers(t *testing.T) {
 		testname := fmt.Sprintf("%v", tt.argT)
 		t.Run(testname, func(t *testing.T) {
 			run := func() {
-				_ = convertArgToGno("", tt.argT)
+				_ = convertArgToGno(nil, "", tt.argT)
 			}
 			assert.PanicsWithValue(t, tt.expectedErr, run)
 		})
@@ -75,10 +75,10 @@ func TestConvertFloatArgLengthBound(t *testing.T) {
 			t.Parallel()
 
 			require.NotPanics(t, func() {
-				_ = convertArgToGno(atLimit, tt.argT)
+				_ = convertArgToGno(nil, atLimit, tt.argT)
 			})
 			assert.PanicsWithValue(t, tt.expectedErr, func() {
-				_ = convertArgToGno(overLimit, tt.argT)
+				_ = convertArgToGno(nil, overLimit, tt.argT)
 			})
 		})
 	}
@@ -130,15 +130,26 @@ func TestConvertByteArrayLengthValidation(t *testing.T) {
 						tt.declaredLen, len(b64), want)
 				}
 				require.PanicsWithValue(t, expected, func() {
-					convertArgToGno(b64, arrType)
+					convertArgToGno(nil, b64, arrType)
 				})
 			} else {
-				tv := convertArgToGno(b64, arrType)
+				tv := convertArgToGno(nil, b64, arrType)
 				av, ok := tv.V.(*gnolang.ArrayValue)
 				require.True(t, ok)
 				assert.Equal(t, tt.declaredLen, av.GetLength())
 			}
 		})
+	}
+}
+
+// A []byte argument's capacity is its length, however the base64 is padded
+// or line-broken: the decoder's buffer must not leak into the realm.
+func TestConvertByteSliceCapIsLen(t *testing.T) {
+	st := &gnolang.SliceType{Elt: gnolang.Uint8Type}
+	for _, arg := range []string{"AAAA", "AA==", "AAAA\n\n\n\n", "AAAA\r\n\r\n\r\n"} {
+		sv := convertArgToGno(nil, arg, st).V.(*gnolang.SliceValue)
+		require.Equal(t, sv.Length, sv.Maxcap, "arg %q", arg)
+		require.Equal(t, sv.Length, sv.Base.(*gnolang.ArrayValue).GetLength(), "arg %q", arg)
 	}
 }
 
@@ -154,7 +165,7 @@ func TestConvertByteArrayCanonicalEncodedLength(t *testing.T) {
 	require.Len(t, canonical, base64.StdEncoding.EncodedLen(32))
 
 	// The canonical spelling still converts.
-	tv := convertArgToGno(canonical, arrType)
+	tv := convertArgToGno(nil, canonical, arrType)
 	av, ok := tv.V.(*gnolang.ArrayValue)
 	require.True(t, ok)
 	assert.Equal(t, 32, av.GetLength())
@@ -171,14 +182,14 @@ func TestConvertByteArrayCanonicalEncodedLength(t *testing.T) {
 		strings.Repeat("\n", 1024) + canonical,
 	} {
 		assert.PanicsWithValue(t, mismatch(len(arg)), func() {
-			convertArgToGno(arg, arrType)
+			convertArgToGno(nil, arg, arrType)
 		})
 	}
 
 	// An oversized argument is refused on length, so base64 never runs on it.
 	huge := strings.Repeat("A", 1_000_000)
 	assert.PanicsWithValue(t, mismatch(len(huge)), func() {
-		convertArgToGno(huge, arrType)
+		convertArgToGno(nil, huge, arrType)
 	})
 }
 
@@ -196,18 +207,18 @@ func TestConvertIntCanonicalForm(t *testing.T) {
 			t.Parallel()
 
 			for _, arg := range []string{"0", "7", "127"} {
-				assert.NotPanics(t, func() { convertArgToGno(arg, argT) }, arg)
+				assert.NotPanics(t, func() { convertArgToGno(nil, arg, argT) }, arg)
 			}
 			for _, arg := range []string{"-0", "00", "007", "-007", "+7"} {
-				assert.Panics(t, func() { convertArgToGno(arg, argT) }, arg)
+				assert.Panics(t, func() { convertArgToGno(nil, arg, argT) }, arg)
 			}
 		})
 	}
 
 	assert.PanicsWithValue(t, `error parsing int "007": not in canonical form, want "7"`, func() {
-		convertArgToGno("007", gnolang.IntType)
+		convertArgToGno(nil, "007", gnolang.IntType)
 	})
-	assert.NotPanics(t, func() { convertArgToGno("-7", gnolang.Int8Type) })
+	assert.NotPanics(t, func() { convertArgToGno(nil, "-7", gnolang.Int8Type) })
 }
 
 // A float argument must be finite, and a negative zero arrives as +0: NaN and
@@ -221,22 +232,22 @@ func TestConvertFloatSpecialValues(t *testing.T) {
 			t.Parallel()
 
 			for _, arg := range []string{"NaN", "nan", "NAN", "-NaN", "sNaN", "Inf", "inf", "-Inf", "-inf", "Infinity"} {
-				assert.Panics(t, func() { convertArgToGno(arg, argT) }, arg)
+				assert.Panics(t, func() { convertArgToGno(nil, arg, argT) }, arg)
 			}
 			for _, arg := range []string{"-0", "-0.0", "-1e-400"} {
-				tv := convertArgToGno(arg, argT)
+				tv := convertArgToGno(nil, arg, argT)
 				if argT == gnolang.Float32Type {
 					assert.Equal(t, uint32(0), tv.GetFloat32(), arg)
 				} else {
 					assert.Equal(t, uint64(0), tv.GetFloat64(), arg)
 				}
 			}
-			assert.NotPanics(t, func() { convertArgToGno("-1.5", argT) })
+			assert.NotPanics(t, func() { convertArgToGno(nil, "-1.5", argT) })
 		})
 	}
 
 	assert.PanicsWithValue(t, `error parsing float64 "nan": NaN and Inf are not accepted`, func() {
-		convertArgToGno("nan", gnolang.Float64Type)
+		convertArgToGno(nil, "nan", gnolang.Float64Type)
 	})
 }
 
@@ -1523,4 +1534,31 @@ func init() {
 		require.Contains(t, rep, `"ObjectID":":1"`,
 			"back-reference must target the first-visited ephemeral Object (:1); got:\n%s", rep)
 	})
+}
+
+// TestConvertArgToGno_StringArgIsCharged pins that string call arguments
+// are minted through the tx allocator: charged at conversion time and
+// registered for the GC's backing-byte recount. A raw StringValue here
+// would be charged nothing and stay invisible to GC (header-only) forever.
+func TestConvertArgToGno_StringArgIsCharged(t *testing.T) {
+	t.Parallel()
+
+	alloc := gnolang.NewAllocator(1_000_000)
+	arg := strings.Repeat("x", 1000)
+	tv := convertArgToGno(alloc, arg, gnolang.StringType)
+	require.Equal(t, arg, tv.GetString())
+
+	_, charged := alloc.Status()
+	require.Greater(t, charged, int64(1000), "string arg bytes must be charged at conversion")
+
+	// The value carries mint identity: the GC recount charges its full
+	// backing length.
+	sv, ok := tv.V.(gnolang.StringValue)
+	require.True(t, ok)
+	require.NotNil(t, sv.B, "string arg must be minted (tracked for GC recount)")
+	require.Equal(t, int64(1000), sv.B.Extent)
+
+	// nil allocator (tests, no budget) stays valid.
+	tv = convertArgToGno(nil, arg, gnolang.StringType)
+	require.Equal(t, arg, tv.GetString())
 }
