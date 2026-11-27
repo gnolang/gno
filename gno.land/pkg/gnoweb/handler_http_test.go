@@ -577,18 +577,20 @@ func TestHTTPHandler_RealmExplorerWithRender(t *testing.T) {
 }
 
 // TestHTTPHandler_ExplorerPathsListBrowse verifies that the explorer paths-list
-// view (e.g. /r/<addr>/ listing a user's packages) links each entry's name to the
-// realm render (no trailing slash) and exposes a dedicated "Browse" button that
-// opens the directory listing (trailing slash), alongside Open/Source/Action.
+// view (e.g. /r/<addr>/ listing a user's packages) draws a card per package: its
+// name links to the realm render (no trailing slash), its buttons open, browse
+// (trailing slash), read and call it, and it says what the chain records.
 func TestHTTPHandler_ExplorerPathsListBrowse(t *testing.T) {
 	t.Parallel()
 
 	// A package under the /r/mock namespace; requesting the namespace itself
 	// (no direct files) falls through to the explorer paths-list view.
 	subPackage := &gnoweb.MockPackage{
-		Domain: "example.com",
-		Path:   "/r/mock/sub",
-		Files:  map[string]string{"sub.gno": `package sub`},
+		Domain:     "example.com",
+		Path:       "/r/mock/sub",
+		Files:      map[string]string{"sub.gno": `package sub`},
+		PackageDoc: "Package sub is a *demo* realm <script>alert(1)</script>.",
+		Height:     42,
 	}
 
 	handler, err := gnoweb.NewHTTPHandler(
@@ -605,12 +607,51 @@ func TestHTTPHandler_ExplorerPathsListBrowse(t *testing.T) {
 	// Explorer mode renders the package counter.
 	assert.Contains(t, body, "1 Package<")
 	// Main entry link points at the render, not the directory listing.
-	assert.Contains(t, body, `href="/r/mock/sub">`)
-	// Right-side inline buttons, including the new Browse (directory listing).
-	assert.Contains(t, body, `href="/r/mock/sub" class="b-inline-btn">Open</a>`)
-	assert.Contains(t, body, `href="/r/mock/sub/" class="b-inline-btn">Browse</a>`)
-	assert.Contains(t, body, `href="/r/mock/sub$source" class="b-inline-btn">Source</a>`)
-	assert.Contains(t, body, `href="/r/mock/sub$help" class="b-inline-btn">Action</a>`)
+	assert.Contains(t, body, `href="/r/mock/sub" class="b-pkg-card__name">`)
+	// The card's buttons, including Browse (directory listing).
+	assert.Contains(t, body, `href="/r/mock/sub" class="b-btn b-pkg-card__btn">`)
+	assert.Contains(t, body, `href="/r/mock/sub/" class="b-btn b-pkg-card__btn">`)
+	assert.Contains(t, body, `href="/r/mock/sub$source" class="b-btn b-pkg-card__btn">`)
+	assert.Contains(t, body, `href="/r/mock/sub$help" class="b-btn b-pkg-card__btn">`)
+	// The doc comment as plain text, without its package clause: raw HTML it
+	// holds is dropped, never run.
+	assert.Contains(t, body, `<p class="b-pkg-card__desc">demo realm alert(1).</p>`)
+	assert.NotContains(t, body, "<script>alert(1)")
+	// What the chain records: deployed at block 42, and no tag.
+	assert.Contains(t, body, "Block 42")
+	assert.NotContains(t, body, ">read-only<")
+}
+
+// noMetaClient is a node without vm/qpkgmeta_json.
+type noMetaClient struct{ *gnoweb.MockClient }
+
+func (noMetaClient) PackageMeta(context.Context, string) (*vm.PackageMeta, error) {
+	return nil, errors.New("unknown query path")
+}
+
+// A node that cannot say when a package was deployed still describes it: the
+// card keeps its description and actions, and drops only the block, which
+// would otherwise read "Genesis".
+func TestHTTPHandler_CardWithoutPackageMeta(t *testing.T) {
+	t.Parallel()
+
+	pkg := &gnoweb.MockPackage{
+		Path:       "/r/mock/sub",
+		Files:      map[string]string{"sub.gno": `package sub`},
+		PackageDoc: "Package sub is a demo realm.",
+		Functions:  []*doc.JSONFunc{{Name: "Post", Crossing: true}},
+	}
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		newTestHandlerConfig(t, noMetaClient{gnoweb.NewMockClient(pkg)}),
+	)
+	require.NoError(t, err)
+
+	body := serveGet(handler, "/r/mock/").Body.String()
+	assert.Contains(t, body, `<p class="b-pkg-card__desc">demo realm.</p>`)
+	assert.Contains(t, body, "1 action<")
+	assert.NotContains(t, body, "Genesis")
+	assert.NotContains(t, body, "Block ")
 }
 
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.

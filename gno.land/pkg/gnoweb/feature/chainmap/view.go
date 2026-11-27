@@ -161,9 +161,7 @@ func (h *Handler) addActivity(ctx context.Context, data *MapData) {
 	}
 	wctx, cancel := context.WithTimeout(ctx, activityWait)
 	defer cancel()
-	a, err := h.activity.get(wctx, "activity", func(ctx context.Context) (*Activity, error) {
-		return computeActivity(ctx, h.deps.Indexer, h.closedBands)
-	})
+	a, err := h.weekActivity(wctx)
 	if err != nil {
 		data.Activity = ActivityUnavailable
 		if errors.Is(err, ErrPending) {

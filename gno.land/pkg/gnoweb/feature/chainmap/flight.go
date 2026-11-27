@@ -25,6 +25,9 @@ var errTransient = errors.New("transient")
 // errFetchTimeout is why a fetch that ran past its flight's timeout ended.
 var errFetchTimeout = errors.New("fetch timed out")
 
+// errFetchPanicked is why a fetch that panicked ended.
+var errFetchPanicked = errors.New("fetch panicked")
+
 // flight memoizes one answer per key and refreshes it on request. It runs
 // nothing in the background: a fetch is started by a reader, detached from
 // that reader so a closed tab does not waste the work, and shared by every
@@ -38,13 +41,17 @@ type flight[T any] struct {
 	// timeout bounds one fetch, whoever started it. A fetch cut short is a
 	// failure here.
 	timeout time.Duration
-	// max bounds the number of keys; the oldest answer goes first.
+	// max bounds the number of keys; the oldest answer goes first, a kept
+	// one last.
 	max int
 	// stale serves an expired answer at once while it is refreshed.
 	stale bool
 	// partial, when set, marks answers kept only for errTTL, like failures:
 	// an answer some reads failed to complete is worth retrying soon.
 	partial func(T) bool
+	// keep, when set, marks answers evicted only once no other is left, so
+	// keys a caller does not bound cannot push out the ones it does.
+	keep func(T) bool
 
 	mu      sync.Mutex
 	entries map[string]flightEntry[T]
@@ -85,13 +92,26 @@ func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Cont
 		return e.val, e.err
 	}
 	// A reader already out of time starts nothing: a loop over keys under an
-	// expired deadline would otherwise launch every fetch at once.
+	// expired deadline would otherwise launch every fetch at once. A stale
+	// flight still serves what it holds.
 	if err := ctx.Err(); err != nil {
+		if v, ok := f.held(key); ok && f.stale {
+			return v, nil
+		}
 		var zero T
 		return zero, fmt.Errorf("%w: %w", ErrPending, err)
 	}
 
-	ch := f.group.DoChan(key, func() (any, error) {
+	ch := f.group.DoChan(key, func() (res any, err error) {
+		// singleflight re-raises a panic on a goroutine of its own, out of
+		// reach of net/http's per-request recover: it would end gnoweb. A
+		// fetch that panics fails like any other.
+		defer func() {
+			if r := recover(); r != nil {
+				var zero T
+				res, err = f.store(key, zero, fmt.Errorf("%w: %.512v", errFetchPanicked, r)), nil
+			}
+		}()
 		// A reader arriving as the previous fetch lands must not start
 		// another one.
 		if e, ok := f.fresh(key); ok {
@@ -109,11 +129,8 @@ func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Cont
 	})
 
 	if f.stale {
-		f.mu.Lock()
-		e, ok := f.entries[key]
-		f.mu.Unlock()
-		if ok && e.err == nil {
-			return e.val, nil
+		if v, ok := f.held(key); ok {
+			return v, nil
 		}
 	}
 
@@ -125,6 +142,14 @@ func (f *flight[T]) get(ctx context.Context, key string, fetch func(context.Cont
 		var zero T
 		return zero, fmt.Errorf("%w: %w", ErrPending, ctx.Err())
 	}
+}
+
+// held returns key's last good answer, however old, without fetching.
+func (f *flight[T]) held(key string) (T, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	e, ok := f.entries[key]
+	return e.val, ok && e.err == nil
 }
 
 // store records an answer, evicting the oldest when full, and returns what
@@ -150,9 +175,11 @@ func (f *flight[T]) store(key string, val T, err error) flightEntry[T] {
 	}
 	if _, ok := f.entries[key]; !ok && len(f.entries) >= f.max {
 		var oldest string
+		var oldestKept bool
 		for k, old := range f.entries {
-			if oldest == "" || old.seq < f.entries[oldest].seq {
-				oldest = k
+			kept := f.keep != nil && old.err == nil && f.keep(old.val)
+			if oldest == "" || (oldestKept && !kept) || (kept == oldestKept && old.seq < f.entries[oldest].seq) {
+				oldest, oldestKept = k, kept
 			}
 		}
 		delete(f.entries, oldest)

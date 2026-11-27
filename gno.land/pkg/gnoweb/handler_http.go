@@ -1460,7 +1460,6 @@ func (h *HTTPHandler) GetDirectoryView(ctx context.Context, gnourl *weburl.GnoUR
 		pkgPath,
 		files,
 		len(files),
-		components.DirLinkTypeSource,
 		indexData.Mode,
 		readmeComp,
 	)

@@ -130,6 +130,67 @@ func TestFlightStartsNothingForAnExpiredReader(t *testing.T) {
 	}
 }
 
+// A reader whose wait already ran out still gets a stale flight's last good
+// answer, and starts no fetch.
+func TestFlightServesStaleToAnExpiredReader(t *testing.T) {
+	t.Parallel()
+
+	f := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 4, stale: true}
+	f.entries = map[string]flightEntry[int]{"k": {val: 1, at: time.Now().Add(-2 * time.Minute)}}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var fetches atomic.Int32
+	v, err := f.get(ctx, "k", func(context.Context) (int, error) { fetches.Add(1); return 2, nil })
+	if v != 1 || err != nil {
+		t.Fatalf("get = %d, %v; want the stale answer", v, err)
+	}
+	time.Sleep(20 * time.Millisecond)
+	if fetches.Load() != 0 {
+		t.Fatal("an expired reader started a fetch")
+	}
+}
+
+// A fetch that panics is a failure, remembered like one, and every reader
+// waiting on it gets the error.
+func TestFlightRecoversAPanickingFetch(t *testing.T) {
+	t.Parallel()
+
+	f := &flight[int]{ttl: time.Minute, errTTL: time.Minute, timeout: time.Second, max: 4}
+	_, err := f.get(context.Background(), "k", func(context.Context) (int, error) { panic("boom") })
+	if !errors.Is(err, errFetchPanicked) {
+		t.Fatalf("err = %v, want errFetchPanicked", err)
+	}
+	if e, ok := f.fresh("k"); !ok || !errors.Is(e.err, errFetchPanicked) {
+		t.Fatal("the failure must be remembered")
+	}
+}
+
+// Kept answers go last: keys nobody bounds push out each other, not them.
+func TestFlightEvictsKeptAnswersLast(t *testing.T) {
+	t.Parallel()
+
+	f := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 4, keep: func(v int) bool { return v == 0 }}
+	f.store("genesis", 0, nil)
+	for i := 1; i <= 20; i++ {
+		f.store(fmt.Sprint(i), i, nil)
+	}
+	if _, ok := f.fresh("genesis"); !ok {
+		t.Fatal("a kept answer was evicted while others were left")
+	}
+	if _, ok := f.fresh("16"); ok {
+		t.Error("the oldest other answer must be the one evicted")
+	}
+
+	// Once only kept answers are left, the oldest of them goes.
+	g := &flight[int]{ttl: time.Minute, timeout: time.Second, max: 2, keep: func(int) bool { return true }}
+	for _, k := range []string{"a", "b", "c"} {
+		g.store(k, 0, nil)
+	}
+	if _, ok := g.fresh("a"); ok || len(g.entries) != 2 {
+		t.Error("with every answer kept, the oldest must go")
+	}
+}
+
 // Only the reader's own wait is pending. A fetch that failed on its own
 // deadline is a failure, and must not read as "still working".
 func TestFlightTellsPendingFromFailedOnADeadline(t *testing.T) {

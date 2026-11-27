@@ -39,7 +39,7 @@ func newMapHandler(t *testing.T, paths ...string) http.Handler {
 }
 
 var (
-	listItemRe = regexp.MustCompile(`<span class="name">([^<]+)</span>`)
+	listItemRe = regexp.MustCompile(`<a href="([^"]+)" class="b-pkg-card__name">`)
 	mapTileRe  = regexp.MustCompile(`<a class="b-map__tile[^"]*" href="([^"]+)"`)
 )
 
@@ -165,7 +165,7 @@ func TestHTTPHandler_SmallListingHasNoMap(t *testing.T) {
 	for _, path := range []string{"/r/demo", "/r/demo$map"} {
 		rr := serveGet(h, path)
 		body := rr.Body.String()
-		if rr.Code != http.StatusOK || !strings.Contains(body, `class="b-list"`) {
+		if rr.Code != http.StatusOK || !strings.Contains(body, `class="b-pkg-cards"`) {
 			t.Errorf("%s: status %d, want the list", path, rr.Code)
 		}
 		if strings.Contains(body, `<span class="link-label">Map<`) || strings.Contains(body, "b-map") {
