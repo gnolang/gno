@@ -66,8 +66,10 @@ type or interface method.
 The check runs on production source when it is deployed: `addpkg`, `run`,
 and the enabling of a parked package, which is where a chain that parks
 deploys first type-checks them. `_test.gno` files, filetests, `vm/qeval`,
-`gno run` and packages loaded at genesis are not checked, and a package
-already on chain keeps its names. The standard library is not checked
+`gno run` and packages loaded at genesis are not checked for this rule, and a
+package already on chain keeps its names. `gno run` does run the `go/types`
+pass (unused locals and unused expressions included); this reserved-name rule
+is the part that stays on deploy. The standard library is not checked
 either: it keeps Go's own names, such as `Modf`'s `int` and `frac` results.
 
 The rule protects readers of contract code: Go would let `var panic =
@@ -448,7 +450,7 @@ The packages below are part of the Gno stdlib but have no Go counterpart.
 |                   | gno tool transpile           |                                                                       |
 | go work           |                              |                                                                       |
 |                   | gno tool repl                |                                                                       |
-| go run            | gno run                      |                                                                       |
+| go run            | gno run                      | type-checks with go/types before running                              |
 | go test           | gno test                     | limited compatibility                                                 |
 | go tool           |                              |                                                                       |
 | go version        |                              |                                                                       |

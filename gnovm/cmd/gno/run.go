@@ -281,6 +281,18 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 		return errors.New("no files to run")
 	}
 
+	// go/types already rejects unused locals and unused expressions, with the
+	// same wording as gc. Lint, test, and on-chain admission run that pass;
+	// this command previously parsed and executed anyway, so a program gc
+	// refuses (including an unused expression hiding unbounded recursion)
+	// ran here. See gnovm/adr/prxxxx_gno_run_typecheck.md and gnolang/gno#3426.
+	//
+	// AlreadyOnChain keeps admission-only rules (reserved declaration names)
+	// off this local interpreter. Those stay on addpkg, MsgRun, and enable.
+	if err := typeCheckRunFiles(pkgName, pkgPath, files, testStore, stderr); err != nil {
+		return err
+	}
+
 	// If the debug address is set, the debugger waits for a remote client to connect to it.
 	if cfg.debugAddr != "" {
 		if err := m.Debugger.Serve(cfg.debugAddr); err != nil {
@@ -383,6 +395,56 @@ func listNonTestFiles(dir string) ([]string, error) {
 		}
 	}
 	return fn, nil
+}
+
+// typeCheckRunFiles reports go/types errors for the files about to run and
+// returns a non-nil error when the package would not pass gno lint.
+// dir is the directory of the first file, which printError uses to turn
+// package-relative positions back into the paths the user passed.
+func typeCheckRunFiles(pkgName, pkgPath string, nodes []*gno.FileNode, getter gno.MemPackageGetter, stderr io.WriteCloser) error {
+	dir := filepath.Dir(nodes[0].FileName)
+	memFiles := make([]*std.MemFile, 0, len(nodes))
+	for _, n := range nodes {
+		body, err := os.ReadFile(n.FileName)
+		if err != nil {
+			return err
+		}
+		memFiles = append(memFiles, &std.MemFile{
+			Name: runTypeCheckFileName(dir, n.FileName),
+			Body: string(body),
+		})
+	}
+	mpkg := &std.MemPackage{
+		Type:  gno.MPUserProd,
+		Name:  pkgName,
+		Path:  pkgPath,
+		Files: memFiles,
+	}
+	// No gnomod.toml in the mem package: TCLatestRelaxed synthesizes the
+	// latest one. gno run type-checks the source it is about to execute; it
+	// does not enforce the on-disk module's version or draft bit.
+	_, errs := gno.TypeCheckMemPackage(mpkg, gno.TypeCheckOptions{
+		Getter:         getter,
+		Mode:           gno.TCLatestRelaxed,
+		ProdOnly:       true,
+		AlreadyOnChain: true,
+	})
+	if errs == nil {
+		return nil
+	}
+	printError(stderr, dir, pkgPath, errs)
+	return commands.ExitCodeError(1)
+}
+
+// runTypeCheckFileName is the name go/types should report for path.
+// A file outside dir keeps its base name; otherwise the path relative to
+// dir is used so a diagnostic can be joined back onto dir.
+func runTypeCheckFileName(dir, path string) string {
+	rel, err := filepath.Rel(dir, path)
+	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+		return filepath.Base(path)
+	}
+	return rel
 }
 
 func runExpr(m *gno.Machine, expr string) (err error) {
