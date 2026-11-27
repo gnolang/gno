@@ -225,7 +225,7 @@ func lendBenchEval(b *testing.B, pkgPath string, calls int, mk func() Expr) {
 	for range b.N {
 		g0 := gm.GasConsumed()
 		m.Eval(mk())
-		if g := int64(gm.GasConsumed() - g0); gas < 0 {
+		if g := gm.GasConsumed() - g0; gas < 0 {
 			gas = g
 		} else if g != gas {
 			b.Fatalf("gas differs between runs: %d then %d", gas, g)

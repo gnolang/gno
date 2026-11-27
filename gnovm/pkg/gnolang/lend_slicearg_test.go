@@ -24,7 +24,7 @@ func TestLendSliceArgGas(t *testing.T) {
 		m.Eval(Call(X("SliceArg"), n, l)) // warm the store cache
 		g0 := gm.GasConsumed()
 		m.Eval(Call(X("SliceArg"), n, l))
-		return int64(gm.GasConsumed()-g0) / n
+		return (gm.GasConsumed() - g0) / n
 	}
 	g10, g1000 := perCall(10), perCall(1000)
 	require.Less(t, g1000-g10, int64(500), "gas per call: len=10 %d, len=1000 %d", g10, g1000)

@@ -108,7 +108,7 @@ func localKey(last BlockNode, nx *NameExpr) (helperKey, bool) {
 	if fle, ok := dbn.(*FuncLitExpr); ok && len(name) > 1 && name[0] == '~' {
 		for i := range fle.HeapCaptures {
 			if cx := &fle.HeapCaptures[i]; cx.Name == name[1:] {
-				if parent, ok := fle.GetParentNode(nil).(BlockNode); ok {
+				if parent := fle.GetParentNode(nil); parent != nil {
 					return localKey(parent, &NameExpr{Name: cx.Name, Path: cx.Path})
 				}
 			}
@@ -223,8 +223,8 @@ func (c *lendLint) summarize(fn *FileNode, d Decl) {
 	})
 }
 
-func (fd *FuncDecl) isCrossing() bool {
-	ft, ok := fd.Type.GetAttribute(ATTR_TYPE_VALUE).(*FuncType)
+func (x *FuncDecl) isCrossing() bool {
+	ft, ok := x.Type.GetAttribute(ATTR_TYPE_VALUE).(*FuncType)
 	return ok && ft.IsCrossing()
 }
 
@@ -504,7 +504,7 @@ func (c *lendLint) warn(fn *FileNode, n Node, what string, w Name, why string) {
 		n = c.at
 	}
 	c.ws = append(c.ws, LendWarning{
-		File:   string(fn.FileName),
+		File:   fn.FileName,
 		Line:   n.GetLine(),
 		Column: n.GetColumn(),
 		Msg:    fmt.Sprintf("%s writes %s but %s", what, w, why),
