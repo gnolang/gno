@@ -45,7 +45,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bftCfg "github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -123,7 +122,6 @@ func TestQueryRace_FastIndexParity(t *testing.T) {
 		EventSwitch: events.NewEventSwitch(),
 		InitChainerConfig: InitChainerConfig{
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 		},
 		MinGasPrices:               appCfg.MinGasPrices,
 		SkipGenesisSigVerification: genesisCfg.SkipSigVerification,

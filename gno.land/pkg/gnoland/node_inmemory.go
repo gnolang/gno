@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"path/filepath"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -28,7 +27,6 @@ type InMemoryNodeConfig struct {
 	VMOutput                   io.Writer // optional
 	SkipGenesisSigVerification bool
 
-	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
 	InitChainerConfig
 }
 
@@ -77,7 +75,7 @@ func (cfg *InMemoryNodeConfig) validate() error {
 	}
 
 	if cfg.TMConfig.RootDir == "" {
-		return fmt.Errorf("`TMConfig.RootDir` is required to locate `stdlibs` directory")
+		return fmt.Errorf("`TMConfig.RootDir` is required but not provided")
 	}
 
 	if cfg.GenesisTxResultHandler == nil {
@@ -88,8 +86,7 @@ func (cfg *InMemoryNodeConfig) validate() error {
 }
 
 // NewInMemoryNode creates an in-memory gnoland node. In this mode, the node does not
-// persist any data and uses an in-memory database. The `InMemoryNodeConfig.TMConfig.RootDir`
-// should point to the correct gno repository to load the stdlibs.
+// persist any data and uses an in-memory database.
 func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("validate config error: %w", err)
@@ -97,9 +94,6 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 
 	evsw := events.NewEventSwitch()
 
-	if cfg.StdlibDir == "" {
-		cfg.StdlibDir = filepath.Join(cfg.TMConfig.RootDir, "gnovm", "stdlibs")
-	}
 	// initialize db if nil
 	if cfg.DB == nil {
 		cfg.DB = memdb.NewMemDB()

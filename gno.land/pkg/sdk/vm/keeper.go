@@ -9,12 +9,12 @@ import (
 	goerrors "errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"iter"
 	"log/slog"
 	"maps"
 	"math/big"
 	"path"
-	"path/filepath"
 	"regexp"
 	"runtime/debug"
 	"slices"
@@ -32,7 +32,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/overflow"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
@@ -188,8 +187,8 @@ type VMKeeperI interface {
 	QueryObjectJSON(ctx sdk.Context, oidStr string) (res string, err error)
 	QueryObjectBinary(ctx sdk.Context, oidStr string) (res []byte, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
-	LoadStdlib(ctx sdk.Context, stdlibDir string)
-	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
+	LoadStdlib(ctx sdk.Context, fsys fs.FS)
+	LoadStdlibCached(ctx sdk.Context, fsys fs.FS)
 	MakeGnoTransactionStore(ctx sdk.Context) sdk.Context
 	CommitGnoTransactionStore(ctx sdk.Context)
 	PopulateStdlibCache()
@@ -338,7 +337,6 @@ func (vm *VMKeeper) PopulateStdlibCacheFrom(ms store.MultiStore) {
 }
 
 type stdlibCache struct {
-	dir  string
 	base store.Store
 	iavl store.Store
 	gno  gno.Store
@@ -359,17 +357,19 @@ var (
 // keeper many times (including tests and gnodev). For normal node execution,
 // LoadStdlib should be used instead, for lower memory consumption and faster
 // cold start.
-func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
+//
+// The first call loads the stdlibs from its fsys; every later call copies that
+// load, whatever fsys it is given.
+func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, fsys fs.FS) {
 	cachedStdlibOnce.Do(func() {
 		cachedStdlib = stdlibCache{
-			dir:  stdlibDir,
 			base: dbadapter.StoreConstructor(memdb.NewMemDB(), stypes.StoreOptions{}),
 			iavl: dbadapter.StoreConstructor(memdb.NewMemDB(), stypes.StoreOptions{}),
 		}
 
 		gs := gno.NewStore(nil, cachedStdlib.base, cachedStdlib.iavl)
 		gs.SetNativeResolver(stdlibs.NativeResolver)
-		loadStdlib(gs, stdlibDir)
+		loadStdlib(gs, fsys)
 		cachedInitTypeCheckCache = make(gno.TypeCheckCache)
 		opts := gno.TypeCheckOptions{
 			Getter:   gs,
@@ -387,24 +387,17 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 		cachedStdlib.gno = gs
 	})
 
-	if stdlibDir != cachedStdlib.dir {
-		panic(fmt.Sprintf(
-			"cannot load cached stdlib: cached stdlib is in dir %q; wanted to load stdlib in dir %q",
-			cachedStdlib.dir, stdlibDir,
-		))
-	}
-
 	gs := vm.getGnoTransactionStore(ctx)
 	gno.CopyFromCachedStore(gs, cachedStdlib.gno, cachedStdlib.base, cachedStdlib.iavl)
 	vm.typeCheckCache = maps.Clone(cachedInitTypeCheckCache)
 }
 
-// LoadStdlib loads the Gno standard library into the given store. It will
-// additionally execute type checking on the mempackages in the standard
-// library.
-func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
+// LoadStdlib loads the Gno standard library from fsys, in which each package's
+// files are under its import path, into the given store. It will additionally
+// execute type checking on the mempackages in the standard library.
+func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, fsys fs.FS) {
 	gs := vm.getGnoTransactionStore(ctx)
-	loadStdlib(gs, stdlibDir)
+	loadStdlib(gs, fsys)
 	opts := gno.TypeCheckOptions{
 		Getter:   gs,
 		Mode:     gno.TCLatestStrict,
@@ -420,20 +413,19 @@ func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
 	}
 }
 
-func loadStdlib(store gno.Store, stdlibDir string) {
+func loadStdlib(store gno.Store, fsys fs.FS) {
 	stdlibInitList := stdlibs.InitOrder()
 	for _, lib := range stdlibInitList {
-		loadStdlibPackage(lib, stdlibDir, store)
+		loadStdlibPackage(lib, fsys, store)
 	}
 }
 
-func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
-	stdlibPath := filepath.Join(stdlibDir, pkgPath)
-	if !osm.DirExists(stdlibPath) {
+func loadStdlibPackage(pkgPath string, fsys fs.FS, store gno.Store) {
+	if fi, err := fs.Stat(fsys, pkgPath); err != nil || !fi.IsDir() {
 		// does not exist.
 		panic(fmt.Errorf("failed loading stdlib %q: does not exist", pkgPath))
 	}
-	memPkg, err := gno.ReadMemPackage(stdlibPath, pkgPath, gno.MPStdlibAll)
+	memPkg, err := gno.ReadMemPackageFS(fsys, pkgPath, pkgPath, gno.MPStdlibAll)
 	if err != nil {
 		// no gno files are present
 		panic(fmt.Errorf("failed loading stdlib %q: %w", pkgPath, err))

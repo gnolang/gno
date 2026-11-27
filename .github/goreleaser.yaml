@@ -35,6 +35,8 @@ builds:
   - id: gnoland
     main: ./gno.land/cmd/gnoland
     binary: gnoland
+    flags:
+      - -trimpath
     ldflags:
       # BUILD_VERSION is computed by the workflow (release-goreleaser.yml) with
       # the same shell as gno.land/Makefile: <branch>.<count>+<sha>, which does

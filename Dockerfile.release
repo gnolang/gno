@@ -12,9 +12,9 @@ CMD     [ "" ]
 FROM base AS gnoland
 
 COPY     ./gnoland                               /usr/bin/gnoland
+# The stdlibs are embedded in gnoland. examples/ and the genesis files stay
+# for `gnoland start -lazy`, which derives a genesis from them (GNOROOT).
 COPY     ./examples                              /gnoroot/examples/
-COPY     ./gnovm/stdlibs                         /gnoroot/gnovm/stdlibs/
-COPY     ./gnovm/tests/stdlibs                   /gnoroot/gnovm/tests/stdlibs/
 COPY     ./gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 COPY     ./gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 
