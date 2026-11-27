@@ -73,6 +73,16 @@ func TestPieLegend(t *testing.T) {
 	assert.Equal(t, "d 0% (1e-7)", p.legend(p.slices[3]), "as JavaScript writes it")
 }
 
+func TestPieTitleComment(t *testing.T) {
+	// As in Mermaid's pie grammar, %% ends a title and starts a comment.
+	for _, src := range []string{"pie title Votes %% draft\n\"a\" : 1", "pie\ntitle Votes %%draft\n\"a\" : 1"} {
+		out, _, err := Render(src)
+		require.NoError(t, err, src)
+		assert.Contains(t, string(out), ">Votes<", src)
+		assert.NotContains(t, string(out), "draft", src)
+	}
+}
+
 func TestPercent(t *testing.T) {
 	assert.Equal(t, "65.6%", percent(42, 64))
 	assert.Equal(t, "50%", percent(1, 2))

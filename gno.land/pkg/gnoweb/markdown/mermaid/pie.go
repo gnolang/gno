@@ -31,14 +31,14 @@ func parsePie(args string, lines []line, m *meta) (diagram, error) {
 	if rest, ok := cutPrefixFold(args, "showData"); ok {
 		d.showData, args = true, strings.TrimSpace(rest)
 	}
-	if t, ok := title(args); ok {
+	if t, ok := pieTitle(args); ok {
 		m.title = t
 	} else if args != "" {
 		return nil, errorf(0, "unsupported pie option %q", args)
 	}
 	seen := map[string]bool{}
 	for _, l := range lines {
-		if t, ok := title(l.text); ok {
+		if t, ok := pieTitle(l.text); ok {
 			m.title = t
 			continue
 		}
@@ -61,6 +61,13 @@ func parsePie(args string, lines []line, m *meta) (diagram, error) {
 		return nil, errorf(0, "pie values must add up to a positive number")
 	}
 	return d, nil
+}
+
+// pieTitle is title for a pie chart, whose grammar ends a title at %%, where
+// a comment starts.
+func pieTitle(text string) (string, bool) {
+	text, _, _ = strings.Cut(text, "%%")
+	return title(text)
 }
 
 // parseSlice parses `"label" : value`.
