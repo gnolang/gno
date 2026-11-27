@@ -126,6 +126,7 @@ func parseKanbanNode(l line) (kanbanCard, error) {
 // or value only as its first character, so O'Brien is plain. ok is false for
 // an unclosed quote.
 func splitMetadata(s string) (pairs []string, ok bool) {
+	pairs = make([]string, 0, strings.Count(s, ",")+1)
 	var quote byte
 	start := 0
 	value := false // past the colon of the pair
