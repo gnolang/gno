@@ -44,6 +44,13 @@ check a function during development without deploying. It works with pure
 packages and plain, non-crossing functions. To exercise realm functions that
 take a `realm` argument, use `gno test` or a filetest instead.
 
+Before it executes, `gno run` type-checks the files with the same `go/types`
+pass as `gno lint`. An unused local (`declared and not used: x`) or an unused
+expression (`1 (untyped int constant) is not used`) is rejected and the
+program does not run. Blank identifiers, a variable used only inside a
+closure, and package-level variables follow Go; an assignment that never
+reads the variable does not count as a use.
+
 It's a program runner, not a REPL, so return values aren't printed
 automatically. Wrap the expression in `println()`:
 

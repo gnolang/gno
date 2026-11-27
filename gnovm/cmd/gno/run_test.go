@@ -1,8 +1,12 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestRunApp(t *testing.T) {
@@ -83,8 +87,11 @@ func TestRunApp(t *testing.T) {
 			errShouldContain: "listen tcp",
 		},
 		{
-			args:                 []string{"run", "../../tests/integ/invalid_assign/main.gno"},
-			recoverShouldContain: "cannot use bool as main.C without explicit conversion",
+			// A typed conversion the VM used to report only while running is now
+			// a type-check error, so the program does not execute.
+			args:                []string{"run", "../../tests/integ/invalid_assign/main.gno"},
+			stderrShouldContain: "cannot use b",
+			errShouldBe:         "exit code: 1",
 		},
 		{
 			args:                []string{"run", "-expr", "Context()", "../../tests/integ/context/context.gno"},
@@ -144,4 +151,120 @@ func TestRunApp(t *testing.T) {
 		// TODO: logging
 	}
 	testMainCaseRun(t, tc)
+}
+
+// TestRunUnused covers the Go rules gno run must enforce before execution
+// (gnolang/gno#3426). Wording matches gc via go/types: "declared and not used"
+// for locals, "... is not used" for expression statements. Blank identifiers,
+// reads (including a read on the right-hand side of an assignment), uses
+// inside a closure, and package-level variables are allowed. A local that is
+// only assigned to is not used.
+func TestRunUnused(t *testing.T) {
+	reject := func(name, src, stderr string) testMainCase {
+		return testMainCase{
+			args:                []string{"run", writeRunFile(t, name, src)},
+			stderrShouldContain: stderr,
+			errShouldBe:         "exit code: 1",
+		}
+	}
+	allow := func(name, src, stdout string) testMainCase {
+		return testMainCase{
+			args:                []string{"run", writeRunFile(t, name, src)},
+			stdoutShouldContain: stdout,
+		}
+	}
+
+	testMainCaseRun(t, []testMainCase{
+		reject("unused_local", `
+package main
+
+func main() {
+	x := 1
+	println(2)
+}
+`, "declared and not used: x"),
+		reject("assign_only", `
+package main
+
+func main() {
+	x := 1
+	x = 2
+	println(2)
+}
+`, "declared and not used: x"),
+		reject("unused_expr", `
+package main
+
+func main() {
+	const c1 = 1 < 8
+	println("should not run")
+	1
+}
+`, "1 (untyped int constant) is not used"),
+		reject("unused_type_switch", `
+package main
+
+func main() {
+	var i any = 1
+	switch x := i.(type) {
+	case int:
+		println("int")
+	default:
+		println("other")
+	}
+}
+`, "x declared and not used"),
+		allow("blank_and_read", `
+package main
+
+func main() {
+	_ = 1
+	x := 1
+	_ = x
+	println(2)
+}
+`, "2"),
+		allow("assign_reads", `
+package main
+
+func main() {
+	x := 1
+	x = x
+	println(x)
+}
+`, "1"),
+		allow("closure_use", `
+package main
+
+func main() {
+	x := 1
+	func() { println(x) }()
+}
+`, "1"),
+		allow("package_var", `
+package main
+
+var x = 1
+
+func main() {
+	println(2)
+}
+`, "2"),
+		allow("unused_local_const", `
+package main
+
+func main() {
+	const c = 1
+	println(2)
+}
+`, "2"),
+	})
+}
+
+func writeRunFile(t *testing.T, name, src string) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, name+".gno")
+	require.NoError(t, os.WriteFile(path, []byte(strings.TrimSpace(src)+"\n"), 0o644))
+	return path
 }
