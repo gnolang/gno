@@ -122,20 +122,30 @@ func parseKanbanNode(l line) (kanbanCard, error) {
 }
 
 // splitMetadata splits `key: value, …` at the commas outside quotes, as
-// Mermaid's YAML reading of it does; ok is false for an unclosed quote.
+// Mermaid's YAML reading of it does: as in YAML, a quote opens a quoted key
+// or value only as its first character, so O'Brien is plain. ok is false for
+// an unclosed quote.
 func splitMetadata(s string) (pairs []string, ok bool) {
 	var quote byte
 	start := 0
+	value := false // past the colon of the pair
+	blank := true  // nothing but spaces yet in the key or the value
 	for i := 0; i < len(s); i++ {
 		switch c := s[i]; {
 		case quote != 0:
 			if c == quote {
 				quote = 0
 			}
-		case c == '"' || c == '\'':
-			quote = c
 		case c == ',':
 			pairs, start = append(pairs, s[start:i]), i+1
+			value, blank = false, true
+		case c == ':' && !value:
+			value, blank = true, true
+		case c == ' ': // leaves blank as it is
+		case blank && (c == '"' || c == '\''):
+			quote, blank = c, false
+		default:
+			blank = false
 		}
 	}
 	return append(pairs, s[start:]), quote == 0

@@ -35,6 +35,9 @@ func TestKanbanMetadata(t *testing.T) {
 		`label: "one#60;br#62;two"`:        {label: []string{"one<br>two"}, priority: -1},
 		`ticket: 'T·', assigned: '·bob'`:   {label: []string{"x"}, details: "T· · ·bob", priority: -1},
 		`assigned: 'bob', priority: 'Low'`: {label: []string{"x"}, details: "bob", priority: 1},
+		// A quote opens a quoted value only as its first character, as in YAML.
+		`assigned: O'Brien, ticket: D'Arcy-7`: {label: []string{"x"}, details: "O'Brien · D'Arcy-7", priority: -1},
+		`assigned: O'Brien, priority: 'High'`: {label: []string{"x"}, details: "O'Brien", priority: 2},
 	} {
 		card, err := parseKanbanNode(line{text: "x@{ " + meta + " }"})
 		require.NoError(t, err, meta)
