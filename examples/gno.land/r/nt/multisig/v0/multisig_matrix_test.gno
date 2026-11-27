@@ -93,29 +93,64 @@ func TestBadDenomUnknownTokenAndRender(cur realm, t *testing.T) {
 	if strings.Contains(home, "](http://evil)") {
 		t.Errorf("home broke out of the link:\n%s", home)
 	}
-	if Render("nope") == "" || Render("0") == "" || Render(strconv.FormatInt(id, 10)+"/nope") == "" || Render(strconv.FormatInt(id, 10)+"/1/2") == "" {
+	if Render("nope") == "" || Render("0") == "" || !strings.Contains(Render("9223372036854775807"), "Unknown safe.") || Render(strconv.FormatInt(id, 10)+"/nope") == "" || Render(strconv.FormatInt(id, 10)+"/1/2") == "" {
 		t.Error("unknown paths should still render")
 	}
 	mustPanic(t, "invalid denom", func() { Balance(id, "NO") })
 	mustPanic(t, "unknown safe", func() { SafeName(0) })
+	mustPanic(t, "unknown safe", func() { SafeName(9223372036854775807) })
 }
 
 func TestDepositCallerAndDenom(cur realm, t *testing.T) {
+	saved := testing.GetContext()
+	defer testing.SetContext(saved)
+
 	at(t0, alice)
 	var id int64
 	func(cur realm) {
 		id = Create(cur, "dep", alice.String(), 1, 0)
 	}(cross(cur))
 
-	testing.IssueCoins(chain.PackageAddress(realmPath), chain.NewCoins(chain.NewCoin("ugnot", 7)))
-	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 7)))
+	factory := chain.PackageAddress(realmPath)
+	// Empty -send envelope is rejected.
+	testing.SetOriginSend(chain.Coins{})
 	at(t0, alice)
 	func(cur realm) {
-		mustPanic(t, "invalid amount", func() { Deposit(cur, id, "ugnot", 0) })
-		mustPanic(t, "invalid denom", func() { Deposit(cur, id, "NO", 1) })
-		Deposit(cur, id, "ugnot", 7)
+		mustPanic(t, "invalid amount", func() { Deposit(cur, id) })
+	}(cross(cur))
+
+	// Zero amount and malformed denom in -send are rejected.
+	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "ugnot", Amount: 0}})
+	at(t0, alice)
+	func(cur realm) {
+		mustPanic(t, "invalid amount", func() { Deposit(cur, id) })
+	}(cross(cur))
+
+	testing.SetOriginSend(chain.Coins{chain.Coin{Denom: "NO", Amount: 1}})
+	at(t0, alice)
+	func(cur realm) {
+		mustPanic(t, "invalid denom", func() { Deposit(cur, id) })
+	}(cross(cur))
+
+	// Full multi-denom -send envelope is forwarded, leaving nothing stranded on factory.
+	multi := chain.NewCoins(chain.NewCoin("foo", 3), chain.NewCoin("ugnot", 7))
+	testing.IssueCoins(factory, multi)
+	testing.SetOriginSend(multi)
+	at(t0, alice)
+	func(cur realm) {
+		Deposit(cur, id)
 	}(cross(cur))
 	uassert.Equal(t, int64(7), Balance(id, "ugnot"))
+	uassert.Equal(t, int64(3), Balance(id, "foo"))
+	uassert.Equal(t, int64(0), banker.NewReadonlyBanker().GetCoin(factory, "ugnot"))
+	uassert.Equal(t, int64(0), banker.NewReadonlyBanker().GetCoin(factory, "foo"))
+
+	// Code-realm caller is rejected.
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/evil"))
+	caught := revive(func() { Deposit(cross(cur), id) })
+	if !strings.Contains(panicText(caught), "direct user call") {
+		t.Errorf("deposit caller: %v", caught)
+	}
 }
 
 func TestSafeCap(cur realm, t *testing.T) {
@@ -231,5 +266,95 @@ func TestFundsConserved(cur realm, t *testing.T) {
 	}
 	if moved == 0 || Balance(id, "ugnot")+moved != 1000 {
 		t.Error("funds were not conserved")
+	}
+}
+
+func TestRenderAndWrappers(cur realm, t *testing.T) {
+	saved := testing.GetContext()
+	defer testing.SetContext(saved)
+
+	at(t0, alice)
+	for SafeCount() < 21 {
+		Create(cross(cur), "extra", alice.String(), 1, 0)
+	}
+	home := Render("")
+	if !strings.Contains(home, "Showing the latest 20") {
+		t.Error("home should truncate")
+	}
+
+	id := Create(cross(cur), "pages", alice.String()+","+bob.String(), 1, 0)
+	sid := strconv.FormatInt(id, 10)
+	if !strings.Contains(Render(sid), "None yet") {
+		t.Error("empty proposal list")
+	}
+	if !strings.Contains(Render(sid+"/99"), "Unknown proposal") {
+		t.Error("unknown proposal page")
+	}
+
+	coin := ProposeCoin(cross(cur), id, dest, "ugnot", 1, t0+10_000, "")
+	page := Render(sid + "/" + strconv.FormatInt(coin, 10))
+	if !strings.Contains(page, "None.") {
+		t.Error("proposal with no approvals")
+	}
+	Approve(cross(cur), id, coin)
+	Revoke(cross(cur), id, coin)
+	Cancel(cross(cur), id, coin)
+
+	// Watching "ugnot" must not duplicate the default ugnot balance row, and
+	// inline code paths must not contain backslash-escaped dots.
+	WatchDenom(cross(cur), id, "ugnot")
+	WatchToken(cross(cur), id, "gno.land/r/demo/missing.NO")
+	watched := Render(sid)
+	if strings.Count(watched, "- ugnot:") != 1 {
+		t.Errorf("ugnot row duplicated:\n%s", watched)
+	}
+	if !strings.Contains(watched, "`gno.land/r/demo/missing.NO`") || !strings.Contains(watched, "not in the registry") {
+		t.Errorf("watched token row malformed:\n%s", watched)
+	}
+	UnwatchDenom(cross(cur), id, "ugnot")
+	UnwatchToken(cross(cur), id, "gno.land/r/demo/missing.NO")
+
+	// Self-removal preserves the removed signer's approval with "(former signer)".
+	rmBob := ProposeRemoveSigner(cross(cur), id, bob, t0+10_000, "")
+	at(t0, bob)
+	Approve(cross(cur), id, rmBob)
+	Execute(cross(cur), id, rmBob)
+	rmPage := Render(sid + "/" + strconv.FormatInt(rmBob, 10))
+	if !strings.Contains(rmPage, bob.String()) || !strings.Contains(rmPage, "former signer") {
+		t.Errorf("self-removal page missing former signer audit entry:\n%s", rmPage)
+	}
+
+	at(t0, alice)
+	pause := ProposePause(cross(cur), id, t0+10_000, "")
+	Approve(cross(cur), id, pause)
+	Execute(cross(cur), id, pause)
+	if !strings.Contains(Render(sid), "paused") {
+		t.Error("paused page")
+	}
+	unpause := ProposeUnpause(cross(cur), id, t0+10_000, "")
+	Approve(cross(cur), id, unpause)
+	Execute(cross(cur), id, unpause)
+
+	busy := Create(cross(cur), "busy", alice.String(), 1, 0)
+	for i := 0; i < 21; i++ {
+		ProposeCoin(cross(cur), busy, dest, "ugnot", 1, t0+10_000, "")
+	}
+	if !strings.Contains(Render(strconv.FormatInt(busy, 10)), "Showing the latest") {
+		t.Error("proposal list should truncate")
+	}
+
+	call := ProposeCall(cross(cur), id, "gno.land/r/demo/worker", "secret", t0+10_000, "memo")
+	Approve(cross(cur), id, call)
+	Execute(cross(cur), id, call)
+	callPage := Render(sid + "/" + strconv.FormatInt(call, 10))
+	if !strings.Contains(callPage, "`gno.land/r/demo/worker`") {
+		t.Errorf("call target code span corrupted:\n%s", callPage)
+	}
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/demo/worker"))
+	if Consume(cross(cur), id, call) != "secret" {
+		t.Error("consume")
+	}
+	if !strings.Contains(Render(sid+"/"+strconv.FormatInt(call, 10)), "already consumed") {
+		t.Error("consumed page")
 	}
 }

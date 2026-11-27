@@ -206,11 +206,13 @@ func TestDeposit(cur realm, t *testing.T) {
 	}(cross(cur))
 	// -send credits the realm before the call. The test banker needs
 	// both the balance and the origin-send allowance.
-	testing.IssueCoins(chain.PackageAddress(realmPath), chain.NewCoins(chain.NewCoin("ugnot", 50)))
+	factory := chain.PackageAddress(realmPath)
+	testing.IssueCoins(factory, chain.NewCoins(chain.NewCoin("ugnot", 50)))
 	testing.SetOriginSend(chain.NewCoins(chain.NewCoin("ugnot", 50)))
 	at(t0, alice)
 	func(cur realm) {
-		Deposit(cur, id, "ugnot", 50)
+		Deposit(cur, id)
 	}(cross(cur))
 	uassert.Equal(t, int64(50), Balance(id, "ugnot"))
+	uassert.Equal(t, int64(0), banker.NewReadonlyBanker().GetCoin(factory, "ugnot"))
 }

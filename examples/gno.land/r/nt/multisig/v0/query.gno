@@ -40,7 +40,8 @@ func IsSigner(safeID int64, addr address) bool {
 	return mustSafe(safeID).IsSigner(addr)
 }
 
-// ProposalCount includes proposals that already finished.
+// ProposalCount is how many proposals are currently retained (up to
+// MaxRetained); older finished records are dropped.
 func ProposalCount(safeID int64) int { return mustSafe(safeID).ProposalCount() }
 
 // ProposalStatus is pending, executed, cancelled, or expired.

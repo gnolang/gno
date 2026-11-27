@@ -25,7 +25,6 @@ type Safe struct {
 	nonce     int64
 	nextID    int64
 	props     []*proposal
-	pending   []int64
 	denoms    []string
 	tokens    []string
 }
@@ -34,7 +33,7 @@ type Safe struct {
 // signersCSV is a comma-separated list of bech32 addresses. MsgCall
 // cannot pass a slice, so the factory accepts the same encoding.
 func New(hostPkg string, hostAddr, creator address, name, signersCSV string, threshold int, delay int64) (*Safe, error) {
-	if !strings.HasPrefix(hostPkg, "gno.land/r/") || strings.Contains(hostPkg, "#") {
+	if !validRealmPath(hostPkg) {
 		return nil, ErrHost
 	}
 	if !hostAddr.IsValid() || hostAddr != chain.PackageAddress(hostPkg) {
@@ -43,7 +42,7 @@ func New(hostPkg string, hostAddr, creator address, name, signersCSV string, thr
 	if !creator.IsValid() {
 		return nil, ErrInvalidAddress
 	}
-	if !validText(name, 1, MaxNameLen) {
+	if !validText(name, 1, MaxNameLen) || strings.TrimSpace(name) == "" {
 		return nil, ErrName
 	}
 	if delay < 0 || delay > MaxDelay {
@@ -61,21 +60,18 @@ func New(hostPkg string, hostAddr, creator address, name, signersCSV string, thr
 			return nil, ErrSelf
 		}
 	}
-	cp := make([]address, len(signers))
-	copy(cp, signers)
 	return &Safe{
 		name:      name,
 		creator:   creator,
 		hostPkg:   hostPkg,
 		hostAddr:  hostAddr,
-		signers:   cp,
+		signers:   signers,
 		threshold: threshold,
 		delay:     delay,
 	}, nil
 }
 
-// Bind assigns id and the sub-realm address s/<id>. It panics the
-// transaction only through the returned error; it does not call Sub.
+// Bind assigns id and the sub-realm address s/<id>. It never calls Sub.
 func (s *Safe) Bind(id int64) (address, error) {
 	if s == nil {
 		return "", ErrUnbound
@@ -87,6 +83,9 @@ func (s *Safe) Bind(id int64) (address, error) {
 		return "", ErrHost
 	}
 	sub := "s/" + strconv.FormatInt(id, 10)
+	if len(s.hostPkg)+1+len(sub) > MaxTargetLen {
+		return "", ErrHost
+	}
 	addr := chain.DerivePkgSubAddr(s.hostPkg, sub)
 	for _, signer := range s.signers {
 		if signer == addr {
@@ -183,7 +182,15 @@ func (s *Safe) Recent(limit int) []ProposalView {
 
 // PendingCount is the number of stored-pending proposals, including
 // ones that are past their deadline until the next write sweeps them.
-func (s *Safe) PendingCount() int { return len(s.pending) }
+func (s *Safe) PendingCount() int {
+	n := 0
+	for _, p := range s.props {
+		if p.status == StatusPending {
+			n++
+		}
+	}
+	return n
+}
 
 // View copies proposal id.
 func (s *Safe) View(id int64) (ProposalView, error) {
@@ -212,27 +219,17 @@ func (s *Safe) HasApproval(id int64, addr address) (bool, error) {
 	return s.isSigner(addr) && hasAddr(p.approvals, addr), nil
 }
 
-// Executable reports whether Execute would pass the time and vote
-// checks. It does not check balances.
+// Executable reports whether Execute would pass the status, time, vote,
+// and governance precondition checks. It does not check balances.
 func (s *Safe) Executable(id, now int64) (bool, error) {
 	p, err := s.prop(id)
 	if err != nil {
 		return false, err
 	}
-	if p.status != StatusPending || now >= p.expiresAt {
+	if now < 0 {
 		return false, nil
 	}
-	if s.paused && Spend(p.kind) {
-		return false, nil
-	}
-	if s.countApprovals(p) < s.threshold || p.armedAt == 0 {
-		return false, nil
-	}
-	ready, ok := add64(p.armedAt, p.delay)
-	if !ok || now < ready {
-		return false, nil
-	}
-	return true, nil
+	return s.checkReady(p, now) == nil, nil
 }
 
 // WatchedDenoms returns a copy of the display denom list.
@@ -377,12 +374,15 @@ func (s *Safe) Approve(_ int, rlm realm, id, now int64) error {
 	if err != nil {
 		return err
 	}
+	if now < 0 {
+		return ErrExpiry
+	}
 	s.sweep(now)
 	p, err := s.prop(id)
 	if err != nil {
 		return err
 	}
-	if err := s.expireIfDue(p, now); err != nil {
+	if err := checkPending(p); err != nil {
 		return err
 	}
 	if hasAddr(p.approvals, caller) {
@@ -408,12 +408,15 @@ func (s *Safe) Revoke(_ int, rlm realm, id, now int64) error {
 	if err != nil {
 		return err
 	}
+	if now < 0 {
+		return ErrExpiry
+	}
 	s.sweep(now)
 	p, err := s.prop(id)
 	if err != nil {
 		return err
 	}
-	if err := s.expireIfDue(p, now); err != nil {
+	if err := checkPending(p); err != nil {
 		return err
 	}
 	if !hasAddr(p.approvals, caller) {
@@ -435,45 +438,60 @@ func (s *Safe) Revoke(_ int, rlm realm, id, now int64) error {
 // one that has not reached the threshold. An armed proposal stays
 // until signers revoke below the threshold, or it expires.
 func (s *Safe) Cancel(_ int, rlm realm, id, now int64) error {
-	if _, err := s.auth(0, rlm); err != nil {
+	caller, err := s.auth(0, rlm)
+	if err != nil {
 		return err
+	}
+	if now < 0 {
+		return ErrExpiry
 	}
 	s.sweep(now)
 	p, err := s.prop(id)
 	if err != nil {
 		return err
 	}
-	if err := s.expireIfDue(p, now); err != nil {
+	if err := checkPending(p); err != nil {
 		return err
 	}
-	if s.countApprovals(p) >= s.threshold && p.armedAt != 0 {
+	if p.armed || s.countApprovals(p) >= s.threshold {
 		return ErrArmed
 	}
 	p.status = StatusCancelled
-	s.dropPending(id)
 	chain.Emit(
 		"ProposalCancelled",
 		"safe", s.idStr(),
 		"proposal", strconv.FormatInt(id, 10),
+		"canceller", caller.String(),
 	)
 	return nil
 }
 
-// Execute marks a ready proposal executed and returns the effect the
-// realm must apply. afford, when set, runs after the proposal is known
-// to be ready and before it is marked, so a rejected spend leaves the
-// proposal pending.
+// CheckExecute validates caller authority and proposal readiness without
+// mutating state. A hosting realm calls this before checking balances so
+// an underfunded spend fails without consuming the proposal.
+func (s *Safe) CheckExecute(_ int, rlm realm, id, now int64) (Effect, error) {
+	if _, err := s.auth(0, rlm); err != nil {
+		return Effect{}, err
+	}
+	if s.subpath == "" {
+		return Effect{}, ErrUnbound
+	}
+	if now < 0 {
+		return Effect{}, ErrExpiry
+	}
+	p, err := s.prop(id)
+	if err != nil {
+		return Effect{}, err
+	}
+	if err := s.checkReady(p, now); err != nil {
+		return Effect{}, err
+	}
+	return s.effect(p), nil
+}
+
+// Execute marks a ready proposal executed, applies any governance change,
+// and returns the effect the hosting realm must perform.
 func (s *Safe) Execute(_ int, rlm realm, id, now int64) (Effect, error) {
-	return s.execute(0, rlm, id, now, nil)
-}
-
-// ExecuteChecked is Execute with an afford check. The realm uses it to
-// reject an underfunded transfer without consuming the proposal.
-func (s *Safe) ExecuteChecked(_ int, rlm realm, id, now int64, afford func(Effect) error) (Effect, error) {
-	return s.execute(0, rlm, id, now, afford)
-}
-
-func (s *Safe) execute(_ int, rlm realm, id, now int64, afford func(Effect) error) (Effect, error) {
 	caller, err := s.auth(0, rlm)
 	if err != nil {
 		return Effect{}, err
@@ -481,43 +499,23 @@ func (s *Safe) execute(_ int, rlm realm, id, now int64, afford func(Effect) erro
 	if s.subpath == "" {
 		return Effect{}, ErrUnbound
 	}
+	if now < 0 {
+		return Effect{}, ErrExpiry
+	}
 	s.sweep(now)
 	p, err := s.prop(id)
 	if err != nil {
 		return Effect{}, err
 	}
-	if err := s.expireIfDue(p, now); err != nil {
+	if err := s.checkReady(p, now); err != nil {
 		return Effect{}, err
 	}
-	if s.paused && Spend(p.kind) {
-		return Effect{}, ErrPaused
-	}
-	if s.countApprovals(p) < s.threshold {
-		return Effect{}, ErrNotReady
-	}
-	if p.armedAt == 0 {
-		return Effect{}, ErrTimelock
-	}
-	ready, ok := add64(p.armedAt, p.delay)
-	if !ok || now < ready {
-		return Effect{}, ErrTimelock
-	}
-	if err := s.applyGovernance(p); err != nil {
-		return Effect{}, err
-	}
-	eff := Effect{
-		Kind: p.kind, SafeID: s.id, PropID: p.id,
-		To: p.to, Denom: p.denom, Amount: p.amount,
-		TokenKey: p.tokenKey, TargetPkg: p.targetPkg, Payload: p.payload,
-	}
-	if Spend(p.kind) && afford != nil {
-		if err := afford(eff); err != nil {
-			return Effect{}, err
-		}
-	}
+	eff := s.effect(p)
+	// Mark executed before applyGovernance so KindRemoveSigner's
+	// stripApproval leaves this proposal's historical approvals intact.
 	p.status = StatusExecuted
-	s.dropPending(id)
 	s.nonce++
+	s.applyGovernance(p)
 	s.refreshAll(now)
 	chain.Emit(
 		"ProposalExecuted",
@@ -533,6 +531,9 @@ func (s *Safe) execute(_ int, rlm realm, id, now int64, afford func(Effect) erro
 // Consume lets targetPkg pull a call payload once. rlm.Previous()
 // must be that package. The safe does not call the target.
 func (s *Safe) Consume(_ int, rlm realm, id int64) (string, error) {
+	if s == nil || s.subpath == "" {
+		return "", ErrUnbound
+	}
 	if !rlm.IsCurrent() {
 		return "", ErrStaleRealm
 	}
@@ -570,8 +571,11 @@ func (s *Safe) propose(_ int, rlm realm, d draft, now int64) (int64, error) {
 	if s.subpath == "" {
 		return 0, ErrUnbound
 	}
+	if now < 0 {
+		return 0, ErrExpiry
+	}
 	s.sweep(now)
-	if len(s.pending) >= MaxPending {
+	if s.PendingCount() >= MaxPending {
 		return 0, ErrTooManyPending
 	}
 	if err := s.validateDraft(d, now); err != nil {
@@ -593,7 +597,6 @@ func (s *Safe) propose(_ int, rlm realm, d draft, now int64) (int64, error) {
 		status: StatusPending,
 	}
 	s.props = append(s.props, p)
-	s.pending = append(s.pending, id)
 	chain.Emit(
 		"ProposalCreated",
 		"safe", s.idStr(),
@@ -641,16 +644,9 @@ func (s *Safe) validateDraft(d draft, now int64) error {
 			return ErrPayload
 		}
 	case KindAddSigner:
-		if err := s.validNewSigner(d.signer); err != nil {
-			return err
-		}
+		return s.validNewSigner(d.signer)
 	case KindRemoveSigner:
-		if !s.isSigner(d.signer) {
-			return ErrUnknownSigner
-		}
-		if len(s.signers) == 1 || s.threshold > len(s.signers)-1 {
-			return ErrLastSigner
-		}
+		return s.validRemoveSigner(d.signer)
 	case KindThreshold:
 		if d.newThreshold < 1 || d.newThreshold > len(s.signers) {
 			return ErrThreshold
@@ -673,54 +669,89 @@ func (s *Safe) validateDraft(d draft, now int64) error {
 	return nil
 }
 
-func (s *Safe) applyGovernance(p *proposal) error {
+func (s *Safe) checkReady(p *proposal, now int64) error {
+	if p.status == StatusExpired || (p.status == StatusPending && now >= p.expiresAt) {
+		return ErrExpired
+	}
+	if p.status != StatusPending {
+		return ErrNotPending
+	}
+	if s.paused && Spend(p.kind) {
+		return ErrPaused
+	}
+	if s.countApprovals(p) < s.threshold {
+		return ErrNotReady
+	}
+	if !p.armed {
+		return ErrTimelock
+	}
+	ready, ok := add64(p.armedAt, p.delay)
+	if !ok || now < ready {
+		return ErrTimelock
+	}
+	return s.validateGovernance(p)
+}
+
+func (s *Safe) validateGovernance(p *proposal) error {
 	switch p.kind {
 	case KindCoin, KindGRC20, KindCall:
 		return nil
 	case KindAddSigner:
-		if err := s.validNewSigner(p.signer); err != nil {
-			return err
-		}
-		s.signers = append(s.signers, p.signer)
-		chain.Emit("SignerAdded", "safe", s.idStr(), "signer", p.signer.String())
+		return s.validNewSigner(p.signer)
 	case KindRemoveSigner:
-		if !s.isSigner(p.signer) {
-			return ErrUnknownSigner
-		}
-		if len(s.signers) == 1 || s.threshold > len(s.signers)-1 {
-			return ErrLastSigner
-		}
-		s.signers = dropAddr(s.signers, p.signer)
-		s.stripApproval(p.signer)
-		chain.Emit("SignerRemoved", "safe", s.idStr(), "signer", p.signer.String())
+		return s.validRemoveSigner(p.signer)
 	case KindThreshold:
 		if p.newThreshold < 1 || p.newThreshold > len(s.signers) {
 			return ErrThreshold
 		}
-		s.threshold = p.newThreshold
-		chain.Emit("ThresholdChanged", "safe", s.idStr(), "threshold", strconv.Itoa(s.threshold))
 	case KindDelay:
 		if p.newDelay < 0 || p.newDelay > MaxDelay {
 			return ErrDelay
 		}
-		s.delay = p.newDelay
-		chain.Emit("DelayChanged", "safe", s.idStr(), "delay", strconv.FormatInt(s.delay, 10))
 	case KindPause:
 		if s.paused {
 			return ErrAlreadyPaused
 		}
-		s.paused = true
-		chain.Emit("SafePaused", "safe", s.idStr())
 	case KindUnpause:
 		if !s.paused {
 			return ErrNotPaused
 		}
-		s.paused = false
-		chain.Emit("SafeUnpaused", "safe", s.idStr())
 	default:
 		return ErrKind
 	}
 	return nil
+}
+
+func (s *Safe) applyGovernance(p *proposal) {
+	switch p.kind {
+	case KindAddSigner:
+		s.signers = append(s.signers, p.signer)
+		chain.Emit("SignerAdded", "safe", s.idStr(), "signer", p.signer.String())
+	case KindRemoveSigner:
+		s.signers = dropAddr(s.signers, p.signer)
+		s.stripApproval(p.signer)
+		chain.Emit("SignerRemoved", "safe", s.idStr(), "signer", p.signer.String())
+	case KindThreshold:
+		s.threshold = p.newThreshold
+		chain.Emit("ThresholdChanged", "safe", s.idStr(), "threshold", strconv.Itoa(s.threshold))
+	case KindDelay:
+		s.delay = p.newDelay
+		chain.Emit("DelayChanged", "safe", s.idStr(), "delay", strconv.FormatInt(s.delay, 10))
+	case KindPause:
+		s.paused = true
+		chain.Emit("SafePaused", "safe", s.idStr())
+	case KindUnpause:
+		s.paused = false
+		chain.Emit("SafeUnpaused", "safe", s.idStr())
+	}
+}
+
+func (s *Safe) effect(p *proposal) Effect {
+	return Effect{
+		Kind: p.kind, SafeID: s.id, PropID: p.id,
+		To: p.to, Denom: p.denom, Amount: p.amount,
+		TokenKey: p.tokenKey, TargetPkg: p.targetPkg, Payload: p.payload,
+	}
 }
 
 func (s *Safe) validPay(to address, amount int64) error {
@@ -752,6 +783,16 @@ func (s *Safe) validNewSigner(signer address) error {
 	return nil
 }
 
+func (s *Safe) validRemoveSigner(signer address) error {
+	if !s.isSigner(signer) {
+		return ErrUnknownSigner
+	}
+	if len(s.signers) == 1 || s.threshold > len(s.signers)-1 {
+		return ErrLastSigner
+	}
+	return nil
+}
+
 func (s *Safe) auth(_ int, rlm realm) (address, error) {
 	if s == nil {
 		return "", ErrUnbound
@@ -767,28 +808,22 @@ func (s *Safe) auth(_ int, rlm realm) (address, error) {
 }
 
 func (s *Safe) prop(id int64) (*proposal, error) {
+	if s == nil {
+		return nil, ErrUnbound
+	}
 	if id <= 0 {
 		return nil, ErrUnknownProposal
 	}
 	for _, p := range s.props {
-		if p != nil && p.id == id {
+		if p.id == id {
 			return p, nil
 		}
 	}
 	return nil, ErrUnknownProposal
 }
 
-func (s *Safe) expireIfDue(p *proposal, now int64) error {
-	if p.status == StatusExpired || (p.status == StatusPending && now >= p.expiresAt) {
-		if p.status == StatusPending {
-			p.status = StatusExpired
-			s.dropPending(p.id)
-			chain.Emit(
-				"ProposalExpired",
-				"safe", s.idStr(),
-				"proposal", strconv.FormatInt(p.id, 10),
-			)
-		}
+func checkPending(p *proposal) error {
+	if p.status == StatusExpired {
 		return ErrExpired
 	}
 	if p.status != StatusPending {
@@ -798,37 +833,16 @@ func (s *Safe) expireIfDue(p *proposal, now int64) error {
 }
 
 func (s *Safe) sweep(now int64) {
-	ids := make([]int64, len(s.pending))
-	copy(ids, s.pending)
-	s.pending = nil
-	for _, id := range ids {
-		p, err := s.prop(id)
-		if err != nil {
-			continue
-		}
+	for _, p := range s.props {
 		if p.status == StatusPending && now >= p.expiresAt {
 			p.status = StatusExpired
 			chain.Emit(
 				"ProposalExpired",
 				"safe", s.idStr(),
-				"proposal", strconv.FormatInt(id, 10),
+				"proposal", strconv.FormatInt(p.id, 10),
 			)
-			continue
-		}
-		if p.status == StatusPending {
-			s.pending = append(s.pending, id)
 		}
 	}
-}
-
-func (s *Safe) dropPending(id int64) {
-	next := make([]int64, 0, len(s.pending))
-	for _, x := range s.pending {
-		if x != id {
-			next = append(next, x)
-		}
-	}
-	s.pending = next
 }
 
 func (s *Safe) refreshArm(p *proposal, now int64) {
@@ -836,53 +850,42 @@ func (s *Safe) refreshArm(p *proposal, now int64) {
 		return
 	}
 	if s.countApprovals(p) >= s.threshold {
-		if p.armedAt == 0 {
+		if !p.armed {
+			p.armed = true
 			p.armedAt = now
 		}
 		return
 	}
+	p.armed = false
 	p.armedAt = 0
 }
 
 func (s *Safe) refreshAll(now int64) {
-	for _, id := range s.pending {
-		p, err := s.prop(id)
-		if err != nil {
-			continue
-		}
+	for _, p := range s.props {
 		s.refreshArm(p, now)
 	}
 }
 
-// evictOne drops the oldest finished proposal. An executed call that
-// has not been consumed stays: the target can still pull it. Returns
-// false when every retained record is still live.
+// evictOne drops the oldest finished proposal. s.props is ordered by
+// ascending id, so the first evictable record is the oldest. An executed
+// call that has not been consumed stays: the target can still pull it.
 func (s *Safe) evictOne() bool {
-	idx := -1
-	var oldest int64
 	for i, p := range s.props {
-		if p == nil || !evictable(p) {
+		if !evictable(p) {
 			continue
 		}
-		if idx < 0 || p.id < oldest {
-			idx = i
-			oldest = p.id
-		}
+		dropped := p.id
+		copy(s.props[i:], s.props[i+1:])
+		s.props[len(s.props)-1] = nil
+		s.props = s.props[:len(s.props)-1]
+		chain.Emit(
+			"ProposalForgotten",
+			"safe", s.idStr(),
+			"proposal", strconv.FormatInt(dropped, 10),
+		)
+		return true
 	}
-	if idx < 0 {
-		return false
-	}
-	dropped := s.props[idx]
-	next := make([]*proposal, 0, len(s.props)-1)
-	next = append(next, s.props[:idx]...)
-	next = append(next, s.props[idx+1:]...)
-	s.props = next
-	chain.Emit(
-		"ProposalForgotten",
-		"safe", s.idStr(),
-		"proposal", strconv.FormatInt(dropped.id, 10),
-	)
-	return true
+	return false
 }
 
 func evictable(p *proposal) bool {
@@ -921,7 +924,7 @@ func (s *Safe) idStr() string { return strconv.FormatInt(s.id, 10) }
 
 func parseSigners(csv string) ([]address, error) {
 	parts := strings.Split(csv, ",")
-	if len(parts) == 0 {
+	if len(parts) > MaxSigners {
 		return nil, ErrSignerCount
 	}
 	out := make([]address, 0, len(parts))
@@ -938,9 +941,6 @@ func parseSigners(csv string) ([]address, error) {
 			return nil, ErrDuplicateSigner
 		}
 		out = append(out, addr)
-	}
-	if len(out) < 1 || len(out) > MaxSigners {
-		return nil, ErrSignerCount
 	}
 	return out, nil
 }
@@ -986,10 +986,8 @@ func (s *Safe) validCallTarget(target string) bool {
 	if !validTarget(target) {
 		return false
 	}
-	if target == s.hostPkg || strings.HasPrefix(target, s.hostPkg+"#") {
-		return false
-	}
-	return true
+	host, _, _ := chain.SplitPkgSubPath(target)
+	return host != s.hostPkg
 }
 
 func validSymbol(s string, max int) bool {
@@ -1007,28 +1005,68 @@ func validSymbol(s string, max int) bool {
 	return true
 }
 
-func validTarget(s string) bool {
-	if len(s) < len("gno.land/r/a") || len(s) > MaxTargetLen {
+func validRealmPath(s string) bool {
+	const prefix = "gno.land/r/"
+	if len(s) <= len(prefix) || len(s) > MaxTargetLen || !strings.HasPrefix(s, prefix) {
 		return false
 	}
-	if !strings.HasPrefix(s, "gno.land/r/") {
-		return false
-	}
-	hashes := 0
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c == '#' {
-			hashes++
-			if hashes > 1 {
+	rest := s[len(prefix):]
+	start := 0
+	for i := 0; i <= len(rest); i++ {
+		if i == len(rest) || rest[i] == '/' {
+			if i == start {
 				return false
 			}
+			start = i + 1
 			continue
 		}
+		c := rest[i]
 		ok := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
-			c == '/' || c == '_' || c == '.' || c == '-'
+			c == '_' || c == '.' || c == '-'
 		if !ok {
 			return false
 		}
+	}
+	return true
+}
+
+func validSubpath(s string) bool {
+	if s == "" {
+		return false
+	}
+	start := 0
+	for i := 0; i <= len(s); i++ {
+		if i == len(s) || s[i] == '/' {
+			seg := s[start:i]
+			if len(seg) == 0 {
+				return false
+			}
+			for j := 0; j < len(seg); j++ {
+				c := seg[j]
+				alnum := (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+				if (j == 0 || j == len(seg)-1) && !alnum {
+					return false
+				}
+				if !alnum && c != '_' && c != '.' && c != '-' {
+					return false
+				}
+			}
+			start = i + 1
+		}
+	}
+	return true
+}
+
+func validTarget(s string) bool {
+	if len(s) > MaxTargetLen {
+		return false
+	}
+	host, sub, hasSub := chain.SplitPkgSubPath(s)
+	if !validRealmPath(host) {
+		return false
+	}
+	if hasSub && !validSubpath(sub) {
+		return false
 	}
 	return true
 }

@@ -86,10 +86,12 @@ func TestNewBoundaries(cur realm, t *testing.T) {
 		{pkg, addr, alice, "treasury", ok, 1, 0, nil},
 		{pkg, addr, alice, "treasury", ok, 2, MaxDelay, nil},
 		{"gno.land/p/nt/multisig/v0", addr, alice, "treasury", ok, 1, 0, ErrHost},
+		{"gno.land/r/", addr, alice, "treasury", ok, 1, 0, ErrHost},
 		{"gno.land/r/nt/multisig/v0#s", addr, alice, "treasury", ok, 1, 0, ErrHost},
 		{pkg, alice, alice, "treasury", ok, 1, 0, ErrHost},
 		{pkg, addr, "", "treasury", ok, 1, 0, ErrInvalidAddress},
 		{pkg, addr, alice, "", ok, 1, 0, ErrName},
+		{pkg, addr, alice, "   ", ok, 1, 0, ErrName},
 		{pkg, addr, alice, strings.Repeat("n", MaxNameLen+1), ok, 1, 0, ErrName},
 		{pkg, addr, alice, "bad\nname", ok, 1, 0, ErrName},
 		{pkg, addr, alice, "treasury", "", 1, 0, ErrInvalidAddress},
@@ -156,11 +158,25 @@ func TestBindBoundaries(cur realm, t *testing.T) {
 	as(alice, cur, func(cur realm) {
 		_, err = raw.ProposeCoin(0, cur, dest, "ugnot", 1, t0+100, "", t0)
 		uassert.ErrorContains(t, err, ErrUnbound.Error())
+		_, err = raw.CheckExecute(0, cur, 1, t0)
+		uassert.ErrorContains(t, err, ErrUnbound.Error())
 		_, err = raw.Execute(0, cur, 1, t0)
+		uassert.ErrorContains(t, err, ErrUnbound.Error())
+		_, err = raw.Consume(0, cur, 1)
 		uassert.ErrorContains(t, err, ErrUnbound.Error())
 	})
 	err = none.Approve(0, cur, 1, t0)
 	uassert.ErrorContains(t, err, ErrUnbound.Error())
+	_, err = none.Consume(0, cur, 1)
+	uassert.ErrorContains(t, err, ErrUnbound.Error())
+	_, err = none.View(1)
+	uassert.ErrorContains(t, err, ErrUnbound.Error())
+
+	longPkg := "gno.land/r/" + strings.Repeat("a", MaxTargetLen-len("gno.land/r/")-2)
+	longSafe, err := New(longPkg, chain.PackageAddress(longPkg), alice, "long", alice.String(), 1, 0)
+	urequire.NoError(t, err)
+	_, err = longSafe.Bind(1)
+	uassert.ErrorContains(t, err, ErrHost.Error())
 }
 
 func TestProposalKindsAndErrors(cur realm, t *testing.T) {
@@ -245,6 +261,10 @@ func TestProposalKindsAndErrors(cur realm, t *testing.T) {
 			_, err := s.ProposeCall(0, cur, worker, "payload", t0+100, "", t0)
 			return err
 		}, nil},
+		{"call sub", func(cur realm) error {
+			_, err := s.ProposeCall(0, cur, worker+"#sub/1", "payload", t0+100, "", t0)
+			return err
+		}, nil},
 		{"call empty payload", func(cur realm) error {
 			_, err := s.ProposeCall(0, cur, worker, "", t0+100, "", t0)
 			return err
@@ -267,6 +287,26 @@ func TestProposalKindsAndErrors(cur realm, t *testing.T) {
 		}, ErrTarget},
 		{"call two hash", func(cur realm) error {
 			_, err := s.ProposeCall(0, cur, "gno.land/r/demo/worker#a#b", "x", t0+100, "", t0)
+			return err
+		}, ErrTarget},
+		{"call empty sub", func(cur realm) error {
+			_, err := s.ProposeCall(0, cur, "gno.land/r/demo/worker#", "x", t0+100, "", t0)
+			return err
+		}, ErrTarget},
+		{"call bare hash", func(cur realm) error {
+			_, err := s.ProposeCall(0, cur, "gno.land/r/#", "x", t0+100, "", t0)
+			return err
+		}, ErrTarget},
+		{"call empty segment", func(cur realm) error {
+			_, err := s.ProposeCall(0, cur, "gno.land/r/demo//worker", "x", t0+100, "", t0)
+			return err
+		}, ErrTarget},
+		{"call trailing slash", func(cur realm) error {
+			_, err := s.ProposeCall(0, cur, "gno.land/r/demo/worker/", "x", t0+100, "", t0)
+			return err
+		}, ErrTarget},
+		{"call bad sub segment", func(cur realm) error {
+			_, err := s.ProposeCall(0, cur, "gno.land/r/demo/worker#-bad", "x", t0+100, "", t0)
 			return err
 		}, ErrTarget},
 		{"add", func(cur realm) error {
@@ -330,7 +370,7 @@ func TestProposalKindsAndErrors(cur realm, t *testing.T) {
 	})
 	err = s.validateDraft(draft{kind: Kind(99), expiresAt: t0 + 100}, t0)
 	uassert.ErrorContains(t, err, ErrKind.Error())
-	err = s.applyGovernance(&proposal{kind: Kind(99)})
+	err = s.validateGovernance(&proposal{kind: Kind(99)})
 	uassert.ErrorContains(t, err, ErrKind.Error())
 }
 
@@ -441,9 +481,17 @@ func TestSignerMembership(cur realm, t *testing.T) {
 		urequire.NoError(t, err)
 	})
 	uassert.False(t, s.IsSigner(alice))
+	// Self-removal must preserve alice's approval on the executed removal
+	// proposal itself, while stripping her approval from other pending ones.
+	rmView, err := s.View(remove)
+	urequire.NoError(t, err)
+	uassert.Equal(t, 2, len(rmView.Approvals))
 	n, err := s.ApprovalCount(spend)
 	urequire.NoError(t, err)
 	uassert.Equal(t, 1, n)
+	spendView, err := s.View(spend)
+	urequire.NoError(t, err)
+	uassert.False(t, spendView.Armed)
 	has, err := s.HasApproval(spend, alice)
 	urequire.NoError(t, err)
 	uassert.False(t, has)
@@ -485,6 +533,9 @@ func TestSignerMembership(cur realm, t *testing.T) {
 		_, err = s.Execute(0, cur, dropCarol, t0)
 		uassert.ErrorContains(t, err, ErrLastSigner.Error())
 	})
+	ready, err := s.Executable(dropCarol, t0)
+	urequire.NoError(t, err)
+	uassert.False(t, ready, "stale remove proposal must not report executable")
 	uassert.Equal(t, 2, s.SignerCount())
 	uassert.Equal(t, 2, s.Threshold())
 	view, err := s.View(dropCarol)
@@ -593,7 +644,7 @@ func TestPauseUnpause(cur realm, t *testing.T) {
 		uassert.ErrorContains(t, err, ErrPaused.Error())
 		_, err = s.Execute(0, cur, callID, t0)
 		uassert.ErrorContains(t, err, ErrPaused.Error())
-		_, err = s.ExecuteChecked(0, cur, coinID, t0, func(Effect) error { return ErrInsufficientBalance })
+		_, err = s.CheckExecute(0, cur, coinID, t0)
 		uassert.ErrorContains(t, err, ErrPaused.Error())
 	})
 	uassert.True(t, s.Paused())
@@ -632,7 +683,7 @@ func TestPauseUnpause(cur realm, t *testing.T) {
 	uassert.ErrorContains(t, err, ErrNotConsumable.Error())
 }
 
-func TestConsumeAndAfford(cur realm, t *testing.T) {
+func TestConsumeAndCheckExecute(cur realm, t *testing.T) {
 	s := newSafe(1, 0)
 	worker := "gno.land/r/demo/worker"
 	var id int64
@@ -643,15 +694,17 @@ func TestConsumeAndAfford(cur realm, t *testing.T) {
 		_, err = s.Consume(0, cur, id)
 		uassert.ErrorContains(t, err, ErrNotConsumable.Error())
 		urequire.NoError(t, s.Approve(0, cur, id, t0))
-		_, err = s.ExecuteChecked(0, cur, id, t0, func(Effect) error { return ErrInsufficientBalance })
-		uassert.ErrorContains(t, err, ErrInsufficientBalance.Error())
+		eff, err := s.CheckExecute(0, cur, id, t0)
+		urequire.NoError(t, err)
+		uassert.Equal(t, int64(3), eff.Amount)
 	})
+	// CheckExecute must not mutate proposal status or nonce.
 	view, err := s.View(id)
 	urequire.NoError(t, err)
 	uassert.Equal(t, StatusPending.String(), view.Status.String())
 	uassert.Equal(t, int64(0), s.Nonce())
 	as(alice, cur, func(cur realm) {
-		eff, err := s.ExecuteChecked(0, cur, id, t0, func(Effect) error { return nil })
+		eff, err := s.Execute(0, cur, id, t0)
 		urequire.NoError(t, err)
 		uassert.Equal(t, int64(3), eff.Amount)
 	})
@@ -681,8 +734,6 @@ func TestConsumeAndAfford(cur realm, t *testing.T) {
 		urequire.NoError(t, paused.Approve(0, cur, pauseID, t0))
 		_, err = paused.Execute(0, cur, pauseID, t0)
 		urequire.NoError(t, err)
-		asHold := pid
-		_ = asHold
 		_, err = paused.Consume(0, cur, pid)
 		uassert.ErrorContains(t, err, ErrPaused.Error())
 	})
@@ -894,69 +945,151 @@ func TestRecentOrder(cur realm, t *testing.T) {
 	uassert.Equal(t, "treasury", s.Name())
 }
 
+func TestRealmSignerAndRelayingRealmRejected(cur realm, t *testing.T) {
+	const daoPkg = "gno.land/r/demo/dao"
+	const relayPkg = "gno.land/r/demo/relay"
+	daoAddr := chain.PackageAddress(daoPkg)
+	s := newConfigured(1, 0, alice.String()+","+daoAddr.String())
+
+	var id int64
+	as(alice, cur, func(cur realm) {
+		var err error
+		id, err = s.ProposeCoin(0, cur, dest, "ugnot", 1, t0+1000, "", t0)
+		urequire.NoError(t, err)
+	})
+
+	// A foreign published realm cannot act on alice's behalf even while
+	// OriginCaller is alice, because auth checks cur.Previous().Address().
+	testing.SetOriginCaller(alice)
+	asCode(relayPkg, cur, func(cur realm) {
+		_, err := s.ProposeCoin(0, cur, dest, "ugnot", 1, t0+1000, "", t0)
+		uassert.ErrorContains(t, err, ErrNotSigner.Error())
+		uassert.ErrorContains(t, s.Approve(0, cur, id, t0), ErrNotSigner.Error())
+		uassert.ErrorContains(t, s.Revoke(0, cur, id, t0), ErrNotSigner.Error())
+		uassert.ErrorContains(t, s.Cancel(0, cur, id, t0), ErrNotSigner.Error())
+		_, err = s.CheckExecute(0, cur, id, t0)
+		uassert.ErrorContains(t, err, ErrNotSigner.Error())
+		_, err = s.Execute(0, cur, id, t0)
+		uassert.ErrorContains(t, err, ErrNotSigner.Error())
+		uassert.ErrorContains(t, s.WatchDenom(0, cur, "ugnot"), ErrNotSigner.Error())
+	})
+
+	// A deployed /r/ realm explicitly listed as a signer IS accepted.
+	asCode(daoPkg, cur, func(cur realm) {
+		urequire.NoError(t, s.Approve(0, cur, id, t0))
+		_, err := s.Execute(0, cur, id, t0)
+		urequire.NoError(t, err)
+	})
+	uassert.Equal(t, int64(1), s.Nonce())
+}
+
+func TestRemovalDisarmsAndRestartsTimelock(cur realm, t *testing.T) {
+	s := newSafe(2, 100)
+	var spend, rm int64
+	as(alice, cur, func(cur realm) {
+		var err error
+		spend, err = s.ProposeCoin(0, cur, dest, "ugnot", 1, t0+1000, "", t0)
+		urequire.NoError(t, err)
+		rm, err = s.ProposeRemoveSigner(0, cur, carol, t0+1000, "", t0)
+		urequire.NoError(t, err)
+		urequire.NoError(t, s.Approve(0, cur, spend, t0))
+		urequire.NoError(t, s.Approve(0, cur, rm, t0))
+	})
+	as(carol, cur, func(cur realm) {
+		urequire.NoError(t, s.Approve(0, cur, spend, t0))
+	})
+	view, err := s.View(spend)
+	urequire.NoError(t, err)
+	uassert.True(t, view.Armed)
+	uassert.Equal(t, t0, view.ArmedAt)
+
+	as(bob, cur, func(cur realm) {
+		urequire.NoError(t, s.Approve(0, cur, rm, t0))
+		_, err := s.Execute(0, cur, rm, t0+100)
+		urequire.NoError(t, err)
+	})
+	// Removing carol drops spend below threshold and clears its arming.
+	view, err = s.View(spend)
+	urequire.NoError(t, err)
+	uassert.False(t, view.Armed)
+	uassert.Equal(t, int64(0), view.ArmedAt)
+
+	as(bob, cur, func(cur realm) {
+		urequire.NoError(t, s.Approve(0, cur, spend, t0+110))
+		_, err := s.Execute(0, cur, spend, t0+209)
+		uassert.ErrorContains(t, err, ErrTimelock.Error())
+		_, err = s.Execute(0, cur, spend, t0+210)
+		urequire.NoError(t, err)
+	})
+}
+
 func TestPropertySequence(cur realm, t *testing.T) {
-	s := newSafe(1, 0)
+	s := newSafe(2, 10)
+	worker := "gno.land/r/demo/worker"
 	seed := uint64(0xC0FFEE)
 	executed := 0
 	var lastExec int64
-	for step := 0; step < 80; step++ {
+	now := t0
+	for step := 0; step < 120; step++ {
 		seed = seed*6364136223846793005 + 1
-		now := t0 + int64(step)
-		op := pick(seed, 6)
+		now += int64(pick(seed>>24, 10))
+		op := pick(seed, 10)
 		who := []address{alice, bob, carol, dave}[pick(seed>>8, 4)]
 		ids := livePending(s)
 		as(who, cur, func(cur realm) {
 			switch op {
 			case 0:
-				if s.PendingCount() >= MaxPending {
-					return
+				if len(ids) < 4 {
+					_, _ = s.ProposeCoin(0, cur, dest, "ugnot", 1, now+500, "", now)
 				}
-				_, _ = s.ProposeCoin(0, cur, dest, "ugnot", 1, now+20_000, "", now)
 			case 1:
-				if len(ids) == 0 {
-					return
+				if len(ids) < 4 {
+					_, _ = s.ProposeCall(0, cur, worker, "p", now+500, "", now)
 				}
-				_ = s.Approve(0, cur, ids[pick(seed, len(ids))], now)
-			case 2:
-				if len(ids) == 0 {
-					return
+			case 2, 3, 4:
+				if len(ids) > 0 {
+					_ = s.Approve(0, cur, ids[pick(seed>>4, len(ids))], now)
 				}
-				_ = s.Revoke(0, cur, ids[pick(seed, len(ids))], now)
-			case 3:
-				if len(ids) == 0 {
-					return
+			case 5:
+				if len(ids) > 0 {
+					_ = s.Revoke(0, cur, ids[pick(seed>>4, len(ids))], now)
 				}
-				id := ids[pick(seed, len(ids))]
-				if _, err := s.Execute(0, cur, id, now); err == nil {
-					executed++
-					lastExec = id
-				}
-			case 4:
-				if len(ids) == 0 {
-					return
-				}
-				_ = s.Cancel(0, cur, ids[pick(seed, len(ids))], now)
-			default:
-				target := []address{bob, carol, dave}[pick(seed>>16, 3)]
-				var id int64
-				var err error
-				if s.IsSigner(target) {
-					if s.SignerCount() <= s.Threshold() {
-						return
+			case 6, 7:
+				if len(ids) > 0 {
+					id := ids[pick(seed>>4, len(ids))]
+					if _, err := s.Execute(0, cur, id, now); err == nil {
+						executed++
+						lastExec = id
 					}
-					id, err = s.ProposeRemoveSigner(0, cur, target, now+20_000, "", now)
-				} else if s.SignerCount() < MaxSigners {
-					id, err = s.ProposeAddSigner(0, cur, target, now+20_000, "", now)
 				}
-				if err != nil {
+			case 8:
+				if len(ids) > 0 {
+					_ = s.Cancel(0, cur, ids[pick(seed>>4, len(ids))], now)
+				}
+			default:
+				if len(ids) >= 4 {
 					return
 				}
-				if err = s.Approve(0, cur, id, now); err != nil {
-					return
-				}
-				if _, err = s.Execute(0, cur, id, now); err == nil {
-					executed++
-					lastExec = id
+				subOp := pick(seed>>16, 4)
+				switch subOp {
+				case 0:
+					if s.Paused() {
+						_, _ = s.ProposeUnpause(0, cur, now+500, "", now)
+					} else {
+						_, _ = s.ProposePause(0, cur, now+500, "", now)
+					}
+				case 1:
+					target := []address{bob, carol, dave}[pick(seed>>20, 3)]
+					if s.IsSigner(target) {
+						_, _ = s.ProposeRemoveSigner(0, cur, target, now+500, "", now)
+					} else {
+						_, _ = s.ProposeAddSigner(0, cur, target, now+500, "", now)
+					}
+				case 2:
+					th := 1 + pick(seed>>20, s.SignerCount())
+					_, _ = s.ProposeThreshold(0, cur, th, now+500, "", now)
+				default:
+					_, _ = s.ProposeDelay(0, cur, int64(pick(seed>>20, 15)), now+500, "", now)
 				}
 			}
 		})
@@ -969,19 +1102,38 @@ func TestPropertySequence(cur realm, t *testing.T) {
 		if s.Nonce() != int64(executed) {
 			t.Errorf("step %d nonce %d executed %d", step, s.Nonce(), executed)
 		}
-		for _, view := range s.Recent(MaxRetained) {
+		recent := s.Recent(MaxRetained)
+		for i, view := range recent {
+			if i > 0 && view.ID >= recent[i-1].ID {
+				t.Errorf("step %d non-monotonic ids", step)
+			}
 			n, err := s.ApprovalCount(view.ID)
 			urequire.NoError(t, err)
 			live := 0
 			for _, a := range view.Approvals {
 				if s.IsSigner(a) {
 					live++
-				} else if ok, _ := s.HasApproval(view.ID, a); ok {
-					t.Errorf("step %d approval from a non-signer", step)
+				} else {
+					if view.Status == StatusPending {
+						t.Errorf("step %d pending proposal %d holds non-signer approval", step, view.ID)
+					}
+					if ok, _ := s.HasApproval(view.ID, a); ok {
+						t.Errorf("step %d approval from a non-signer", step)
+					}
 				}
 			}
 			if live != n {
 				t.Errorf("step %d approval count", step)
+			}
+			if view.Status == StatusPending {
+				if view.Armed != (n >= s.Threshold()) {
+					t.Errorf("step %d proposal %d armed=%v but approvals=%d threshold=%d", step, view.ID, view.Armed, n, s.Threshold())
+				}
+			}
+			if view.Status == StatusExecuted {
+				if exec, _ := s.Executable(view.ID, now); exec {
+					t.Errorf("step %d executed proposal %d reported executable", step, view.ID)
+				}
 			}
 		}
 		if lastExec != 0 {
@@ -1134,8 +1286,24 @@ func TestRemainingBranches(cur realm, t *testing.T) {
 		id, err := epoch.ProposeCoin(0, cur, dest, "ugnot", 1, 100, "", 0)
 		urequire.NoError(t, err)
 		urequire.NoError(t, epoch.Approve(0, cur, id, 0))
+		v, err := epoch.View(id)
+		urequire.NoError(t, err)
+		uassert.True(t, v.Armed)
+		uassert.Equal(t, int64(0), v.ArmedAt)
 		_, err = epoch.Execute(0, cur, id, 0)
-		uassert.ErrorContains(t, err, ErrTimelock.Error())
+		urequire.NoError(t, err)
+
+		// Negative timestamps are rejected cleanly.
+		uassert.ErrorContains(t, epoch.Approve(0, cur, id, -1), ErrExpiry.Error())
+		uassert.ErrorContains(t, epoch.Revoke(0, cur, id, -1), ErrExpiry.Error())
+		uassert.ErrorContains(t, epoch.Cancel(0, cur, id, -1), ErrExpiry.Error())
+		_, err = epoch.CheckExecute(0, cur, id, -1)
+		uassert.ErrorContains(t, err, ErrExpiry.Error())
+		_, err = epoch.Execute(0, cur, id, -1)
+		uassert.ErrorContains(t, err, ErrExpiry.Error())
+		ok, err := epoch.Executable(id, -1)
+		urequire.NoError(t, err)
+		uassert.False(t, ok)
 	})
 
 	hist := newSafe(1, 0)

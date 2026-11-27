@@ -8,6 +8,7 @@ package multisig
 import (
 	"chain"
 	"chain/banker"
+	"chain/runtime/unsafe"
 	"strconv"
 	"time"
 
@@ -50,29 +51,40 @@ func Create(cur realm, name, signers string, threshold int, delay int64) int64 {
 	return id
 }
 
-// Deposit forwards denom/amount from this message's -send envelope to
-// the safe. The call must come from the signing user. Realms that
-// already hold coins send them straight to SafeAddress instead.
-func Deposit(cur realm, safeID int64, denom string, amount int64) {
+// Deposit forwards every coin in this message's -send envelope to the
+// safe so nothing can be stranded at the factory address. The call must
+// come directly from the signing user. Realms that already hold coins
+// send them straight to SafeAddress instead.
+func Deposit(cur realm, safeID int64) {
 	if !cur.Previous().IsUserCall() {
 		panic(msig.ErrDeposit.Error())
 	}
 	s := mustSafe(safeID)
-	if amount <= 0 {
+	sent := unsafe.OriginSend()
+	if len(sent) == 0 {
 		panic(msig.ErrAmount.Error())
 	}
-	if !msig.ValidDenom(denom) {
-		panic(msig.ErrDenom.Error())
+	for _, c := range sent {
+		if c.Amount <= 0 {
+			panic(msig.ErrAmount.Error())
+		}
+		if !msig.ValidDenom(c.Denom) {
+			panic(msig.ErrDenom.Error())
+		}
 	}
 	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
-	b.SendCoins(cur.Address(), s.Address(), chain.NewCoins(chain.NewCoin(denom, amount)))
-	chain.Emit(
-		"SafeDeposit",
-		"safe", strconv.FormatInt(safeID, 10),
-		"from", cur.Previous().Address().String(),
-		"denom", denom,
-		"amount", strconv.FormatInt(amount, 10),
-	)
+	b.SendCoins(cur.Address(), s.Address(), sent)
+	from := cur.Previous().Address().String()
+	sid := strconv.FormatInt(safeID, 10)
+	for _, c := range sent {
+		chain.Emit(
+			"SafeDeposit",
+			"safe", sid,
+			"from", from,
+			"denom", c.Denom,
+			"amount", strconv.FormatInt(c.Amount, 10),
+		)
+	}
 }
 
 // ProposeCoin queues a native-coin payment. expiresAt is a unix second.
@@ -160,9 +172,11 @@ func Cancel(cur realm, safeID, propID int64) {
 // timelock has elapsed. It runs at most once.
 func Execute(cur realm, safeID, propID int64) {
 	s := mustSafe(safeID)
-	eff, err := s.ExecuteChecked(0, cur, propID, nowUnix(), func(eff msig.Effect) error {
-		return canAfford(s, eff)
-	})
+	now := nowUnix()
+	eff, err := s.CheckExecute(0, cur, propID, now)
+	must(err)
+	must(canAfford(s, eff))
+	eff, err = s.Execute(0, cur, propID, now)
 	must(err)
 	apply(cur, s, eff)
 }
@@ -265,10 +279,10 @@ func applyGRC20(cur realm, s *msig.Safe, eff msig.Effect) {
 }
 
 func mustSafe(id int64) *msig.Safe {
-	if id <= 0 || int(id) > len(safes) || safes[id-1] == nil {
+	if id <= 0 || id > int64(len(safes)) || safes[int(id-1)] == nil {
 		panic(msig.ErrUnknownSafe.Error())
 	}
-	return safes[id-1]
+	return safes[int(id-1)]
 }
 
 func must(err error) {

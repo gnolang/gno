@@ -18,7 +18,7 @@ const (
 	MaxPayloadLen = 512
 	MaxDenomLen   = 274
 	MaxTokenLen   = 256
-	MaxTargetLen  = 200
+	MaxTargetLen  = 256
 
 	// MaxDelay is 30 days. A longer delay belongs in a new version.
 	MaxDelay int64 = 30 * 24 * 60 * 60
@@ -130,6 +130,7 @@ type ProposalView struct {
 	CreatedAt int64
 	Delay     int64
 	ExpiresAt int64
+	Armed     bool
 	ArmedAt   int64
 	Memo      string
 	To        address
@@ -153,6 +154,7 @@ type proposal struct {
 	createdAt    int64
 	delay        int64
 	expiresAt    int64
+	armed        bool
 	armedAt      int64
 	memo         string
 	to           address
@@ -179,6 +181,7 @@ func (p *proposal) view() ProposalView {
 		CreatedAt: p.createdAt,
 		Delay:     p.delay,
 		ExpiresAt: p.expiresAt,
+		Armed:     p.armed,
 		ArmedAt:   p.armedAt,
 		Memo:      p.memo,
 		To:        p.to,

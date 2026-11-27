@@ -20,7 +20,7 @@ func Render(path string) string {
 	}
 	parts := strings.Split(path, "/")
 	safeID, err := strconv.ParseInt(parts[0], 10, 64)
-	if err != nil || safeID <= 0 || int(safeID) > len(safes) {
+	if err != nil || safeID <= 0 || safeID > int64(len(safes)) || safes[int(safeID-1)] == nil {
 		return "# Multisig treasury\n\nUnknown safe.\n"
 	}
 	if len(parts) == 1 {
@@ -51,16 +51,16 @@ func renderHome() string {
 		id := strconv.FormatInt(s.ID(), 10)
 		b.WriteString("- [" + sanitize.InlineText(s.Name()) + "](" + rel() + ":" + id + ")")
 		b.WriteString(" — " + strconv.Itoa(s.Threshold()) + " of " + strconv.Itoa(s.SignerCount()))
-		b.WriteString(" — `" + sanitize.InlineText(s.Address().String()) + "`\n")
+		b.WriteString(" — " + sanitize.InlineCode(s.Address().String()) + "\n")
 	}
 	return b.String()
 }
 
 func renderSafe(id int64) string {
-	s := safes[id-1]
+	s := safes[int(id-1)]
 	b := new(strings.Builder)
 	b.WriteString("# " + sanitize.InlineText(s.Name()) + "\n\n")
-	b.WriteString("Address: `" + sanitize.InlineText(s.Address().String()) + "`\n\n")
+	b.WriteString("Address: " + sanitize.InlineCode(s.Address().String()) + "\n\n")
 	b.WriteString("Threshold: " + strconv.Itoa(s.Threshold()) + " of " + strconv.Itoa(s.SignerCount()) + "\n\n")
 	b.WriteString("Timelock for new proposals: " + strconv.FormatInt(s.Delay(), 10) + " seconds\n\n")
 	if s.Paused() {
@@ -71,23 +71,23 @@ func renderSafe(id int64) string {
 	b.WriteString("Executions: " + strconv.FormatInt(s.Nonce(), 10) + "\n\n")
 	b.WriteString("## Signers\n\n")
 	for i := 0; i < s.SignerCount(); i++ {
-		b.WriteString("- `" + sanitize.InlineText(s.SignerAt(i).String()) + "`\n")
+		b.WriteString("- " + sanitize.InlineCode(s.SignerAt(i).String()) + "\n")
 	}
 	b.WriteString("\n## Balances\n\n")
 	b.WriteString("- ugnot: " + strconv.FormatInt(bankerGet(s.Address(), "ugnot"), 10) + "\n")
 	for _, denom := range s.WatchedDenoms() {
-		if !msig.ValidDenom(denom) {
+		if denom == "ugnot" || !msig.ValidDenom(denom) {
 			continue
 		}
-		b.WriteString("- " + sanitize.InlineText(denom) + ": " + strconv.FormatInt(bankerGet(s.Address(), denom), 10) + "\n")
+		b.WriteString("- " + sanitize.InlineCode(denom) + ": " + strconv.FormatInt(bankerGet(s.Address(), denom), 10) + "\n")
 	}
 	for _, key := range s.WatchedTokens() {
 		tok := grc20reg.Get(key)
 		if tok == nil {
-			b.WriteString("- " + sanitize.InlineText(key) + ": not in the registry\n")
+			b.WriteString("- " + sanitize.InlineCode(key) + ": not in the registry\n")
 			continue
 		}
-		b.WriteString("- " + sanitize.InlineText(tok.GetSymbol()) + ": " + strconv.FormatInt(tok.BalanceOf(s.Address()), 10) + "\n")
+		b.WriteString("- " + sanitize.InlineText(tok.GetSymbol()) + " (" + sanitize.InlineCode(key) + "): " + strconv.FormatInt(tok.BalanceOf(s.Address()), 10) + "\n")
 	}
 	b.WriteString("\nSend native coins to the address above. Do not attach them to a call on the factory unless you use Deposit.\n\n")
 	b.WriteString("## Proposals\n\n")
@@ -109,7 +109,7 @@ func renderSafe(id int64) string {
 }
 
 func renderProposal(safeID, propID int64) string {
-	s := safes[safeID-1]
+	s := safes[int(safeID-1)]
 	view, err := s.View(propID)
 	if err != nil {
 		return "# Multisig treasury\n\nUnknown proposal.\n"
@@ -121,14 +121,14 @@ func renderProposal(safeID, propID int64) string {
 	b.WriteString("Safe: [" + sanitize.InlineText(s.Name()) + "](" + rel() + ":" + strconv.FormatInt(safeID, 10) + ")\n\n")
 	b.WriteString("Kind: " + view.Kind.String() + "\n\n")
 	b.WriteString("Status: " + st.String() + "\n\n")
-	b.WriteString("Proposer: `" + sanitize.InlineText(view.Proposer.String()) + "`\n\n")
+	b.WriteString("Proposer: " + sanitize.InlineCode(view.Proposer.String()) + "\n\n")
 	if view.Memo != "" {
 		b.WriteString("Memo: " + sanitize.InlineText(view.Memo) + "\n\n")
 	}
 	b.WriteString("Created: " + strconv.FormatInt(view.CreatedAt, 10) + "\n\n")
 	b.WriteString("Expires: " + strconv.FormatInt(view.ExpiresAt, 10) + "\n\n")
 	b.WriteString("Timelock: " + strconv.FormatInt(view.Delay, 10) + " seconds")
-	if view.ArmedAt != 0 {
+	if view.Armed {
 		b.WriteString(", armed at " + strconv.FormatInt(view.ArmedAt, 10))
 	}
 	b.WriteString("\n\n")
@@ -139,11 +139,11 @@ func renderProposal(safeID, propID int64) string {
 		b.WriteString("None.\n\n")
 	}
 	for _, a := range view.Approvals {
-		mark := "expired signer"
+		mark := "former signer"
 		if s.IsSigner(a) {
 			mark = "signer"
 		}
-		b.WriteString("- `" + sanitize.InlineText(a.String()) + "` (" + mark + ")\n")
+		b.WriteString("- " + sanitize.InlineCode(a.String()) + " (" + mark + ")\n")
 	}
 	b.WriteString("\n")
 	sid := strconv.FormatInt(safeID, 10)
@@ -155,21 +155,21 @@ func renderProposal(safeID, propID int64) string {
 func writeAction(b *strings.Builder, view msig.ProposalView) {
 	switch view.Kind {
 	case msig.KindCoin:
-		b.WriteString("Send " + strconv.FormatInt(view.Amount, 10) + " " + sanitize.InlineText(view.Denom))
-		b.WriteString(" to `" + sanitize.InlineText(view.To.String()) + "`\n\n")
+		b.WriteString("Send " + strconv.FormatInt(view.Amount, 10) + " " + sanitize.InlineCode(view.Denom))
+		b.WriteString(" to " + sanitize.InlineCode(view.To.String()) + "\n\n")
 	case msig.KindGRC20:
-		b.WriteString("Send " + strconv.FormatInt(view.Amount, 10) + " of `" + sanitize.InlineText(view.TokenKey) + "`")
-		b.WriteString(" to `" + sanitize.InlineText(view.To.String()) + "`\n\n")
+		b.WriteString("Send " + strconv.FormatInt(view.Amount, 10) + " of " + sanitize.InlineCode(view.TokenKey))
+		b.WriteString(" to " + sanitize.InlineCode(view.To.String()) + "\n\n")
 	case msig.KindCall:
-		b.WriteString("Authorize `" + sanitize.InlineText(view.TargetPkg) + "`")
+		b.WriteString("Authorize " + sanitize.InlineCode(view.TargetPkg))
 		b.WriteString(" to pull payload: " + sanitize.InlineText(view.Payload) + "\n\n")
 		if view.Consumed {
 			b.WriteString("Payload already consumed.\n\n")
 		}
 	case msig.KindAddSigner:
-		b.WriteString("Add signer `" + sanitize.InlineText(view.Signer.String()) + "`\n\n")
+		b.WriteString("Add signer " + sanitize.InlineCode(view.Signer.String()) + "\n\n")
 	case msig.KindRemoveSigner:
-		b.WriteString("Remove signer `" + sanitize.InlineText(view.Signer.String()) + "`\n\n")
+		b.WriteString("Remove signer " + sanitize.InlineCode(view.Signer.String()) + "\n\n")
 	case msig.KindThreshold:
 		b.WriteString("Set threshold to " + strconv.Itoa(view.Threshold) + "\n\n")
 	case msig.KindDelay:
@@ -186,11 +186,7 @@ func help(fn, safeID, propID string) string {
 }
 
 func rel() string {
-	const prefix = "gno.land"
-	if strings.HasPrefix(realmPath, prefix) {
-		return strings.TrimPrefix(realmPath, prefix)
-	}
-	return realmPath
+	return strings.TrimPrefix(realmPath, "gno.land")
 }
 
 func bankerGet(addr address, denom string) int64 {

@@ -40,15 +40,16 @@ func main(cur realm) {
 	}
 	testing.IssueCoins(multisig.SafeAddress(id), chain.NewCoins(chain.NewCoin("ugnot", 4)))
 
-	// maketx run: OriginCaller is the signer, but the frame is this
-	// package, so Previous() is not the user and IsUserCall is false.
-	asRun(t0, alice, pkg)
-	expectPanic("direct user call", func() { multisig.Deposit(cross(cur), id, "ugnot", 1) })
+	// Relaying published realm: OriginCaller is alice, but cur.Previous()
+	// is this realm (pkg), so Deposit rejects IsUserCall and signer-gated
+	// calls reject because this realm's address is not a signer.
+	asCode(t0, alice, pkg)
+	expectPanic("direct user call", func() { multisig.Deposit(cross(cur), id) })
 	expectPanic("not a signer", func() { multisig.Approve(cross(cur), id, 1) })
 	expectPanic("not a signer", func() { multisig.Execute(cross(cur), id, 1) })
 
 	// A different realm, even with the user's origin, is not the signer.
-	asRun(t0, alice, "gno.land/r/demo/evil")
+	asCode(t0, alice, "gno.land/r/demo/evil")
 	expectPanic("not a signer", func() { multisig.ProposeCoin(cross(cur), id, me, "ugnot", 1, t0+1000, "") })
 
 	asUser(t0, alice)
@@ -73,8 +74,19 @@ func main(cur realm) {
 	}
 
 	// Impersonation: origin is alice, caller realm is evil.
-	asRun(t0, alice, "gno.land/r/demo/evil")
+	asCode(t0, alice, "gno.land/r/demo/evil")
 	expectPanic("unauthorized", func() { multisig.Consume(cross(cur), id, call) })
+
+	// A published realm explicitly listed as a signer can act on its own behalf.
+	asUser(t0, alice)
+	realmSafe := multisig.Create(cross(cur), "dao-safe", me.String(), 1, 0)
+	asCode(t0, alice, pkg)
+	rprop := multisig.ProposeDelay(cross(cur), realmSafe, 5, t0+1000, "")
+	multisig.Approve(cross(cur), realmSafe, rprop)
+	multisig.Execute(cross(cur), realmSafe, rprop)
+	if multisig.SafeDelay(realmSafe) != 5 {
+		panic("realm signer delay")
+	}
 
 	ctx := testing.GetContext()
 	ctx.Time = time.Unix(t0, 0)
@@ -111,7 +123,7 @@ func asUser(unix int64, user address) {
 	testing.SetContext(ctx)
 }
 
-func asRun(unix int64, origin address, pkgPath string) {
+func asCode(unix int64, origin address, pkgPath string) {
 	ctx := testing.GetContext()
 	ctx.Time = time.Unix(unix, 0)
 	ctx.CurrentRealm = testing.NewCodeRealm(pkgPath)
