@@ -1,0 +1,26 @@
+// Defer runs LIFO. A non-named result is copied before deferred calls; a
+// named result observes them.
+package main
+
+func main() {
+	println(copied())
+	println(named())
+	defer println(1)
+	defer println(2)
+	println(3)
+}
+
+func copied() int {
+	n := 0
+	defer func() { n += 1 }()
+	defer func() { n += 10 }()
+	n = 100
+	return n
+}
+
+func named() (n int) {
+	defer func() { n += 1 }()
+	defer func() { n += 10 }()
+	n = 100
+	return
+}

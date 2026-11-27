@@ -1,0 +1,7 @@
+// An unrecovered panic of a string value.
+package main
+
+func main() {
+	println("before")
+	panic("boom")
+}

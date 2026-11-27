@@ -1,0 +1,11 @@
+// Runtime integer division by zero. Constants are not used: 1/0 is rejected
+// at compile time by both toolchains.
+package main
+
+func main() {
+	a := 1
+	b := 0
+	println("before")
+	println(a / b)
+	println("after")
+}

@@ -1,0 +1,26 @@
+// Map lookup, delete, and len. Ranging is reduced to an order-independent sum.
+package main
+
+func main() {
+	m := map[string]int{"a": 1, "b": 2, "c": 3}
+	sum := 0
+	keys := 0
+	for k, v := range m {
+		sum += v
+		if k != "" {
+			keys++
+		}
+	}
+	println(sum, keys, len(m))
+	println(m["a"], m["missing"])
+	_, ok := m["missing"]
+	println(ok)
+	delete(m, "b")
+	delete(m, "missing")
+	_, ok = m["b"]
+	println(len(m), ok, m["c"])
+	var n map[int]int
+	println(n == nil, len(n))
+	_, ok = n[1]
+	println(ok)
+}

@@ -1,0 +1,19 @@
+// Integer conversions and integer-to-string conversions, including code
+// points outside the Unicode range (those become U+FFFD).
+package main
+
+func main() {
+	var x int64 = 256
+	println(int8(x))
+	var y int64 = -1
+	println(uint8(y))
+	var n int16 = 300
+	println(uint8(n))
+	println(string(rune(65)))
+	println(string(rune(0x1F600)) == "😀")
+	var big uint64 = 0x110000
+	println(string(big) == "\uFFFD")
+	println(string(-1) == "\uFFFD")
+	println(byte('A'))
+	println(rune('é'))
+}

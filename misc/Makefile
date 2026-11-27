@@ -37,11 +37,17 @@ fmt:
 ########################################
 # Test suite
 .PHONY: test
-test: _test.genstd
+test: _test.genstd _test.gnodiff
 
 .PHONY: _test.genstd
 _test.genstd:
 	go test ./genstd/... $(GOTEST_FLAGS)
+
+# Fast gnodiff tests only. The seed corpus is `make -C gnodiff corpus`
+# (or `make gnodiff` from the repo root) and is not part of this target.
+.PHONY: _test.gnodiff
+_test.gnodiff:
+	go -C gnodiff test ./... $(GOTEST_FLAGS)
 
 .PHONY: tidy
 tidy:

@@ -1,0 +1,30 @@
+// String length is in bytes. Ranging yields runes. A string converted to a
+// slice is a copy. Invalid UTF-8 ranges as U+FFFD.
+package main
+
+func main() {
+	s := "héllo"
+	println(len(s))
+	println(s[0] == 'h')
+	n := 0
+	var last int
+	for i, r := range s {
+		n++
+		last = int(r)
+		if n == 1 {
+			println(i, r == 'h')
+		}
+	}
+	println(n, last)
+	b := []byte(s)
+	b[0] = 'H'
+	println(s == "héllo")
+	raw := string([]byte{0xff, 'A'})
+	repl := 0
+	for _, r := range raw {
+		if r == '\uFFFD' {
+			repl++
+		}
+	}
+	println(repl, len(raw))
+}

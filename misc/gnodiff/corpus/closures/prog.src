@@ -1,0 +1,29 @@
+// Closures capture variables. The second loop relies on per-iteration
+// loop variables (Go 1.22), which Gno implements.
+package main
+
+func main() {
+	x := 1
+	inc := func() { x++ }
+	inc()
+	inc()
+	println(x)
+
+	fs := make([]func() int, 3)
+	for i := 0; i < 3; i++ {
+		i := i
+		fs[i] = func() int { return i }
+	}
+	println(fs[0](), fs[1](), fs[2]())
+
+	gs := make([]func() int, 3)
+	for i := 0; i < 3; i++ {
+		gs[i] = func() int { return i }
+	}
+	println(gs[0](), gs[1](), gs[2]())
+
+	add := func(n int) func(int) int {
+		return func(m int) int { return n + m }
+	}
+	println(add(10)(3))
+}

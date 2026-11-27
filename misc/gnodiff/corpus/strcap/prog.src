@@ -1,0 +1,11 @@
+// cap of a string converted to a slice. Gno sets cap == len for determinism.
+package main
+
+func main() {
+	b := []byte("hi")
+	r := []rune("hi")
+	println(len(b), cap(b), len(r), cap(r))
+	s := "héllo"
+	rb := []rune(s)
+	println(len(rb), rb[1] == 'é')
+}

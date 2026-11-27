@@ -1,0 +1,12 @@
+// Cap of a non-constant string converted to []rune. Gno sets cap == len so
+// the value does not depend on the allocator. gc may hand back spare capacity.
+// A constant conversion ([]rune("héllo")) agreed on this toolchain; the
+// variable below did not.
+// gnodiff:known string-to-[]rune uses cap == len in Gno; gc may use a larger cap
+package main
+
+func main() {
+	s := "héllo"
+	rb := []rune(s)
+	println(len(rb), cap(rb))
+}

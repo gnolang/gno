@@ -1,0 +1,26 @@
+// goto to a label in the same function. The skipped assignment stays
+// reachable from the compiler's point of view via flag().
+package main
+
+func flag() bool { return true }
+
+func main() {
+	n := 0
+	if flag() {
+		goto skip
+	}
+	n = 1
+skip:
+	n += 2
+	println(n)
+
+	i := 0
+loop:
+	if i == 3 {
+		goto done
+	}
+	i++
+	goto loop
+done:
+	println(i)
+}

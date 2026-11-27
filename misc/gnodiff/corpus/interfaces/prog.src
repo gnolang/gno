@@ -1,0 +1,33 @@
+// Interface type assertions, a nil pointer stored in an interface, and a
+// type switch.
+package main
+
+type tally struct{ N int }
+
+func (t tally) V() int { return t.N }
+
+func main() {
+	var i interface{} = tally{3}
+	v, ok := i.(tally)
+	println(ok, v.V())
+	_, ok = i.(*tally)
+	println(ok)
+
+	var p *tally
+	var j interface{} = p
+	println(p == nil, j == nil)
+
+	var k interface{}
+	println(k == nil)
+	_, ok = k.(tally)
+	println(ok)
+
+	switch i.(type) {
+	case tally:
+		println(1)
+	case *tally:
+		println(2)
+	default:
+		println(3)
+	}
+}
