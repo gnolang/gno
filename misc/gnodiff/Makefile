@@ -4,7 +4,7 @@
 # `corpus` runs every seed through both toolchains and is intentionally not
 # part of the default `make test` / `go test` path.
 
-.PHONY: test corpus fuzz
+.PHONY: test corpus run-generated fuzz
 
 test:
 	go test ./...
@@ -12,8 +12,8 @@ test:
 corpus:
 	go run . -out gnodiff-out
 
-generate:
-	go run . -generate 2000 -seed 1 -out gnodiff-out/generated
+run-generated:
+	go run . -generate 2000 -seed 1 -timeout 30s -out gnodiff-out/generated
 
 fuzz:
 	go test -fuzz=FuzzGenerated -fuzztime=30s ./internal/diff/
