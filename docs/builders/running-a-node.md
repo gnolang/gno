@@ -74,15 +74,12 @@ is synced before approving you, and registering entitles you to nothing.
 Get the node running first, then start onboarding. Two places:
 
 - [`gno.land/cmd/gnoland`](../../gno.land/cmd/gnoland) — the operator
-  documentation: sentry architecture, remote signing, hardware, and the
-  step-by-step onboarding process, which is kept up to date there rather
-  than duplicated here.
+  documentation: sentry architecture, remote signing and hardware.
 - [`misc/deployments/`](../../misc/deployments) — the target network's
   own genesis, peers, and `VALIDATOR.md`.
 
 Onboarding starts in `#technical-start-here` on
-[Discord](https://discord.com/invite/gnoland); the `#testnet-*` channels only
-become visible once you hold a candidate or validator role.
+[Discord](https://discord.com/invite/gnoland).
 
 ## Run a chain locally
 
