@@ -273,6 +273,14 @@ func TestWrap(t *testing.T) {
 	}
 }
 
+func TestJoinsBelowMarks(t *testing.T) {
+	// Below U+0300, where joins skips the tables, it agrees with them.
+	for r := range rune(0x300) {
+		assert.Equal(t, unicode.In(r, unicode.Mn, unicode.Me, unicode.Mc, unicode.Cf), joins('a', r, 1), "%U", r)
+		assert.True(t, joins('\u200d', r, 0), "%U after a joiner", r)
+	}
+}
+
 func TestWriterEscapes(t *testing.T) {
 	var w svgWriter
 	w.text(classMuted, 1, 2, anchorStart, 0, `<script>alert("x")</script>`, "a & b\x00")

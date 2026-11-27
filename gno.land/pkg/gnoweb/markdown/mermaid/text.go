@@ -260,7 +260,7 @@ func breakWord(word string, size, width float64, bold bool) []string {
 		}
 		w += rw
 		prev = r
-		if unicode.Is(unicode.Regional_Indicator, r) {
+		if regional(r) {
 			flags++
 		} else {
 			flags = 0
@@ -275,9 +275,17 @@ func breakWord(word string, size, width float64, bold bool) []string {
 // follows a zero width joiner, or the second regional indicator of a flag,
 // after an odd number of them.
 func joins(prev, r rune, flags int) bool {
-	return prev == '\u200d' ||
-		unicode.In(r, unicode.Mn, unicode.Me, unicode.Mc, unicode.Cf) ||
+	if prev == '\u200d' {
+		return true
+	}
+	if r < 0x300 { // before the combining marks, only the soft hyphen joins
+		return r == '\u00ad'
+	}
+	return unicode.In(r, unicode.Mn, unicode.Me, unicode.Mc, unicode.Cf) ||
 		0x1f3fb <= r && r <= 0x1f3ff ||
 		0x1160 <= r && r <= 0x11ff || 0xd7b0 <= r && r <= 0xd7ff ||
-		unicode.Is(unicode.Regional_Indicator, r) && flags%2 == 1
+		regional(r) && flags%2 == 1
 }
+
+// regional reports whether r is a regional indicator, half a flag.
+func regional(r rune) bool { return 0x1f1e6 <= r && r <= 0x1f1ff }
