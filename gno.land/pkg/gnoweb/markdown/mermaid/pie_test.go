@@ -65,11 +65,12 @@ func TestPieColors(t *testing.T) {
 }
 
 func TestPieLegend(t *testing.T) {
-	d, err := parsePie("showData", toLines(`"a" : -0`, `"b" : 1e-300`, `"c" : 1`), &meta{})
+	d, err := parsePie("showData", toLines(`"a" : -0`, `"b" : 1e-300`, `"c" : 1`, `"d" : 0.0000001`), &meta{})
 	require.NoError(t, err)
 	p := d.(*pie)
 	assert.Equal(t, "a 0% (0)", p.legend(p.slices[0]))
 	assert.Equal(t, "b 0% (1e-300)", p.legend(p.slices[1]))
+	assert.Equal(t, "d 0% (1e-7)", p.legend(p.slices[3]), "as JavaScript writes it")
 }
 
 func TestPercent(t *testing.T) {

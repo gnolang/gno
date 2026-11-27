@@ -94,7 +94,8 @@ func (d *pie) legend(s slice) string {
 		if s.value != 0 && s.value < 1e-6 {
 			format = 'g' // as JavaScript writes it, not 300 digits
 		}
-		text += " (" + strconv.FormatFloat(s.value, format, -1, 64) + ")"
+		// JavaScript writes no leading zero in an exponent: 1e-7, not 1e-07.
+		text += " (" + strings.Replace(strconv.FormatFloat(s.value, format, -1, 64), "e-0", "e-", 1) + ")"
 	}
 	return text
 }
