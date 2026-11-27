@@ -615,11 +615,43 @@ func TestHTTPHandler_ExplorerPathsListBrowse(t *testing.T) {
 	assert.Contains(t, body, `href="/r/mock/sub$help" class="b-btn b-pkg-card__btn">`)
 	// The doc comment as plain text, without its package clause: raw HTML it
 	// holds is dropped, never run.
-	assert.Contains(t, body, `<p class="b-pkg-card__desc">Demo realm alert(1).</p>`)
+	assert.Contains(t, body, `<p class="b-pkg-card__desc">demo realm alert(1).</p>`)
 	assert.NotContains(t, body, "<script>alert(1)")
 	// What the chain records: deployed at block 42, and no tag.
 	assert.Contains(t, body, "Block 42")
 	assert.NotContains(t, body, ">read-only<")
+}
+
+// noMetaClient is a node without vm/qpkgmeta_json.
+type noMetaClient struct{ *gnoweb.MockClient }
+
+func (noMetaClient) PackageMeta(context.Context, string) (*vm.PackageMeta, error) {
+	return nil, errors.New("unknown query path")
+}
+
+// A node that cannot say when a package was deployed still describes it: the
+// card keeps its description and actions, and drops only the block, which
+// would otherwise read "Genesis".
+func TestHTTPHandler_CardWithoutPackageMeta(t *testing.T) {
+	t.Parallel()
+
+	pkg := &gnoweb.MockPackage{
+		Path:       "/r/mock/sub",
+		Files:      map[string]string{"sub.gno": `package sub`},
+		PackageDoc: "Package sub is a demo realm.",
+		Functions:  []*doc.JSONFunc{{Name: "Post", Crossing: true}},
+	}
+	handler, err := gnoweb.NewHTTPHandler(
+		slog.New(slog.NewTextHandler(&testingLogger{t}, nil)),
+		newTestHandlerConfig(t, noMetaClient{gnoweb.NewMockClient(pkg)}),
+	)
+	require.NoError(t, err)
+
+	body := serveGet(handler, "/r/mock/").Body.String()
+	assert.Contains(t, body, `<p class="b-pkg-card__desc">demo realm.</p>`)
+	assert.Contains(t, body, "1 action<")
+	assert.NotContains(t, body, "Genesis")
+	assert.NotContains(t, body, "Block ")
 }
 
 // TestNewWebHandlerInvalidConfig ensures that NewWebHandler fails on invalid config.

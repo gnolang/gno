@@ -38,7 +38,8 @@ type PackageCard struct {
 	// Known is set once the chain answered for the package: the fields
 	// below are blank, not zero, without it.
 	Known bool
-	// Block is the height the package was deployed at; 0 is genesis.
+	// Block is the height the package was deployed at; 0 is genesis, and a
+	// negative one unknown.
 	Block int
 	// Date is when Block was produced, as an indexer reports it.
 	Date time.Time

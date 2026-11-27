@@ -35,7 +35,7 @@ other user, goes with it.
 |---|---|---|
 | Description | `vm/qdoc` package doc, first sentences up to 240 runes, package clause dropped | shown |
 | Actions | `vm/qdoc` exported crossing functions | shown |
-| Block, or Genesis | `vm/qpkgmeta_json` height | shown |
+| Block, or Genesis | `vm/qpkgmeta_json` height | shown, absent on a node without that query |
 | Date | indexer `Block(height)` | absent |
 | Weekly users, Used … ago | `chainmap` activity aggregate | absent |
 
@@ -50,7 +50,15 @@ seven days, as on the home page's "Top realms". "Used … ago" estimates the tim
 of the latest call from the window's average block rate, anchored on the tip
 block's time rather than the reader's clock, so a cached aggregate never dates
 an old call as recent. It costs no query beyond the tip block the window
-already reads.
+already reads, and is off in between by as much as the block rate was uneven:
+by days after a long halt.
+
+The description keeps the author's words and case. Only the Go doc clause
+naming the package itself ("Package foo is a", `foo` being the name in qdoc's
+package line) is dropped, since the card's title says it. A doc comment that
+opens with something else and names the package in a later paragraph, such as
+the `v0 - Unaudited` disclaimer of most `p/nt` packages, is read from that
+paragraph.
 
 ### The cards live in `feature/chainmap`
 
@@ -70,7 +78,9 @@ same path (a private realm redeployed, any realm reloaded by gnodev), and a
 listing still renders at once.
 
 A listing waits at most `cardsWait` (1.5 s). A card not ready by then shows
-its path and links, and its fetch finishes for the next reader. Because a
+its path and links, and its fetch finishes for the next reader. A card whose
+answer is only stale is still served once the wait has run out, without
+starting a read. Because a
 fetch outlives its request, a process-wide cap (`maxCardFetches`, 8) bounds
 them across every reader, chain reads and indexer block lookups together: a
 quarter of the RPC client's default and half of the indexer client's, so a
@@ -84,12 +94,27 @@ within its budget.
 What a request can make gnoweb do is bounded by data it does not choose: the
 cards' cache keys are package paths from the node's listing (at most 1,000)
 and deploy heights, never a value from the URL, and each cache holds at most
-4,096 entries. The activity scan is one shared aggregate.
-The week's activity is read beside the packages, never before them, so a cold
-indexer scan cannot spend the wait; a listing of pure packages, which are
-never called, does not ask for it. A cold listing of 142 packages filled 15,
-29, 43 then 61 descriptions over four loads against gnoland-1; a warm one
-renders as fast as before.
+4,096 entries. When the summaries' cache is full, genesis packages go last:
+the chain bounds those, while anyone can deploy enough packages to push the
+others out. Keeping only genesis packages across requests was considered, but
+a listing of other packages would then read every one on every load, and past
+what eight slots read in 1.5 s it would never fill. The activity scan is one
+shared aggregate.
+
+A fetch runs on singleflight's goroutine, where a panic is re-raised out of
+reach of net/http's recover and would stop gnoweb. A doc comment is untrusted
+input to the markdown parser, so the flight recovers a panicking fetch and
+remembers it as a failure, for every flight in the package.
+
+The week's activity is never waited on. The scan starts beside the packages,
+and once they are in, the cards show the aggregate the flight already holds,
+fresh or stale; the scan carries on for the next reader. An aggregate whose
+tip block is more than 15 minutes old is left off the cards: the indexer has
+stopped answering, and "over the last 7 days" no longer ends now. A listing
+of pure packages, which are never called, does not ask for it. A cold listing
+of 142 packages filled 15, 29, 43 then 61 descriptions over four loads
+against gnoland-1; a warm one renders as fast as before, whatever the
+indexer does.
 
 ### Plain text only
 
@@ -136,6 +161,8 @@ page (#6411) does.
 ### Negative
 
 - A cold listing waits up to 1.5 s, and a large one fills over several loads.
+- Activity shows from the load after the first scan lands, and goes away while
+  the indexer is down.
 - A doc comment can say anything: the card shows a claim, under the package's
   real path, not a verified fact. GovDAO-curated text comes with Explore.
 - Five icons move from the vendored markdown set into the chrome sprite, so

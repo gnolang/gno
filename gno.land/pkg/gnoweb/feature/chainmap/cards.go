@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
-	"unicode/utf8"
 
 	"golang.org/x/sync/errgroup"
 
@@ -26,13 +24,20 @@ type PackageReader interface {
 
 // PackageSummary is what the chain says of a package, for its card.
 type PackageSummary struct {
+	// Name is the package's name, from its package clause.
+	Name string
 	// Doc is the package's doc comment, as markdown.
 	Doc string
 	// Actions are its exported crossing functions: what a reader can call.
 	Actions []string
-	// Height is the block it was deployed in; 0 is genesis.
+	// Height is the block it was deployed in; 0 is genesis, and
+	// UnknownHeight when the node could not say.
 	Height int
 }
+
+// UnknownHeight is a deploy height the node could not give, such as on a node
+// without vm/qpkgmeta_json.
+const UnknownHeight = -1
 
 // Card waits and budgets.
 const (
@@ -71,6 +76,12 @@ const (
 
 	// descriptionMaxRunes caps a card's description at about two lines.
 	descriptionMaxRunes = 240
+
+	// activityMaxAge is how old the week's tip may be for a card to show its
+	// activity. The aggregate is refreshed every activityTTL, so a tip older
+	// than this means the indexer, or the chain, stopped some time ago, and
+	// "the last 7 days" no longer ends now.
+	activityMaxAge = 3 * activityTTL
 )
 
 // errCardsBusy is returned when every card fetch slot is taken. Transient, so
@@ -85,8 +96,14 @@ type cardSummary struct {
 	height      int
 }
 
+// newSummaryFlight keeps genesis packages over the others when full: the
+// chain bounds those, while anyone can deploy enough packages to push out
+// the rest.
 func newSummaryFlight() *flight[cardSummary] {
-	return &flight[cardSummary]{ttl: summaryTTL, errTTL: failureTTL, timeout: summaryTimeout, max: cardCacheMax, stale: true}
+	return &flight[cardSummary]{
+		ttl: summaryTTL, errTTL: failureTTL, timeout: summaryTimeout, max: cardCacheMax, stale: true,
+		keep: func(s cardSummary) bool { return s.height == 0 },
+	}
 }
 
 func newBlockTimeFlight() *flight[time.Time] {
@@ -110,14 +127,19 @@ func (h *Handler) Cards(ctx context.Context, paths []string) []components.Packag
 	wctx, cancel := context.WithTimeout(ctx, cardsWait)
 	defer cancel()
 
-	// The week's activity is read beside the packages, not before them: a
-	// cold scan must not spend the listing's whole wait. Only realms are
-	// called, so a listing of pure packages never asks.
-	weekc := make(chan *Activity, 1)
-	if h.activity != nil && realms {
-		go func() { weekc <- h.cardActivity(wctx) }()
-	} else {
-		weekc <- nil
+	// The week's activity is read beside the packages and never waited on
+	// past them: once they are in, the cards show the aggregate the flight
+	// holds, and a scan this starts carries on for the next reader. Only
+	// realms are called, so a listing of pure packages never asks.
+	activity := h.activity != nil && realms
+	if activity {
+		// Detached from the listing, so the scan starts even when every
+		// card is warm and the listing returns at once.
+		actx, acancel := context.WithTimeout(context.WithoutCancel(ctx), cardsWait)
+		go func() {
+			defer acancel()
+			h.startActivity(actx)
+		}()
 	}
 
 	var g errgroup.Group
@@ -131,7 +153,10 @@ func (h *Handler) Cards(ctx context.Context, paths []string) []components.Packag
 	}
 	_ = g.Wait() // no task returns an error
 
-	if week := <-weekc; week != nil {
+	if !activity {
+		return cards
+	}
+	if week, ok := h.activity.held(activityKey); ok && time.Since(week.Until) < activityMaxAge {
 		for i := range cards {
 			if cards[i].Realm {
 				fillActivity(&cards[i], week, h.deps.Domain+cards[i].Path)
@@ -154,11 +179,14 @@ func (h *Handler) fillCard(ctx context.Context, c *components.PackageCard) {
 		if err != nil {
 			return cardSummary{}, err
 		}
-		return cardSummary{description: describe(p.Doc), actions: len(p.Actions), height: p.Height}, nil
+		return cardSummary{description: describe(p.Doc, p.Name), actions: len(p.Actions), height: p.Height}, nil
 	})
 	switch {
 	case err == nil:
 	case errors.Is(err, ErrPending), errors.Is(err, ErrNotLive), errors.Is(err, errTransient):
+		return
+	case errors.Is(err, errFetchPanicked):
+		h.deps.Logger.Error("cards: package summary panicked", "path", c.Path, "error", err)
 		return
 	default:
 		h.deps.Logger.Debug("cards: package unreadable", "path", c.Path, "error", err)
@@ -186,17 +214,13 @@ func (h *Handler) takeCardSlot() (release func(), err error) {
 	}
 }
 
-// cardActivity is the week's aggregate, or nil when it is not ready in time
-// or the indexer failed: cards then show no activity.
-func (h *Handler) cardActivity(ctx context.Context) *Activity {
-	a, err := h.weekActivity(ctx)
-	if err != nil {
-		if !errors.Is(err, ErrPending) {
-			h.deps.Logger.Warn("cards: activity unavailable", "error", err)
-		}
-		return nil
+// startActivity starts the week's scan unless a fresh aggregate is held, or
+// joins the one running, and logs a failure. Cards read the aggregate from
+// the flight, so they never wait on the scan.
+func (h *Handler) startActivity(ctx context.Context) {
+	if _, err := h.weekActivity(ctx); err != nil && !errors.Is(err, ErrPending) {
+		h.deps.Logger.Warn("cards: activity unavailable", "error", err)
 	}
-	return a
 }
 
 // blockTime is when height was produced, or the zero time when the indexer
@@ -233,18 +257,22 @@ func fillActivity(c *components.PackageCard, a *Activity, pkgPath string) {
 	}
 }
 
-// packageClause matches the Go doc convention a doc comment opens with,
-// "Package foo is a", which a card under the path already says.
-var packageClause = regexp.MustCompile(`^(?i:package)\s+\S+\s+(?:(?:is|are)\s+)?(?:(?:an?|the)\s+)?`)
-
 // describe is a card's description: the opening of the doc comment, plain
-// text, without the package clause.
-func describe(doc string) string {
-	s := markdown.Summary(doc, descriptionMaxRunes)
-	s = packageClause.ReplaceAllString(s, "")
-	r, size := utf8.DecodeRuneInString(s)
-	if size == 0 {
-		return ""
+// text, in the author's words and case, less the Go doc clause naming the
+// package, "Package foo is a", which the card's title already says. A doc
+// comment that opens with something else, such as a disclaimer, and names
+// the package in a later paragraph is read from that paragraph.
+func describe(doc, name string) string {
+	if name == "" {
+		return markdown.Summary(doc, descriptionMaxRunes)
 	}
-	return string(unicode.ToUpper(r)) + s[size:]
+	clause := regexp.MustCompile(`^(?i)package\s+` + regexp.QuoteMeta(name) + `\s+(?:(?:is|are)\s+)?(?:(?:an?|the)\s+)?`)
+	paras := strings.Split(doc, "\n\n")
+	for i, p := range paras {
+		if clause.MatchString(p) {
+			doc = strings.Join(paras[i:], "\n\n")
+			break
+		}
+	}
+	return clause.ReplaceAllString(markdown.Summary(doc, descriptionMaxRunes), "")
 }

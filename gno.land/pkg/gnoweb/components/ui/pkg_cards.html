@@ -15,7 +15,7 @@ and its tooltip says so.
       <h2 class="b-pkg-card__title">
         <a href="{{ .Path }}" class="b-pkg-card__name">
           <svg class="c-icon" aria-hidden="true"><use href="#ico-{{ if .Realm }}realm{{ else }}pure{{ end }}"></use></svg>
-          <span>{{ .Path }}</span>
+          <span>{{ range $i, $s := split .Path "/" }}{{ if gt $i 2 }}/<wbr>{{ else if $i }}/{{ end }}{{ $s }}{{ end }}</span>
         </a>
       </h2>
       <div class="b-pkg-card__actions" role="group" aria-label="Actions">
@@ -42,9 +42,11 @@ and its tooltip says so.
         {{ if .Actions }}
         <li><svg class="c-icon" aria-hidden="true"><use href="#ico-tx-link"></use></svg>{{ .Actions }} {{ if eq .Actions 1 }}action{{ else }}actions{{ end }}</li>
         {{ end }}
+        {{ if ge .Block 0 }}
         <li title="The block this package was deployed in.">
           <svg class="c-icon" aria-hidden="true"><use href="#ico-hash"></use></svg>{{ if .Block }}Block {{ .Block }}{{ else }}Genesis{{ end }}
         </li>
+        {{ end }}
         {{ if not .Date.IsZero }}
         <li title="When that block was produced, from the indexer.">
           <svg class="c-icon" aria-hidden="true"><use href="#ico-calendar"></use></svg><time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "Jan 2, 2006" }}</time>

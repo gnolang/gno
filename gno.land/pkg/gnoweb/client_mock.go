@@ -185,7 +185,12 @@ func (m *MockClient) Doc(ctx context.Context, path string, _ int64) (*doc.JSONDo
 		// read, so the chain answers not-found for them too.
 		return nil, ErrClientPackageNotFound
 	}
-	return &doc.JSONDocumentation{Funcs: pkg.Functions, Imports: pkg.Imports, PackageDoc: pkg.PackageDoc}, nil
+	return &doc.JSONDocumentation{
+		PackageLine: "package " + path[strings.LastIndex(path, "/")+1:],
+		Funcs:       pkg.Functions,
+		Imports:     pkg.Imports,
+		PackageDoc:  pkg.PackageDoc,
+	}, nil
 }
 
 // StatePkg returns mock package state data for testing.
