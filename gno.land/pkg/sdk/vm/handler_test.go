@@ -876,6 +876,38 @@ var myStructInst = myStruct{a: 1000}
 	assert.NotEmpty(t, res.Data, "binary response should not be empty")
 }
 
+func Test_secondPart(t *testing.T) {
+	t.Parallel()
+
+	for path, want := range map[string]string{
+		"vm/qeval":     "qeval",
+		"vm/qeval/x":   "qeval",
+		"vm/qeval?x/y": "qeval?x",
+		"vm/":          "",
+		"vm":           "",
+		"/vm/qeval":    "",
+		"/vm/vm":       "",
+		"vmx/qeval":    "",
+	} {
+		assert.Equal(t, want, secondPart(path), "path %q", path)
+	}
+}
+
+// BaseApp drops one leading "/" to pick a route, so "/vm/..." reaches this
+// handler with its first segment empty. It is an unknown endpoint, as it is for
+// the auth and bank handlers.
+func TestVmHandlerQuery_LeadingSlash(t *testing.T) {
+	env := setupTestEnv()
+	for _, path := range []string{"/vm/qeval", "/vm/qrender", "/vm/qfile"} {
+		var res abci.ResponseQuery
+		require.NotPanics(t, func() {
+			res = env.vmh.Query(env.ctx, abci.RequestQuery{Path: path, Data: []byte("gno.land/r/x.F()")})
+		}, "path %q", path)
+		assert.False(t, res.IsOK(), "path %q", path)
+		assert.Contains(t, res.Error.Error(), "unknown request", "path %q", path)
+	}
+}
+
 func TestVmHandlerQueryRunsCode(t *testing.T) {
 	t.Parallel()
 
@@ -896,7 +928,7 @@ func TestVmHandlerQueryRunsCode(t *testing.T) {
 		"vm/qfuncs",
 		"vm/qevalx",
 		"vm/qeva",
-		"/vm/qeval", // Query panics on it before serving anything
+		"/vm/qeval", // Query answers it as an unknown endpoint
 		"vmx/qeval",
 	}
 	vh := NewHandler(nil)

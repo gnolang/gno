@@ -116,23 +116,19 @@ const (
 )
 
 // queryEndpoint returns the endpoint Query serves for path: its second
-// segment, cut at '?'. ok is false when Query serves nothing for path.
-func queryEndpoint(path string) (endpoint string, ok bool) {
-	endpoint, ok = secondPart(path)
+// segment, cut at '?'. It is "" when the first segment is not "vm".
+func queryEndpoint(path string) string {
+	endpoint := secondPart(path)
 	if i := strings.IndexByte(endpoint, '?'); i >= 0 { // cut query
 		endpoint = endpoint[:i]
 	}
-	return endpoint, ok
+	return endpoint
 }
 
 // QueryRunsCode implements abci.CodeExecutionQuerier: these endpoints run code
 // in a machine, through withQueryEvalMachine.
 func (vh vmHandler) QueryRunsCode(path string) bool {
-	endpoint, ok := queryEndpoint(path)
-	if !ok {
-		return false
-	}
-	switch endpoint {
+	switch queryEndpoint(path) {
 	case QueryRender, QueryEval, QueryEvalJSON:
 		return true
 	}
@@ -140,12 +136,8 @@ func (vh vmHandler) QueryRunsCode(path string) bool {
 }
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	endpoint, ok := queryEndpoint(req.Path)
-	if !ok {
-		panic("should not happen")
-	}
 	// A case that runs code in a machine also belongs in QueryRunsCode.
-	switch endpoint {
+	switch queryEndpoint(req.Path) {
 	case QueryRender:
 		res = vh.queryRender(ctx, req)
 	case QueryFuncs:
@@ -175,11 +167,10 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 	case QueryTypeJSON:
 		res = vh.queryType(ctx, req)
 	default:
-		second, _ := secondPart(req.Path)
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
 				"unknown vm query endpoint %s in %s",
-				second, req.Path)))
+				secondPart(req.Path), req.Path)))
 	}
 
 	// The one cap on every endpoint's answer, envelopes included. Nothing
@@ -487,12 +478,11 @@ func abciResult(err error) sdk.Result {
 	return res
 }
 
-// returns the second component of a path, and false when the first
-// component is not "vm".
-func secondPart(path string) (string, bool) {
-	parts := strings.Split(path, "/")
-	if len(parts) < 2 {
-		return "", true
+// returns the second component of a path, or "" when the first is not "vm".
+func secondPart(path string) string {
+	if !strings.HasPrefix(path, "vm/") {
+		return ""
 	}
-	return parts[1], parts[0] == "vm"
+	second, _, _ := strings.Cut(path[len("vm/"):], "/")
+	return second
 }
