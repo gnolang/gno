@@ -97,9 +97,11 @@ func parseXYChart(args string, lines []line, m *meta) (diagram, error) {
 	if d.yMin == d.yMax {
 		d.autoRange()
 	}
-	// Tick labels have at most 15 decimals: a smaller step labels every tick
-	// the same.
-	if step := niceStep(d.yMax - d.yMin); !(step >= 1e-15) || math.IsInf(step, 0) {
+	// Tick labels have at most 15 decimals, and a float64 holds about 16
+	// significant digits: a smaller step, or one too small for the
+	// magnitude of the range, labels ticks the same.
+	step := niceStep(d.yMax - d.yMin)
+	if !(step >= 1e-15) || math.IsInf(step, 0) || step < max(math.Abs(d.yMin), math.Abs(d.yMax))*1e-13 {
 		return nil, errorf(0, "y range too small")
 	}
 	return d, nil

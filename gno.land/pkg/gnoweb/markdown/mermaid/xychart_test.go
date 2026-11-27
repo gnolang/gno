@@ -23,6 +23,7 @@ func TestXYChartErrors(t *testing.T) {
 		"named series":   {"xychart-beta\nbar \"a\" [1]", "unsupported bar statement"},
 		"tiny range":     {"xychart-beta\ny-axis 0 --> 5e-324\nbar [0]", "y range too small"},
 		"small range":    {"xychart-beta\ny-axis 0 --> 2e-15\nbar [0]", "y range too small"},
+		"narrow range":   {"xychart-beta\ny-axis 999999999999999 --> 999999999999999.5\nbar [0]", "y range too small"},
 		"empty series":   {"xychart-beta\nbar []", "empty bar series"},
 		"statement":      {"xychart-beta\nscatter [1]", `unsupported statement "scatter"`},
 		"too wide": {"xychart-beta\nx-axis [" + strings.Repeat(strings.Repeat("w", 100)+",", 150) + "w]\nbar [1]",
@@ -96,6 +97,13 @@ func TestXYChartNegativeTicks(t *testing.T) {
 	c, _ := parseXY(t, "y-axis -0.6 --> 0.4", "bar [0]")
 	_, labels := c.ticks()
 	assert.Equal(t, "-0.6", labels[0])
+}
+
+func TestXYChartLargeTicks(t *testing.T) {
+	// A narrow range far from zero draws while float64 tells its ticks apart.
+	c, _ := parseXY(t, "y-axis 1000000000 --> 1000000010", "bar [0]")
+	_, labels := c.ticks()
+	assert.Equal(t, []string{"1000000000", "1000000002", "1000000004", "1000000006", "1000000008", "1000000010"}, labels)
 }
 
 func TestXYChartAutoRange(t *testing.T) {
