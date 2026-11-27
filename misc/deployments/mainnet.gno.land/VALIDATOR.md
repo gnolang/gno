@@ -4,6 +4,8 @@
 
 How to run a full node on **mainnet** and put yourself forward as a validator candidate. This assumes you're comfortable with Go, Docker, and `gnokey` — it only covers what's specific to mainnet.
 
+If you have a question, check the `#technical-start-here` channel on the gno.land [Discord](https://discord.com/invite/gnoland).
+
 The flow:
 
 1. Get the binaries.
