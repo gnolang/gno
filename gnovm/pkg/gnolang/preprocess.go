@@ -1483,6 +1483,13 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Shift case.
 				if n.Op == SHL || n.Op == SHR {
 					n.assertShiftExprCompatible1(store, last, lt, rt)
+					// Before the RHS is rewritten to uint(), so the
+					// diagnostic names the source expression.
+					if lic && ric {
+						if msg, over := typedIntConstOverflow(n); over {
+							panic(msg)
+						}
+					}
 					if baseOf(rt) != UintType {
 						// convert n.Right to (gno) uint type,
 						rn := Expr(Call("uint", n.Right))
@@ -1525,6 +1532,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 								// convert n.Right to left type.
 								checkOrConvertType(store, last, n, &n.Right, lt)
 							}
+						}
+						// Typed integer overflow is a compile error. A
+						// representable result still folds on the machine.
+						if msg, over := typedIntConstOverflow(n); over {
+							panic(msg)
 						}
 						// Then, evaluate the expression.
 						cx := evalConst(store, last, n)
@@ -2466,6 +2478,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 
 				// Replace with *ConstExpr if const X.
 				if isConst(n.X) {
+					if msg, over := typedIntConstOverflow(n); over {
+						panic(msg)
+					}
 					cx := evalConst(store, last, n)
 					return cx, TRANS_CONTINUE
 				}
