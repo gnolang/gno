@@ -14,16 +14,14 @@ switch: flip `Pause` to halt sensitive operations, `Unpause` to resume.
 package myrealm
 
 import (
-    "chain/runtime"
-
     "gno.land/p/nt/ownable/v0"
     "gno.land/p/nt/pausable/v0"
 )
 
 var p *pausable.Pausable
 
-func init() {
-    caller := runtime.PreviousRealm()
+func init(cur realm) {
+    caller := cur.Previous()
     if !caller.IsUserCall() {
         panic("must be deployed by a user")
     }
