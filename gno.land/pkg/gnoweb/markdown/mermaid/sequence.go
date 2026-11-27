@@ -2,7 +2,6 @@ package mermaid
 
 import (
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -293,15 +292,18 @@ func statements(lines []line) ([]line, error) {
 	return out, nil
 }
 
-// wrapPrefix matches the wrap: or nowrap: prefix of a label, which Mermaid
-// reads as a setting rather than text.
-var wrapPrefix = regexp.MustCompile(`^:?(?:no)?wrap:`)
-
-// seqLabel returns the lines of a label as label does, without its wrap: or
-// nowrap: prefix.
+// seqLabel returns the lines of a label as label does, without the wrap: or
+// nowrap: prefix, after an optional colon, that Mermaid reads as a setting
+// rather than text.
 func seqLabel(s string) []string {
 	s = strings.TrimSpace(s)
-	return label(strings.TrimPrefix(s, wrapPrefix.FindString(s)))
+	t := strings.TrimPrefix(s, ":")
+	if rest, ok := strings.CutPrefix(t, "wrap:"); ok {
+		s = rest
+	} else if rest, ok := strings.CutPrefix(t, "nowrap:"); ok {
+		s = rest
+	}
+	return label(s)
 }
 
 // validName reports whether s can name a participant: Mermaid ends a name

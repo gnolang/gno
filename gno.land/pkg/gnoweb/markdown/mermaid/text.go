@@ -298,8 +298,13 @@ func joins(prev, r rune, flags int) bool {
 	if prev == '\u200d' {
 		return true
 	}
-	if r < 0x300 { // before the combining marks, only the soft hyphen joins
+	switch {
+	case r < 0x300: // before the combining marks, only the soft hyphen joins
 		return r == '\u00ad'
+	case 0x4e00 <= r && r <= 0x9fff, 0xac00 <= r && r <= 0xd7a3:
+		return false // CJK ideographs and Hangul syllables start a character
+	case 0x1f300 <= r && r <= 0x1faff:
+		return 0x1f3fb <= r && r <= 0x1f3ff // of the emoji, the skin tones join
 	}
 	return unicode.In(r, unicode.Mn, unicode.Me, unicode.Mc, unicode.Cf) ||
 		0x1f3fb <= r && r <= 0x1f3ff ||
