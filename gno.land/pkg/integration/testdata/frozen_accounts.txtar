@@ -1,0 +1,97 @@
+## GovDAO freezes an account by adding it to auth:p:frozen_addrs through the
+## generic string-list helper r/sys/params already exports. A frozen account can
+## sign nothing -- no transfer, no MsgRun -- and pays no fee for trying.
+## Removing it from the list restores it.
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/gov/dao/init/v0
+loadpkg gno.land/r/gov/dao
+
+adduserfrom victim 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start
+
+## Load test1 as a T1 member, then propose, vote and execute the freeze.
+gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 42_000_000 -chainid=tendermint_test test1 $WORK/run/load_user.gno
+
+gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/propose_freeze.gno
+stdout '0'
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 0 -args YES -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 0 -gas-fee 2600001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1
+stdout '\(true bool\)'
+
+gnokey query params/auth:p:frozen_addrs
+stdout '\["g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"\]'
+
+## The frozen account can neither transfer nor run code, and is charged nothing.
+! gnokey maketx send -send 100ugnot -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid=tendermint_test victim
+stderr 'account g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4 is frozen'
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test victim $WORK/run/noop.gno
+stderr 'is frozen'
+
+gnokey query bank/balances/g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4
+stdout '"1000000000ugnot"'
+
+## Unfreeze it.
+gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1 $WORK/run/propose_unfreeze.gno
+stdout '1'
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -args 1 -args YES -gas-fee 2200001ugnot -gas-wanted 27_000_000 -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -args 1 -gas-fee 2600001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1
+stdout '\(true bool\)'
+
+gnokey query params/auth:p:frozen_addrs
+stdout '\[\]'
+
+gnokey maketx send -send 100ugnot -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid=tendermint_test victim
+stdout 'OK!'
+
+-- run/load_user.gno --
+package main
+
+import i "gno.land/r/gov/dao/init/v0"
+
+func main(cur realm) {
+	i.InitWithUsers(cross(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+}
+
+-- run/propose_freeze.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	pr := params.NewSysParamStringsPropRequestAddWithTitle(cross(cur), "auth", "p", "frozen_addrs",
+		"Freeze compromised accounts", []string{"g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"})
+	println(dao.MustCreateProposal(cross(cur), pr).String())
+}
+
+-- run/propose_unfreeze.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	pr := params.NewSysParamStringsPropRequestRemoveWithTitle(cross(cur), "auth", "p", "frozen_addrs",
+		"Unfreeze accounts", []string{"g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4"})
+	println(dao.MustCreateProposal(cross(cur), pr).String())
+}
+
+-- run/noop.gno --
+package main
+
+func main() {
+	println("ran")
+}
