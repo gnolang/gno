@@ -1,6 +1,8 @@
 package mermaid
 
 import (
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -186,4 +188,30 @@ func TestSequenceSelfBadge(t *testing.T) {
 	a := 0.0
 	bx, bw := badgeX(e, a, a), badgeWidth(e.num)
 	assert.GreaterOrEqual(t, bx-bw/2, a+10, "the head ends 10 px past the lifeline")
+}
+
+func TestSequenceSelfLabel(t *testing.T) {
+	// A self message's label starts right of its autonumber badge, which a
+	// two-headed loop or a long number puts under it, and the next
+	// participant still clears the label.
+	const text = "a label long enough to set the spacing"
+	badge := regexp.MustCompile(`<rect class="gno-mermaid__head" x="([-\d.]+)" y="[-\d.]+" width="([\d.]+)"`)
+	label := regexp.MustCompile(`<text x="([-\d.]+)" y="[-\d.]+">` + text + `<`)
+	num := func(s string) float64 {
+		v, err := strconv.ParseFloat(s, 64)
+		require.NoError(t, err)
+		return v
+	}
+	for _, src := range []string{"autonumber\nA<<->>A: ", "autonumber 1000000 1000000\nA->>A: "} {
+		s, _ := parseSeq(t, strings.Split(src+text+"\nA->>B: x", "\n")...)
+		var w svgWriter
+		s.draw(&w)
+		b, l := badge.FindStringSubmatch(w.b.String()), label.FindStringSubmatch(w.b.String())
+		require.NotNil(t, b, src)
+		require.NotNil(t, l, src)
+		lx := num(l[1])
+		assert.LessOrEqual(t, num(b[1])+num(b[2]), lx, "%s: the badge ends before the label", src)
+		next := s.parts[1]
+		assert.LessOrEqual(t, lx+textWidth(text, fontSize, false)+messageGap, next.x-next.w/2+0.01, "%s: B clears the label", src)
+	}
 }

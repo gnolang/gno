@@ -405,6 +405,16 @@ func badgeX(e *seqEvent, a, b float64) float64 {
 	return a + dir*(12+badgeWidth(e.num)/2)
 }
 
+// selfLabelX returns how far right of its lifeline the label of a self
+// message starts: 4 px past its autonumber badge when the badge would reach
+// under the label, as a two-headed loop's or a long number's does.
+func selfLabelX(e *seqEvent) float64 {
+	if e.num == "" {
+		return messageGap
+	}
+	return max(messageGap, badgeX(e, 0, 0)+badgeWidth(e.num)/2+4)
+}
+
 // layout places the participants and the events and returns the size of
 // the drawing and the top of the participants drawn at the bottom.
 func (d *sequence) layout() (width, height, footTop float64) {
@@ -456,7 +466,7 @@ func (d *sequence) layout() (width, height, footTop float64) {
 			if e.from != e.to {
 				need(e.from, e.to, tw+2*messageGap+badge)
 			} else if e.from+1 < len(parts) {
-				need(e.from, e.from+1, max(selfLoopW, tw+messageGap)+messageGap+parts[e.from+1].w/2)
+				need(e.from, e.from+1, max(selfLoopW, selfLabelX(e)+tw)+messageGap+parts[e.from+1].w/2)
 			}
 		case seqNote:
 			w := tw + 2*notePad
@@ -494,7 +504,7 @@ func (d *sequence) layout() (width, height, footTop float64) {
 			a, b := parts[e.from].x, parts[e.to].x
 			if e.from == e.to {
 				e.h = tb + 6 + selfLoopH + rowGap
-				e.l, e.r = a, a+max(selfLoopW+4, messageGap+tw)
+				e.l, e.r = a, a+max(selfLoopW+4, selfLabelX(e)+tw)
 			} else {
 				e.h = tb + 6 + rowGap
 				e.l, e.r = min(a, b), max(a, b)
@@ -650,7 +660,7 @@ func (d *sequence) drawMessage(w *svgWriter, e *seqEvent) {
 	}
 	a, b := d.parts[e.from].x, d.parts[e.to].x
 	if e.from == e.to {
-		w.text("", a+messageGap, baseline(e.y, fontSize), anchorStart, 0, e.text...)
+		w.text("", a+selfLabelX(e), baseline(e.y, fontSize), anchorStart, 0, e.text...)
 		w.polyline(c, a, ly, a+selfLoopW, ly, a+selfLoopW, ly+selfLoopH, a, ly+selfLoopH)
 		drawHead(w, e.arrow.head, a, ly+selfLoopH, -1)
 		if e.arrow.both {
