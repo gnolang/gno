@@ -2,7 +2,7 @@
 
 `gnoland` is the production binary powering the gno.land chain. This is the
 node-operator documentation: running a chain, joining a network, and the
-architecture and process expected of a validator.
+architecture expected of a validator.
 
 Not sure you need a node at all? Read
 [Running a node](../../../docs/builders/running-a-node.md) first — for writing
@@ -210,39 +210,6 @@ queries) means it never shrinks. Budget for logs separately, and set
 Per-network requirements, when they differ, are in that network's deployment
 directory.
 
-## Become a validator
-
-Running the node is the easy half. Joining a validator set is a *process*, and
-it ends in a governance vote rather than a config change.
-
-Get the node right **first** — the review team checks that your node is synced
-on the network before approving anything, so starting the paperwork early just
-means waiting twice.
-
-1. **Run the node properly.** Sentries, remote signing, monitoring, log rotation
-   — see the sections above.
-2. **Sync a full node** on the target network, following its
-   [deployment directory](../../../misc/deployments). Wait until
-   `/status` reports `catching_up: false`.
-3. **Start onboarding on [Discord](https://discord.com/invite/gnoland).** Run
-   `/candidate-testnet` in `#technical-start-here`. The bot assigns you the *Testnet
-   Validator Candidate* role and opens access to `#testnet-onboarding`.
-4. **Follow the pinned instructions** in `#testnet-onboarding`, which include
-   registering your valoper profile on-chain through the
-   [`r/gnops/valopers`](../../../examples/gno.land/r/gnops/valopers) realm.
-5. **Run `/submit-request`** in `#testnet-onboarding` with your operator
-   address. The team reviews it and either grants the *Testnet Validator* role
-   or tells you what is still missing.
-6. **Get voted in.** Entering the set is a GovDAO decision. Registering does not
-   entitle you to a slot, on a testnet or on mainnet.
-
-The `#testnet-*` channels are only visible once you hold the candidate or
-validator role, so step 3 is what unlocks the rest. Current instructions are
-announced in `#announcements` and `#technical-start-here`.
-
-Mainnet onboarding will differ; ask on Discord rather than assuming this flow
-carries over.
-
 ## Upgrades
 
 Chains stop and restart on purpose. A coordinated upgrade halts every node at
@@ -261,7 +228,4 @@ the halt mechanism, useful for rehearsing an upgrade before doing it for real.
 
 ## Getting help
 
-Ask on [Discord](https://discord.com/invite/gnoland) — `#technical-start-here` if you don't
-hold a testnet role yet, the `#testnet-*` channels once you do. Say which
-network you're on and paste your `config.toml` diff from that network's default;
-that is usually enough to answer in one round-trip.
+Join the `#technical-start-here` channel on [Discord](https://discord.com/invite/gnoland) and ask there.
