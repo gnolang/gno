@@ -224,23 +224,39 @@ func TestWrap(t *testing.T) {
 		assert.LessOrEqual(t, textWidth(p, fontSize, false), w60, p)
 	}
 
-	// A piece never starts with a combining mark or splits an emoji
-	// sequence, after a wide character included.
+	// A piece never starts with a combining mark, a skin tone or a Hangul
+	// vowel or final, nor splits an emoji sequence, after a wide character
+	// included.
 	for _, word := range []string{
 		strings.Repeat("e\u0301", 40),
 		strings.Repeat("漢\u0301", 40),
 		strings.Repeat("👩\u200d👩\u200d👧\ufe0f", 20),
+		strings.Repeat("👍🏽", 6),
+		strings.Repeat("कि", 40),
+		strings.Repeat("\u1100\u1161\u11a8", 20),
 	} {
-		pieces := breakWord(word, fontSize, 60, false)
-		require.Greater(t, len(pieces), 1, word)
-		for _, p := range pieces[1:] {
-			r, _ := utf8.DecodeRuneInString(p)
-			assert.False(t, unicode.In(r, unicode.Mn, unicode.Me, unicode.Cf), "%q starts with %U", p, r)
+		for _, width := range []float64{50, 60} {
+			pieces := breakWord(word, fontSize, width, false)
+			require.Greater(t, len(pieces), 1, word)
+			for _, p := range pieces[1:] {
+				r, _ := utf8.DecodeRuneInString(p)
+				assert.False(t, unicode.In(r, unicode.Mn, unicode.Me, unicode.Mc, unicode.Cf), "%q starts with %U", p, r)
+				assert.False(t, r == 0x1f3fd || r == 0x1161 || r == 0x11a8, "%q starts with %U", p, r)
+			}
+			for _, p := range pieces {
+				assert.False(t, strings.HasSuffix(p, "\u200d"), "%q ends with a joiner", p)
+			}
+			assert.Equal(t, word, strings.Join(pieces, ""))
 		}
+	}
+
+	// Flags break between them, never inside one.
+	for _, width := range []float64{30, 50} {
+		pieces := breakWord(strings.Repeat("🇫🇷", 12), fontSize, width, false)
+		require.Greater(t, len(pieces), 1)
 		for _, p := range pieces {
-			assert.False(t, strings.HasSuffix(p, "\u200d"), "%q ends with a joiner", p)
+			assert.Equal(t, strings.Repeat("🇫🇷", utf8.RuneCountInString(p)/2), p)
 		}
-		assert.Equal(t, word, strings.Join(pieces, ""))
 	}
 }
 

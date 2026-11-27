@@ -218,17 +218,18 @@ func wrap(lines []string, size, width float64, bold bool) []string {
 }
 
 // breakWord cuts word into pieces no wider than width, each but the last
-// ending after a break character when one fits. A combining mark, a format
-// character and what follows a zero width joiner stay with the character
-// before them, so no piece starts with a lone accent or half an emoji.
+// ending after a break character when one fits. It never breaks inside a
+// character as drawn (see joins), so no piece starts with a lone accent,
+// half an emoji or half a flag.
 func breakWord(word string, size, width float64, bold bool) []string {
 	var out []string
 	start, w := 0, 0.0
 	cut, cutW := -1, 0.0 // the last place to break, and the width before it
 	prev := rune(-1)
+	flags := 0 // the regional indicators just before r
 	for i, r := range word {
 		rw := runeEm(r, bold) * size / 1000
-		if prev != '\u200d' && !unicode.In(r, unicode.Mn, unicode.Me, unicode.Cf) {
+		if !joins(prev, r, flags) {
 			if strings.ContainsRune("/.-_,", prev) || wide(prev) {
 				cut, cutW = i, w
 			}
@@ -246,6 +247,24 @@ func breakWord(word string, size, width float64, bold bool) []string {
 		}
 		w += rw
 		prev = r
+		if unicode.Is(unicode.Regional_Indicator, r) {
+			flags++
+		} else {
+			flags = 0
+		}
 	}
 	return append(out, word[start:])
+}
+
+// joins reports whether r continues the character drawn before it, so a
+// word is not broken between them: r is a combining mark, a format
+// character, an emoji skin tone, a Hangul vowel or final consonant, what
+// follows a zero width joiner, or the second regional indicator of a flag,
+// after an odd number of them.
+func joins(prev, r rune, flags int) bool {
+	return prev == '\u200d' ||
+		unicode.In(r, unicode.Mn, unicode.Me, unicode.Mc, unicode.Cf) ||
+		0x1f3fb <= r && r <= 0x1f3ff ||
+		0x1160 <= r && r <= 0x11ff || 0xd7b0 <= r && r <= 0xd7ff ||
+		unicode.Is(unicode.Regional_Indicator, r) && flags%2 == 1
 }
