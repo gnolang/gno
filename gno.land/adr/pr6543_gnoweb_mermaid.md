@@ -28,10 +28,11 @@ fits gnoweb:
 
 ### A package of our own: `markdown/mermaid`
 
-`mermaid.Render(src) ([]byte, error)` parses a source and draws it as an
-`<svg>` element. It depends on the standard library and on
-`golang.org/x/text`, which gnoweb already uses, copies no code from another
-renderer, and supports a subset of Mermaid, chosen for what realms show:
+`mermaid.Render(src) (svg []byte, width float64, err error)` parses a
+source and draws it as an `<svg>` element `width` px wide. It depends on
+the standard library and on `golang.org/x/text`, which gnoweb already
+uses, copies no code from another renderer, and supports a subset of
+Mermaid, chosen for what realms show:
 
 | Type | Statements |
 |---|---|
@@ -53,8 +54,11 @@ the fence shows as the code block it is, as an unconverted ```` ```math ````
 fence does. The rule is never to draw a diagram that means something else
 than in Mermaid: what is not understood is refused, not guessed. A few
 deliberate differences remain: unquoted multi-word axis titles keep their
-spaces, an xychart without a range starts its y-axis at zero, and `#` does
-not start a comment in message text.
+spaces, and an xychart without a range starts its y-axis at zero. `#`
+starts a comment only at the start of a line, as in Mermaid; elsewhere it
+stays text (Mermaid would end the line there), and a sequence line where a
+`;` follows such a `#` is refused, since Mermaid would drop the statements
+after it.
 
 ### Two forms: the fence and `<gno-mermaid>`
 
@@ -76,11 +80,15 @@ wider, so its text stays the size of the page's. The body is read verbatim
 up to a `</gno-mermaid>` line, like a fence. Another attribute or value, a
 block its container or the document ends before the close tag, or a page
 with diagrams off shows the body as code, so a mistake shows the source
-rather than a guess. In a `<gno-columns>` column, a diagram without a
-width shrinks to the column, down to three quarters of its size (its
-12 px labels stay 9 px), then scrolls; an empty `<svg>` three quarters as
-wide holds that floor, since a style attribute is not allowed. Inside `<gno-foreign>`, which does not load this
-extension, the tag is omitted like any other unknown one.
+rather than a guess. A tag line that opens no block (a self-closing
+`<gno-mermaid/>`, a close tag with no block to end) renders as a comment,
+as a stray `<gno-details>` tag does, rather than as an HTML block hiding
+the lines up to the next blank one. In a `<gno-columns>` column, a diagram
+without a width shrinks to the column, down to three quarters of its size
+(its 12 px labels stay 9 px), then scrolls; an empty `<svg>` three
+quarters as wide holds that floor, since a style attribute is not
+allowed. Inside `<gno-foreign>`, which does not load this extension, the
+tag is omitted like any other unknown one.
 
 ### The SVG: inline, CSP-clean, themed
 
