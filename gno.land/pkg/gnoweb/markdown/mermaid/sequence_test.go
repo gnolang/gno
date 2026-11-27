@@ -38,6 +38,9 @@ func TestSequenceErrors(t *testing.T) {
 		"header":            {"sequenceDiagram A->>B: x", "sequenceDiagram line"},
 		"participants":      {many.String(), "participants"},
 		"unclosed accDescr": {"sequenceDiagram\naccDescr {\n  text", "accDescr block"},
+		"# before ;":        {"sequenceDiagram\nA->>B: x # c; C->>D: y", `"#" before ";"`},
+		"entity at start":   {"sequenceDiagram\nA->>B: x\n#59;", "unsupported statement"},
+		"entity name":       {"sequenceDiagram\nA->>B: x\n#quot;C#quot;->>B: y", "participant name"},
 	})
 }
 
@@ -86,6 +89,16 @@ func TestSequenceStatements(t *testing.T) {
 	require.Len(t, s.events, 2)
 	assert.Equal(t, []string{"hi"}, s.events[0].text)
 	assert.Equal(t, []string{"a;b"}, s.events[1].text)
+}
+
+func TestSequenceComments(t *testing.T) {
+	// A line starting with a # that does not start an entity code is a
+	// comment, as in Mermaid; elsewhere a # is text.
+	s, _ := parseSeq(t, "A->>B: hi", "# A->>C: old; C->>A: older", "C->>B: vote #42")
+	require.Len(t, s.parts, 3)
+	require.Len(t, s.events, 2)
+	assert.Equal(t, []string{"hi"}, s.events[0].text)
+	assert.Equal(t, []string{"vote #42"}, s.events[1].text)
 }
 
 func TestSequenceAutonumber(t *testing.T) {

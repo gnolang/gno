@@ -142,7 +142,11 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 	// Mermaid counts every message, numbered or not, and a bare autonumber
 	// resumes the count.
 	numbering, next, step := false, 1, 1
-	for _, l := range statements(lines) {
+	stmts, err := statements(lines)
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range stmts {
 		if t, ok := title(l.text); ok {
 			m.title = t
 			continue
@@ -251,18 +255,30 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 }
 
 // statements splits lines at the semicolons that separate statements in
-// Mermaid, all but those that end an entity code such as #59;.
-func statements(lines []line) []line {
+// Mermaid, all but those that end an entity code such as #59;, and drops the
+// comment lines, which start with a # that starts no entity code. Mermaid
+// also ends a line at such a # anywhere else, where it stays text here; a
+// semicolon after it is refused, since Mermaid would not read the statement
+// that follows.
+func statements(lines []line) ([]line, error) {
 	var out []line
 	for _, l := range lines {
-		start := 0
+		if strings.HasPrefix(l.text, "#") && entityEnd(l.text, 0) < 0 {
+			continue
+		}
+		start, hash := 0, false
 		for i := 0; i < len(l.text); i++ {
 			switch l.text[i] {
 			case '#':
 				if end := entityEnd(l.text, i); end > 0 {
 					i = end - 1
+				} else {
+					hash = true
 				}
 			case ';':
+				if hash {
+					return nil, errorf(l.n, `"#" before ";"`)
+				}
 				if s := strings.TrimSpace(l.text[start:i]); s != "" {
 					out = append(out, line{n: l.n, text: s})
 				}
@@ -273,7 +289,7 @@ func statements(lines []line) []line {
 			out = append(out, line{n: l.n, text: s})
 		}
 	}
-	return out
+	return out, nil
 }
 
 // validName reports whether s can name a participant: Mermaid ends a name
