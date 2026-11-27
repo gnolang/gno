@@ -194,6 +194,8 @@ func TestDecodeEntities(t *testing.T) {
 		// A control character shows as a space, as the browser draws it.
 		"a#10;b#9;c":        "a b c",
 		"a#NewLine;b#Tab;c": "a b c",
+		"a#13;b#12;c":       "a b c",
+		"a#0;b#128;c#11;d":  "a#0;b#128;c#11;d",
 	} {
 		assert.Equal(t, want, decodeEntities(in), in)
 	}

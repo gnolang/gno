@@ -147,10 +147,11 @@ func isAlnum(c byte) bool {
 
 // decodeEntities decodes Mermaid's entity codes, which let a label hold the
 // characters its syntax reserves: #59; for a code point and #quot; for an
-// HTML entity name. A code for a control character, #10; or #NewLine;,
-// decodes to a space, which is how the browser shows Mermaid's; an unknown
-// or invalid code stays as it is. The decoded text is escaped like any other
-// when written.
+// HTML entity name. A code for HTML white space, #10; or #NewLine;, decodes
+// to a space, which is how the browser shows Mermaid's; a code for another
+// control character (#0;, #128;), which the browser shows otherwise, an
+// unknown and an invalid code stay as they are. The decoded text is escaped
+// like any other when written.
 func decodeEntities(s string) string {
 	if !strings.Contains(s, "#") {
 		return s
@@ -174,12 +175,15 @@ func decodeEntities(s string) string {
 		} else if decoded == "&"+code+";" {
 			decoded = "" // unknown
 		}
+		if strings.ContainsFunc(decoded, otherControl) {
+			decoded = ""
+		}
 		if decoded == "" {
 			b.WriteByte(s[i])
 			continue
 		}
 		for _, r := range decoded {
-			if unicode.IsControl(r) {
+			if unicode.IsControl(r) { // HTML white space: see otherControl
 				r = ' '
 			}
 			b.WriteRune(r)
@@ -187,6 +191,12 @@ func decodeEntities(s string) string {
 		i = end - 1
 	}
 	return b.String()
+}
+
+// otherControl reports whether r is a control character other than HTML's
+// white space (tab, line feed, form feed, carriage return).
+func otherControl(r rune) bool {
+	return unicode.IsControl(r) && !strings.ContainsRune("\t\n\f\r", r)
 }
 
 // wrap breaks each of lines at its spaces so it fits width when set at size. A
