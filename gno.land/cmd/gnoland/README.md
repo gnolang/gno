@@ -225,7 +225,7 @@ means waiting twice.
    [deployment directory](../../../misc/deployments). Wait until
    `/status` reports `catching_up: false`.
 3. **Start onboarding on [Discord](https://discord.com/invite/gnoland).** Run
-   `/candidate-testnet` in `#general-chat`. The bot assigns you the *Testnet
+   `/candidate-testnet` in `#technical-start-here`. The bot assigns you the *Testnet
    Validator Candidate* role and opens access to `#testnet-onboarding`.
 4. **Follow the pinned instructions** in `#testnet-onboarding`, which include
    registering your valoper profile on-chain through the
@@ -238,7 +238,7 @@ means waiting twice.
 
 The `#testnet-*` channels are only visible once you hold the candidate or
 validator role, so step 3 is what unlocks the rest. Current instructions are
-announced in `#announcements` and `#general-chat`.
+announced in `#announcements` and `#technical-start-here`.
 
 Mainnet onboarding will differ; ask on Discord rather than assuming this flow
 carries over.
@@ -261,7 +261,7 @@ the halt mechanism, useful for rehearsing an upgrade before doing it for real.
 
 ## Getting help
 
-Ask on [Discord](https://discord.com/invite/gnoland) — `#general-chat` if you don't
+Ask on [Discord](https://discord.com/invite/gnoland) — `#technical-start-here` if you don't
 hold a testnet role yet, the `#testnet-*` channels once you do. Say which
 network you're on and paste your `config.toml` diff from that network's default;
 that is usually enough to answer in one round-trip.
