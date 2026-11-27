@@ -444,7 +444,7 @@ func overflowLine(line string) (string, bool) {
 		return "overflows " + m[1], true
 	}
 	if strings.Contains(line, "bigint overflows") || strings.Contains(line, "bigint underflows") ||
-		strings.Contains(line, "shift overflow") {
+		strings.Contains(line, "constant overflows") || strings.Contains(line, "shift overflow") {
 		return "overflows", true
 	}
 	return "", false

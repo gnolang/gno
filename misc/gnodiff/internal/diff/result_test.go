@@ -287,6 +287,13 @@ func TestOverflowRejectWording(t *testing.T) {
 	if class != ClassReal {
 		t.Fatalf("different float overflow types class = %s", class)
 	}
+	class, _ = Classify(Program{},
+		Result{Kind: KindReject, Detail: "./main.go:5:10: uint8(1) << 8 (constant 256 of type uint8) overflows uint8"},
+		Result{Kind: KindReject, Detail: "main/main.gno:4:1-6:2: constant overflows"},
+		Result{})
+	if class != ClassRejectWording {
+		t.Fatalf("constant shift overflow wording class = %s, want reject-wording", class)
+	}
 	// Multi-line span prefixes must strip cleanly.
 	if got := normalizeDiag("main/main.gno:3:1-6:2: undefined: foo"); got != "undefined: foo" {
 		t.Fatalf("normalizeDiag multi-line span = %q", got)
