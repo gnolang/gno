@@ -821,9 +821,9 @@ func TestSourceContainsFiltersAuthorOnTheIndexer(t *testing.T) {
 	}
 }
 
-// The endpoint is shown to every anonymous reader, and an operator's only
-// place for a basic-auth or query-string credential is the URL itself.
-func TestURLIsRedacted(t *testing.T) {
+// The endpoint goes into logs and errors, and an operator's only place for a
+// basic-auth or query-string credential is the URL itself.
+func TestRedact(t *testing.T) {
 	for raw, want := range map[string]string{
 		"https://ops:s3cret@indexer.example/graphql/query":      "https://indexer.example",
 		"https://indexer.example/graphql/query?apikey=s3cret":   "https://indexer.example",
@@ -831,8 +831,8 @@ func TestURLIsRedacted(t *testing.T) {
 		"https://indexer.example/s3cret-path-key/graphql/query": "https://indexer.example",
 		"not a url": "(indexer)",
 	} {
-		if got := New(raw, "").URL(); got != want {
-			t.Errorf("URL() for %q = %q, want %q", raw, got, want)
+		if got := Redact(raw); got != want {
+			t.Errorf("Redact(%q) = %q, want %q", raw, got, want)
 		}
 	}
 }
