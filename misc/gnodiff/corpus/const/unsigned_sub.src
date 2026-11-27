@@ -1,6 +1,6 @@
 // A typed constant subtraction that does not fit in uint64.
-// gc rejects it. Gno wraps, which is the runtime rule, not the constant rule.
-// gnodiff:known Gno does not reject an overflowing typed constant expression
+// gc and gno lint reject it. gno run wraps, which is the runtime rule.
+// gnodiff:known run accepts what lint rejects: constant overflow
 // gnodiff:expect-go reject: overflows uint64
 // gnodiff:expect-gno 18446744073709551584
 package main

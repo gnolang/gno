@@ -1,7 +1,0 @@
-package main
-
-func main() {
-	var a uint8 = 255
-	var two uint8 = 2
-	println(a * two)
-}

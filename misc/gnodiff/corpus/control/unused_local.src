@@ -1,5 +1,6 @@
-// gc rejects an unread local. Gno runs the program.
-// gnodiff:known Gno does not reject locals that are declared and not used
+// gc and gno lint reject an unread local. gno run executes the program.
+// This is the run path, not a typechecker miss: gno lint already reports it.
+// gnodiff:known run accepts what lint rejects: declared and not used
 // gnodiff:expect-go reject: declared and not used
 // gnodiff:expect-gno 2
 package main

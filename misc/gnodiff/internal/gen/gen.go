@@ -41,52 +41,123 @@ type node struct {
 	code string
 }
 
+// constMark flags a program whose typed constant expression is expected to
+// be rejected by gc and by gno lint. The VM may still execute it.
+const constMark = "// gnodiff:const-overflow\n"
+
 // Generate returns one program for seed. The same seed always returns the
-// same source. Programs use only the Gno subset: no goroutines, channels,
-// generics, or imports. Division uses a non-zero literal divisor except for
-// an occasional trailing panic that both toolchains must report.
+// same source. Most seeds are type-correct runtime programs. One seed in
+// 23 is a typed constant that does not fit, which gc must reject.
 func Generate(seed uint64) string {
 	//nolint:gosec // G404: deterministic PRNG, the seed is the fuzzer input
 	r := rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15))
-	g := &builder{r: r}
-	// id* keeps arithmetic off the constant evaluator. gc rejects a typed
-	// constant that overflows (uint64(8)-uint64(40)); Gno wraps it. The
-	// generator wants the runtime wrap, which both sides share.
-	g.b.WriteString("package main\n\nfunc idInt(x int) int { return x }\nfunc id64(x int64) int64 { return x }\nfunc idU(x uint64) uint64 { return x }\n\nfunc main() {\n\t_ = idInt(0)\n\t_ = id64(0)\n\t_ = idU(0)\n")
-	n := 5 + g.r.IntN(8)
-	for range n {
-		g.statement()
+	switch r.IntN(23) {
+	case 0:
+		return constOverflowProgram(r)
+	case 1:
+		return floatFormatProgram(r)
+	default:
+		return runtimeProgram(r)
 	}
-	switch g.r.IntN(10) {
+}
+
+func constOverflowProgram(r *rand.Rand) string {
+	exprs := []string{
+		"uint64(8) - uint64(40)",
+		"int8(128)",
+		"int16(32768)",
+		"int32(-2147483649)",
+		"uint8(256)",
+		"uint16(-1)",
+		"uint32(4294967296)",
+		"int64(9223372036854775808)",
+	}
+	expr := exprs[r.IntN(len(exprs))]
+	return constMark + "package main\n\nfunc main() {\n\tprintln(" + expr + ")\n}\n"
+}
+
+func floatFormatProgram(r *rand.Rand) string {
+	prec := 1 + r.IntN(4)
+	return fmt.Sprintf(`package main
+
+import "strconv"
+
+func main() {
+	println(strconv.FormatFloat(1.5, 'f', %d, 64))
+	println(strconv.FormatFloat(-0.0, 'f', 1, 64))
+	var x float64 = 1.25
+	println(strconv.FormatFloat(x, 'f', %d, 64))
+	println(strconv.FormatFloat(-x, 'f', 1, 64))
+}
+`, prec, prec)
+}
+
+func runtimeProgram(r *rand.Rand) string {
+	g := &builder{r: r}
+	// id* keeps arithmetic off the constant evaluator. A typed constant
+	// that overflows is a separate mode (constOverflowProgram).
+	g.head.WriteString("func idInt(x int) int { return x }\nfunc id64(x int64) int64 { return x }\nfunc idU(x uint64) uint64 { return x }\n\n")
+	feats := g.features()
+	feats[r.IntN(len(feats))]()
+	n := 4 + r.IntN(5)
+	for range n {
+		feats[r.IntN(len(feats))]()
+	}
+	switch r.IntN(10) {
 	case 0:
 		g.b.WriteString("\tprintln(\"before\")\n\tvar z int = 0\n\tprintln(1 / z)\n")
 	case 1:
 		g.b.WriteString("\tprintln(\"before\")\n\txs := []int{1, 2}\n\tprintln(xs[5])\n")
 	}
-	g.b.WriteString("}\n")
-	return g.b.String()
+	var out strings.Builder
+	out.WriteString("package main\n\n")
+	out.WriteString(g.head.String())
+	out.WriteString("func main() {\n")
+	out.WriteString(g.b.String())
+	out.WriteString("}\n")
+	return out.String()
+}
+
+func (g *builder) features() []func() {
+	return []func(){
+		g.decl,
+		g.println,
+		g.ifStmt,
+		g.forStmt,
+		g.aggregate,
+		g.closure,
+		g.deferRecover,
+		g.ifaceSwitch,
+		g.embedMethod,
+		g.labeledBreak,
+		g.labeledContinue,
+		g.gotoStmt,
+		g.fallthroughStmt,
+		g.arraySlice,
+		g.copyAppend,
+		g.stringBytes,
+		g.structMap,
+		g.shadow,
+		g.floats,
+		g.widthWrap,
+	}
 }
 
 type builder struct {
 	r    *rand.Rand
 	vals []node
+	head strings.Builder
 	b    strings.Builder
 	seq  int
 }
 
-func (g *builder) statement() {
-	switch g.r.IntN(6) {
-	case 0, 1:
-		g.decl()
-	case 2:
-		g.println()
-	case 3:
-		g.ifStmt()
-	case 4:
-		g.forStmt()
-	default:
-		g.aggregate()
+func (g *builder) emit(pkg, body string) {
+	id := fmt.Sprintf("%d", g.seq)
+	g.seq++
+	if pkg != "" {
+		g.head.WriteString(strings.ReplaceAll(pkg, "ID", id))
 	}
+	g.b.WriteString(strings.ReplaceAll(body, "ID", id))
 }
 
 func (g *builder) decl() {
@@ -112,7 +183,11 @@ func (g *builder) println() {
 func (g *builder) ifStmt() {
 	cond := g.expr(kBool, 0)
 	fmt.Fprintf(&g.b, "\tif %s {\n", cond.code)
+	// The declaration is inside the block. Do not let later statements
+	// refer to it.
+	saved := append([]node(nil), g.vals...)
 	g.decl()
+	g.vals = saved
 	g.b.WriteString("\t}\n")
 }
 

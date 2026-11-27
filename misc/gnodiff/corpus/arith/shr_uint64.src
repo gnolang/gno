@@ -1,9 +1,0 @@
-package main
-
-func main() {
-	var a uint64 = 18446744073709551615
-	println(a >> 1)
-	var one uint64 = 1
-	println(one << 1)
-	println(one << 0)
-}

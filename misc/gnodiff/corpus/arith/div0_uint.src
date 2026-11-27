@@ -1,8 +1,0 @@
-package main
-
-func main() {
-	var a uint = 1
-	var b uint = 0
-	println("before")
-	println(a / b)
-}

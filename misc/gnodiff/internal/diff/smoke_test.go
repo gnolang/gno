@@ -52,7 +52,8 @@ func TestGenerateSmoke(t *testing.T) {
 		src := gen.Generate(seed)
 		goRes := RunGo(context.Background(), src, Options{Timeout: 15 * time.Second})
 		gnoRes := RunGno(src, Options{})
-		class, reason := Classify(Program{Source: src}, goRes, gnoRes)
+		lintRes := RunLint(src, Options{})
+		class, reason := Classify(Program{Source: src}, goRes, gnoRes, lintRes)
 		if class == ClassReal {
 			t.Fatalf("seed %d %s\n--- go ---\n%s\n--- gno ---\n%s\n%s", seed, reason, goRes.Summary(), gnoRes.Summary(), src)
 		}
@@ -60,7 +61,7 @@ func TestGenerateSmoke(t *testing.T) {
 }
 
 func TestLoadCorpus(t *testing.T) {
-	progs, err := LoadDir(CorpusDir())
+	progs, err := LoadCorpus()
 	if err != nil {
 		t.Fatal(err)
 	}

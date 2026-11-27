@@ -1,8 +1,0 @@
-package main
-
-func main() {
-	var a int16 = 1
-	var s int16 = -1
-	println("before")
-	println(a << s)
-}

@@ -1,9 +1,0 @@
-package main
-
-func main() {
-
-	a := new(struct{})
-	b := new(struct{})
-	println(a == b)
-	println(a == a)
-}

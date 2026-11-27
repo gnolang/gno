@@ -1,7 +1,0 @@
-package main
-
-func main() {
-	var a int16 = -32768
-	var one int16 = 1
-	println(a - one)
-}

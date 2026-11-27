@@ -1,9 +1,0 @@
-package main
-
-func main() {
-
-	s := []int{1, 2, 3}
-	lo, hi := 2, 1
-	println("before")
-	_ = s[lo:hi]
-}

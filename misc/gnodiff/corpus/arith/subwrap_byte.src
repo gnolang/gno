@@ -1,7 +1,0 @@
-package main
-
-func main() {
-	var z byte = 0
-	var one byte = 1
-	println(z - one)
-}

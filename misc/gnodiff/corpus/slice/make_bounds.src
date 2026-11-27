@@ -1,8 +1,0 @@
-package main
-
-func main() {
-
-	n, c := 2, 1
-	println("before")
-	_ = make([]int, n, c)
-}

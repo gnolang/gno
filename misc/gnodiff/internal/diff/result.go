@@ -8,10 +8,9 @@ import (
 	"strings"
 )
 
-// Kind is the coarse outcome of one run. Message text is compared only for
-// KindOK and KindPanic; KindReject and KindNonTerm match on the kind alone,
-// because compiler wording and resource-limit timing are not the language
-// behavior under test.
+// Kind is the coarse outcome of one run. Successful runs and panics compare
+// text. Two rejections compare a path-stripped diagnostic. Two
+// non-terminations compare stdout when either side printed something.
 type Kind string
 
 const (
@@ -137,10 +136,24 @@ const (
 	// ClassReal is a behavioral disagreement, or a known seed whose output
 	// no longer matches the expect lines.
 	ClassReal Class = "real"
+	// ClassLintRun means gc and gno lint both reject the program, and the
+	// VM (gno run) still executes it.
+	ClassLintRun Class = "lint-run"
+	// ClassRejectWording means both sides reject the same constant overflow.
+	// The VM says "bigint overflows"; gc names the type. A different error
+	// (overflows versus undefined) is real. Two named types that differ are real.
+	ClassRejectWording Class = "reject-wording"
+	// ClassKnownAgrees means a // gnodiff:known seed now matches. The
+	// annotation is stale.
+	ClassKnownAgrees Class = "known-agrees"
 )
 
-// Classify compares one gc result with one GnoVM result.
-func Classify(prog Program, goRes, gnoRes Result) (Class, string) {
+// Classify compares one gc result with one GnoVM result. lintRes is the
+// go/types pass gno lint uses. A zero Result means that pass was not run.
+func Classify(prog Program, goRes, gnoRes, lintRes Result) (Class, string) {
+	if lintRes.Kind == KindInternal {
+		return ClassReal, "lint runner failed"
+	}
 	if goRes.Kind == KindInternal || gnoRes.Kind == KindInternal {
 		return ClassReal, "runner failed"
 	}
@@ -149,13 +162,16 @@ func Classify(prog Program, goRes, gnoRes Result) (Class, string) {
 			return knownOrReal(prog, goRes, gnoRes, "output truncated")
 		}
 	}
+	if class, reason, ok := lintRun(prog, goRes, gnoRes, lintRes); ok {
+		return class, reason
+	}
 	if goRes.Kind != gnoRes.Kind {
 		return knownOrReal(prog, goRes, gnoRes, fmt.Sprintf("outcome %s vs %s", goRes.Kind, gnoRes.Kind))
 	}
 	switch goRes.Kind {
 	case KindOK:
 		if goRes.Stdout == gnoRes.Stdout {
-			return ClassExact, ""
+			return exactOrStale(prog)
 		}
 		return knownOrReal(prog, goRes, gnoRes, "stdout")
 	case KindPanic:
@@ -163,17 +179,56 @@ func Classify(prog Program, goRes, gnoRes Result) (Class, string) {
 			return knownOrReal(prog, goRes, gnoRes, "stdout before panic")
 		}
 		if cleanPanic(goRes.Panic) == cleanPanic(gnoRes.Panic) {
-			return ClassExact, ""
+			return exactOrStale(prog)
 		}
-		if NormalizePanic(goRes.Panic) == NormalizePanic(gnoRes.Panic) || nilSliceWording(goRes.Panic, gnoRes.Panic) {
+		if panicWording(goRes.Panic, gnoRes.Panic) {
 			return ClassPanicWording, "panic wording"
 		}
 		return knownOrReal(prog, goRes, gnoRes, "panic message")
-	case KindReject, KindNonTerm:
-		return ClassExact, ""
+	case KindReject:
+		if normalizeDiag(goRes.Detail) == normalizeDiag(gnoRes.Detail) {
+			return exactOrStale(prog)
+		}
+		if overflowWording(goRes.Detail, gnoRes.Detail) {
+			return ClassRejectWording, "reject wording"
+		}
+		return knownOrReal(prog, goRes, gnoRes, "reject diagnostic")
+	case KindNonTerm:
+		if goRes.Stdout == "" && gnoRes.Stdout == "" || goRes.Stdout == gnoRes.Stdout {
+			return exactOrStale(prog)
+		}
+		return knownOrReal(prog, goRes, gnoRes, "stdout before nonterm")
 	default:
 		return ClassReal, "unknown outcome"
 	}
+}
+
+// lintRun classifies a program gc and gno lint both reject while the VM runs.
+func lintRun(prog Program, goRes, gnoRes, lintRes Result) (Class, string, bool) {
+	if lintRes.Kind != KindReject || goRes.Kind != KindReject || gnoRes.Kind == KindReject {
+		return "", "", false
+	}
+	if prog.ExpectGo != "" && !expectMatch(goRes, prog.ExpectGo) {
+		return ClassReal, "known go output changed", true
+	}
+	if prog.ExpectGno != "" && !expectMatch(gnoRes, prog.ExpectGno) {
+		return ClassReal, "known gno output changed", true
+	}
+	return ClassLintRun, "run accepts what lint rejects", true
+}
+
+func exactOrStale(prog Program) (Class, string) {
+	if prog.Known != "" {
+		return ClassKnownAgrees, "known now agrees"
+	}
+	return ClassExact, ""
+}
+
+func panicWording(goMsg, gnoMsg string) bool {
+	if NormalizePanic(goMsg) == NormalizePanic(gnoMsg) {
+		return true
+	}
+	return nilSliceWording(goMsg, gnoMsg) || negShiftWording(goMsg, gnoMsg)
 }
 
 func knownOrReal(prog Program, goRes, gnoRes Result, reason string) (Class, string) {
@@ -219,13 +274,19 @@ var (
 	boundsGnoRE = regexp.MustCompile(`invalid slice index (-?\d+) > (-?\d+)`)
 )
 
+var negShiftRE = regexp.MustCompile(`negative shift amount(?:: \((-?\d+))?`)
+
 // canonicalRuntimePanic maps panic texts that name the same event. The
-// numbers are kept: index 3 with length 2 must not match index 4.
+// numbers are kept: index 3 with length 2 must not match index 4, and a
+// negative shift of -1 must not match a shift of -2.
 func canonicalRuntimePanic(s string) (string, bool) {
 	switch {
 	case strings.Contains(s, "divide by zero"), strings.Contains(s, "division by zero"):
 		return "division by zero", true
 	case strings.Contains(s, "negative shift"):
+		if n, ok := shiftAmount(s); ok {
+			return "negative shift " + n, true
+		}
 		return "negative shift", true
 	}
 	for _, spec := range []struct {
@@ -244,21 +305,154 @@ func canonicalRuntimePanic(s string) (string, bool) {
 	return "", false
 }
 
-// nilSliceWording is the nil-slice index panic. gc reports it as an ordinary
-// index panic with length 0; Gno names the nil slice and does not repeat the
-// index. Both sides panicked on the same operation.
+// nilSliceWording is the nil-slice index panic at index 0. gc reports
+// `index out of range [0] with length 0`; Gno names the nil slice and does
+// not repeat the index. Any other index is a different event.
 func nilSliceWording(goMsg, gnoMsg string) bool {
 	if !strings.Contains(cleanPanic(gnoMsg), "nil slice index") {
 		return false
 	}
 	m := indexGoRE.FindStringSubmatch(cleanPanic(goMsg))
-	return m != nil && m[2] == "0"
+	return m != nil && m[1] == "0" && m[2] == "0"
+}
+
+func shiftAmount(s string) (string, bool) {
+	m := negShiftRE.FindStringSubmatch(s)
+	if m == nil || m[1] == "" {
+		return "", false
+	}
+	return m[1], true
+}
+
+// negShiftWording matches gc's operand-free "negative shift amount" with
+// Gno's "negative shift amount: (N type)" . When both sides print an
+// operand, the operands must be equal. gc does not print one, so that
+// specific pair cannot confirm the operand.
+func negShiftWording(goMsg, gnoMsg string) bool {
+	g := cleanPanic(goMsg)
+	n := cleanPanic(gnoMsg)
+	if !strings.Contains(g, "negative shift") || !strings.Contains(n, "negative shift") {
+		return false
+	}
+	ga, gok := shiftAmount(g)
+	na, nok := shiftAmount(n)
+	if gok && nok {
+		return ga == na
+	}
+	return true
+}
+
+var (
+	diagFileRE     = regexp.MustCompile(`(?:\./)?[\w./\\-]+\.g(?:no|o):\d+(?::\d+)?(?:-\d+)?:`)
+	notDeclRE      = regexp.MustCompile(`name (\w+) not declared`)
+	undefRE        = regexp.MustCompile(`undefined: (\w+)`)
+	unusedGoRE     = regexp.MustCompile(`declared and not used: (\w+)`)
+	unusedAltRE    = regexp.MustCompile(`(\w+) declared and not used`)
+	overflowAsRE   = regexp.MustCompile(`\bas ((?:u?int|byte|rune)\d*)\b`)
+	overflowTailRE = regexp.MustCompile(`overflows ((?:u?int|byte|rune)\d*)\b`)
+)
+
+// normalizeDiag strips file:line prefixes and process noise so two
+// rejections can be compared on the diagnostic itself. The same missing
+// name ("undefined: n" and "name n not declared") is one diagnostic.
+// "overflows uint64" and "undefined: foo" stay different.
+func normalizeDiag(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	var ids []string
+	var other []string
+	for _, line := range strings.Split(s, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "# ") || strings.HasPrefix(line, "exit status") {
+			continue
+		}
+		line = strings.TrimSpace(diagFileRE.ReplaceAllString(line, ""))
+		if line == "" {
+			continue
+		}
+		line = spaceRE.ReplaceAllString(line, " ")
+		if id, ok := diagIdentity(line); ok {
+			ids = append(ids, id)
+			continue
+		}
+		other = append(other, line)
+	}
+	// A recognized identity is the diagnostic. Stack frames after it are not.
+	if len(ids) > 0 {
+		return strings.Join(ids, "\n")
+	}
+	return strings.Join(other, "\n")
+}
+
+// overflowWording is a constant that does not fit, rejected on both sides,
+// with different text. gc names the type ("overflows int32", or "as int8
+// value ... (overflows)"). The VM says "bigint overflows" or, for a
+// negative constant, "bigint underflows", and does not repeat the type.
+// When both messages name a type, the types must match.
+func overflowWording(goDetail, gnoDetail string) bool {
+	g, gok := overflowIdentity(goDetail)
+	n, nok := overflowIdentity(gnoDetail)
+	if !gok || !nok {
+		return false
+	}
+	if g == n {
+		return true
+	}
+	return g == "overflows" || n == "overflows"
+}
+
+func overflowIdentity(detail string) (string, bool) {
+	var found string
+	ok := false
+	for _, line := range strings.Split(normalizeDiag(detail), "\n") {
+		id, matched := overflowLine(line)
+		if !matched {
+			continue
+		}
+		ok = true
+		if found == "" || found == "overflows" {
+			found = id
+		} else if id != "overflows" && id != found {
+			return "", false
+		}
+	}
+	return found, ok
+}
+
+func overflowLine(line string) (string, bool) {
+	if strings.Contains(line, "bigint overflows") || strings.Contains(line, "bigint underflows") {
+		return "overflows", true
+	}
+	if m := overflowAsRE.FindStringSubmatch(line); m != nil && strings.Contains(line, "overflow") {
+		return "overflows " + m[1], true
+	}
+	if m := overflowTailRE.FindStringSubmatch(line); m != nil {
+		return "overflows " + m[1], true
+	}
+	if strings.Contains(line, "overflow") {
+		return "overflows", true
+	}
+	return "", false
+}
+
+func diagIdentity(line string) (string, bool) {
+	switch {
+	case notDeclRE.MatchString(line):
+		return "undefined: " + notDeclRE.FindStringSubmatch(line)[1], true
+	case undefRE.MatchString(line):
+		return "undefined: " + undefRE.FindStringSubmatch(line)[1], true
+	case unusedGoRE.MatchString(line):
+		return "declared and not used: " + unusedGoRE.FindStringSubmatch(line)[1], true
+	case unusedAltRE.MatchString(line):
+		return "declared and not used: " + unusedAltRE.FindStringSubmatch(line)[1], true
+	default:
+		return "", false
+	}
 }
 
 // Compare reports whether the results are free of a real behavioral
-// divergence. Panic-wording differences count as agreement here; Classify
-// records them separately.
+// divergence. Panic-wording differences count as agreement here. The lint
+// oracle is not consulted; RunCorpus classifies with it.
 func Compare(goRes, gnoRes Result) (match bool, reason string) {
-	cl, reason := Classify(Program{}, goRes, gnoRes)
-	return cl == ClassExact || cl == ClassPanicWording, reason
+	cl, reason := Classify(Program{}, goRes, gnoRes, Result{})
+	return cl == ClassExact || cl == ClassPanicWording || cl == ClassRejectWording, reason
 }

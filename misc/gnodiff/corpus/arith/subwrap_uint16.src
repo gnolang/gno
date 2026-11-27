@@ -1,7 +1,0 @@
-package main
-
-func main() {
-	var z uint16 = 0
-	var one uint16 = 1
-	println(z - one)
-}

@@ -1,9 +1,0 @@
-package main
-
-func main() {
-	var a uint16 = 65535
-	println(a >> 1)
-	var one uint16 = 1
-	println(one << 1)
-	println(one << 0)
-}

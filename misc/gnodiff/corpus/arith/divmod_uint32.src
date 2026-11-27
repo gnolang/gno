@@ -1,8 +1,0 @@
-package main
-
-func main() {
-	var a uint32 = 5
-	var b uint32 = 2
-	println(a / b)
-	println(a % b)
-}

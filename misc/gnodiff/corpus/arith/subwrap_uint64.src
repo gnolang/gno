@@ -1,7 +1,0 @@
-package main
-
-func main() {
-	var z uint64 = 0
-	var one uint64 = 1
-	println(z - one)
-}

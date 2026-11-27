@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go/format"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+
+	"github.com/gnolang/gno/misc/gnodiff/internal/gen"
 )
 
 // Program is one seed, or one fuzz input, compared on both toolchains.
@@ -31,23 +34,28 @@ type CaseResult struct {
 	Reason    string `json:"reason,omitempty"`
 	Go        Result `json:"go"`
 	Gno       Result `json:"gno"`
+	Lint      Result `json:"lint,omitempty"`
 	Minimized string `json:"minimized,omitempty"`
 	Source    string `json:"source,omitempty"`
 }
 
 // Report is the full corpus run.
 type Report struct {
-	Total        int          `json:"total"`
-	Exact        int          `json:"exact"`
-	Known        int          `json:"known"`
-	PanicWording int          `json:"panicWording"`
-	Real         int          `json:"real"`
-	Internal     int          `json:"internal"`
-	Cases        []CaseResult `json:"cases"`
+	Total         int          `json:"total"`
+	Exact         int          `json:"exact"`
+	Known         int          `json:"known"`
+	KnownAgrees   int          `json:"knownAgrees"`
+	PanicWording  int          `json:"panicWording"`
+	RejectWording int          `json:"rejectWording"`
+	LintRun       int          `json:"lintRun"`
+	Real          int          `json:"real"`
+	Internal      int          `json:"internal"`
+	Cases         []CaseResult `json:"cases"`
 }
 
 // Failed is true when a real divergence or a runner failure was seen.
-// Known differences and panic-wording differences do not fail the run.
+// Known differences, panic-wording differences, and "run accepts what lint
+// rejects" do not fail the run.
 func (r Report) Failed() bool {
 	return r.Real > 0 || r.Internal > 0
 }
@@ -123,6 +131,45 @@ func CorpusDir() string {
 	return "corpus"
 }
 
+// LoadCorpus reads the hand-written seeds and appends the enumerated catalog,
+// which is built in memory rather than checked in.
+func LoadCorpus() ([]Program, error) {
+	hand, err := LoadDir(CorpusDir())
+	if err != nil {
+		return nil, err
+	}
+	return WithCatalog(hand), nil
+}
+
+// WithCatalog appends RawCatalog programs. A hand seed with the same name
+// wins, so a checked-in annotation is not overwritten.
+func WithCatalog(hand []Program) []Program {
+	seen := map[string]bool{}
+	for _, prog := range hand {
+		seen[prog.Name] = true
+	}
+	for _, seed := range gen.RawCatalog() {
+		name := seed.Category + "/" + seed.Name
+		if seen[name] {
+			continue
+		}
+		src := seed.Source
+		if formatted, err := format.Source([]byte(src)); err == nil {
+			src = string(formatted)
+		}
+		hand = append(hand, Program{
+			Name:      name,
+			Source:    src,
+			Known:     directive(src, "known"),
+			ExpectGo:  directive(src, "expect-go"),
+			ExpectGno: directive(src, "expect-gno"),
+		})
+		seen[name] = true
+	}
+	sort.Slice(hand, func(i, j int) bool { return hand[i].Name < hand[j].Name })
+	return hand
+}
+
 func directive(src, key string) string {
 	prefix := "// gnodiff:" + key
 	for line := range strings.SplitSeq(src, "\n") {
@@ -175,10 +222,17 @@ func RunCorpus(progs []Program, cfg RunConfig) Report {
 			rep.Exact++
 		case ClassKnown:
 			rep.Known++
+		case ClassKnownAgrees:
+			rep.KnownAgrees++
 		case ClassPanicWording:
 			rep.PanicWording++
+		case ClassRejectWording:
+			rep.RejectWording++
+		case ClassLintRun:
+			rep.LintRun++
 		default:
-			if item.Go.Kind == KindInternal || item.Gno.Kind == KindInternal || item.Reason == "runner failed" {
+			if item.Go.Kind == KindInternal || item.Gno.Kind == KindInternal || item.Lint.Kind == KindInternal ||
+				item.Reason == "runner failed" || item.Reason == "lint runner failed" {
 				rep.Internal++
 			} else {
 				rep.Real++
@@ -195,7 +249,8 @@ func RunCorpus(progs []Program, cfg RunConfig) Report {
 func runOne(prog Program, cfg RunConfig) CaseResult {
 	goRes := RunGo(context.Background(), prog.Source, cfg.Options)
 	gnoRes := RunGno(prog.Source, cfg.Options)
-	class, reason := Classify(prog, goRes, gnoRes)
+	lintRes := RunLint(prog.Source, cfg.Options)
+	class, reason := Classify(prog, goRes, gnoRes, lintRes)
 	item := CaseResult{
 		Name:   prog.Name,
 		Class:  class,
@@ -203,8 +258,9 @@ func runOne(prog Program, cfg RunConfig) CaseResult {
 		Reason: reason,
 		Go:     goRes,
 		Gno:    gnoRes,
+		Lint:   lintRes,
 	}
-	if class != ClassExact {
+	if class != ClassExact && class != ClassKnownAgrees {
 		item.Source = prog.Source
 	}
 	if class != ClassReal || !cfg.Minimize {
@@ -216,8 +272,9 @@ func runOne(prog Program, cfg RunConfig) CaseResult {
 	item.Minimized = Minimize(prog.Source, cfg.MinimizeBudget, func(src string) bool {
 		left := RunGo(context.Background(), src, cfg.Options)
 		right := RunGno(src, cfg.Options)
-		cl, _ := Classify(Program{Source: src}, left, right)
-		return cl == ClassReal && left.Kind != KindInternal && right.Kind != KindInternal
+		lint := RunLint(src, cfg.Options)
+		cl, _ := Classify(Program{Source: src}, left, right, lint)
+		return cl == ClassReal && left.Kind != KindInternal && right.Kind != KindInternal && lint.Kind != KindInternal
 	})
 	return item
 }
@@ -226,8 +283,8 @@ func runOne(prog Program, cfg RunConfig) CaseResult {
 // unexpected ones.
 func (r Report) Text() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "gnodiff: %d programs, %d exact, %d known, %d panic-wording, %d real, %d runner failures\n",
-		r.Total, r.Exact, r.Known, r.PanicWording, r.Real, r.Internal)
+	fmt.Fprintf(&b, "gnodiff: %d programs, %d exact, %d known, %d known-agrees, %d panic-wording, %d reject-wording, %d lint-run, %d real, %d runner failures\n",
+		r.Total, r.Exact, r.Known, r.KnownAgrees, r.PanicWording, r.RejectWording, r.LintRun, r.Real, r.Internal)
 	if r.Real == 0 && r.Internal == 0 && r.Known == 0 && r.PanicWording == 0 {
 		b.WriteString("no divergences.\n")
 		return b.String()
@@ -241,8 +298,14 @@ func (r Report) Text() string {
 		switch item.Class {
 		case ClassKnown:
 			label = "KNOWN"
+		case ClassKnownAgrees:
+			label = "KNOWN-AGREES"
 		case ClassPanicWording:
 			label = "WORDING"
+		case ClassRejectWording:
+			label = "REJECT-WORDING"
+		case ClassLintRun:
+			label = "LINT-RUN"
 		}
 		fmt.Fprintf(&b, "%s %s", label, item.Name)
 		if item.Reason != "" {
@@ -254,6 +317,9 @@ func (r Report) Text() string {
 		}
 		fmt.Fprintf(&b, "  go:  %s\n", indentSummary(item.Go.Summary()))
 		fmt.Fprintf(&b, "  gno: %s\n", indentSummary(item.Gno.Summary()))
+		if item.Lint.Kind != "" {
+			fmt.Fprintf(&b, "  lint: %s\n", indentSummary(item.Lint.Summary()))
+		}
 		if item.Gno.Gas > 0 {
 			fmt.Fprintf(&b, "  gno gas: %d (recorded, not compared)\n", item.Gno.Gas)
 		}

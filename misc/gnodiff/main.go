@@ -49,8 +49,10 @@ func main() {
 	} else {
 		if dir == "" {
 			dir = diff.CorpusDir()
+			progs, err = diff.LoadCorpus()
+		} else {
+			progs, err = diff.LoadDir(dir)
 		}
-		progs, err = diff.LoadDir(dir)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)

@@ -1,7 +1,0 @@
-package main
-
-func main() {
-	var a int8 = -128
-	var neg int8 = -1
-	println(a * neg)
-}

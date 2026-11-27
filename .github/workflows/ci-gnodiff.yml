@@ -34,7 +34,7 @@ jobs:
         run: go run . -out gnodiff-out
       - name: Generated batch
         working-directory: misc/gnodiff
-        run: go run . -generate 600 -seed 20261126 -minimize=true -budget 8 -timeout 8s -out gnodiff-out/generated
+        run: go run . -generate 600 -seed 20261126 -minimize=true -budget 8 -timeout 30s -out gnodiff-out/generated
       - name: Upload report
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

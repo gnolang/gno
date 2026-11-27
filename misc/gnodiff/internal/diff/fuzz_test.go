@@ -26,13 +26,9 @@ func FuzzPrograms(f *testing.F) {
 	if !fuzzActive() {
 		f.Skip("native fuzz is opt-in: go test -fuzz=FuzzPrograms ./internal/diff/")
 	}
-	progs, err := LoadDir(CorpusDir())
-	if err != nil {
-		f.Fatal(err)
-	}
-	for _, prog := range progs {
-		f.Add(prog.Source)
-	}
+	// The seed corpus is not a fuzz input. FuzzGenerated is the entry that
+	// spends time on programs both sides can run.
+	f.Add("package main\n\nfunc main() {\n\tprintln(1)\n}\n")
 	opt := Options{Timeout: 8 * time.Second}
 	f.Fuzz(func(t *testing.T, src string) {
 		if len(src) == 0 || len(src) > 8<<10 || !utf8.ValidString(src) {
@@ -84,7 +80,8 @@ func FuzzGenerated(f *testing.F) {
 		}
 		goRes := RunGo(context.Background(), src, opt)
 		gnoRes := RunGno(src, opt)
-		class, reason := Classify(Program{Source: src}, goRes, gnoRes)
+		lintRes := RunLint(src, opt)
+		class, reason := Classify(Program{Source: src}, goRes, gnoRes, lintRes)
 		if class != ClassReal {
 			return
 		}
@@ -94,7 +91,8 @@ func FuzzGenerated(f *testing.F) {
 		reduced := Minimize(src, 12, func(candidate string) bool {
 			left := RunGo(context.Background(), candidate, opt)
 			right := RunGno(candidate, opt)
-			cl, _ := Classify(Program{Source: candidate}, left, right)
+			lint := RunLint(candidate, opt)
+			cl, _ := Classify(Program{Source: candidate}, left, right, lint)
 			return cl == ClassReal && left.Kind != KindInternal && right.Kind != KindInternal
 		})
 		path := writeFuzzRepro(t, reduced)

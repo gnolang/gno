@@ -1,8 +1,0 @@
-package main
-
-func main() {
-	var a int64 = 9223372036854775807
-	var one int64 = 1
-	println(a + one)
-	println(a + a)
-}

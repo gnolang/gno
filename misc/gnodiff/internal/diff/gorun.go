@@ -78,9 +78,6 @@ func replaceEnv(base []string, kv map[string]string) []string {
 }
 
 func classifyGo(stdout, stderr string, runErr error, timedOut, trunc bool) Result {
-	if timedOut {
-		return Result{Kind: KindNonTerm, Detail: "go run timed out", Truncated: trunc}
-	}
 	prog, panicMsg := splitGoStderr(stderr)
 	out := stdout
 	if prog != "" {
@@ -91,6 +88,11 @@ func classifyGo(stdout, stderr string, runErr error, timedOut, trunc bool) Resul
 		}
 	}
 	res := Result{Stdout: NormalizeOutput(out), Truncated: trunc}
+	if timedOut {
+		res.Kind = KindNonTerm
+		res.Detail = "go run timed out"
+		return res
+	}
 	if panicMsg != "" {
 		res.Kind = KindPanic
 		res.Panic = panicMsg
@@ -103,7 +105,6 @@ func classifyGo(stdout, stderr string, runErr error, timedOut, trunc bool) Resul
 	if signaled(runErr) {
 		res.Kind = KindNonTerm
 		res.Detail = clip(runErr.Error(), detailLimit)
-		res.Stdout = ""
 		return res
 	}
 	res.Kind = KindReject
@@ -117,7 +118,9 @@ func classifyGo(stdout, stderr string, runErr error, timedOut, trunc bool) Resul
 }
 
 // splitGoStderr separates println output from a panic dump. The go command
-// appends "exit status N" after an unrecovered panic.
+// appends "exit status N" after an unrecovered panic. A line that merely
+// starts with "panic: " (a println of that prefix) is program output unless
+// a goroutine stack follows it.
 func splitGoStderr(stderr string) (prog, panicMsg string) {
 	stderr = strings.ReplaceAll(stderr, "\r\n", "\n")
 	lines := strings.Split(stderr, "\n")
@@ -131,7 +134,11 @@ func splitGoStderr(stderr string) (prog, panicMsg string) {
 		lines = lines[:len(lines)-1]
 	}
 	for i, line := range lines {
-		if after, ok := strings.CutPrefix(line, "panic: "); ok {
+		after, ok := strings.CutPrefix(line, "panic: ")
+		if !ok {
+			continue
+		}
+		if strings.Contains(strings.Join(lines[i+1:], "\n"), "goroutine ") {
 			return strings.Join(lines[:i], "\n"), after
 		}
 	}

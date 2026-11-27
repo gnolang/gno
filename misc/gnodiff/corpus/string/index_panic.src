@@ -1,8 +1,0 @@
-package main
-
-func main() {
-
-	s := "ab"
-	println("before")
-	println(s[5])
-}

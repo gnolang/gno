@@ -38,7 +38,7 @@ func Unsupported(src string) string {
 // Gno (it needs reflect), so it stays out.
 func allowedImport(path string) bool {
 	switch path {
-	case "math", "strings", "strconv", "utf8":
+	case "math", "strings", "strconv", "unicode/utf8":
 		return true
 	default:
 		return false

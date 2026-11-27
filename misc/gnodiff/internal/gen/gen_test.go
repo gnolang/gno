@@ -1,8 +1,12 @@
 package gen
 
 import (
+	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
+	"go/types"
+	"strings"
 	"testing"
 )
 
@@ -21,6 +25,28 @@ func TestGenerateParses(t *testing.T) {
 	for seed := uint64(1); seed <= 40; seed++ {
 		src := Generate(seed)
 		if _, err := parser.ParseFile(token.NewFileSet(), "main.go", src, parser.SkipObjectResolution); err != nil {
+			t.Fatalf("seed %d: %v\n%s", seed, err, src)
+		}
+	}
+}
+
+func TestGenerateTypechecks(t *testing.T) {
+	for seed := uint64(1); seed <= 80; seed++ {
+		src := Generate(seed)
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, "main.go", src, 0)
+		if err != nil {
+			t.Fatalf("seed %d: %v\n%s", seed, err, src)
+		}
+		conf := types.Config{Importer: importer.Default()}
+		_, err = conf.Check("main", fset, []*ast.File{file}, nil)
+		if strings.Contains(src, "gnodiff:const-overflow") {
+			if err == nil {
+				t.Fatalf("seed %d constant-overflow mode typechecked\n%s", seed, src)
+			}
+			continue
+		}
+		if err != nil {
 			t.Fatalf("seed %d: %v\n%s", seed, err, src)
 		}
 	}

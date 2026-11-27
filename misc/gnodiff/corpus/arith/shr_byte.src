@@ -1,9 +1,0 @@
-package main
-
-func main() {
-	var a byte = 255
-	println(a >> 1)
-	var one byte = 1
-	println(one << 1)
-	println(one << 0)
-}

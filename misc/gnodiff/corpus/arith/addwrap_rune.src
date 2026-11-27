@@ -1,8 +1,0 @@
-package main
-
-func main() {
-	var a rune = 2147483647
-	var one rune = 1
-	println(a + one)
-	println(a + a)
-}

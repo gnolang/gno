@@ -707,7 +707,7 @@ func main() {
 `},
 		{"stdlib", "utf8_basic", `package main
 
-import "utf8"
+import "unicode/utf8"
 
 func main() {
 	println(utf8.RuneCountInString("héllo"))

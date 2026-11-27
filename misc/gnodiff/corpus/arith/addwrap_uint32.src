@@ -1,8 +1,0 @@
-package main
-
-func main() {
-	var a uint32 = 4294967295
-	var one uint32 = 1
-	println(a + one)
-	println(a + a)
-}

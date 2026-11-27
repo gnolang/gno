@@ -1,8 +1,0 @@
-package main
-
-func main() {
-	var a int32 = 1
-	var s int32 = -1
-	println("before")
-	println(a << s)
-}

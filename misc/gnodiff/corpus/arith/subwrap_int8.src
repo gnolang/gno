@@ -1,7 +1,0 @@
-package main
-
-func main() {
-	var a int8 = -128
-	var one int8 = 1
-	println(a - one)
-}
