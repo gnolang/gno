@@ -182,6 +182,12 @@ NATIVE_SPECS = [
      r"BenchmarkNative_Runtime_AssertOriginCall-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
     ("chain/runtime", "getRealm", -1, "NumCallFrames",
      r"BenchmarkNative_Runtime_GetRealm_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    # Bench name encodes len(pkgPath); the paths are valid realm paths in the
+    # regexp's costliest shape, from the shortest (12) to the 256-byte limit.
+    ("chain/runtime", "payGas", 0, "LenString",
+     r"BenchmarkNative_Runtime_PayGas_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
+    ("chain/runtime", "payStorage", 0, "LenString",
+     r"BenchmarkNative_Runtime_PayStorage_(\d+)-\d+\s+\d+\s+([\d.]+)\s+ns/op"),
 
     # ---- time ----
     ("time", "now", None, "Flat",
