@@ -63,16 +63,11 @@ type mermaidBudget struct {
 }
 
 // mermaidTransformer gives the <gno-mermaid> blocks their budget and turns
-// the ```mermaid fences into mermaid nodes, when the render context enables
-// diagrams (GnoContext.Mermaid); otherwise both show as code. Like a ```math
-// fence, the info string must be exactly "mermaid", and a blank fence stays
-// a code block.
+// the ```mermaid fences into mermaid nodes. Like a ```math fence, the info
+// string must be exactly "mermaid", and a blank fence stays a code block.
 type mermaidTransformer struct{}
 
-func (mermaidTransformer) Transform(doc *ast.Document, reader text.Reader, pc parser.Context) {
-	if !getMermaidFromContext(pc) {
-		return
-	}
+func (mermaidTransformer) Transform(doc *ast.Document, reader text.Reader, _ parser.Context) {
 	src := reader.Source()
 	budget := &mermaidBudget{}
 	var fences []*ast.FencedCodeBlock
@@ -255,7 +250,7 @@ func (mermaidParser) CanAcceptIndentedLine() bool { return false }
 type mermaidExtension struct{}
 
 // ExtMermaid draws ```mermaid fences and <gno-mermaid> blocks as SVG
-// diagrams. Unless the render context enables it, both show as code.
+// diagrams.
 var ExtMermaid = &mermaidExtension{}
 
 func (*mermaidExtension) Extend(m goldmark.Markdown) {

@@ -86,10 +86,9 @@ Its one attribute, `width`, is `fit` (shrunk to the container when wider,
 never enlarged, as Mermaid draws by default) or `full` (the container's
 width); without it the diagram keeps its natural size and scrolls when
 wider, so its text stays the size of the page's. The body is read verbatim
-up to a `</gno-mermaid>` line, like a fence. Another attribute or value, a
-block its container or the document ends before the close tag, or a page
-with diagrams off shows the body as code, so a mistake shows the source
-rather than a guess. A tag line that opens no block (a self-closing
+up to a `</gno-mermaid>` line, like a fence. Another attribute or value,
+or a block its container or the document ends before the close tag, shows
+the body as code, so a mistake shows the source rather than a guess. A tag line that opens no block (a self-closing
 `<gno-mermaid/>`, a close tag with no block to end) renders as a comment,
 as a stray `<gno-details>` tag does, rather than as an HTML block hiding
 the lines up to the next blank one. In a `<gno-columns>` column, a diagram
@@ -168,14 +167,16 @@ breaks inside, so it wraps rather than overflowing.
   source rather than failing the page.
 - The page still goes through gnoweb's output cap (`maxRenderOutputBytes`).
 
-### Off by default
+### Always on, like the other extensions
 
-`RenderConfig.Mermaid`, set by `-mermaid` on gnoweb and `-web-mermaid` on
-gnodev, enables the transformer through the parser context
-(`GnoContext.Mermaid`), as the IPFS gateway does. Off, a fence is the code
-block it always was. Content inside `<gno-foreign>` is not drawn: the
-sandbox loads its own extensions, this one is not among them, and each
-foreign block would otherwise get bounds of its own.
+The extension is loaded with the Gno extension, as math, columns, details
+and the other gno-* blocks are, with no flag and no render setting: the
+bounds above are what keep untrusted markdown in check, not a switch. A
+```` ```mermaid ```` fence a realm already has, which showed as code, now
+draws, and one this package does not draw still shows as code. Content
+inside `<gno-foreign>` is not drawn: the sandbox loads its own extensions,
+this one is not among them, and each foreign block would otherwise get
+bounds of its own.
 
 ## Alternatives considered
 

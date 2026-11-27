@@ -125,10 +125,9 @@ func (e *GnoExtension) Extend(m goldmark.Markdown) {
 	// Add inline icons extension
 	ExtIcons.Extend(m)
 
-	// Add diagrams. Its block parser always runs: unless the context enables
-	// diagrams, a <gno-mermaid> block shows as code, like a ```mermaid fence.
-	// Not loaded inside the foreign sandbox either: its fences stay code, and
-	// each foreign block would otherwise get bounds of its own.
+	// Add diagrams. Not loaded inside the foreign sandbox: its fences stay
+	// code there, and each foreign block would otherwise get bounds of its
+	// own.
 	ExtMermaid.Extend(m)
 
 	// Add button extension. Like gno-form, it is intentionally NOT loaded

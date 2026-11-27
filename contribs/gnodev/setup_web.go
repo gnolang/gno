@@ -28,7 +28,6 @@ func setupGnoWebServer(logger *slog.Logger, cfg *AppConfig, remoteAddr string) (
 		"html", appcfg.UnsafeHTML,
 		"analytics", appcfg.Analytics,
 		"ipfs_gateway", appcfg.RenderConfig.IPFSGateway,
-		"mermaid", appcfg.RenderConfig.Mermaid,
 		"chain_id", cfg.chainId,
 	)
 	return router, nil
@@ -41,7 +40,6 @@ func gnoWebAppConfig(cfg *AppConfig, remoteAddr string) *gnoweb.AppConfig {
 	appcfg.Analytics = cfg.webAnalytics
 	appcfg.AnalyticsHostname = cfg.webAnalyticsHostname
 	appcfg.RenderConfig.IPFSGateway = cfg.webIPFSGateway
-	appcfg.RenderConfig.Mermaid = cfg.webMermaid
 	appcfg.NodeRemote = remoteAddr
 	appcfg.ChainID = cfg.chainId
 	// A dev or staging chain is never the canonical site.

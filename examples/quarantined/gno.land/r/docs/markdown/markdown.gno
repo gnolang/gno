@@ -1385,7 +1385,7 @@ Second law: $dS \geq \frac{\delta Q}{T}$
 
 ### Diagrams
 
-A ±± ±±±mermaid ±± code block is drawn as a diagram, on the server, as an SVG that follows the light and dark themes and needs no script. gnoweb draws a subset of [Mermaid](https://mermaid.js.org): sequence diagrams, pie charts, XY charts, timelines and kanban boards. Another diagram type, or a statement outside the subset, shows the block as code. Diagrams are drawn when gnoweb runs with ±-mermaid± (±-web-mermaid± in gnodev); otherwise every block shows as code.
+A ±± ±±±mermaid ±± code block is drawn as a diagram, on the server, as an SVG that follows the light and dark themes and needs no script. gnoweb draws a subset of [Mermaid](https://mermaid.js.org): sequence diagrams, pie charts, XY charts, timelines and kanban boards. Another diagram type, or a statement outside the subset, shows the block as code.
 
 A diagram keeps its natural size, centered, and scrolls sideways when it is wider than the page, so its text stays the size of the page's.
 

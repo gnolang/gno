@@ -193,7 +193,6 @@ func (r *HTMLRenderer) RenderRealm(w io.Writer, u *weburl.GnoURL, src []byte, ct
 	mdctx.Domain = ctx.Domain
 	mdctx.Links = ctx.Links
 	mdctx.IPFSGateway = r.cfg.IPFSGateway
-	mdctx.Mermaid = r.cfg.Mermaid
 
 	pctx := md.NewGnoParserContext(mdctx)
 

@@ -16,13 +16,13 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
-// renderMermaidDoc renders src with the Gno extension, diagrams enabled or
-// not, and returns the HTML and the number of mermaid nodes.
-func renderMermaidDoc(t *testing.T, src string, enabled bool) (string, int) {
+// renderMermaidDoc renders src with the Gno extension and returns the HTML
+// and the number of mermaid nodes.
+func renderMermaidDoc(t *testing.T, src string) (string, int) {
 	t.Helper()
 	m := goldmark.New()
 	NewGnoExtension().Extend(m)
-	ctx := NewGnoParserContext(GnoContext{Mermaid: enabled})
+	ctx := NewGnoParserContext(GnoContext{})
 	doc := m.Parser().Parse(text.NewReader([]byte(src)), parser.WithContext(ctx))
 	nodes := 0
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
@@ -38,17 +38,10 @@ func renderMermaidDoc(t *testing.T, src string, enabled bool) (string, int) {
 
 const seqFence = "```mermaid\nsequenceDiagram\nA->>B: hi\n```\n\n"
 
-func TestMermaidDisabled(t *testing.T) {
-	html, nodes := renderMermaidDoc(t, seqFence, false)
-	assert.Zero(t, nodes, "a disabled context leaves the fence alone")
-	assert.Contains(t, html, "<pre><code")
-	assert.NotContains(t, html, "<svg")
-}
-
 func TestMermaidFences(t *testing.T) {
 	// Like ```math: the info string is exactly "mermaid", and a blank fence
 	// stays a code block.
-	_, nodes := renderMermaidDoc(t, "```mermaid title\nsequenceDiagram\nA->>B: hi\n```\n\n```mermaid\n\n```\n\n"+seqFence, true)
+	_, nodes := renderMermaidDoc(t, "```mermaid title\nsequenceDiagram\nA->>B: hi\n```\n\n```mermaid\n\n```\n\n"+seqFence)
 	assert.Equal(t, 1, nodes)
 }
 
@@ -65,7 +58,7 @@ func TestMermaidTag(t *testing.T) {
 		"not drawable":  {"<gno-mermaid>\nflowchart LR\n<b>x</b>\n</gno-mermaid>\n", "&lt;b&gt;x&lt;/b&gt;"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			html, nodes := renderMermaidDoc(t, c.src, true)
+			html, nodes := renderMermaidDoc(t, c.src)
 			assert.Equal(t, 1, nodes)
 			assert.Contains(t, html, c.want)
 			assert.Equal(t, strings.Contains(c.want, "<svg"), strings.Contains(html, "<svg"), html)
@@ -73,16 +66,11 @@ func TestMermaidTag(t *testing.T) {
 		})
 	}
 
-	// Disabled, a block shows its source as code.
-	html, _ := renderMermaidDoc(t, "<gno-mermaid width=\"full\">\n"+pie+"</gno-mermaid>\n", false)
-	assert.Contains(t, html, "<pre><code>pie")
-	assert.NotContains(t, html, "<svg")
 }
 
 func TestMermaidStrayTag(t *testing.T) {
-	// A gno-mermaid tag line that opens no block renders as a comment, on
-	// every deployment, rather than turning into an HTML block that hides
-	// the lines after it.
+	// A gno-mermaid tag line that opens no block renders as a comment,
+	// rather than turning into an HTML block that hides the lines after it.
 	for name, c := range map[string]struct {
 		src  string
 		want []string
@@ -100,28 +88,26 @@ func TestMermaidStrayTag(t *testing.T) {
 			[]string{"<p>after</p>"},
 		},
 	} {
-		for _, enabled := range []bool{false, true} {
-			t.Run(fmt.Sprintf("%s enabled=%t", name, enabled), func(t *testing.T) {
-				html, _ := renderMermaidDoc(t, c.src, enabled)
-				for _, want := range c.want {
-					assert.Contains(t, html, want)
-				}
-				assert.Contains(t, html, "<!-- unexpected/invalid mermaid tag omitted -->")
-				assert.NotContains(t, html, "raw HTML omitted")
-			})
-		}
+		t.Run(name, func(t *testing.T) {
+			html, _ := renderMermaidDoc(t, c.src)
+			for _, want := range c.want {
+				assert.Contains(t, html, want)
+			}
+			assert.Contains(t, html, "<!-- unexpected/invalid mermaid tag omitted -->")
+			assert.NotContains(t, html, "raw HTML omitted")
+		})
 	}
 }
 
 func TestMermaidNotInForeign(t *testing.T) {
 	// The <gno-foreign> sandbox does not load the extension: a fence there
-	// stays code, even with diagrams enabled.
-	html, _ := renderMermaidDoc(t, "<gno-foreign>\n\n"+seqFence+"</gno-foreign>\n", true)
+	// stays code.
+	html, _ := renderMermaidDoc(t, "<gno-foreign>\n\n"+seqFence+"</gno-foreign>\n")
 	assert.Contains(t, html, "language-mermaid")
 	assert.NotContains(t, html, "<svg")
 
 	// A <gno-mermaid> block there is an unknown tag, omitted like any other.
-	html, _ = renderMermaidDoc(t, "<gno-foreign>\n\n<gno-mermaid>\npie\n\"a\" : 1\n</gno-mermaid>\n</gno-foreign>\n", true)
+	html, _ = renderMermaidDoc(t, "<gno-foreign>\n\n<gno-mermaid>\npie\n\"a\" : 1\n</gno-mermaid>\n</gno-foreign>\n")
 	assert.NotContains(t, html, "<svg")
 	assert.NotContains(t, html, "gno-mermaid>")
 }
@@ -129,13 +115,13 @@ func TestMermaidNotInForeign(t *testing.T) {
 func TestMermaidPerDocument(t *testing.T) {
 	// At most maxMermaidTries fences are tried; the ones past it show as
 	// code, as do the ones that fail.
-	html, nodes := renderMermaidDoc(t, strings.Repeat(seqFence, maxMermaidTries+2), true)
+	html, nodes := renderMermaidDoc(t, strings.Repeat(seqFence, maxMermaidTries+2))
 	assert.Equal(t, maxMermaidTries+2, nodes)
 	assert.Equal(t, maxMermaidTries, strings.Count(html, `class="gno-mermaid__svg"`))
 	assert.Equal(t, 2, strings.Count(html, "<pre><code"))
 
 	broken := strings.Repeat("```mermaid\nflowchart LR\n```\n\n", 3)
-	html, _ = renderMermaidDoc(t, broken+seqFence, true)
+	html, _ = renderMermaidDoc(t, broken+seqFence)
 	assert.Equal(t, 1, strings.Count(html, `class="gno-mermaid__svg"`))
 	assert.Equal(t, 3, strings.Count(html, "<pre><code"))
 }
@@ -154,7 +140,7 @@ func TestMermaidBytesSpent(t *testing.T) {
 	require.Less(t, fits+2, maxMermaidTries)
 
 	fence := "```mermaid\n" + big.String() + "```\n\n"
-	html, _ := renderMermaidDoc(t, strings.Repeat(fence, fits+1)+seqFence, true)
+	html, _ := renderMermaidDoc(t, strings.Repeat(fence, fits+1)+seqFence)
 	assert.Equal(t, fits, strings.Count(html, `class="gno-mermaid__svg"`))
 	assert.Equal(t, 2, strings.Count(html, "<pre><code"))
 }
@@ -169,7 +155,7 @@ func TestMermaidUnrenderedFootnote(t *testing.T) {
 		unused.WriteString(fmt.Sprintf("[^u%d]:\n    ```mermaid\n    sequenceDiagram\n    A->>B: hi\n    ```\n\n", i))
 	}
 	src := []byte(unused.String() + seqFence)
-	doc := m.Parser().Parse(text.NewReader(src), parser.WithContext(NewGnoParserContext(GnoContext{Mermaid: true})))
+	doc := m.Parser().Parse(text.NewReader(src), parser.WithContext(NewGnoParserContext(GnoContext{})))
 	var out bytes.Buffer
 	require.NoError(t, m.Renderer().Render(&out, src, doc))
 	assert.Equal(t, 1, strings.Count(out.String(), `class="gno-mermaid__svg"`))
