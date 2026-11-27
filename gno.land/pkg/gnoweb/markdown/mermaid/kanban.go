@@ -132,18 +132,23 @@ func splitMetadata(s string) (pairs []string, ok bool) {
 	value := false // past the colon of the pair
 	blank := true  // nothing but spaces yet in the key or the value
 	for i := 0; i < len(s); i++ {
-		switch c := s[i]; {
-		case quote != 0:
-			if c == quote {
-				quote = 0
+		c := s[i]
+		switch {
+		case quote != 0: // jump to the closing quote
+			j := strings.IndexByte(s[i:], quote)
+			if j < 0 {
+				return append(pairs, s[start:]), false
 			}
+			i, quote = i+j, 0
+		case !metadataByte[c]:
+			blank = false
 		case c == ',':
 			pairs, start = append(pairs, s[start:i]), i+1
 			value, blank = false, true
 		case c == ':' && !value:
 			value, blank = true, true
 		case c == ' ': // leaves blank as it is
-		case blank && (c == '"' || c == '\''):
+		case blank && c != ':':
 			quote, blank = c, false
 		default:
 			blank = false
@@ -151,6 +156,9 @@ func splitMetadata(s string) (pairs []string, ok bool) {
 	}
 	return append(pairs, s[start:]), quote == 0
 }
+
+// metadataByte marks the bytes splitMetadata acts on.
+var metadataByte = [256]bool{',': true, ':': true, ' ': true, '"': true, '\'': true}
 
 func (d *kanban) draw(w *svgWriter) (float64, float64) {
 	inner := laneWidth - 2*laneGap - 2*cardPad
