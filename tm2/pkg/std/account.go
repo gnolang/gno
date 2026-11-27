@@ -62,6 +62,15 @@ type AccountUnrestricter interface {
 	SetTokenLockWhitelisted(bool)
 }
 
+// AccountFreezer is an account governance can freeze. The ante handler rejects
+// every transaction a frozen address signs, as itself or as a session key, and
+// that is all a freeze stops: an address that never signs, such as a package's,
+// moves its coins through its own code.
+type AccountFreezer interface {
+	IsFrozen() bool
+	SetFrozen(bool)
+}
+
 //----------------------------------------
 // BaseAccount
 
@@ -134,13 +143,6 @@ func (acc BaseAccount) LockedCoins(blockTime time.Time) Coins {
 // ProtoBaseAccount - a prototype function for BaseAccount
 func ProtoBaseAccount() Account {
 	return &BaseAccount{}
-}
-
-// NewBaseAccountWithAddress - returns a new base account with a given address
-func NewBaseAccountWithAddress(addr crypto.Address) BaseAccount {
-	return BaseAccount{
-		Address: addr,
-	}
 }
 
 // GetAddress - Implements Account.

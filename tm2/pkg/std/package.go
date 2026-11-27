@@ -49,6 +49,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	NoSignaturesError{}, "NoSignaturesError",
 	GasOverflowError{}, "GasOverflowError",
 	RestrictedTransferError{}, "RestrictedTransferError",
+	QueryTimeoutError{}, "QueryTimeoutError",
 	SessionExpiredError{}, "SessionExpiredError",
 	SessionNotFoundError{}, "SessionNotFoundError",
 	SessionLimitError{}, "SessionLimitError",
