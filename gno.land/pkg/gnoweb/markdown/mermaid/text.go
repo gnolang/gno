@@ -156,10 +156,12 @@ func decodeEntities(s string) string {
 		}
 		code := s[i+1 : end-1]
 		decoded := html.UnescapeString("&" + code + ";")
-		if n, err := strconv.Atoi(code); err == nil {
+		if n, err := strconv.ParseUint(code, 10, 32); err == nil {
 			decoded = ""
-			if r := rune(n); n >= 0x20 && n <= unicode.MaxRune && utf8.ValidRune(r) && !unicode.IsControl(r) {
-				decoded = string(r)
+			if n >= 0x20 && n <= unicode.MaxRune {
+				if r := rune(n); utf8.ValidRune(r) && !unicode.IsControl(r) {
+					decoded = string(r)
+				}
 			}
 		} else if decoded == "&"+code+";" {
 			decoded = ""
