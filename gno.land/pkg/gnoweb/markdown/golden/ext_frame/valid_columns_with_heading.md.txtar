@@ -9,7 +9,7 @@ b
 </gno-frame>
 -- output.html --
 <section class="gno-frame">
-<h2>Apps</h2>
+<h2 id="apps">Apps<a href="#apps" class="heading-anchor" aria-label="Permalink">&#8288;<svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
 <div class="gno-columns">
 <!-- Column 0 -->
 <div class="gno-column">

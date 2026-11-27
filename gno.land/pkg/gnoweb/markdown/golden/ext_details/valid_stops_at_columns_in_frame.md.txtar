@@ -19,7 +19,7 @@ after
 <div class="gno-columns">
 <!-- Column 0 -->
 <div class="gno-column">
-<h2>a</h2>
+<h2 id="a">a<a href="#a" class="heading-anchor" aria-label="Permalink">&#8288;<svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
 <p>x</p>
 </div>
 </div> <!-- </gno-columns> -->

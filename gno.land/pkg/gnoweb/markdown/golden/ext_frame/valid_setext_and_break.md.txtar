@@ -7,6 +7,6 @@ Title
 </gno-frame>
 -- output.html --
 <section class="gno-frame">
-<h2>Title</h2>
+<h2 id="title">Title<a href="#title" class="heading-anchor" aria-label="Permalink">&#8288;<svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
 <hr>
 </section>

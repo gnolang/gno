@@ -5,5 +5,5 @@ never closed
 -- output.html --
 <section class="gno-frame">
 <p>never closed</p>
-<h2>heading</h2>
+<h2 id="heading">heading<a href="#heading" class="heading-anchor" aria-label="Permalink">&#8288;<svg class="c-icon" aria-hidden="true"><use href="#ico-link"></use></svg></a></h2>
 </section>

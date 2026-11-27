@@ -59,5 +59,5 @@ func TestDuplicateHeadingIDsLinear(t *testing.T) {
 	start := time.Now()
 	require.NoError(t, md.Convert(src, &out, parser.WithContext(NewGnoParserContext(GnoContext{}))))
 	require.Less(t, time.Since(start), 2*time.Second)
-	require.Contains(t, out.String(), `<h2 id="a-19999">a</h2>`)
+	require.Contains(t, out.String(), `<h2 id="a-19999">a<a href="#a-19999" class="heading-anchor"`)
 }
