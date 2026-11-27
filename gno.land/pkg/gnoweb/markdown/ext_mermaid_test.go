@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb/markdown/mermaid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yuin/goldmark"
@@ -137,6 +138,25 @@ func TestMermaidPerDocument(t *testing.T) {
 	html, _ = renderMermaidDoc(t, broken+seqFence, true)
 	assert.Equal(t, 1, strings.Count(html, `class="gno-mermaid__svg"`))
 	assert.Equal(t, 3, strings.Count(html, "<pre><code"))
+}
+
+func TestMermaidBytesSpent(t *testing.T) {
+	// The first diagram the page's SVG budget cannot hold spends it: it and
+	// the ones after it show as code, without being drawn.
+	var big strings.Builder
+	big.WriteString("pie\n")
+	for i := range 800 {
+		fmt.Fprintf(&big, "\"%d\" : 1\n", i)
+	}
+	svg, _, err := mermaid.Render(big.String())
+	require.NoError(t, err)
+	fits := maxMermaidBytes / len(svg)
+	require.Less(t, fits+2, maxMermaidTries)
+
+	fence := "```mermaid\n" + big.String() + "```\n\n"
+	html, _ := renderMermaidDoc(t, strings.Repeat(fence, fits+1)+seqFence, true)
+	assert.Equal(t, fits, strings.Count(html, `class="gno-mermaid__svg"`))
+	assert.Equal(t, 2, strings.Count(html, "<pre><code"))
 }
 
 func TestMermaidUnrenderedFootnote(t *testing.T) {

@@ -47,15 +47,17 @@ func (n *mermaidNode) Dump(source []byte, level int) {
 
 // Per-document bounds: a document tries to draw at most maxMermaidTries
 // diagrams, which with mermaid.MaxSourceLen bounds the drawing work of a
-// render, and draws at most maxMermaidBytes of SVG. Diagrams past a bound
-// show as code. Only rendered diagrams count, so a fence in a footnote never
-// referenced takes no try.
+// render, and draws at most maxMermaidBytes of SVG; the first diagram that
+// does not fit spends what is left. Diagrams past a bound show as code.
+// Only rendered diagrams count, so a fence in a footnote never referenced
+// takes no try.
 const (
 	maxMermaidTries = 20
 	maxMermaidBytes = 2 << 20
 )
 
-// mermaidBudget is what a document has tried and drawn so far.
+// mermaidBudget is what a document has tried and drawn so far; bytes is
+// maxMermaidBytes once spent.
 type mermaidBudget struct {
 	tries, bytes int
 }
@@ -114,12 +116,16 @@ func renderMermaid(w util.BufWriter, _ []byte, node ast.Node, entering bool) (as
 		return ast.WalkContinue, nil
 	}
 	b := n.budget
-	if b == nil || b.tries == maxMermaidTries {
+	if b == nil || b.tries == maxMermaidTries || b.bytes == maxMermaidBytes {
 		return ast.WalkContinue, nil // show the code
 	}
 	b.tries++
 	svg, width, err := mermaid.Render(n.src)
-	if err != nil || b.bytes+len(svg) > maxMermaidBytes {
+	if err != nil {
+		return ast.WalkContinue, nil
+	}
+	if b.bytes+len(svg) > maxMermaidBytes {
+		b.bytes = maxMermaidBytes
 		return ast.WalkContinue, nil
 	}
 	b.bytes += len(svg)

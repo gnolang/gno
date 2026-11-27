@@ -134,7 +134,8 @@ func Render(src string) (svg []byte, width float64, err error) {
 	var w svgWriter
 	bodyW, bodyH := d.draw(&w)
 	title := plain(m.title)
-	// Checked before document copies the body.
+	// Checked before document copies the body, which its buffer stopped
+	// writing past MaxOutputLen.
 	width, height := max(bodyW, titleWidth(title)), bodyH+titleHeight(title)
 	if width > maxDimension || height > maxDimension {
 		return nil, 0, errorf(0, "diagram larger than %d px", maxDimension)

@@ -220,12 +220,26 @@ func TestWriterEscapes(t *testing.T) {
 	assert.Contains(t, s, "a &amp; b�")
 }
 
+func TestWriterBound(t *testing.T) {
+	// Past MaxOutputLen a writer drops what it is given, so a drawing Render
+	// refuses is not drawn in full first.
+	var w svgWriter
+	for w.b.Len() <= MaxOutputLen {
+		w.rect(classBox, 1, 2, 3, 4, 5)
+	}
+	n := w.b.Len()
+	w.rect(classBox, 1, 2, 3, 4, 5)
+	w.text(classMuted, 1, 2, anchorMiddle, 0, "a & b", "c")
+	w.path(classStroke, new(pathData).cmd('M', 1, 2))
+	assert.Equal(t, n, w.b.Len())
+}
+
 func TestWriteNum(t *testing.T) {
 	for v, want := range map[float64]string{
 		0: "0", -0.001: "0", 1.005: "1", 2.5: "2.5", 1.234: "1.23", -3: "-3",
 		1e307: "1000000000", -1e307: "-1000000000", math.Inf(1): "0", math.NaN(): "0",
 	} {
-		var b bytes.Buffer
+		var b buffer
 		writeNum(&b, v)
 		assert.Equal(t, want, b.String(), "%v", v)
 	}

@@ -134,10 +134,13 @@ East Asian text) breaks after a `/ . - _ ,` or between characters.
   at worst.
 - `Render` refuses a drawing wider or taller than 20,000 px or larger than
   512 KiB (`MaxOutputLen`), which also bounds how many items a type draws.
+  `svgWriter` stops writing past 512 KiB, so such a drawing is not written
+  in full first.
 - A document tries at most 20 diagrams, fences and `<gno-mermaid>` blocks
   together, counted as they are rendered (a fence in a footnote never
-  referenced takes none), and draws at most 2 MiB of SVG; the diagrams past
-  a bound stay code.
+  referenced takes none), and draws at most 2 MiB of SVG, which the first
+  diagram that does not fit spends; the diagrams past a bound stay code,
+  and are not drawn.
 - `Render` turns a panic into an `*Error`, so a bug on some input shows the
   source rather than failing the page.
 - The page still goes through gnoweb's output cap (`maxRenderOutputBytes`).

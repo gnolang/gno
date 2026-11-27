@@ -92,7 +92,37 @@ const (
 // and anchors, or escaped text. No method writes a style, an event handler,
 // a link or a reference to another resource.
 type svgWriter struct {
-	b bytes.Buffer
+	b buffer
+}
+
+// buffer is what svgWriter and pathData write to. Once it holds more than
+// MaxOutputLen bytes it drops every write: Render refuses such a drawing, so
+// one too large stops growing rather than being drawn in full.
+type buffer struct {
+	bytes.Buffer
+}
+
+func (b *buffer) full() bool { return b.Len() > MaxOutputLen }
+
+func (b *buffer) Write(p []byte) (int, error) {
+	if b.full() {
+		return len(p), nil
+	}
+	return b.Buffer.Write(p)
+}
+
+func (b *buffer) WriteString(s string) (int, error) {
+	if b.full() {
+		return len(s), nil
+	}
+	return b.Buffer.WriteString(s)
+}
+
+func (b *buffer) WriteByte(c byte) error {
+	if b.full() {
+		return nil
+	}
+	return b.Buffer.WriteByte(c)
 }
 
 // document wraps what w holds, a drawing bodyW wide, in an <svg> element of
@@ -256,7 +286,7 @@ func (w *svgWriter) attr(name string, v float64) {
 
 // pathData builds the d attribute of a path from numbers only.
 type pathData struct {
-	b bytes.Buffer
+	b buffer
 }
 
 func (p *pathData) cmd(c byte, args ...float64) *pathData {
@@ -277,7 +307,7 @@ const maxCoord = 1e9
 // writeNum writes v with at most two decimals. A value that is not finite,
 // which no layout should produce, is written as 0, and one past maxCoord as
 // the bound, so the document stays valid.
-func writeNum(b *bytes.Buffer, v float64) {
+func writeNum(b *buffer, v float64) {
 	if math.IsNaN(v) || math.IsInf(v, 0) {
 		v = 0
 	}
@@ -291,6 +321,6 @@ func writeNum(b *bytes.Buffer, v float64) {
 // escape writes s as XML character data, valid in text and in attribute
 // values: markup characters become references and characters XML forbids
 // become U+FFFD.
-func escape(b *bytes.Buffer, s string) {
+func escape(b *buffer, s string) {
 	_ = xml.EscapeText(b, []byte(s))
 }
