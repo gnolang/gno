@@ -109,6 +109,8 @@ func TestFrontmatterTitle(t *testing.T) {
 		`"a \"b\" \\ \u00e9"`: `a "b" \ é`,
 		`"'kept'"  # quoted`:  "'kept'",
 		`# only a comment`:    "",
+		`2026`:                "2026",
+		`-5`:                  "-5",
 		``:                    "",
 	} {
 		var m meta
@@ -124,6 +126,7 @@ func TestFrontmatterTitle(t *testing.T) {
 	for _, value := range []string{
 		">", "|-", "~", "null", "'unclosed", `"unclosed`, `"x" y`, `'x'#c`, `"\q"`, `"\ud800"`,
 		"[a, b]", "&anchor x", "*alias", "- x", "Time: 10:30", "a\n  continued", "\n  next line",
+		"false", "TRUE", "0", "1.50", "0x10", "1e3", "007", ".inf", "12345678901234567890",
 	} {
 		_, err := scan("---\ntitle: "+value+"\n---\npie", &meta{})
 		var e *Error

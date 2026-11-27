@@ -207,12 +207,20 @@ func scan(src string, m *meta) ([]line, error) {
 // YAML keys are case-sensitive, and a key needs a space after its colon.
 var frontTitle = regexp.MustCompile(`^title[ \t]*:(?:[ \t](.*))?$`)
 
+// yamlTyped matches the plain values YAML's core schema reads as a bool or
+// a number; keptNumber the numbers JavaScript writes back as written.
+var (
+	yamlTyped  = regexp.MustCompile(`^(?:true|True|TRUE|false|False|FALSE|[-+]?(?:[0-9]+|\.[0-9]+|[0-9]+\.[0-9]*)(?:[eE][-+]?[0-9]+)?|0o[0-7]+|0x[0-9a-fA-F]+|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$`)
+	keptNumber = regexp.MustCompile(`^-?[1-9][0-9]{0,14}$`)
+)
+
 // yamlScalar reads v, a value on one line, as YAML reads a string: a plain
 // value ends at a comment, a single-quoted one doubles its quotes and a
 // double-quoted one takes the escapes \" \\ \n \t and \uXXXX; only a comment
 // may follow the closing quote. ok is false for anything else YAML could
 // read there, which would not be the string written: a null, a block
-// scalar, a collection, an anchor, an unclosed quote.
+// scalar, a collection, an anchor, an unclosed quote, a bool, or a number
+// Mermaid would not draw as written (0 draws no title, 1.50 draws 1.5).
 func yamlScalar(v string) (s string, ok bool) {
 	v = strings.TrimSpace(v)
 	if v == "" || v[0] != '"' && v[0] != '\'' {
@@ -225,7 +233,8 @@ func yamlScalar(v string) (s string, ok bool) {
 		case v == "~", v == "null", v == "Null", v == "NULL",
 			strings.ContainsRune("[]{},&*!|>%@`", rune(v[0])),
 			strings.HasPrefix(v+" ", "- "), strings.HasPrefix(v+" ", "? "),
-			strings.Contains(v+" ", ": "):
+			strings.Contains(v+" ", ": "),
+			yamlTyped.MatchString(v) && !keptNumber.MatchString(v):
 			return "", false
 		}
 		return v, true
