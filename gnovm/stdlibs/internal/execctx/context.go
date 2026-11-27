@@ -9,6 +9,10 @@ import (
 
 type BankerInterface interface {
 	GetCoins(addr crypto.Bech32Address) (dst std.Coins)
+	// GetLockedCoins is the part of the balance a vesting schedule keeps
+	// from being transferred at the current block time. Empty when the
+	// address has no account or no schedule. GetCoins includes it.
+	GetLockedCoins(addr crypto.Bech32Address) (dst std.Coins)
 	// GetCoin reads one denom. GetCoins costs O(denoms held); this does not.
 	GetCoin(addr crypto.Bech32Address, denom string) int64
 	SendCoins(from, to crypto.Bech32Address, amt std.Coins)

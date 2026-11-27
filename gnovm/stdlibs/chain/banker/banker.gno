@@ -49,6 +49,7 @@ import (
 // (without confusion).
 type Banker interface {
 	GetCoins(addr address) (dst chain.Coins)
+	GetLockedCoins(addr address) (dst chain.Coins)
 	GetCoin(addr address, denom string) int64
 	SendCoins(from, to address, amt chain.Coins)
 	TotalCoin(denom string) int64
@@ -172,6 +173,7 @@ func NewBanker(bt BankerType, rlm realm) Banker {
 
 // These are native bindings to the banker's functions.
 func bankerGetCoins(bt uint8, addr string) (denoms []string, amounts []int64)
+func bankerGetLockedCoins(bt uint8, addr string) (denoms []string, amounts []int64)
 func bankerGetCoin(bt uint8, addr string, denom string) int64
 func bankerSendCoins(bt uint8, from, to string, denoms []string, amounts []int64)
 func bankerTotalCoin(bt uint8, denom string) int64
@@ -212,6 +214,29 @@ func IsCanonical(b Banker) bool {
 
 func (b banker) GetCoins(addr address) (dst chain.Coins) {
 	denoms, amounts := bankerGetCoins(uint8(b.bt), string(addr))
+	dst = make(chain.Coins, len(denoms))
+	for i := range dst {
+		dst[i] = chain.Coin{denoms[i], amounts[i]}
+	}
+	return dst
+}
+
+// GetLockedCoins returns the coins a vesting schedule keeps addr from
+// transferring at the current block time. GetCoins includes this locked
+// part in the total. An address with no account, or an account with no
+// schedule, returns an empty set.
+//
+// The figure is the schedule's remainder, the same one a transfer consults.
+// It is not clamped to the balance: fees can debit coins the schedule still
+// calls locked, so a denom's locked amount can exceed GetCoin for that
+// denom. What a transfer may move is the difference, clamped at zero.
+//
+// Read-only, like GetCoins: every banker type may call it. The native gas
+// matches GetCoins, a flat charge plus a term that grows with the number of
+// denoms returned. That number is the schedule's, fixed when the account
+// was created, not the number of denoms the address has since been sent.
+func (b banker) GetLockedCoins(addr address) (dst chain.Coins) {
+	denoms, amounts := bankerGetLockedCoins(uint8(b.bt), string(addr))
 	dst = make(chain.Coins, len(denoms))
 	for i := range dst {
 		dst[i] = chain.Coin{denoms[i], amounts[i]}

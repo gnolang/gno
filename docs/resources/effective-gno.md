@@ -834,6 +834,10 @@ without its consent, so `GetCoins` on a caller-supplied address costs whatever a
 third party decided it should — enough of them and your function can no longer be
 called at all.
 
+A balance from `GetCoins` or `GetCoin` includes coins a vesting schedule still
+locks. `GetLockedCoins(addr)` reports that locked part at the current block
+time. What a transfer can move is the difference, clamped at zero.
+
 #### Verifying inbound Coin payments
 
 A realm that wants to charge for a function typically attaches a payment check

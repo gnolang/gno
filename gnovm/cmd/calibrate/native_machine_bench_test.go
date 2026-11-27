@@ -23,7 +23,8 @@ import (
 // ---------------- mock interfaces ----------------
 
 type mockBanker struct {
-	coins map[crypto.Bech32Address]std.Coins
+	coins  map[crypto.Bech32Address]std.Coins
+	locked map[crypto.Bech32Address]std.Coins
 }
 
 func newMockBanker() *mockBanker {
@@ -35,6 +36,9 @@ func newMockBanker() *mockBanker {
 // I/O — that's metered separately by the KVStore's per-byte gas.
 func (b *mockBanker) GetCoins(addr crypto.Bech32Address) std.Coins {
 	return b.coins[addr]
+}
+func (b *mockBanker) GetLockedCoins(addr crypto.Bech32Address) std.Coins {
+	return b.locked[addr]
 }
 func (b *mockBanker) GetCoin(addr crypto.Bech32Address, denom string) int64 {
 	return b.coins[addr].AmountOf(denom)
@@ -194,6 +198,32 @@ func BenchmarkNative_Banker_GetCoins_1(b *testing.B)    { benchBankerGetCoins(b,
 func BenchmarkNative_Banker_GetCoins_10(b *testing.B)   { benchBankerGetCoins(b, 10) }
 func BenchmarkNative_Banker_GetCoins_100(b *testing.B)  { benchBankerGetCoins(b, 100) }
 func BenchmarkNative_Banker_GetCoins_1000(b *testing.B) { benchBankerGetCoins(b, 1000) }
+
+// X_bankerGetLockedCoins has the same shape as X_bankerGetCoins. The shipped
+// gas row copies that native until a reference-hardware fit replaces it.
+func benchBankerGetLockedCoins(b *testing.B, n int) {
+	b.Helper()
+	m := newDispatchMachine(2)
+	bk, _ := addContextAndFrames(m, "gno.land/r/x")
+	addr := crypto.Bech32Address("g1ownr")
+	cs := make(std.Coins, n)
+	for i := range n {
+		cs[i] = std.Coin{Denom: fmt.Sprintf("d%05d", i), Amount: int64(i + 1)}
+	}
+	bk.locked = map[crypto.Bech32Address]std.Coins{addr: cs}
+	setBlockValueFromGo(m, 0, uint8(0)) // btReadonly
+	setBlockValueFromGo(m, 1, string(addr))
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/banker", "bankerGetLockedCoins"), nReturns: 2}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Banker_GetLockedCoins_1(b *testing.B)    { benchBankerGetLockedCoins(b, 1) }
+func BenchmarkNative_Banker_GetLockedCoins_10(b *testing.B)   { benchBankerGetLockedCoins(b, 10) }
+func BenchmarkNative_Banker_GetLockedCoins_100(b *testing.B)  { benchBankerGetLockedCoins(b, 100) }
+func BenchmarkNative_Banker_GetLockedCoins_1000(b *testing.B) { benchBankerGetLockedCoins(b, 1000) }
 
 func BenchmarkNative_Banker_GetCoin(b *testing.B) {
 	m := newDispatchMachine(3)

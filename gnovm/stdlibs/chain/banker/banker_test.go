@@ -11,9 +11,13 @@ import (
 )
 
 // countingBanker records whether a send actually reached the bank.
-type countingBanker struct{ sends int }
+type countingBanker struct {
+	sends  int
+	locked std.Coins
+}
 
 func (b *countingBanker) GetCoins(crypto.Bech32Address) std.Coins          { return nil }
+func (b *countingBanker) GetLockedCoins(crypto.Bech32Address) std.Coins    { return b.locked }
 func (b *countingBanker) GetCoin(crypto.Bech32Address, string) int64       { return 0 }
 func (b *countingBanker) SendCoins(_, _ crypto.Bech32Address, _ std.Coins) { b.sends++ }
 func (b *countingBanker) TotalCoin(string) int64                           { return 0 }
@@ -66,4 +70,21 @@ func TestOriginSendIsSpendableOnlyByThePaidRealm(t *testing.T) {
 	m := newMachine(bk)
 	require.False(t, send(m, paid), "the paid realm must be able to spend")
 	require.Equal(t, 1, bk.sends, "the paid realm's send must reach the bank")
+}
+
+func TestBankerGetLockedCoinsExpands(t *testing.T) {
+	bk := &countingBanker{locked: std.Coins{
+		{Denom: "atom", Amount: 3},
+		{Denom: "ugnot", Amount: 7},
+	}}
+	m := &gno.Machine{Context: execctx.ExecContext{Banker: bk}}
+
+	denoms, amounts := X_bankerGetLockedCoins(m, btReadonly, "g1ignored")
+	require.Equal(t, []string{"atom", "ugnot"}, denoms)
+	require.Equal(t, []int64{3, 7}, amounts)
+
+	bk.locked = nil
+	denoms, amounts = X_bankerGetLockedCoins(m, btReadonly, "g1ignored")
+	require.Empty(t, denoms)
+	require.Empty(t, amounts)
 }

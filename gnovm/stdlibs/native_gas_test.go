@@ -36,6 +36,37 @@ func TestSubRealmGasMirrorsPackageAddress(t *testing.T) {
 	}
 }
 
+// GetLockedCoins returns the same (denoms, amounts) shape as GetCoins, so it
+// is charged the same way. A re-fit that prices one and not the other would
+// let a realm read a vesting lock for less than the balance it sits inside.
+func TestGetLockedCoinsGasMatchesGetCoins(t *testing.T) {
+	t.Parallel()
+
+	var got, want nativeGasEntry
+	var haveGot, haveWant bool
+	for _, e := range calibratedNativeGas {
+		if e.Pkg != "chain/banker" {
+			continue
+		}
+		switch e.Fn {
+		case "bankerGetCoins":
+			want = e
+			haveWant = true
+		case "bankerGetLockedCoins":
+			got = e
+			haveGot = true
+		}
+	}
+	if !haveGot || !haveWant {
+		t.Fatal("bankerGetCoins or bankerGetLockedCoins row missing from calibratedNativeGas")
+	}
+	got.Fn = ""
+	want.Fn = ""
+	if got != want {
+		t.Fatalf("bankerGetLockedCoins gas %+v differs from bankerGetCoins %+v", got, want)
+	}
+}
+
 // TestModExpRowCoversMeasuredCalibrationPoint guards the crypto/modexp row
 // against a re-fit that drops it below the only shape this native has a real
 // measurement for. The superseded row charged on len(modulus) alone and was fit
