@@ -43,19 +43,27 @@ Mermaid, chosen for what realms show:
 | `kanban` | columns and cards by indentation, `id[label]` or a bare label, the `label`, `ticket`, `assigned` and `priority` metadata |
 
 Every type also takes `accTitle`, `accDescr`, `%%` comment lines, a YAML
-frontmatter (its `title` is drawn) and entity codes (`#59;`, `#quot;`, any
-HTML entity name). Keywords ignore ASCII case, as in Mermaid. `%%{init}%%` directives and the frontmatter's
-configuration are ignored, since gnoweb's theme decides the colors, and so
-are kanban metadata keys outside the four above.
+frontmatter (its `title` is drawn as YAML reads it; one YAML reads as a
+number is drawn only when JavaScript writes it back as written, as `3.14`
+or `2026`, not `1.50`, `1e3` or `1_000`, and a bool or `0` is refused) and
+entity codes (`#59;`, `#quot;`, any HTML entity name; a code for a control
+character, `#10;` or `#NewLine;`, draws as a space, as the browser shows
+Mermaid's). Keywords ignore ASCII case, as in Mermaid. `%%{init}%%`
+directives and the frontmatter's configuration are ignored, since gnoweb's
+theme decides the colors, and so are kanban metadata keys outside the four
+above.
 
 Anything else (another diagram type, a statement outside the table, a
-malformed line, a node shape or icon) makes `Render` return an `*Error`, and
-the fence shows as the code block it is, as an unconverted ```` ```math ````
-fence does. The rule is never to draw a diagram that means something else
-than in Mermaid: what is not understood is refused, not guessed. A few
-deliberate differences remain: unquoted multi-word axis titles keep their
-spaces, and an xychart without a range starts its y-axis at zero. `#`
-starts a comment only at the start of a line, as in Mermaid; elsewhere it
+malformed line, a node shape or icon, a `()` in the sender or receiver of
+a sequence message, which Mermaid reads as a central connection) makes
+`Render` return an `*Error`, and the fence shows as the code block it is,
+as an unconverted ```` ```math ```` fence does. The rule is never to draw
+a diagram that means something else than in Mermaid: what is not
+understood is refused, not guessed. A few deliberate differences remain:
+unquoted multi-word axis titles keep their spaces, and an xychart without
+a range starts its y-axis at zero. In sequence diagrams and timelines, a
+`#` that starts no entity code starts a comment only at the start of a
+line, or of a sequence statement after a `;`, as in Mermaid; elsewhere it
 stays text (Mermaid would end the line there), and a sequence line where a
 `;` follows such a `#` is refused, since Mermaid would drop the statements
 after it.
@@ -85,7 +93,8 @@ rather than a guess. A tag line that opens no block (a self-closing
 as a stray `<gno-details>` tag does, rather than as an HTML block hiding
 the lines up to the next blank one. In a `<gno-columns>` column, a diagram
 without a width shrinks to the column, down to three quarters of its size
-(its 12 px labels stay 9 px), then scrolls; an empty `<svg>` three
+(its 12 px labels are 9 px there, its 11 px autonumber badges about
+8 px), then scrolls; an empty `<svg>` three
 quarters as wide holds that floor, since a style attribute is not
 allowed. Inside `<gno-foreign>`, which does not load this extension, the
 tag is omitted like any other unknown one.
@@ -131,7 +140,10 @@ text in. `gen_widths.py` (`make mermaid-widths`) reads them from the
 optical size, into `widths_gen.go` (230 runes). A rune the font lacks is
 estimated: a full em for East Asian scripts and emoji, 0.6 em otherwise.
 Text wraps at spaces, and a word too long for its box (an address, a path,
-East Asian text) breaks after a `/ . - _ ,` or between characters.
+East Asian text) breaks after a `/ . - _ ,` or between characters, never
+inside a character as drawn (a letter and its marks, an emoji sequence, a
+flag); only a run of more than 16 joining runes, which no character holds,
+breaks inside, so it wraps rather than overflowing.
 
 ### Bounded work
 
@@ -142,13 +154,15 @@ East Asian text) breaks after a `/ . - _ ,` or between characters.
   at worst.
 - `Render` refuses a drawing wider or taller than 20,000 px or larger than
   512 KiB (`MaxOutputLen`), which also bounds how many items a type draws.
-  `svgWriter` stops writing past 512 KiB, so such a drawing is not written
-  in full first.
+  `svgWriter` drops every element past 512 KiB, so such a drawing is not
+  written in full first.
 - A document tries at most 20 diagrams, fences and `<gno-mermaid>` blocks
   together, counted as they are rendered (a fence in a footnote never
-  referenced takes none), and draws at most 2 MiB of SVG, which the first
-  diagram that does not fit spends; the diagrams past a bound stay code,
-  and are not drawn.
+  referenced takes none), and draws at most 2 MiB of SVG; the diagrams
+  past a bound stay code, and are not drawn. The first diagram that does
+  not fit spends what is left of the 2 MiB, so no diagram is drawn only to
+  be thrown away; the cost is that a small diagram after a big one that did
+  not fit stays code too.
 - `Render` turns a panic into an `*Error`, so a bug on some input shows the
   source rather than failing the page.
 - The page still goes through gnoweb's output cap (`maxRenderOutputBytes`).
