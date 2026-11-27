@@ -3217,9 +3217,11 @@ main.is-dev-mode .b-toc a {
 		stroke-width: 1.5;
 	}
 
-	/* Kanban boards: lanes on a surface, cards on the page color. */
+	/* Kanban boards: lanes on a surface, edged so they show on a surface
+	   too (a <gno-details> body, an alert), cards on the page color. */
 	.gno-mermaid__lane {
 		fill: var(--mermaid-box);
+		stroke: var(--mermaid-box-stroke);
 	}
 
 	.gno-mermaid__ticket {
