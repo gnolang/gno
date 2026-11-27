@@ -1485,19 +1485,14 @@ export class SearchbarController extends BaseController {
 
 		const needle = q.toLowerCase();
 		const matches: PageMatch[] = [];
-		// Text inside an SVG cannot hold a <mark>, and visually hidden text
-		// is no match to reveal.
-		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-			acceptNode: (n) =>
-				n.parentElement?.closest("svg, .u-sr-only")
-					? NodeFilter.FILTER_REJECT
-					: NodeFilter.FILTER_ACCEPT,
-		});
+		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
 		let node = walker.nextNode() as Text | null;
 		while (node && matches.length < MAX_PAGE_MATCHES) {
 			const text = node.nodeValue ?? "";
 			const at = text.toLowerCase().indexOf(needle);
-			if (at >= 0) {
+			// Text inside an SVG cannot hold a <mark>, and visually hidden text
+			// is no match to reveal. Only a node that matches pays for the check.
+			if (at >= 0 && !node.parentElement?.closest("svg, .u-sr-only")) {
 				matches.push({
 					node,
 					index: at,
