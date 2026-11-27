@@ -7,27 +7,51 @@ interface-typed element. A chain like `x = [1]any{x}` therefore copied the
 whole nest on every iteration: quadratic, where Go is linear (copying an array
 of interfaces copies each interface's two-word header, never the boxed
 value). In the profile of the TestFiles short run this was 41% of CPU,
-concentrated in `recurse1.gno` (~23s) and `gas/nested_alloc.gno`
-(12,560,317,779 gas).
+concentrated in `recurse1.gno` (~45s on current master) and
+`gas/nested_alloc.gno` (12,560,317,779 gas).
 
 ## Decision
 
-### 1. Share interface-kind elements
+### 1. Share in-memory interface-kind elements of the executing realm
 
 When the array's element type has `InterfaceKind`, `ArrayValue.Copy` copies
-the element `TypedValue`s as-is instead of calling `TypedValue.Copy` on each.
-Non-interface element types are unchanged.
+an element `TypedValue` as-is, instead of calling `TypedValue.Copy` on it,
+when the element is an object that:
 
-The exception is an element that is an object stamped with a different realm
-(`ObjectID.PkgID`) than the new array, which is still deep-copied, whether it
-is loaded or still a `RefValue`. Objects are
-stamped at allocation with the executing realm (or the declaring realm of a
-realm-declared type), and a realm persists an object under its stamp: a
-shared element handed to another realm by value would be persisted, and its
-storage deposit charged, as the sender's object, and a private sender's
-object cannot be persisted by another realm at all
-(`iface_array_share_private_sender.txtar` fails without this exception).
-Copies within one realm, or outside any realm, still share.
+- is not real (exists in memory only, not yet persisted);
+- is stamped (`ObjectID.PkgID`) with the executing realm
+  (`Allocator.currentRealmID`); and
+- the executing realm is not an ephemeral run realm (`/e/…/run`).
+
+Every other element is deep-copied as before. Non-interface element types are
+unchanged. Each exclusion closes a failure a review found in a wider rule:
+
+- **Stored elements** (real, or still a `RefValue`). Their lifetime belongs
+  to the persisted graph: a shared reference from a Go local, return value or
+  later copy is not counted, so once the source drops the element, finalize
+  deletes it while the copy still refers to it. `b := arr; arr[0] = nil;
+  return b` across a crossing return handed the caller a ref to a deleted
+  object, and a GC between the copy and the store left `arr2 = b` unreadable
+  and impossible to clear (`unexpected object with id …`).
+- **Elements stamped with another realm.** A realm persists an object under
+  its stamp, so a shared element handed to another realm would be persisted,
+  and its storage deposit charged, as the sender's object, and a private
+  sender's object cannot be persisted by another realm at all
+  (`iface_array_share_private_sender.txtar`). The check is against the
+  executing realm, not the new array's stamp, which is the declaring realm of
+  a realm-declared array type (`_declbox.gno`), and stored elements are
+  excluded anyway, which covers an element whose type another realm declares
+  (the `SendStored` step of `iface_array_share_private_sender.txtar`).
+- **Ephemeral run realms.** Any realm may adopt an object a MsgRun script
+  allocated, so two copies handed by pointer to two realms would leave one
+  realm persisting the element and the other only referencing it
+  (`iface_array_share_msgrun_adopt.txtar`). `IsEphemeralPath` runs a regex
+  on `/e/` paths (~1.2 µs, unmetered), so it is computed once per `Realm`
+  where the realm is built or decoded, and `setRealm` hands the allocator a
+  plain bool.
+
+These exclusions match where #6504 already made `TypedValue.Copy` load and
+deep-copy refs, so stored and cross-realm graphs are the same as master's.
 
 ### 2. The VM enforces addressability
 
@@ -52,6 +76,20 @@ site:
 |---|---|---|
 | `assertValidAssignLhs` (`=`, `op=`, `++`/`--`, `for k = range`) | a non-addressable selector or index target; a map index stays assignable | `cannot assign to …` |
 
+### 3. JSON export expands shared values at each occurrence
+
+The export walk (`values_export.go`) emits an ephemeral object it meets again
+as `ExportRefValue{":N"}`, which gnoweb and gnojs render as `<cycle :N>`. With
+sharing, two copies of `[1]any{[2]int{1, 2}}` in a `qeval_json` result hold
+the same in-memory `[2]int`, so the second would render as a cycle instead of
+its value. An array or struct held by value that was first expanded by value
+is now expanded again at each occurrence, numbered as a new inline expansion
+so `:N` still names the Nth inline object in walk order. Such sharing only
+references older, sealed values, so it cannot form a cycle, and the export's
+size and depth budgets bound the walk. An object first emitted as a pointer
+or slice base keeps its back-references, which record real aliasing; shared
+values are never addressable, so they are never such a base.
+
 ## Why sharing is sound
 
 Values held in interface slots are sealed — immutable for as long as they are
@@ -70,6 +108,12 @@ rejects as non-addressable aliases without decision 2 and is refused with it,
 and every legal extract-then-mutate shape (define, `var`, parameter,
 variadic, method receiver, composite literal, `append`, `copy`, closure
 return, type switch) stays isolated with and without sharing.
+`iface_array_share_isolation.gno` commits the extract-then-mutate shapes; its
+output matches `go run`.
+
+Immutability is not enough on its own: a shared value must also outlive every
+copy that refers to it, which only in-memory objects do (decision 1, "Stored
+elements").
 
 ## Consequences
 
@@ -82,27 +126,39 @@ cached static types of already-preprocessed operands.
 
 ### Persisted object graph
 
-Within a realm, a shared element that is a realm object gets a second
-reference, so on finalization it escapes (`IsEscaped`, `RefCount` 2, no
-`OwnerID`) rather than being persisted twice as two owned objects. This holds
-whether the element was created in the same transaction
-(`zrealm_iface_array_share.gno`), already stored and loaded before the copy
-(`_stored.gno`), or already stored and not yet loaded (`_stored_unread.gno`).
+Within a realm, an element created in the same transaction and shared by a
+copy gets a second reference, so on finalization it escapes (`IsEscaped`,
+`RefCount` 2, no `OwnerID`) rather than being persisted twice as two owned
+objects (`zrealm_iface_array_share.gno`); `_drop_one` and `_drop_both` pin
+the reference counting when it is released.
 
-Without sharing, `TypedValue.Copy` loads an unloaded element (a `RefValue`)
-and deep-copies it like a loaded one (#6504), so every such copy persists two
-owned objects. Sharing persists one escaped object whether or not the element
-was read first. The `_drop_one` and `_drop_both` tests pin the reference
-counting when the shared element is released.
+Everywhere else the persisted graph is master's:
 
-Across realms, an array handed to another realm by value still gives the
-receiver its own copy of each element stamped with another realm, as before,
-whether the element was already stored and loaded (`_crossrealm.gno`),
-stored and not yet loaded (`_crossrealm_unread.gno`), or allocated in the same
-transaction (`_crossrealm_fresh.gno`); all three goldens pass unchanged on
-master. Only an element already stamped with the receiving realm (a value
-of a type that realm declares) is shared, and it is persisted under that
-realm either way.
+- an element already stored, read before the copy or not (`_stored.gno`,
+  `_stored_unread.gno`, identical goldens), is deep-copied, and the copy owns
+  its own object;
+- a copy returned across a crossing function after its source was cleared
+  owns its elements (`_return_unread.gno`, `_return_loaded.gno`,
+  `iface_array_share_drain.txtar`), as does one stored after a GC
+  (`_gc.gno`, `iface_array_share_gc.txtar`);
+- an array handed to another realm by value gives the receiver its own copy,
+  whether the element was stored and loaded (`_crossrealm.gno`), stored and
+  not yet loaded (`_crossrealm_unread.gno`), allocated in the same
+  transaction (`_crossrealm_fresh.gno`) or held in a realm-declared array
+  type (`_declbox.gno`); these goldens pass unchanged on master;
+- copies made by a MsgRun script and adopted by two realms each cost their
+  realm the same storage as on master (`iface_array_share_msgrun_adopt.txtar`).
+
+### JSON export
+
+A value shared by decision 1 is expanded at each occurrence
+(`TestExportValuesSharedIfaceElement`),
+and a pointer's back-reference to a struct later held by value is kept
+(`TestExportValuesPointerFirstKeepsRef`). The rule also changes one output
+master could already produce: returns do not copy, so `return a, a` on an
+array yields the same object twice, and master exported the second result as
+`<cycle :1>`; it is now expanded too. The export runs outside consensus
+(queries only), so this changes no state or gas.
 
 ### Addressability
 

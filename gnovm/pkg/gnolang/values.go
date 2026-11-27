@@ -488,22 +488,24 @@ func (av *ArrayValue) Copy(alloc *Allocator, store Store, t Type, active map[Obj
 			// the boxes' headers. This also keeps chains like
 			// `x = [1]any{x}` linear instead of quadratic.
 			//
-			// An element stamped with another realm than the copy,
-			// loaded or not, is still deep-copied: shared, it would be
-			// persisted (and its storage deposit charged) as an object
-			// of the realm that allocated it, which a private realm
-			// refuses outright.
-			pid := cp.GetObjectID().PkgID
+			// Only an object that exists in memory alone and is stamped
+			// with the executing realm is shared; anything else is
+			// deep-copied as before:
+			//   - a stored object (real, or still a RefValue): the
+			//     source can drop it, and finalize then deletes it while
+			//     the copy still refers to it;
+			//   - an object stamped with another realm: shared, it would
+			//     be persisted (and its storage deposit charged) as that
+			//     realm's object, which a private realm refuses outright;
+			//   - anything in an ephemeral run realm, whose new objects
+			//     any realm may adopt, so a shared one would end up
+			//     persisted by one realm and referenced by another.
+			share := alloc != nil && !alloc.currentRealmEphemeral
 			for i, tv := range av.List {
-				switch ev := tv.V.(type) {
-				case Object:
-					if ev.GetObjectID().PkgID != pid {
-						tv = tv.copy(alloc, store, active)
-					}
-				case RefValue:
-					if ev.ObjectID.PkgID != pid {
-						tv = tv.copy(alloc, store, active)
-					}
+				oo, ok := tv.V.(Object)
+				if !share || !ok || oo.GetIsReal() ||
+					oo.GetObjectID().PkgID != alloc.currentRealmID {
+					tv = tv.copy(alloc, store, active)
 				}
 				cp.List[i] = tv
 			}

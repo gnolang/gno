@@ -129,9 +129,14 @@ func (l *exportLimiter) leave() {
 // ObjectID for persisted objects), ExportRefValue uses a synthetic ":N" ID,
 // where N is an incrementing counter assigned in the encoder's DFS traversal
 // order. The first time an ephemeral Object is visited it is expanded inline
-// and assigned N = (count of previously-seen ephemeral Objects) + 1; any
-// subsequent visit to the same Object emits ExportRefValue{":N"} instead of
-// re-expanding it.
+// and assigned N = (count of previous inline expansions) + 1; any subsequent
+// visit to the same Object emits ExportRefValue{":N"} instead of re-expanding
+// it. The exception is an array or struct held by value (the V of an element,
+// field or slot) that was first expanded that way too: ArrayValue.Copy may
+// share it between copies, which are distinct Go values, so it is expanded
+// again, counting as a new inline expansion. That sharing cannot form a
+// cycle (see gnovm/adr/pr5814_iface_array_share.md). An object first emitted
+// as a pointer or slice base keeps its back-references, which record aliasing.
 //
 // Consumers that need to resolve ":N" back to its inline occurrence must walk
 // the exported tree in the same DFS order the encoder uses (source-order
@@ -140,6 +145,29 @@ func (l *exportLimiter) leave() {
 // Registered with Amino as "/gno.ExportRefValue".
 type ExportRefValue struct {
 	ObjectID string `json:"ObjectID"` // ":1", ":2", etc.
+}
+
+// exportSeen numbers the ephemeral Objects an export walk expands inline, in
+// walk order, for ExportRefValue.
+type exportSeen struct {
+	ids map[Object]exportID
+	n   int // inline expansions so far
+}
+
+type exportID struct {
+	n       int  // the Object's last inline expansion
+	byValue bool // first expanded as an array or struct held by value
+}
+
+func newExportSeen() *exportSeen {
+	return &exportSeen{ids: make(map[Object]exportID)}
+}
+
+// expand numbers an inline expansion of oo and emits it.
+func (s *exportSeen) expand(oo Object, byValue bool, lim *exportLimiter) Value {
+	s.n++
+	s.ids[oo] = exportID{n: s.n, byValue: byValue}
+	return exportCopyValue(oo, s, lim)
 }
 
 func (ExportRefValue) assertValue() {}
@@ -169,7 +197,7 @@ func (erv ExportRefValue) GetShallowSize() int64 { return allocRefValue }
 // from an ABCI query must pass a real budget.
 func ExportValues(tvs []TypedValue, maxBytes int64) ([]TypedValue, error) {
 	return withExportLimit(maxBytes, func(lim *exportLimiter) []TypedValue {
-		seen := make(map[Object]int)
+		seen := newExportSeen()
 		result := make([]TypedValue, len(tvs))
 		for i, tv := range tvs {
 			result[i] = exportValue(tv, seen, lim)
@@ -187,7 +215,7 @@ func ExportValues(tvs []TypedValue, maxBytes int64) ([]TypedValue, error) {
 // estimate exceeds maxBytes; maxBytes <= 0 disables the bound.
 func ExportObject(obj Object, maxBytes int64) (Value, error) {
 	return withExportLimit(maxBytes, func(lim *exportLimiter) Value {
-		seen := make(map[Object]int)
+		seen := newExportSeen()
 		return exportObjectToValue(obj, seen, lim)
 	})
 }
@@ -229,7 +257,7 @@ func withExportLimit[T any](maxBytes int64, walk func(*exportLimiter) T) (result
 // block parent — are structurally bounded by the source: a callee block's
 // parent is its closure, not its caller, so runtime recursion does not extend
 // those chains. Only value nesting can be driven arbitrarily deep by a query.
-func exportValue(tv TypedValue, seen map[Object]int, lim *exportLimiter) TypedValue {
+func exportValue(tv TypedValue, seen *exportSeen, lim *exportLimiter) TypedValue {
 	lim.enter()
 	defer lim.leave()
 	lim.add(exportNodeEst)
@@ -238,6 +266,17 @@ func exportValue(tv TypedValue, seen map[Object]int, lim *exportLimiter) TypedVa
 		result.T = exportRefOrCopyType(tv.T, seen, lim)
 	}
 	if obj, ok := tv.V.(Object); ok {
+		// An ephemeral array or struct first expanded by value is expanded
+		// at every such occurrence (see ExportRefValue).
+		switch obj.(type) {
+		case *ArrayValue, *StructValue:
+			if !obj.GetIsReal() {
+				if e, before := seen.ids[obj]; !before || e.byValue {
+					result.V = seen.expand(obj, true, lim)
+					return result
+				}
+			}
+		}
 		result.V = exportToRefOrCopy(obj, seen, lim)
 		return result
 	}
@@ -249,7 +288,7 @@ func exportValue(tv TypedValue, seen map[Object]int, lim *exportLimiter) TypedVa
 
 // exportObjectToValue exports an Object, expanding it inline.
 // Nested real objects become RefValue. Ephemeral cycles are broken.
-func exportObjectToValue(obj Object, seen map[Object]int, lim *exportLimiter) Value {
+func exportObjectToValue(obj Object, seen *exportSeen, lim *exportLimiter) Value {
 	if obj == nil {
 		return nil
 	}
@@ -264,30 +303,26 @@ func exportObjectToValue(obj Object, seen map[Object]int, lim *exportLimiter) Va
 	}
 
 	// Check for cycles
-	if id, exists := seen[obj]; exists {
+	if e, exists := seen.ids[obj]; exists {
 		if obj.GetIsReal() {
 			return RefValue{
 				ObjectID: obj.GetObjectID(),
 			}
 		}
 		return ExportRefValue{
-			ObjectID: ":" + strconv.Itoa(id),
+			ObjectID: ":" + strconv.Itoa(e.n),
 		}
 	}
 
-	// Mark seen
-	id := len(seen) + 1
-	seen[obj] = id
-
 	// Expand inline
-	return exportCopyValue(obj, seen, lim)
+	return seen.expand(obj, false, lim)
 }
 
 // exportToRefOrCopy converts an Object to a RefValue if it's persisted,
 // or copies it inline if it's ephemeral.
 // This is analogous to realm.go's toRefValue but handles unreal objects
 // by assigning synthetic cycle-breaking IDs instead of panicking.
-func exportToRefOrCopy(val Value, seen map[Object]int, lim *exportLimiter) Value {
+func exportToRefOrCopy(val Value, seen *exportSeen, lim *exportLimiter) Value {
 	if ref, ok := val.(RefValue); ok {
 		return ref
 	}
@@ -312,21 +347,19 @@ func exportToRefOrCopy(val Value, seen map[Object]int, lim *exportLimiter) Value
 	}
 
 	// Unreal (ephemeral) objects: check for cycles
-	if id, exists := seen[oo]; exists {
+	if e, exists := seen.ids[oo]; exists {
 		return ExportRefValue{
-			ObjectID: ":" + strconv.Itoa(id),
+			ObjectID: ":" + strconv.Itoa(e.n),
 		}
 	}
 
 	// Not yet seen: assign ID, copy inline
-	id := len(seen) + 1
-	seen[oo] = id
-	return exportCopyValue(oo, seen, lim)
+	return seen.expand(oo, false, lim)
 }
 
 // exportCopyValue creates a defensive copy of a Value with refs for objects.
 // This mirrors realm.go's copyValueWithRefs but handles unreal objects.
-func exportCopyValue(val Value, seen map[Object]int, lim *exportLimiter) Value {
+func exportCopyValue(val Value, seen *exportSeen, lim *exportLimiter) Value {
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -523,7 +556,7 @@ func exportCopyValue(val Value, seen map[Object]int, lim *exportLimiter) Value {
 }
 
 // exportRefOrCopyType replaces DeclaredTypes with RefType, copies others.
-func exportRefOrCopyType(typ Type, seen map[Object]int, lim *exportLimiter) Type {
+func exportRefOrCopyType(typ Type, seen *exportSeen, lim *exportLimiter) Type {
 	if dt, ok := typ.(*DeclaredType); ok {
 		// Computed before charging: TypeID's length is bounded by the
 		// declaration, so it cannot be the thing that blows the budget.
@@ -537,7 +570,7 @@ func exportRefOrCopyType(typ Type, seen map[Object]int, lim *exportLimiter) Type
 }
 
 // exportCopyTypeWithRefs copies a type, replacing DeclaredTypes with RefType.
-func exportCopyTypeWithRefs(typ Type, seen map[Object]int, lim *exportLimiter) Type {
+func exportCopyTypeWithRefs(typ Type, seen *exportSeen, lim *exportLimiter) Type {
 	lim.add(exportNodeEst)
 	switch ct := typ.(type) {
 	case nil:
@@ -634,7 +667,7 @@ func exportCopyTypeWithRefs(typ Type, seen map[Object]int, lim *exportLimiter) T
 	}
 }
 
-func exportCopyFieldsWithRefs(fields []FieldType, seen map[Object]int, lim *exportLimiter) []FieldType {
+func exportCopyFieldsWithRefs(fields []FieldType, seen *exportSeen, lim *exportLimiter) []FieldType {
 	// Pre-charge the field count before allocating the backing slice, then
 	// charge each field's emitted strings: Name/Tag/PkgPath are copied out
 	// verbatim and are caller-controlled. This is the site of the bypass
@@ -664,7 +697,7 @@ func exportCopyFieldsWithRefs(fields []FieldType, seen map[Object]int, lim *expo
 // gets re-expanded inline rather than deduplicated. Acceptable because
 // the inlined copies are byte-identical; a consumer sees duplication
 // but not inconsistency.
-func exportCopyMethods(methods []TypedValue, seen map[Object]int, lim *exportLimiter) []TypedValue {
+func exportCopyMethods(methods []TypedValue, seen *exportSeen, lim *exportLimiter) []TypedValue {
 	res := make([]TypedValue, len(methods))
 	for i, mtv := range methods {
 		res[i] = TypedValue{

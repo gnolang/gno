@@ -3,6 +3,7 @@ package gnolang
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -479,11 +480,69 @@ func init() {
 	require.Contains(t, string(result[0]), "ExportRefValue")
 }
 
+// TestExportValuesSharedIfaceElement pins that two copies of an array of
+// interfaces, whose element ArrayValue.Copy shares in memory, both export the
+// element inline: they are distinct Go values, not a back-reference.
+func TestExportValuesSharedIfaceElement(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+func Pair() [2]any {
+	a := [1]any{[2]int{1, 2}}
+	return [2]any{a, a}
+}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Call(Sel(Nx("testdata"), "Pair")))
+	require.Len(t, tps, 1)
+	pair := tps[0].V.(*ArrayValue)
+	require.Same(t,
+		pair.List[0].V.(*ArrayValue).List[0].V,
+		pair.List[1].V.(*ArrayValue).List[0].V,
+		"expected the element to be shared between the two copies")
+
+	bz := string(exportAndMarshal(t, tps))
+	require.NotContains(t, bz, "ExportRefValue")
+	require.Equal(t, 2, strings.Count(bz, `"N":"AgAAAAAAAAA="`), bz)
+}
+
+// TestExportValuesPointerFirstKeepsRef pins that a struct first emitted as a
+// pointer's base is still a back-reference where it is later held by value:
+// only arrays and structs first expanded by value are expanded again.
+func TestExportValuesPointerFirstKeepsRef(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+type S struct{ F int }
+type W struct {
+	P *int
+	S S
+}
+func Make() *W {
+	w := &W{}
+	w.P = &w.S.F
+	return w
+}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Call(Sel(Nx("testdata"), "Make")))
+	require.Len(t, tps, 1)
+
+	bz := string(exportAndMarshal(t, tps))
+	require.Contains(t, bz, "ExportRefValue", bz)
+}
+
 // TestExportCopyTypeWithRefs_InterfaceType exercises the *InterfaceType case
 // in exportCopyTypeWithRefs by constructing a raw InterfaceType (not wrapped
 // in a DeclaredType) and exporting it.
 func TestExportCopyTypeWithRefs_InterfaceType(t *testing.T) {
-	seen := make(map[Object]int)
+	seen := newExportSeen()
 	iface := &InterfaceType{
 		PkgPath: "test",
 		Methods: []FieldType{
@@ -503,7 +562,7 @@ func TestExportCopyTypeWithRefs_InterfaceType(t *testing.T) {
 // TestExportCopyTypeWithRefs_ChanType exercises the *ChanType case
 // in exportCopyTypeWithRefs.
 func TestExportCopyTypeWithRefs_ChanType(t *testing.T) {
-	seen := make(map[Object]int)
+	seen := newExportSeen()
 	ch := &ChanType{
 		Dir: SEND | RECV,
 		Elt: IntType,
@@ -518,7 +577,7 @@ func TestExportCopyTypeWithRefs_ChanType(t *testing.T) {
 // TestExportCopyTypeWithRefs_tupleType exercises the *tupleType case
 // in exportCopyTypeWithRefs.
 func TestExportCopyTypeWithRefs_tupleType(t *testing.T) {
-	seen := make(map[Object]int)
+	seen := newExportSeen()
 	tt := &tupleType{
 		Elts: []Type{
 			StringType,
@@ -538,7 +597,7 @@ func TestExportCopyTypeWithRefs_tupleType(t *testing.T) {
 // TestExportCopyValue_BigintValueNilV exercises the BigintValue case in
 // exportCopyValue when V is nil (zero-value BigintValue).
 func TestExportCopyValue_BigintValueNilV(t *testing.T) {
-	seen := make(map[Object]int)
+	seen := newExportSeen()
 	biv := BigintValue{V: nil}
 	copied := exportCopyValue(biv, seen, nil)
 	cb, ok := copied.(BigintValue)

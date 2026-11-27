@@ -21,12 +21,28 @@ stdout OK!
 gnokey query vm/qeval --data "gno.land/r/foobar/pub.Get()"
 stdout '1 int'
 
+# A stored element whose type the public realm declares: it is stamped with
+# the public realm but stored by the private one, so sharing it would still
+# make the public realm persist a private realm's object.
+gnokey maketx call -pkgpath gno.land/r/foobar/priv -func Keep -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/priv -func SendStored -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/foobar/pub.Get()"
+stdout '3 int'
+
 -- pub/gnomod.toml --
 module = "gno.land/r/foobar/pub"
 gno = "0.9"
 
 -- pub/pub.gno --
 package pub
+
+type S struct{ F int }
+
+func New() S { return S{3} }
 
 var Object any
 
@@ -37,7 +53,12 @@ func SetObject(cur realm, x any) {
 func Get() int {
 	switch v := Object.(type) {
 	case [1]any:
-		return v[0].([2]int)[0]
+		switch e := v[0].(type) {
+		case [2]int:
+			return e[0]
+		case S:
+			return e.F
+		}
 	case [1][2]int:
 		return v[0][0]
 	}
@@ -54,6 +75,8 @@ package priv
 
 import "gno.land/r/foobar/pub"
 
+var stored any
+
 func SendPlain(cur realm) {
 	pub.SetObject(cross(cur), [1][2]int{{1, 2}})
 }
@@ -61,3 +84,7 @@ func SendPlain(cur realm) {
 func SendIface(cur realm) {
 	pub.SetObject(cross(cur), [1]any{[2]int{1, 2}})
 }
+
+func Keep(cur realm) { stored = [1]any{pub.New()} }
+
+func SendStored(cur realm) { pub.SetObject(cross(cur), stored) }
