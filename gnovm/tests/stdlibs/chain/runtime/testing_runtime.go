@@ -215,6 +215,13 @@ func (tb *TestBanker) GetCoins(addr crypto.Bech32Address) (dst tm2std.Coins) {
 	return tb.CoinTable[addr]
 }
 
+// GetLockedCoins implements the Banker interface.
+// The test banker has no account store and no vesting schedule, so nothing
+// is locked. On chain this reads std.Account.LockedCoins.
+func (tb *TestBanker) GetLockedCoins(crypto.Bech32Address) tm2std.Coins {
+	return nil
+}
+
 // GetCoin implements the Banker interface.
 func (tb *TestBanker) GetCoin(addr crypto.Bech32Address, denom string) int64 {
 	// AmountOf validates the denom before reading anything, so a malformed one

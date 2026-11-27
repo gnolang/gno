@@ -143,8 +143,8 @@ const (
 // copies are not supported and would not share state.
 //
 // Does NOT satisfy banker.Banker — the other Banker methods (GetCoins,
-// TotalCoin, IssueCoin, RemoveCoin) have no meaningful behavior on an
-// allowance and are deliberately omitted.
+// GetLockedCoins, TotalCoin, IssueCoin, RemoveCoin) have no meaningful
+// behavior on an allowance and are deliberately omitted.
 type AllowanceSender struct {
 	inner  banker.Banker // unexported — callees cannot extract
 	payer  address       // address debited; must match inner's source

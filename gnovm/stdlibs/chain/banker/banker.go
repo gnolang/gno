@@ -16,6 +16,7 @@ import (
 // transpiling.
 type BankerInterface interface {
 	GetCoins(addr crypto.Bech32Address) (dst std.Coins)
+	GetLockedCoins(addr crypto.Bech32Address) (dst std.Coins)
 	GetCoin(addr crypto.Bech32Address, denom string) int64
 	SendCoins(from, to crypto.Bech32Address, amt std.Coins)
 	TotalCoin(denom string) int64
@@ -25,7 +26,7 @@ type BankerInterface interface {
 
 const (
 	// Can only read state.
-	btReadonly uint8 = iota //nolint
+	btReadonly uint8 = iota
 	// Can only send from tx send: at most the coins the current message's
 	// send-envelope credited to the realm's own address, and only if that
 	// realm is the envelope's recipient.
@@ -45,6 +46,11 @@ const (
 
 func X_bankerGetCoins(m *gno.Machine, bt uint8, addr string) (denoms []string, amounts []int64) {
 	coins := execctx.GetContext(m).Banker.GetCoins(crypto.Bech32Address(addr))
+	return ExpandCoins(coins)
+}
+
+func X_bankerGetLockedCoins(m *gno.Machine, bt uint8, addr string) (denoms []string, amounts []int64) {
+	coins := execctx.GetContext(m).Banker.GetLockedCoins(crypto.Bech32Address(addr))
 	return ExpandCoins(coins)
 }
 

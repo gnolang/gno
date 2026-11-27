@@ -30,6 +30,18 @@ func (bnk *SDKBanker) GetCoins(b32addr crypto.Bech32Address) (dst std.Coins) {
 	return coins
 }
 
+// GetLockedCoins returns the coins addr's vesting schedule keeps locked at
+// the current block time. The total balance, locked coins included, stays
+// on GetCoins. No account and no schedule both answer with nothing.
+func (bnk *SDKBanker) GetLockedCoins(b32addr crypto.Bech32Address) (dst std.Coins) {
+	addr := crypto.MustAddressFromString(string(b32addr))
+	acc := bnk.vmk.acck.GetAccount(bnk.ctx, addr)
+	if acc == nil {
+		return nil
+	}
+	return acc.LockedCoins(bnk.ctx.BlockTime())
+}
+
 // GetCoin reads one denom without touching any other — the O(1) accessor the
 // balance split exists to provide. GetCoins costs O(denoms held) and an address
 // does not control how many denoms it has been sent.

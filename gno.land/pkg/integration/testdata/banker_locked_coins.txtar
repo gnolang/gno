@@ -1,0 +1,41 @@
+# A realm can read how much of a genesis vesting account is locked.
+# GetCoins keeps the whole balance. GetLockedCoins is the schedule's
+# remainder at the current block time: a delayed grant that has not
+# reached its cliff is locked in full, and the same kind of grant whose
+# cliff is already past is locked for nothing. A continuous schedule
+# sampled at several block times is TestGetLockedCoinsTracksTheSchedule
+# in gno.land/pkg/sdk/vm; this script cannot move the chain clock.
+
+# 1000 GNOT, 980 locked until a cliff 1000h out.
+adduser cliff 1000000000ugnot 980000000ugnot,0s,1000h,delayed
+# Same grant, cliff an hour in the past: nothing remains locked.
+adduser vested 1000000000ugnot 980000000ugnot,0s,-1h,delayed
+# No schedule.
+adduser plain 500000000ugnot
+
+loadpkg gno.land/r/test/locked $WORK/locked
+
+gnoland start
+
+gnokey query vm/qeval --data "gno.land/r/test/locked.Report(\"${cliff_user_addr}\")"
+stdout '"total=1000000000ugnot locked=980000000ugnot" string'
+
+gnokey query vm/qeval --data "gno.land/r/test/locked.Report(\"${vested_user_addr}\")"
+stdout '"total=1000000000ugnot locked=" string'
+
+gnokey query vm/qeval --data "gno.land/r/test/locked.Report(\"${plain_user_addr}\")"
+stdout '"total=500000000ugnot locked=" string'
+
+-- locked/gnomod.toml --
+module = "gno.land/r/test/locked"
+gno = "0.9"
+
+-- locked/locked.gno --
+package locked
+
+import "chain/banker"
+
+func Report(addr address) string {
+	b := banker.NewReadonlyBanker()
+	return "total=" + b.GetCoins(addr).String() + " locked=" + b.GetLockedCoins(addr).String()
+}

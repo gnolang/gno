@@ -247,7 +247,12 @@ import (
 // Re-derived for the mainnet release line, which keeps markdown.gno identical
 // to the source gnoland-1 holds in state, so the CodeFence comment is not in
 // it. With develop's markdown.gno, develop's value above still holds.
-const expectedCrossrealm38Hash = "91649bb8181ca02d61f2880ddb7b5c9f59359d14d8e5a4c2cb429ab7893937b4"
+//
+// Bumped by GetLockedCoins: chain/banker/banker.gno gained the method and its
+// native declaration. Stdlib source bytes are committed into genesis state,
+// so the root moves. crossrealm38 does not read a vesting lock. The gas-row
+// change moves nothing here: gas is not committed state.
+const expectedCrossrealm38Hash = "713d8137ca782d9ddb6a8f7667f35a0bbcba06b1a581f25e7638e12418ddcabf"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

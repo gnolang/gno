@@ -737,6 +737,7 @@ const (
 
 type Banker interface {
     GetCoins(addr address) (dst chain.Coins)
+    GetLockedCoins(addr address) (dst chain.Coins)
     GetCoin(addr address, denom string) int64
     SendCoins(from, to address, amt chain.Coins)
     TotalCoin(denom string) int64
@@ -783,6 +784,9 @@ Returns `Coins` owned by `address`.
 coins := banker.GetCoins(addr)
 ```
 
+The balance includes coins a vesting schedule still locks. [GetLockedCoins](#getlockedcoins)
+reports that locked part. What a transfer can move is the difference, clamped at zero.
+
 :::info Cost grows with the number of denominations held
 
 `GetCoins` returns *every* denomination the address holds, so it costs gas in
@@ -790,6 +794,49 @@ proportion to how many that is — and an address can be sent denominations it
 never asked for (see [IssueCoin](#issuecoin)), so that cost is not under its
 control. If you only care about one denomination, use
 [GetCoin](#getcoin) instead; its cost does not grow with the rest.
+
+:::
+
+---
+
+### GetLockedCoins
+Returns the coins of `addr` that a vesting schedule keeps from being transferred
+at the current block time. [GetCoins](#getcoins) includes this locked part in
+the total, so a page that shows only `GetCoins` shows a number the holder may
+not be able to move.
+
+An address with no account, or an account with no schedule, returns an empty
+set. The figure is the schedule's remainder, the same one a transfer consults.
+It is not clamped to the balance: fees can debit coins the schedule still calls
+locked, so a denom's locked amount can exceed `GetCoin` for that denom. Clamp
+the difference at zero before treating it as spendable.
+
+Read-only, like `GetCoins`. Every banker type may call it, and it changes nothing.
+
+##### Parameters
+- `addr` **address** to read
+
+##### Usage
+
+```go
+locked := banker.GetLockedCoins(addr)
+spendable := banker.GetCoin(addr, "ugnot") - locked.AmountOf("ugnot")
+if spendable < 0 {
+    spendable = 0
+}
+```
+
+Prefer [GetCoin](#getcoin) to [GetCoins](#getcoins) when computing one
+denomination's spendable balance: `GetCoin` reads only that balance, while
+`GetLockedCoins` covers only the fixed set of denominations in the account's
+vesting schedule rather than every denomination the address has been sent.
+
+:::info Cost matches GetCoins
+
+The native gas is the same shape as [GetCoins](#getcoins): a flat charge plus a
+term that grows with the number of denominations returned. That number is the
+schedule's, fixed when the account was created, not the number of denominations
+the address has since been sent.
 
 :::
 
