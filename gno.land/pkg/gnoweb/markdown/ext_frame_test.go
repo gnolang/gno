@@ -2,15 +2,14 @@ package markdown
 
 import (
 	"bytes"
-	"runtime"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 )
 
 // newGnoMarkdown returns goldmark with the Gno extensions.
@@ -177,11 +176,39 @@ func TestFrameNoAllocPaths(t *testing.T) {
 	}
 }
 
-// TestFrameGridScanLinear guards the look-ahead that checks whether a grid
-// opened in a frame closes inside it: on pages where it never does, or
-// always does, four times the input must not cost much more than four
-// times the time. A scan restarted per block would take about 16 times;
-// the bound is 10 so a GC or scheduler pause on a CI runner does not trip it.
+// countedFrameParagraph counts visits to an ordinary content block during
+// the frame transform. The replacement keeps the paragraph kind and position.
+type countedFrameParagraph struct {
+	ast.Node
+	steps *int
+}
+
+func (p *countedFrameParagraph) NextSibling() ast.Node {
+	*p.steps++
+	return p.Node.NextSibling()
+}
+
+// frameVisitCounter runs after block parsing and before the columns and frame
+// transforms. Those transforms only need the paragraph's kind and links.
+type frameVisitCounter struct {
+	steps int
+}
+
+func (c *frameVisitCounter) Transform(doc *ast.Document, _ text.Reader, _ parser.Context) {
+	for node := doc.FirstChild(); node != nil; {
+		next := node.NextSibling()
+		if node.Kind() == ast.KindParagraph {
+			doc.ReplaceChild(doc, node, &countedFrameParagraph{Node: ast.NewParagraph(), steps: &c.steps})
+		}
+		node = next
+	}
+	c.steps = 0
+}
+
+// TestFrameGridScanLinear bounds sibling traversals through frame bodies.
+// Restarting the grid look-ahead for each block would make 4x the input
+// take about 16x the traversals. Counting keeps the test independent of
+// the runner's speed and scheduling.
 func TestFrameGridScanLinear(t *testing.T) {
 	body := strings.Repeat("x\n\n", 50)
 	pages := map[string]string{
@@ -189,30 +216,22 @@ func TestFrameGridScanLinear(t *testing.T) {
 		"inside":      "<gno-frame>\n<gno-columns>\n<gno-frame>\n" + body + "</gno-frame>\n<gno-columns-sep>\n" + body + "</gno-columns>\n</gno-frame>\n",
 		"unclosed":    "<gno-frame>\n<gno-columns>\n" + body,
 	}
-	m := newGnoMarkdown()
-	render := func(src []byte) time.Duration {
-		best := time.Duration(1<<63 - 1)
-		for range 5 {
-			var buf bytes.Buffer
-			runtime.GC()
-			start := time.Now()
-			if err := convertGno(m, src, &buf); err != nil {
-				t.Fatal(err)
-			}
-			best = min(best, time.Since(start))
-		}
-		return best
-	}
 	for name, page := range pages {
-		// Sizes keep both runs in the milliseconds: sub-millisecond runs on
-		// a CI runner gave 11x on a linear page.
-		small := render([]byte(strings.Repeat(page, 400)))
-		large := render([]byte(strings.Repeat(page, 1600)))
-		if large < 20*time.Millisecond {
-			continue // below this the ratio is noise; nothing quadratic stays there
-		}
-		if ratio := float64(large) / float64(small); ratio > 10 {
-			t.Errorf("%s: 4x the input took %.1fx the time", name, ratio)
-		}
+		t.Run(name, func(t *testing.T) {
+			count := func(n int) int {
+				counter := &frameVisitCounter{}
+				m := goldmark.New(
+					goldmark.WithExtensions(&columns{}, &frames{}),
+					goldmark.WithParserOptions(parser.WithASTTransformers(util.Prioritized(counter, 499))),
+				)
+				m.Parser().Parse(text.NewReader([]byte(strings.Repeat(page, n))),
+					parser.WithContext(NewGnoParserContext(GnoContext{})))
+				return counter.steps
+			}
+			small, large := count(40), count(160)
+			if small == 0 || large < 3*small || large > 6*small {
+				t.Errorf("expected linear traversal, got %d and %d steps for 4x the input", small, large)
+			}
+		})
 	}
 }
