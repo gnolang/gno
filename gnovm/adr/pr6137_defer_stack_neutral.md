@@ -47,11 +47,11 @@ Pop on every branch:
 ## Consequences
 
 - Every branch of `doOpDefer` leaves the operand stack as it found it.
-- GC no longer counts the leftovers: 240 B for three `defer nf(1, 2)`
-  (6 slots × 40 B), 80 B for `defer int64(x)`.
-- Consensus-visible only through GC: if GC runs before the frame returns (on
-  chain, only when allocation reaches the cap), each removed slot is at least
-  40 B less counted memory and 4 less scan gas.
+- GC no longer counts the func value and argument that `defer int64(x)` left
+  behind, 80 B. The 240 B for three `defer nf(1, 2)` came with #6504's
+  nil-branch pop.
+- Not consensus-visible: AddPackage and MsgRun reject `defer int64(x)` at type
+  check, so only filetests and `vm/qeval` reach `default:`.
 - `gnovm/tests/files/alloc_defer_operand_stack.gno` pins both branches with a
   MemStats golden and fails if either pop is removed.
 - `defer_multivalue_call.gno` (from #6164) also covers variadic, method and
