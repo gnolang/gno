@@ -186,12 +186,14 @@ func TestDecodeEntities(t *testing.T) {
 		"#9829;":         "♥",
 		"Fix #42 now":    "Fix #42 now",
 		"#unknown;":      "#unknown;",
-		"#0;#7;#55296;":  "#0;#7;#55296;", // controls and surrogates stay
+		"#55296;":        "#55296;", // a surrogate stays
 		"#99999999999;":  "#99999999999;",
 		"##59;":          "#;",
 		"#":              "#",
 		"#lt;script#gt;": "<script>",
-		"#NewLine;#Tab;": "#NewLine;#Tab;", // named controls stay too
+		// A control character shows as a space, as the browser draws it.
+		"a#10;b#9;c":        "a b c",
+		"a#NewLine;b#Tab;c": "a b c",
 	} {
 		assert.Equal(t, want, decodeEntities(in), in)
 	}
