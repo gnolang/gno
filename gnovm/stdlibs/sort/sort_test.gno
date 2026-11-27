@@ -78,18 +78,137 @@ func TestStrings(t *testing.T) {
 	}
 }
 
-/*
 func TestSlice(t *testing.T) {
 	data := strings
-	Slice(data[:], func(i, j int) bool {
+	if sort.SliceIsSorted(data[:], func(i, j int) bool { return data[i] < data[j] }) {
+		t.Errorf("SliceIsSorted(%v) = true before sorting", data)
+	}
+	sort.Slice(data[:], func(i, j int) bool {
 		return data[i] < data[j]
 	})
-	if !SliceIsSorted(data[:], func(i, j int) bool { return data[i] < data[j] }) {
+	if !sort.SliceIsSorted(data[:], func(i, j int) bool { return data[i] < data[j] }) {
 		t.Errorf("sorted %v", strings)
 		t.Errorf("   got %v", data)
 	}
 }
-*/
+
+func TestSliceStable(t *testing.T) {
+	data := []sortPair{{2, 0}, {1, 1}, {2, 2}, {1, 3}, {0, 4}, {2, 5}}
+	sort.SliceStable(data, func(i, j int) bool { return data[i].key < data[j].key })
+	want := []sortPair{{0, 4}, {1, 1}, {1, 3}, {2, 0}, {2, 2}, {2, 5}}
+	for i := range want {
+		if data[i] != want[i] {
+			t.Fatalf("got %v, want %v", data, want)
+		}
+	}
+}
+
+// Slice and SliceStable run the copies of the sort routines in zsortfunc.gno.
+// Ints and Stable run the originals, so both must give the same result.
+func TestSliceMatchesInterface(t *testing.T) {
+	n := 1000
+	ints := make([]int, n)
+	pairs := make([]sortPair, n)
+	x := uint32(7)
+	for i := range ints {
+		x = x*1664525 + 1013904223
+		ints[i] = int(x>>8) % 50 // many duplicates
+		pairs[i] = sortPair{ints[i], i}
+	}
+
+	viaSlice := append([]int(nil), ints...)
+	sort.Slice(viaSlice, func(i, j int) bool { return viaSlice[i] < viaSlice[j] })
+	sort.Ints(ints)
+	for i := range ints {
+		if viaSlice[i] != ints[i] {
+			t.Fatalf("Slice and Ints differ at %d: %d != %d", i, viaSlice[i], ints[i])
+		}
+	}
+
+	stablePairs := append([]sortPair(nil), pairs...)
+	sort.SliceStable(pairs, func(i, j int) bool { return pairs[i].key < pairs[j].key })
+	sort.Stable(pairsByKey(stablePairs))
+	for i := range pairs {
+		if pairs[i] != stablePairs[i] {
+			t.Fatalf("SliceStable and Stable differ at %d: %v != %v", i, pairs[i], stablePairs[i])
+		}
+	}
+}
+
+type sortPair struct{ key, seq int }
+
+type pairsByKey []sortPair
+
+func (p pairsByKey) Len() int           { return len(p) }
+func (p pairsByKey) Less(i, j int) bool { return p[i].key < p[j].key }
+func (p pairsByKey) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+// Elements that are not plain values: a []byte, which the VM keeps as raw
+// bytes, pointers, and a named slice type.
+func TestSliceElementKinds(t *testing.T) {
+	bs := []byte("dcba")
+	sort.Slice(bs, func(i, j int) bool { return bs[i] < bs[j] })
+	if string(bs) != "abcd" {
+		t.Errorf("[]byte: got %q", bs)
+	}
+
+	a, b, c := 3, 1, 2
+	ps := []*int{&a, &b, &c}
+	sort.Slice(ps, func(i, j int) bool { return *ps[i] < *ps[j] })
+	if ps[0] != &b || ps[1] != &c || ps[2] != &a {
+		t.Errorf("[]*int: got %d %d %d", *ps[0], *ps[1], *ps[2])
+	}
+
+	type names []string
+	ns := names{"c", "a", "b"}
+	sort.Slice(ns, func(i, j int) bool { return ns[i] < ns[j] })
+	if ns[0] != "a" || ns[1] != "b" || ns[2] != "c" {
+		t.Errorf("named slice: got %v", ns)
+	}
+}
+
+// Slice moves elements instead of copying them. A pointer to a field of an
+// element follows the element, and a pointer to an element stays with its
+// index. In Go both stay with the index. A swap written by hand in Gno leaves
+// the field pointer on a copy that no slot holds.
+func TestSliceFieldPointer(t *testing.T) {
+	data := []sortPair{{3, 0}, {1, 1}}
+	field := &data[0].key
+	elem := &data[0]
+	sort.Slice(data, func(i, j int) bool { return data[i].key < data[j].key })
+	if *field != 3 || elem.key != 1 {
+		t.Fatalf("got *field=%d elem.key=%d, want 3 and 1", *field, elem.key)
+	}
+	*field = 9
+	if data[0].key != 1 || data[1].key != 9 {
+		t.Errorf("write through field pointer: got %v", data)
+	}
+}
+
+func TestSliceShort(t *testing.T) {
+	var nilSlice []int
+	less := func(i, j int) bool { panic("less called") }
+	sort.Slice(nilSlice, less)
+	sort.Slice([]int{}, less)
+	sort.Slice([]int{1}, less)
+	if !sort.SliceIsSorted(nilSlice, less) {
+		t.Errorf("SliceIsSorted(nil) = false")
+	}
+}
+
+func TestSliceNotSlice(t *testing.T) {
+	less := func(i, j int) bool { return false }
+	for _, x := range []any{nil, 1, "ab", [2]int{2, 1}, &[]int{2, 1}} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("Slice(%v) did not panic", x)
+				}
+			}()
+			sort.Slice(x, less)
+		}()
+	}
+}
 
 func TestSortLarge_Random(t *testing.T) {
 	n := 1000000
