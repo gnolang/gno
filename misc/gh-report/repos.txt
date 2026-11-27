@@ -1,0 +1,2 @@
+# one owner/repo per line; lines starting with # are ignored
+gnolang/gno
