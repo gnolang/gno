@@ -83,8 +83,31 @@ func TestRunApp(t *testing.T) {
 			errShouldContain: "listen tcp",
 		},
 		{
-			args:                 []string{"run", "../../tests/integ/invalid_assign/main.gno"},
-			recoverShouldContain: "cannot use bool as main.C without explicit conversion",
+			args:           []string{"run", "../../tests/integ/invalid_assign/main.gno"},
+			stderrShouldBe: "../../tests/integ/invalid_assign/main.gno:7:6-13: cannot use bool as main.C without explicit conversion (code=gnoPreprocessError)\n",
+			errShouldBe:    "exit code: 1",
+		},
+		{
+			// preprocess errors are reported as errors, not Go panics.
+			args:           []string{"run", "../../tests/integ/run_preprocess_error/"},
+			stderrShouldBe: "../../tests/integ/run_preprocess_error/main.gno:4:6-19: bigint underflows target kind (code=gnoPreprocessError)\n",
+			errShouldBe:    "exit code: 1",
+		},
+		{
+			// duplicate declarations across files are reported as
+			// errors, not Go panics.
+			args: []string{
+				"run", "-pkgpath", "example.com/main",
+				"../../tests/integ/run_duplicate_decl/a.gno",
+				"../../tests/integ/run_duplicate_decl/b.gno",
+			},
+			stderrShouldBe: `running package "example.com/main": redeclarations for identifiers: "helper" (code=gnoPreprocessError)` + "\n",
+			errShouldBe:    "exit code: 1",
+		},
+		{
+			// runtime panics during package initialization are re-thrown.
+			args:                 []string{"run", "../../tests/integ/run_init_panic/"},
+			recoverShouldContain: "boom",
 		},
 		{
 			args:                []string{"run", "-expr", "Context()", "../../tests/integ/context/context.gno"},

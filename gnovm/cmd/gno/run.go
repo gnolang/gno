@@ -296,7 +296,9 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	}
 
 	// run files
-	m.RunFiles(files...)
+	if err := runFiles(m, files, pkgPath, stderr); err != nil {
+		return err
+	}
 
 	if realmMode {
 		// Reconstruct the active package from the store, following realm
@@ -366,6 +368,46 @@ func parseFiles(m *gno.Machine, fpaths []string, stderr io.WriteCloser) ([]*gno.
 		return nil, commands.ExitCodeError(1)
 	}
 	return files, nil
+}
+
+// runFiles runs m.RunFiles on files, reporting a source error found before
+// execution (a preprocess error such as an invalid constant conversion, or
+// duplicate declarations) on stderr in the same format as parse errors
+// (without a location when none is known), instead of letting it escape as a
+// Go panic. Other panics, such as runtime panics during package
+// initialization, are re-thrown as is.
+func runFiles(m *gno.Machine, files []*gno.FileNode, pkgPath string, stderr io.WriteCloser) (err error) {
+	if os.Getenv("DEBUG_PANIC") != "1" {
+		defer func() {
+			r := recover()
+			if r == nil {
+				return
+			}
+			switch rerr := r.(type) {
+			case *gno.PreprocessError:
+				// The files were read with the paths given on the
+				// command line, so their locations are
+				// "<pkgPath>/<path>". Strip the package path to point
+				// at the file as given, relative to the working
+				// directory.
+				msg := strings.TrimPrefix(rerr.Unwrap().Error(), pkgPath+"/")
+				fmt.Fprintln(stderr, guessIssueFromError(
+					".", ".", errors.New(msg), gnoPreprocessError).String())
+			case error:
+				if !errors.As(rerr, new(gno.RedeclarationErrors)) {
+					panic(r)
+				}
+				// Duplicate declarations are detected before
+				// preprocessing and carry no location.
+				fmt.Fprintf(stderr, "%s (code=%s)\n", rerr, gnoPreprocessError)
+			default:
+				panic(r)
+			}
+			err = commands.ExitCodeError(1)
+		}()
+	}
+	m.RunFiles(files...)
+	return nil
 }
 
 func listNonTestFiles(dir string) ([]string, error) {
