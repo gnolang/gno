@@ -47,6 +47,8 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 		client.NewImportCmd(cfg, io),
 		client.NewListCmd(cfg, io),
 		client.NewSignCmd(cfg, io),
+		client.NewSignDataCmd(cfg, io),
+		client.NewVerifyDataCmd(cfg, io),
 		client.NewVerifyCmd(cfg, io),
 		client.NewQueryCmd(cfg, io),
 		client.NewBroadcastCmd(cfg, io),
