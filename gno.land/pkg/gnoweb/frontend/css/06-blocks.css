@@ -3042,7 +3042,7 @@ main.is-dev-mode .b-toc a {
 		   the view's pre rule outranks the utility: its padding and scroller
 		   would make an invisible keyboard stop. White space stays pre, so a
 		   screen reader reads the source line by line. */
-		& > pre {
+		& > .u-sr-only {
 			padding: 0;
 			margin: -1px;
 			overflow: hidden;
