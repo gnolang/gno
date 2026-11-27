@@ -46,6 +46,8 @@ func TestSequenceErrors(t *testing.T) {
 		"central to":        {"sequenceDiagram\nAlice->>()John: Hello", "central connection"},
 		"central from":      {"sequenceDiagram\nAlice()->>John: x", "central connection"},
 		"central both":      {"sequenceDiagram\nJohn()->>()Alice: x", "central connection"},
+		"() in receiver":    {"sequenceDiagram\nMain->>init(): x", "central connection"},
+		"() in sender":      {"sequenceDiagram\na()b->>C: x", "central connection"},
 	})
 }
 
