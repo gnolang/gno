@@ -24,10 +24,15 @@ type QueryCfg struct {
 
 // Query performs a generic query on the blockchain.
 func (c *Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
+	return c.QueryContext(context.Background(), cfg)
+}
+
+// QueryContext performs a generic query with the caller's context.
+func (c *Client) QueryContext(ctx context.Context, cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}
-	qres, err := c.RPCClient.ABCIQueryWithOptions(context.Background(), cfg.Path, cfg.Data, cfg.ABCIQueryOptions)
+	qres, err := c.RPCClient.ABCIQueryWithOptions(ctx, cfg.Path, cfg.Data, cfg.ABCIQueryOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "query error")
 	}
@@ -44,8 +49,14 @@ func (c *Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 // The returned account's Coins field holds only the chain's gas denom. Every
 // other denom lives in its own store key; query bank/balances for the full set.
 func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
+	return c.QueryAccountContext(context.Background(), addr)
+}
+
+// QueryAccountContext retrieves account information with the caller's context.
+// Like QueryAccount, it only includes the balance of the chain's gas denom.
+func (c *Client) QueryAccountContext(ctx context.Context, addr crypto.Address) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
 	path := fmt.Sprintf("auth/accounts/%s", crypto.AddressToBech32(addr))
-	qres, err := c.queryHelper(path, []byte{}, "query account")
+	qres, err := c.queryHelperContext(ctx, path, []byte{}, "query account")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -146,9 +157,14 @@ func (c *Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error) {
 // include the prefix like "gno.land/". This is similar to using a browser URL
 // <testnet>/<pkgPath>:<args> where <pkgPath> doesn't have the prefix like "gno.land/".
 func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCIQuery, error) {
+	return c.RenderContext(context.Background(), pkgPath, args)
+}
+
+// RenderContext calls the package's Render function with the caller's context.
+func (c *Client) RenderContext(ctx context.Context, pkgPath, args string) (string, *ctypes.ResultABCIQuery, error) {
 	path := "vm/qrender"
 	data := fmt.Appendf(nil, "%s:%s", pkgPath, args)
-	qres, err := c.queryHelper(path, data, "query render")
+	qres, err := c.queryHelperContext(ctx, path, data, "query render")
 	if err != nil {
 		return "", nil, err
 	}
@@ -161,9 +177,14 @@ func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCI
 // "IsBoardFrozen(1)". The return value is a typed expression like
 // "(false bool)".
 func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.ResultABCIQuery, error) {
+	return c.QEvalContext(context.Background(), pkgPath, expression)
+}
+
+// QEvalContext evaluates an expression in the package with the caller's context.
+func (c *Client) QEvalContext(ctx context.Context, pkgPath, expression string) (string, *ctypes.ResultABCIQuery, error) {
 	path := "vm/qeval"
 	data := fmt.Appendf(nil, "%s.%s", pkgPath, expression)
-	qres, err := c.queryHelper(path, data, "query eval")
+	qres, err := c.queryHelperContext(ctx, path, data, "query eval")
 	if err != nil {
 		return "", nil, err
 	}
@@ -229,11 +250,15 @@ func (c *Client) QPkgJSON(pkgPath string) (string, *ctypes.ResultABCIQuery, erro
 }
 
 func (c *Client) queryHelper(path string, data []byte, errorLabel string) (*ctypes.ResultABCIQuery, error) {
+	return c.queryHelperContext(context.Background(), path, data, errorLabel)
+}
+
+func (c *Client) queryHelperContext(ctx context.Context, path string, data []byte, errorLabel string) (*ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}
 
-	qres, err := c.RPCClient.ABCIQuery(context.Background(), path, data)
+	qres, err := c.RPCClient.ABCIQuery(ctx, path, data)
 	if err != nil {
 		return nil, errors.Wrap(err, errorLabel)
 	}
