@@ -418,7 +418,8 @@ func (r *foreignRendererHTML) renderForeign(w util.BufWriter, _ []byte, node ast
 // sandbox as it would at top level, plus the structural gno-*
 // extensions that exist today (foreign, columns, frame, alert), the link
 // extension, mentions, and icons (static allowlisted glyphs). Image
-// validator is wired through if non-nil.
+// validator is wired through if non-nil. Diagrams (ExtMermaid) are not
+// loaded: a ```mermaid fence in the sandbox stays a code block.
 //
 // Mentions are loaded: a `@user`/`g1…` mention resolves to a system-
 // built /u/<name> link (the author cannot choose the destination), so it

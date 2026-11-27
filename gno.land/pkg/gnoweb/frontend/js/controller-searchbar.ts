@@ -1490,7 +1490,9 @@ export class SearchbarController extends BaseController {
 		while (node && matches.length < MAX_PAGE_MATCHES) {
 			const text = node.nodeValue ?? "";
 			const at = text.toLowerCase().indexOf(needle);
-			if (at >= 0) {
+			// Text inside an SVG cannot hold a <mark>, and visually hidden text
+			// is no match to reveal. Only a node that matches pays for the check.
+			if (at >= 0 && !node.parentElement?.closest("svg, .u-sr-only")) {
 				matches.push({
 					node,
 					index: at,

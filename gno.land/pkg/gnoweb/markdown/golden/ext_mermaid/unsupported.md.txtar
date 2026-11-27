@@ -1,0 +1,12 @@
+-- input.md --
+A type this package does not draw shows as code:
+
+```mermaid
+flowchart LR
+    A --> B
+```
+-- output.html --
+<p>A type this package does not draw shows as code:</p>
+<pre><code class="language-mermaid">flowchart LR
+    A --&gt; B
+</code></pre>
