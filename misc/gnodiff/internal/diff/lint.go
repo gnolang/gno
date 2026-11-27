@@ -20,17 +20,9 @@ func RunLint(src string, opt Options) (res Result) {
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			res = resultFromRecover(r)
-			if res.Kind == KindPanic {
-				res = Result{Kind: KindInternal, Detail: clip(fmt.Sprint(r), detailLimit)}
-			}
+			res = Result{Kind: KindInternal, Detail: clip(fmt.Sprint(r), detailLimit)}
 		}
 	}()
-
-	st, err := lintGetter(opt.RootDir)
-	if err != nil {
-		return Result{Kind: KindInternal, Detail: err.Error()}
-	}
 
 	const pkgPath = "gno.land/p/demo/gnodiff/main"
 	mpkg := &std.MemPackage{
@@ -45,6 +37,10 @@ func RunLint(src string, opt Options) (res Result) {
 
 	lintMu.Lock()
 	defer lintMu.Unlock()
+	st, err := lintGetterLocked(opt.RootDir)
+	if err != nil {
+		return Result{Kind: KindInternal, Detail: err.Error()}
+	}
 	_, tcErr := gnolang.TypeCheckMemPackage(mpkg, gnolang.TypeCheckOptions{
 		Getter:     st,
 		TestGetter: st,
@@ -58,25 +54,25 @@ func RunLint(src string, opt Options) (res Result) {
 
 var (
 	lintMu    sync.Mutex
-	lintOnce  sync.Once
+	lintRoot  string
 	lintStore gnolang.Store
-	errLint   error
 )
 
-func lintGetter(root string) (gnolang.Store, error) {
-	lintOnce.Do(func() {
-		defer func() {
-			if r := recover(); r != nil {
-				errLint = fmt.Errorf("lint store: %v", r)
-			}
-		}()
-		_, lintStore = test.ProdStore(root, io.Discard, nil)
-	})
-	if errLint != nil {
-		return nil, errLint
+func lintGetterLocked(root string) (st gnolang.Store, err error) {
+	if lintStore != nil && lintRoot == root {
+		return lintStore, nil
 	}
-	if lintStore == nil {
+	defer func() {
+		if r := recover(); r != nil {
+			st = nil
+			err = fmt.Errorf("lint store: %v", r)
+		}
+	}()
+	_, s := test.ProdStore(root, io.Discard, nil)
+	if s == nil {
 		return nil, fmt.Errorf("lint store was not created")
 	}
+	lintRoot = root
+	lintStore = s
 	return lintStore, nil
 }

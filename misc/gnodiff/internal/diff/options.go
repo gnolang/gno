@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -88,25 +89,34 @@ func guessRoot() (string, error) {
 			guessedRoot.dir = dir
 			return
 		}
-		cwd, err := os.Getwd()
-		if err != nil {
-			guessedRoot.err = err
-			return
-		}
-		for dir := cwd; ; {
-			if isGnoRoot(dir) {
+		if cwd, err := os.Getwd(); err == nil {
+			if dir, ok := walkUpToRoot(cwd); ok {
 				guessedRoot.dir = dir
 				return
 			}
-			parent := filepath.Dir(dir)
-			if parent == dir {
-				break
+		}
+		if _, file, _, ok := runtime.Caller(0); ok {
+			if dir, ok := walkUpToRoot(filepath.Dir(file)); ok {
+				guessedRoot.dir = dir
+				return
 			}
-			dir = parent
 		}
 		guessedRoot.err = errors.New("GNOROOT is unset and the gno checkout was not found; set GNOROOT")
 	})
 	return guessedRoot.dir, guessedRoot.err
+}
+
+func walkUpToRoot(start string) (string, bool) {
+	for dir := start; ; {
+		if isGnoRoot(dir) {
+			return dir, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", false
+		}
+		dir = parent
+	}
 }
 
 func isGnoRoot(dir string) bool {
