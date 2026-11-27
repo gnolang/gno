@@ -11,7 +11,7 @@ import (
 )
 
 // newSubDAOPropDefinition creates a new proposal definition for adding a SubDAO.
-func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, purpose, description string, members []address) subDAOPropDefinition {
+func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, purpose, description string, members []address) *subDAOPropDefinition {
 	if parent == nil {
 		panic("parent DAO is required")
 	}
@@ -29,7 +29,7 @@ func newSubDAOPropDefinition(parent *commondao.CommonDAO, name, purpose, descrip
 		panic("a SubDAO requires at least one initial council member")
 	}
 
-	return subDAOPropDefinition{
+	return &subDAOPropDefinition{
 		parent:      parent,
 		name:        name,
 		purpose:     purpose,
@@ -104,7 +104,13 @@ func (p subDAOPropDefinition) Executor() commondao.ExecFunc {
 }
 
 func (p subDAOPropDefinition) execute(_ int, sub realm) error {
-	createSubDAO(p.parent, p.name, p.purpose, p.description, p.members...)
+	assertSub(0, sub)
+	return addSubDAO(cross(sub), p.parent, p.name, p.purpose, p.description, p.members)
+}
+
+func addSubDAO(cur realm, parent *commondao.CommonDAO, name, purpose, description string, members []address) error {
+	assertExecutor(cur.Previous().Address(), parent.ID())
+	createSubDAO(parent, name, purpose, description, members...)
 	return nil
 }
 
@@ -114,7 +120,7 @@ func (p subDAOPropDefinition) execute(_ int, sub realm) error {
 // a clawback would put the funds); a root DAO has no parent, so its
 // dissolution requires an explicit destination. Both rules are
 // state-independent: parent pointers never change after construction.
-func newDissolvePropDefinition(dao *commondao.CommonDAO, destination address) dissolvePropDefinition {
+func newDissolvePropDefinition(dao *commondao.CommonDAO, destination address) *dissolvePropDefinition {
 	if dao == nil {
 		panic("SubDAO is required")
 	}
@@ -128,7 +134,7 @@ func newDissolvePropDefinition(dao *commondao.CommonDAO, destination address) di
 		}
 	}
 
-	return dissolvePropDefinition{dao, destination}
+	return &dissolvePropDefinition{dao, destination}
 }
 
 // dissolvePropDefinition defines a proposal type for dissolving a SubDAO.
@@ -185,6 +191,7 @@ func (p dissolvePropDefinition) FundingDAOID() uint64 {
 }
 
 func (p dissolvePropDefinition) execute(_ int, sub realm) error {
+	assertSub(0, sub)
 	// Sweep any remaining treasury before soft deleting: no council
 	// remains afterwards to pass a spend. Sub-DAO funds go to the parent;
 	// root funds go to the destination named at proposal creation. A
@@ -213,13 +220,18 @@ func (p dissolvePropDefinition) execute(_ int, sub realm) error {
 		b.SendCoins(sub.Address(), dest, balance)
 	}
 
+	return dissolveDAO(cross(sub), p.dao)
+}
+
+func dissolveDAO(cur realm, dao *commondao.CommonDAO) error {
+	assertExecutor(cur.Previous().Address(), dao.ID())
 	// Drop the DAO from the home index: a dissolved DAO can no longer be
 	// unlisted through SetListed (it rejects deleted DAOs), so unlist it
 	// here rather than leave it stuck in the listing.
-	setListed(p.dao.ID(), false)
+	setListed(dao.ID(), false)
 
 	// Dissolution voids the DAO's in-flight proposals before soft deleting
 	// it, so nothing remains pending on a DAO that rejects execution.
-	p.dao.Dissolve("DAO dissolved")
+	dao.Dissolve("DAO dissolved")
 	return nil
 }

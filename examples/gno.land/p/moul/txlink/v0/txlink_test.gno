@@ -156,24 +156,6 @@ func TestBuilder(t *testing.T) {
 			},
 			expected: "/p/moul/txlink/v0$help&func=MyFunc&key1=value1&key2=value2",
 		},
-		{
-			name: "addargs_with_odd_number_of_args",
-			build: func() string {
-				defer func() {
-					if r := recover(); r != nil {
-						if r != "odd number of arguments" {
-							t.Errorf("expected panic with message 'odd number of arguments', got: %v", r)
-						}
-					} else {
-						t.Error("expected panic for odd number of arguments, but did not panic")
-					}
-				}()
-				return NewLink("MyFunc").
-					AddArgs("key1", "value1", "orphan").
-					URL()
-			},
-			expected: "",
-		},
 
 		// Empty values tests
 		{
@@ -207,23 +189,6 @@ func TestBuilder(t *testing.T) {
 			expected: "/p/moul/txlink/v0$help&func=MyFunc&.send=1000000ugnot&key=value",
 		},
 		{
-			name: "send_via_addarg_method_panic",
-			build: func() string {
-				defer func() {
-					if r := recover(); r != nil {
-						if r != "invalid key" {
-							t.Errorf("expected panic with message 'invalid key', got: %v", r)
-						}
-					} else {
-						t.Errorf("expected panic for .send key, but did not panic")
-					}
-				}()
-				NewLink("MyFunc").AddArgs(".send", "1000000ugnot")
-				return "no panic occurred"
-			},
-			expected: "",
-		},
-		{
 			name: "addsend_should_override_previous_addsend",
 			build: func() string {
 				return NewLink("MyFunc").
@@ -241,4 +206,30 @@ func TestBuilder(t *testing.T) {
 			urequire.Equal(t, tc.expected, got)
 		})
 	}
+}
+
+// The panic cases run in place: a builder stored in the table is called
+// through a value, where the library's panic cannot be recovered.
+func TestBuilderPanics(t *testing.T) {
+	t.Run("addargs_with_odd_number_of_args", func(t *testing.T) {
+		expectPanic(t, "odd number of arguments", func() {
+			NewLink("MyFunc").AddArgs("key1", "value1", "orphan").URL()
+		})
+	})
+	t.Run("send_via_addarg_method_panic", func(t *testing.T) {
+		expectPanic(t, "invalid key", func() {
+			NewLink("MyFunc").AddArgs(".send", "1000000ugnot")
+		})
+	})
+}
+
+func expectPanic(t *testing.T, want string, f func()) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("expected panic %q, but did not panic", want)
+		} else if r != want {
+			t.Errorf("expected panic %q, got: %v", want, r)
+		}
+	}()
+	f()
 }

@@ -15,6 +15,8 @@ const amount = int64(1000)
 
 var nextTokenID seqid.ID
 
+var registered = map[string]*grc20.Token{}
+
 func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
 	// Create the token.
 	symbol := strings.ToUpper(name)
@@ -22,8 +24,21 @@ func createToken(_ int, rlm realm, name string, toMint address) *grc20.Token {
 
 	// Mint the requested amount.
 	ledger.Mint(toMint, amount)
+	registered[symbol] = token
 
 	return token
+}
+
+// transfer is stored in the banker and called back read-only, so it
+// crosses back into this realm to move the tokens.
+func transfer(_ int, rlm realm, tokenKey string, to address, amount int64) {
+	doTransfer(cross(rlm), tokenKey, to, amount)
+}
+
+func doTransfer(cur realm, tokenKey string, to address, amount int64) {
+	if err := registered[tokenKey].RealmTeller(0, cur).Transfer(0, cur, to, amount); err != nil {
+		panic(err)
+	}
 }
 
 func main(cur realm) {
@@ -32,7 +47,7 @@ func main(cur realm) {
 	destAddr := chain.PackageAddress("gno.land/r/dest/main")
 
 	// Try to create a GRC20Banker using a nil lister.
-	gbanker, err := treasury.NewGRC20BankerWithOwner(ownerAddr, nil)
+	gbanker, err := treasury.NewGRC20BankerWithOwner(ownerAddr, nil, nil)
 	if err == nil {
 		panic("expected error when creating GRC20Banker with nil lister")
 	}
@@ -55,7 +70,7 @@ func main(cur realm) {
 	}
 
 	// Create a GRC20Banker.
-	gbanker, err = treasury.NewGRC20BankerWithOwner(ownerAddr, grc20Lister)
+	gbanker, err = treasury.NewGRC20BankerWithOwner(ownerAddr, grc20Lister, transfer)
 	if err != nil {
 		panic("failed to create GRC20Banker: " + err.Error())
 	}

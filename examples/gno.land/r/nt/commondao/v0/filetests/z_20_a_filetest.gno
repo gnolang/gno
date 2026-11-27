@@ -34,14 +34,17 @@ func init(cur realm) {
 	commondao.Execute(cross(cur), daoID, pID)
 }
 
+func markRan(cur realm) { ran = true }
+
 func main(cur realm) {
 	testing.SetRealm(testing.NewUserRealm(user))
 	println("execution registered:", commondao.HasProposalKind(daoID, "execution"))
 
 	// The closure is authored in this persistent realm, so it survives
-	// Propose->Execute. It sets a package var so execution is observable.
-	pID := commondao.CreateExecutionProposal(cross(cur), daoID, "Run it", "Body", func(_ int, _ realm) error {
-		ran = true
+	// Propose->Execute. Called back without crossing it is read-only, so it
+	// crosses back into this realm to record that it ran.
+	pID := commondao.CreateExecutionProposal(cross(cur), daoID, "Run it", "Body", func(_ int, sub realm) error {
+		markRan(cross(sub))
 		return nil
 	})
 	println("created:", pID)

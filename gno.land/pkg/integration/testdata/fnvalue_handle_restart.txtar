@@ -1,0 +1,113 @@
+# A handle a realm's gate made of its own function is stored; R2a makes it
+# read-only in a later crossing call, so it no longer writes after a restart.
+# A handle with no maker, or made by a run script, is allowed at save; loaded
+# from the store it has no crossing id, so a later call is read-only. A third
+# realm keeps the script's handle, which runs read-only for the declaring realm.
+
+loadpkg gno.land/r/test/hr $WORK/hr
+loadpkg gno.land/r/test/hz $WORK/hz
+
+gnoland start
+
+## a gate stores a handle of its own function (deposit pinned)
+gnokey maketx call -pkgpath gno.land/r/test/hr -func StoreGate -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stdout OK!
+stdout 'STORAGE DELTA:  437 bytes'
+
+gnoland restart
+
+! gnokey maketx call -pkgpath gno.land/r/test/hr -func RunHook -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/hr''s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs'
+gnokey query vm/qeval --data 'gno.land/r/test/hr.Read()'
+stdout 'orig'
+
+## a handle made in hr's read-only code has no maker: allowed at save
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script/getter.gno
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/test/hr -func RunHook -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/hr''s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs'
+gnokey query vm/qeval --data 'gno.land/r/test/hr.Read()'
+stdout 'orig'
+
+## a run script's handle of hr's function: allowed at save in hr, read-only later
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script/own.gno
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/test/hr -func RunHook -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/hr''s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs'
+gnokey query vm/qeval --data 'gno.land/r/test/hr.Read()'
+stdout 'orig'
+
+## the same handle kept by hz runs read-only for hr, in hz and in hr's gate
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script/third.gno
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/test/hz -func Call -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/hr''s code was entered without crossing and is read-only'
+! gnokey maketx call -pkgpath gno.land/r/test/hz -func Hand -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/test/hr''s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs'
+gnokey query vm/qeval --data 'gno.land/r/test/hr.Read()'
+stdout 'orig'
+
+-- hr/gnomod.toml --
+module = "gno.land/r/test/hr"
+gno = "0.9"
+
+-- hr/hr.gno --
+package hr
+
+var owner = "orig"
+
+func SetOwner(s string) { owner = s }
+
+var hook func(string)
+
+func StoreGate(cur realm)                { hook = SetOwner }
+func SetHook(cur realm, f func(string))  { hook = f }
+func RunHook(cur realm)                  { hook("hooked") }
+func RunS(cur realm, f func(string))     { f("picked") }
+func Get() func(string)                  { return SetOwner }
+func Read() string                       { return owner }
+
+-- hz/gnomod.toml --
+module = "gno.land/r/test/hz"
+gno = "0.9"
+
+-- hz/hz.gno --
+package hz
+
+import "gno.land/r/test/hr"
+
+var kept func(string)
+
+func Keep(cur realm, f func(string)) { kept = f }
+func Call(cur realm)                 { kept("z") }
+func Hand(cur realm)                 { hr.RunS(cross(cur), kept) }
+
+-- script/getter.gno --
+package main
+
+import "gno.land/r/test/hr"
+
+func main(cur realm) {
+	hr.SetHook(cross(cur), hr.Get())
+}
+
+-- script/own.gno --
+package main
+
+import "gno.land/r/test/hr"
+
+func main(cur realm) {
+	hr.SetHook(cross(cur), hr.SetOwner)
+}
+
+-- script/third.gno --
+package main
+
+import (
+	"gno.land/r/test/hr"
+	"gno.land/r/test/hz"
+)
+
+func main(cur realm) {
+	hz.Keep(cross(cur), hr.SetOwner)
+}

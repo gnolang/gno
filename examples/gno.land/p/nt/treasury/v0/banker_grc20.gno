@@ -10,15 +10,21 @@ import (
 
 var (
 	ErrNoListerProvided   = errors.New("no lister provided")
+	ErrNoTransferProvided = errors.New("no transfer function provided")
 	ErrGRC20TokenNotFound = errors.New("GRC20 token not found")
 )
 
 // GRC20Banker is a Banker that sends GRC20 tokens listed using a getter
 // set during initialization.
 type GRC20Banker struct {
-	owner  address         // The address of this GRC20 banker owner.
-	lister TokenListerFunc // Allows to list tokens from methods that require it.
+	owner    address           // The address of this GRC20 banker owner.
+	lister   TokenListerFunc   // Allows to list tokens from methods that require it.
+	transfer GRC20TransferFunc // The realm-supplied crossing move; a package cannot import a realm.
 }
+
+// GRC20TransferFunc moves a registered token as the calling realm, the same
+// shape as grc20reg.Transfer. The owning realm supplies it.
+type GRC20TransferFunc func(_ int, rlm realm, tokenKey string, to address, amount int64)
 
 // TokenListerFunc is a function type that returns a map of GRC20 tokens.
 type TokenListerFunc func() map[string]*grc20.Token
@@ -59,9 +65,13 @@ func (gb *GRC20Banker) Send(_ int, rlm realm, p Payment) error {
 	if !ok {
 		return ufmt.Errorf("%v: %s", ErrGRC20TokenNotFound, payment.tokenKey)
 	}
+	if token.BalanceOf(gb.owner) < payment.amount {
+		return grc20.ErrInsufficientBalance
+	}
 
-	// Send the token from the owner's balance.
-	return token.RealmTeller(0, rlm).Transfer(0, rlm, payment.toAddress, payment.amount)
+	// The supplied function runs the token realm's crossing function as rlm.
+	gb.transfer(0, rlm, payment.tokenKey, payment.toAddress, payment.amount)
+	return nil
 }
 
 // Balances implements Banker.
@@ -86,7 +96,7 @@ func (gb *GRC20Banker) Address() string {
 }
 
 // NewGRC20BankerWithOwner creates a new GRC20Banker with the given address.
-func NewGRC20BankerWithOwner(owner address, lister TokenListerFunc) (*GRC20Banker, error) {
+func NewGRC20BankerWithOwner(owner address, lister TokenListerFunc, transfer GRC20TransferFunc) (*GRC20Banker, error) {
 	if owner == "" {
 		return nil, ErrNoOwnerProvided
 	}
@@ -95,9 +105,14 @@ func NewGRC20BankerWithOwner(owner address, lister TokenListerFunc) (*GRC20Banke
 		return nil, ErrNoListerProvided
 	}
 
+	if transfer == nil {
+		return nil, ErrNoTransferProvided
+	}
+
 	return &GRC20Banker{
-		owner:  owner,
-		lister: lister,
+		owner:    owner,
+		lister:   lister,
+		transfer: transfer,
 	}, nil
 }
 

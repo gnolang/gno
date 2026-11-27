@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/launderrh_pdr_p_recover
 package launderrh_pdr_p_recover
 
+// Explicit-entry rule: a function literal written here has no power over
+// another realm's object, so the write below is refused. The analysis below
+// was written before the explicit-entry rule.
+
 // Vector 8: /p/-method RecoverApply has its own defer/recover.
 // What happens when an attacker /r/-closure panics from inside?
 //
@@ -36,5 +40,7 @@ func main(cur realm) {
 	println("after: ", launderrvictim.ReadPtr())
 }
 
-// Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): i<VPBlock(1,0)>.Field
+// Output:
+// before: ptr-orig
+// rec: cannot directly modify readonly tainted object (write it in a named function of the realm that owns it, during a crossing call into that realm; a /p/ or standard-library package's object cannot be written after its init): i<VPBlock(1,0)>.Field
+// after:  ptr-orig

@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/ifacevictim"
+gno = "0.9"

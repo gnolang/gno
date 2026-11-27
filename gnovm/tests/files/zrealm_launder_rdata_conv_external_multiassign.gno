@@ -16,4 +16,7 @@ func main(cur realm) {
 }
 
 // Error:
-// illegal conversion to external realm type
+// cannot allocate gno.land/r/tests/vm/launderrvictim.Immutable in realm gno.land/r/launderrh_conv_external_multiassign
+
+// TypeCheckError:
+// gno.land/r/launderrh_conv_external_multiassign/zrealm_launder_rdata_conv_external_multiassign.gno:12:6: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer); gno.land/r/launderrh_conv_external_multiassign/zrealm_launder_rdata_conv_external_multiassign.gno:14:2: cannot hold a value of gno.land/r/tests/vm/launderrvictim.Immutable outside its realm (use a pointer)

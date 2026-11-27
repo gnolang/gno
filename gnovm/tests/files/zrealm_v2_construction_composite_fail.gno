@@ -15,3 +15,6 @@ func main() {
 
 // Error:
 // cannot allocate gno.land/r/tests/vm/crossrealm.LocalStruct in realm gno.land/r/bar
+
+// TypeCheckError:
+// gno.land/r/bar/zrealm_v2_construction_composite_fail.gno:12:2: cannot hold a value of gno.land/r/tests/vm/crossrealm.LocalStruct outside its realm (use a pointer); gno.land/r/bar/zrealm_v2_construction_composite_fail.gno:12:7: cannot hold a value of gno.land/r/tests/vm/crossrealm.LocalStruct outside its realm (use a pointer)

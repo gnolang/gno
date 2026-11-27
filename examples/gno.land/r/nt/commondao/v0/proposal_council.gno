@@ -11,7 +11,7 @@ import (
 
 // newCouncilUpdatePropDefinition creates a new proposal definition for
 // adding/removing council members.
-func newCouncilUpdatePropDefinition(dao *commondao.CommonDAO, add, remove []address) councilUpdatePropDefinition {
+func newCouncilUpdatePropDefinition(dao *commondao.CommonDAO, add, remove []address) *councilUpdatePropDefinition {
 	if dao == nil {
 		panic("DAO is required")
 	}
@@ -20,7 +20,7 @@ func newCouncilUpdatePropDefinition(dao *commondao.CommonDAO, add, remove []addr
 		panic("no council members were specified to be added or removed")
 	}
 
-	return councilUpdatePropDefinition{
+	return &councilUpdatePropDefinition{
 		dao:      dao,
 		toAdd:    add,
 		toRemove: remove,
@@ -91,14 +91,21 @@ func (p councilUpdatePropDefinition) Executor() commondao.ExecFunc {
 }
 
 func (p councilUpdatePropDefinition) execute(_ int, sub realm) error {
-	return p.dao.UpdateCouncil(p.toAdd, p.toRemove)
+	assertSub(0, sub)
+	return updateCouncil(cross(sub), p.dao, p.dao, p.toAdd, p.toRemove)
+}
+
+// updateCouncil changes target's council for the executor of host.
+func updateCouncil(cur realm, host, target *commondao.CommonDAO, add, remove []address) error {
+	assertExecutor(cur.Previous().Address(), host.ID())
+	return target.UpdateCouncil(add, remove)
 }
 
 // newAncestorCouncilUpdatePropDefinition creates a proposal definition for
 // an ancestor DAO to modify a descendant's council membership
 // (docs/CONSTITUTION.md :1531-1532). It is hosted and voted in the
 // ancestor; ancestry is verified at proposal validation.
-func newAncestorCouncilUpdatePropDefinition(dao, target *commondao.CommonDAO, add, remove []address) ancestorCouncilUpdatePropDefinition {
+func newAncestorCouncilUpdatePropDefinition(dao, target *commondao.CommonDAO, add, remove []address) *ancestorCouncilUpdatePropDefinition {
 	if dao == nil {
 		panic("DAO is required")
 	}
@@ -109,7 +116,7 @@ func newAncestorCouncilUpdatePropDefinition(dao, target *commondao.CommonDAO, ad
 		panic("no council members were specified to be added or removed")
 	}
 
-	return ancestorCouncilUpdatePropDefinition{
+	return &ancestorCouncilUpdatePropDefinition{
 		dao:      dao,
 		target:   target,
 		toAdd:    add,
@@ -183,7 +190,8 @@ func (p ancestorCouncilUpdatePropDefinition) Executor() commondao.ExecFunc {
 }
 
 func (p ancestorCouncilUpdatePropDefinition) execute(_ int, sub realm) error {
-	return p.target.UpdateCouncil(p.toAdd, p.toRemove)
+	assertSub(0, sub)
+	return updateCouncil(cross(sub), p.dao, p.target, p.toAdd, p.toRemove)
 }
 
 // addrStrings converts addresses for markdown list rendering.

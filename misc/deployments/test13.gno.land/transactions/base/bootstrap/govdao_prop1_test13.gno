@@ -45,11 +45,10 @@ import (
 const genesisDeployerAddr = address("g1edq4dugw0sgat4zxcw9xardvuydqf6cgleuc8p")
 
 func main(cur realm) {
-	ms := memberstore.Get(0, cur)
 
 	// ---- 1. Add temporary deployer as sole T1 member ----
 	// Gives the deployer 100% supermajority so proposals pass.
-	must(ms.SetMember(memberstore.T1, genesisDeployerAddr, memberstore.NewMember(0)))
+	must(memberstore.SetMember(cross(cur), memberstore.T1, genesisDeployerAddr, memberstore.NewMember(0)))
 
 	// ---- 2. (gnoland1 step 2 was the v2 valset seed — removed for test-13) ----
 
@@ -94,10 +93,10 @@ func main(cur realm) {
 	// validator, add member, etc.) execute against the same DAO
 	// configuration on test-13. Post-replay we rotate T1 from manfred to
 	// aeddi via a separate migration (see apply-test-13-replay.sh).
-	must(ms.SetMember(memberstore.T1, address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), memberstore.NewMember(3)))
+	must(memberstore.SetMember(cross(cur), memberstore.T1, address("g1manfred47kzduec920z88wfr64ylksmdcedlf5"), memberstore.NewMember(3)))
 
 	// ---- 6. Remove the genesis deployer ----
-	ms.RemoveMember(genesisDeployerAddr)
+	memberstore.RemoveMember(cross(cur), genesisDeployerAddr)
 
 	// ---- 7. Lock down memberstore access ----
 	// gno.land/r/gov/dao/v3/impl is the production member-mutation realm.

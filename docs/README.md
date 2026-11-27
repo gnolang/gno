@@ -53,8 +53,8 @@ Learn about core concepts found in Gno.land & Gno.
 - [Local development with `gnodev`](resources/gnodev.md) - Reference for the local node, its features and flags, and the hot-reload development loop.
 - [Testing Gno](resources/gno-testing.md) - Learn how to run and test Gno code locally using the built-in testing framework.
 - [Working with Realms](resources/realms.md) - Working with realms and environment variables.
-- [Interrealm Specification](resources/gno-interrealm.md) - How inter-realm communication works, and how the design got here.
-- [Interrealm Specification v2](resources/gno-interrealm-v2.md) - The standalone specification as implemented at current HEAD. Supersedes the above where they disagree.
+- [Interrealm: the four rules](resources/gno-interrealm.md) - How inter-realm communication works; authoritative for writes.
+- [Interrealm Specification v2](resources/gno-interrealm-v2.md) - Historical mechanism reference, superseded by the four rules.
 - [Security: threat-class taxonomy](resources/gno-security.md) - The numbered threat classes referenced from `// SECURITY (Class-N …)` comments across the codebase.
 - [Security guide for realm authors](resources/gno-security-guide.md) - Long-form companion to the taxonomy: cross-realm attack vectors and the defensive patterns for each.
 - [Contract review guide for AI agents](resources/gno-ai-contract-review.md) - Condensed reference for agents performing security review of `.gno` code.

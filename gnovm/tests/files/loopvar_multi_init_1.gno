@@ -1,9 +1,9 @@
 package main
 
 // Multiple for-init vars directly captured by closures (no shadowing).
-// Exercises NumInit==2 heap-copy path. j is mutated in the body;
-// the closure for each iteration sees j's within-iteration modified value.
-// i is not mutated in the body; closure sees pre-post-stmt value (0, 1, 2).
+// Exercises NumInit==2 heap-copy path. j is assigned in the body; the
+// closure for each iteration sees j's within-iteration modified value.
+// i is not assigned in the body; closure sees pre-post-stmt value (0, 1, 2).
 func main() {
 	var fns []func() (int, int)
 	for i, j := 0, 10; i < 3; i++ {

@@ -27,7 +27,7 @@ var alice = testutils.TestAddress("alice")
 
 func TestProxy_Functions(cur realm, t *testing.T) {
 	// initialize tests
-	UpdateImpl(cross(cur), UpdateRequest{
+	UpdateImpl(cross(cur), &UpdateRequest{
 		DAO:         &dummyDao{},
 		AllowedDAOs: []string{v0},
 	})
@@ -35,7 +35,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	// invalid package cannot add a new dao in charge
 	testing.SetRealm(testing.NewCodeRealm(invalid))
 	urequire.AbortsWithMessage(t, cur, "permission denied for prev realm: gno.land/r/invalid/dao", func() {
-		UpdateImpl(cross(cur), UpdateRequest{
+		UpdateImpl(cross(cur), &UpdateRequest{
 			DAO: &dummyDao{},
 		})
 	})
@@ -43,7 +43,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	// dao in charge can add a new dao
 	testing.SetRealm(testing.NewCodeRealm(v0))
 	urequire.NotPanics(t, cur, func() {
-		UpdateImpl(cross(cur), UpdateRequest{
+		UpdateImpl(cross(cur), &UpdateRequest{
 			DAO: &dummyDao{},
 		})
 	})
@@ -51,7 +51,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	// v0 that is in charge adds v2 in charge
 	testing.SetRealm(testing.NewCodeRealm(v0))
 	urequire.NotPanics(t, cur, func() {
-		UpdateImpl(cross(cur), UpdateRequest{
+		UpdateImpl(cross(cur), &UpdateRequest{
 			DAO:         &dummyDao{},
 			AllowedDAOs: []string{v0, v2},
 		})
@@ -60,7 +60,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	// v0 can still do updates
 	testing.SetRealm(testing.NewCodeRealm(v0))
 	urequire.NotPanics(t, cur, func() {
-		UpdateImpl(cross(cur), UpdateRequest{
+		UpdateImpl(cross(cur), &UpdateRequest{
 			AllowedDAOs: []string{v1},
 		})
 	})
@@ -68,7 +68,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 	// not after removing himself from allowedDAOs list
 	testing.SetRealm(testing.NewCodeRealm(v0))
 	urequire.AbortsWithMessage(t, cur, "permission denied for prev realm: gno.land/r/gov/dao/impl/v0", func() {
-		UpdateImpl(cross(cur), UpdateRequest{
+		UpdateImpl(cross(cur), &UpdateRequest{
 			AllowedDAOs: []string{v0},
 		})
 	})
@@ -103,7 +103,7 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 	// reset state
 	testing.SetRealm(testing.NewCodeRealm(v1))
-	UpdateImpl(cross(cur), UpdateRequest{
+	UpdateImpl(cross(cur), &UpdateRequest{
 		DAO: &dummyDao{},
 	})
 	// UpdateImpl deliberately ignores an empty AllowedDAOs, so it can no
@@ -115,22 +115,22 @@ func TestProxy_Functions(cur realm, t *testing.T) {
 
 type dummyDao struct{}
 
-func (dd *dummyDao) PreCreateProposal(_ int, rlm realm, r ProposalRequest) (address, error) {
+func (dd *dummyDao) PreCreateProposal(cur realm, r *ProposalRequest) (address, error) {
 	return unsafe.OriginCaller(), nil
 }
 
-func (dd *dummyDao) PostCreateProposal(_ int, rlm realm, r ProposalRequest, pid ProposalID) {
+func (dd *dummyDao) PostCreateProposal(cur realm, r *ProposalRequest, pid ProposalID) {
 }
 
-func (dd *dummyDao) VoteOnProposal(_ int, rlm realm, r VoteRequest) error {
+func (dd *dummyDao) VoteOnProposal(cur realm, r *VoteRequest) error {
 	return nil
 }
 
-func (dd *dummyDao) PreExecuteProposal(_ int, rlm realm, pid ProposalID) (bool, error) {
+func (dd *dummyDao) PreExecuteProposal(cur realm, pid ProposalID) (bool, error) {
 	return true, nil
 }
 
-func (dd *dummyDao) ExecuteProposal(_ int, rlm realm, pid ProposalID, e Executor) error {
+func (dd *dummyDao) ExecuteProposal(cur realm, pid ProposalID, e Executor) error {
 	return nil
 }
 

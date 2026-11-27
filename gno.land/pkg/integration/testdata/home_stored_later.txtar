@@ -1,0 +1,49 @@
+# A realm's own value stored by its own gate is read-only in a later crossing
+# call under R2a, before and after a restart: it writes nothing.
+
+loadpkg gno.land/r/demo/hv $WORK/hv
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/hv -func Later -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/r/demo/hv -func Fire -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/demo/hv''s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs'
+gnokey query vm/qeval --data 'gno.land/r/demo/hv.Owner'
+stdout 'orig'
+
+gnoland restart
+
+! gnokey maketx call -pkgpath gno.land/r/demo/hv -func Fire -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/demo/hv''s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs'
+! gnokey maketx call -pkgpath gno.land/r/demo/hv -func FireAll -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/demo/hv''s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs'
+gnokey query vm/qeval --data 'gno.land/r/demo/hv.Owner'
+stdout 'orig'
+
+-- hv/gnomod.toml --
+module = "gno.land/r/demo/hv"
+gno = "0.9"
+
+-- hv/hv.gno --
+package hv
+
+var (
+	Owner = "orig"
+	FV    = set
+	Hook  func(string)
+	Table []func(string)
+)
+
+func set(s string) { Owner = s }
+
+func Later(cur realm) {
+	Hook = FV
+	Table = append(Table, FV, func(s string) { Owner = s })
+}
+
+func Fire(cur realm) { Hook("fired") }
+
+func FireAll(cur realm) {
+	for _, f := range Table {
+		f("all")
+	}
+}

@@ -40,7 +40,6 @@ import (
 	"strings"
 
 	"gno.land/p/moul/addrset/v0"
-	"gno.land/p/moul/once/v0"
 	"gno.land/p/nt/avl/rotree/v0"
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -416,12 +415,11 @@ type ContractAuthority struct {
 // SECURITY (Class-4 captured callback): `handler` is a caller-supplied
 // closure that runs SYNCHRONOUSLY inside Authorize, with the consumer's
 // authority. A hostile handler can swallow actions, log the caller, or
-// execute arbitrary code under the consumer's frame. The package-internal
-// wrappedAction enforces at-most-once invocation and NOTHING ELSE — in
-// particular it does not check the caller, and the handler may call it
-// however it likes (multiple times, never, out of order). Register only
-// trusted handler functions; treat handler registration as the trust
-// boundary.
+// execute arbitrary code under the consumer's frame. The handler receives
+// the action itself, unguarded: it MUST run it at most once, since this
+// package cannot record a run for a realm that later calls a stored action.
+// Register only trusted handler functions; treat handler registration as the
+// trust boundary.
 //
 // Panics if `path` is empty or malformed, or if `handler` is nil.
 func NewContractAuthority(path string, handler PrivilegedActionHandler) *ContractAuthority {
@@ -563,26 +561,8 @@ func (a *ContractAuthority) Authorize(caller address, title string, action Privi
 		return errors.New("contract handler is not set")
 	}
 
-	// setup a once instance to ensure the action is executed only once
-	executionOnce := once.Once{}
-
-	// wrappedAction enforces at-most-once invocation. The previous
-	// gate `unsafe.CurrentRealm() == contractAddr` is removed: it
-	// was .Title()-bypassable (runtime.CurrentRealm walks past
-	// non-crossing frames to the most-recent crossing ancestor) and
-	// the trust boundary is now upstream — Authorizer.DoByCurrent /
-	// DoByPrevious require rlm.IsCurrent() and pass a non-forgeable
-	// principal to Authorize, while the consumer realm's handler
-	// closure is the Class-4 trust root by lexical capture at
-	// registration time.
-	wrappedAction := func() error {
-		return executionOnce.DoErr(func() error {
-			return action()
-		})
-	}
-
 	handle := func() error {
-		if err := a.contractHandler(title, wrappedAction); err != nil {
+		if err := a.contractHandler(title, action); err != nil {
 			return err
 		}
 		return nil

@@ -332,7 +332,7 @@ func (executionKind) New(dao commondao.ReadonlyCommonDAO, args any) (commondao.P
 	// handle from args: its only use of the DAO is the Validate freeze read. No
 	// mutable handle means no host-identity pin is needed — the view is the
 	// host by construction.
-	return executionPropDefinition{dao: dao, title: a.title, body: a.body, fn: a.fn}, nil
+	return &executionPropDefinition{dao: dao, title: a.title, body: a.body, fn: a.fn}, nil
 }
 
 // executionPropDefinition defines a proposal that runs an arbitrary ExecFunc
@@ -526,10 +526,17 @@ func (p manageKindsProposal) Executor() commondao.ExecFunc {
 // the transaction. catalogKind is a process-global immutable lookup, so a
 // name valid at New still resolves here; the executor does not re-resolve
 // or re-validate beyond the Validate self-brick. It moves no funds, so the
-// definition is not Funded and ignores sub.
+// definition is not Funded; it crosses
+// with sub only to write (see assertExecutor).
 func (p manageKindsProposal) execute(_ int, sub realm) error {
-	if p.remove {
-		return p.dao.DeregisterKind(p.name)
+	assertSub(0, sub)
+	return manageKind(cross(sub), p.dao, p.remove, p.name)
+}
+
+func manageKind(cur realm, dao *commondao.CommonDAO, remove bool, name string) error {
+	assertExecutor(cur.Previous().Address(), dao.ID())
+	if remove {
+		return dao.DeregisterKind(name)
 	}
-	return p.dao.RegisterKind(catalogKind(p.name))
+	return dao.RegisterKind(catalogKind(name))
 }

@@ -36,10 +36,8 @@ func main(cur realm) {
 	println("after victim:", launderrarrvictim.Trusted(), launderrarrvictim.TrustedBytes(), launderrarrvictim.TrustedSlice())
 }
 
-// Output:
-// registered: true true true
-// array default blocked: true
-// byte array default blocked: true
-// slice element default blocked: true
-// after attacker: 0 0 0
-// after victim: 5 6 7
+// Error:
+// cannot allocate gno.land/r/tests/vm/launderrarrvictim.A in realm gno.land/r/launderrh_arrdefault
+
+// TypeCheckError:
+// gno.land/r/launderrh_arrdefault/zrealm_launder_rdata_arrdefault.gno:6:6: cannot hold a value of gno.land/r/tests/vm/launderrarrvictim.A outside its realm (use a pointer); gno.land/r/launderrh_arrdefault/zrealm_launder_rdata_arrdefault.gno:7:2: cannot hold a value of gno.land/r/tests/vm/launderrarrvictim.A outside its realm (use a pointer); gno.land/r/launderrh_arrdefault/zrealm_launder_rdata_arrdefault.gno:8:2: cannot hold a value of gno.land/r/tests/vm/launderrarrvictim.B outside its realm (use a pointer); gno.land/r/launderrh_arrdefault/zrealm_launder_rdata_arrdefault.gno:13:2: cannot hold a value of gno.land/r/tests/vm/launderrarrvictim.A outside its realm (use a pointer); gno.land/r/launderrh_arrdefault/zrealm_launder_rdata_arrdefault.gno:13:11: cannot hold a value of gno.land/r/tests/vm/launderrarrvictim.A outside its realm (use a pointer)

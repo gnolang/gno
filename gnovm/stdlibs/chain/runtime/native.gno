@@ -10,6 +10,12 @@ func ChainID() string     // injected
 func ChainDomain() string // injected
 func ChainHeight() int64  // injected
 
+// FuncPkgPath returns the package path that declares fn's code, wherever the
+// value was obtained or stored. It panics if fn is not a function value, and
+// for a method value taken through an interface, which has no fixed
+// declaration until it is called.
+func FuncPkgPath(fn any) string // injected
+
 // GetSessionInfo returns session metadata if the current transaction was
 // signed by a session key. Returns isSession=false for master-key transactions.
 //

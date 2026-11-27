@@ -78,6 +78,23 @@ func subpathOf(daoID uint64) string {
 	return "dao/" + strconv.FormatUint(daoID, 10)
 }
 
+// assertSub checks the sub an executor was handed before it crosses with it.
+// The leading int keeps it non-crossing, as in ExecFunc.
+func assertSub(_ int, sub realm) {
+	if sub == nil || !sub.IsCurrent() {
+		panic("commondao: executor sub is not current")
+	}
+}
+
+// assertExecutor opens an executor's crossing write helper: the caller must
+// be DAO daoID's sub, which only Execute mints, so a helper reaches no
+// further than the executor did when it wrote directly.
+func assertExecutor(caller address, daoID uint64) {
+	if caller != daoAddress(daoID) {
+		panic("commondao: caller is not the DAO's executor")
+	}
+}
+
 // daoAddress derives a DAO's treasury address: the address of the realm
 // sub-identity cur.Sub(subpathOf(daoID)) that executors mint to move its
 // funds. Pure derivation; DAO IDs are never reused, so the address is

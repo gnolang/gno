@@ -16,15 +16,16 @@ var (
 	executor   dao.Executor
 	proposalID dao.ProposalID
 	renderPath string
-	govdao     = impl.NewGovDAO()
+	govdao     *impl.GovDAO
 )
 
 func init(cur realm) {
+	govdao = impl.NewGovDAO(cross(cur))
 	// Initialize GovDAO members
-	memberstore.Get(0, cur).DeleteAll()
-	memberstore.Get(0, cur).SetTier(memberstore.T1)
-	memberstore.Get(0, cur).SetMember(memberstore.T1, user, memberstore.NewMember(3))
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), nil))
+	memberstore.DeleteAll(cross(cur))
+	memberstore.SetTier(cross(cur), memberstore.T1)
+	memberstore.SetMember(cross(cur), memberstore.T1, user, memberstore.NewMember(3))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(cross(cur)), nil))
 
 	// Create a dummy executor
 	cb := func(realm) error { return nil }
@@ -38,20 +39,20 @@ func init(cur realm) {
 	proposalID = dao.MustCreateProposal(cross(cur), request)
 	renderPath = strconv.FormatUint(uint64(proposalID), 10)
 
-	// Register proposal with the local GovDAO instance
-	govdao.PostCreateProposal(0, cur, request, proposalID)
+	// Register proposal with the local GovDAO instance, standing in for the
+	// proxy: impl's methods admit only gno.land/r/gov/dao.
+	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao"))
+	govdao.PostCreateProposal(cross(cur), request, proposalID)
 }
 
 func main(cur realm) {
 	// Execute proposal, status should be ACTIVE
-	// SimpleExecutor.Execute is invocable only by the r/gov/dao proxy, which
-	// is the realm the live route calls it from (dao.ExecuteProposal ->
-	// impl.ExecuteProposal, both threading the proxy's cur non-crossing).
-	// This filetest calls impl.ExecuteProposal directly, so stand in for the
-	// proxy explicitly rather than exercising a route no transaction takes.
+	// impl.ExecuteProposal admits only the r/gov/dao proxy (the live route is
+	// dao.ExecuteProposal -> impl.ExecuteProposal, crossing). This filetest
+	// calls impl directly, so it stands in for the proxy.
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao"))
 
-	err := govdao.ExecuteProposal(0, cur, proposalID, executor)
+	err := govdao.ExecuteProposal(cross(cur), proposalID, executor)
 
 	println(err == nil)
 	println()

@@ -766,6 +766,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 	// Bulk of the preprocessor function
 	n = preprocess1(store, ctx, n)
+	if fn, ok := n.(*FileNode); ok {
+		markLocalHelpers(fn) // on resolved paths
+		markNonEscParams(fn)
+	}
 
 	// XXX check node lines and locations
 	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)
@@ -775,6 +779,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	if fn, ok := n.(*FileNode); ok {
 		codaInitOrderDeps(packageOf(ctx), fn)
 	}
+
+	n = wrapFuncHandles(n)
 
 	// "coda" means "conclusion".
 	// NOTE: need to use Transcribe() here instead of `bn, ok := n.(BlockNode)`
@@ -990,6 +996,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			case *FuncLitExpr:
 				// retrieve cached function type.
 				ft := evalStaticType(store, last, &n.Type).(*FuncType)
+				// By type: a literal's result type may not name the realm type.
+				// This catches the plain mistake only; `any`, a method or a
+				// captured variable are covered at run time, not here.
+				for _, rf := range ft.Results {
+					if typeHoldsRealm(rf.Type, nil) {
+						panic(fmt.Sprintf("a function literal's result cannot hold a realm value: %v", rf.Type))
+					}
+				}
 				if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
 					// This preprocessing was initiated by predefineRecursively().
 					// When predefined from a package/file, the dependant names may
@@ -1438,6 +1452,11 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					nt := evalStaticTypeOf(store, last, n)
 					if nt == nil {
 						// this is fine, e.g. for TRANS_ASSIGN_LHS (define) etc.
+					} else if nt.Kind() == FuncKind {
+						if ftype != TRANS_CALL_FUNC && n.Path.Type == VPBlock &&
+							isDeclaredFuncAt(last.GetBlockNodeForPath(store, n.Path), n.Path.Index) {
+							markFuncHandle(n, nt)
+						}
 					} else if nt.Kind() == PackageKind {
 						// If name refers to a package, and this is not in
 						// the context of a selector, fail. Packages cannot
@@ -1832,6 +1851,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// LEAVE (FUNC) CALL EXPR SPECIAL CASES:
 					//----------------------------------------
 
+					if namedCallee(store, last, n.Func) {
+						n.SetAttribute(ATTR_NAMED_CALLEE, true)
+					}
+
 					// NOTE: these appear to be actually special cases in go.
 					// In general, a string is not assignable to []bytes
 					// without conversion.
@@ -2159,7 +2182,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 									// until call time); fall through, the
 									// runtime check covers both.
 									if fv.PkgPath != ctxpn.PkgPath {
-										panic(fmt.Sprintf("cannot cur-call to external realm function %s.%v from %v",
+										panic(fmt.Sprintf(refuseExternalCurDeploy,
 											fv.PkgPath, n.Func, ctxpn.PkgPath))
 									}
 								}
@@ -2808,8 +2831,14 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: this can happen with software upgrades,
 					// with multiple versions of the same package path.
 					n.Path = pn.GetPathForName(store, n.Sel)
+					if isNamedAt(pn, n.Path.Index) {
+						n.SetAttribute(ATTR_NAMED_CALLEE, true)
+					}
 					// Produce const expr if typed or untyped const.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
+					if ftype != TRANS_CALL_FUNC && isDeclaredFuncAt(pn, n.Path.Index) {
+						markFuncHandle(n, tt)
+					}
 					if isUntyped(tt) || pn.GetIsConstAt(store, n.Path) {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
@@ -2840,6 +2869,9 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							dt.PkgPath, n.Sel, ctxpn.PkgPath))
 					}
 					n.Path = dt.GetUnboundPathForName(n.Sel)
+					if ftype != TRANS_CALL_FUNC {
+						markFuncHandle(n, evalStaticTypeOf(store, last, n))
+					}
 				default:
 					panic(fmt.Sprintf(
 						"unexpected selector expression type %v",
@@ -4854,6 +4886,58 @@ func setPreprocessed(x Node) Node {
 		x.SetAttribute(ATTR_PREPROCESSED, true)
 	}
 	return x
+}
+
+// typeHoldsRealm reports whether t is the realm type under any name (it has
+// the realm's `.seal` method) or is made of it through declared types,
+// pointers, arrays, slices, maps, struct fields or func results.
+func typeHoldsRealm(t Type, seen map[Type]bool) bool {
+	if t == nil {
+		return false
+	}
+	if t == gRealmType {
+		return true
+	}
+	if seen[t] {
+		return false
+	}
+	if seen == nil {
+		seen = map[Type]bool{}
+	}
+	seen[t] = true
+	switch ct := t.(type) {
+	case *DeclaredType:
+		return typeHoldsRealm(ct.Base, seen)
+	case *InterfaceType:
+		// embedded interfaces are flattened, so an embedded realm shows
+		// up as its seal method
+		for _, m := range ct.Methods {
+			if m.Name == ".seal" {
+				return true
+			}
+		}
+	case *PointerType:
+		return typeHoldsRealm(ct.Elt, seen)
+	case *ArrayType:
+		return typeHoldsRealm(ct.Elt, seen)
+	case *SliceType:
+		return typeHoldsRealm(ct.Elt, seen)
+	case *MapType:
+		return typeHoldsRealm(ct.Key, seen) || typeHoldsRealm(ct.Value, seen)
+	case *StructType:
+		for _, f := range ct.Fields {
+			if typeHoldsRealm(f.Type, seen) {
+				return true
+			}
+		}
+	case *FuncType:
+		for _, r := range ct.Results {
+			if typeHoldsRealm(r.Type, seen) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func isRealm(ctx BlockNode) bool {
@@ -6961,4 +7045,113 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 		return n, TRANS_CONTINUE
 	})
 	store.SetBlockNodes(bns)
+}
+
+// namedCallee reports whether fx names a top-level function (F, or pkg.F
+// marked where the selector resolves), a method expression (T.M), a builtin,
+// or a /p/ or stdlib package-level variable (or an element or field of one),
+// rather than reading a function value the caller was handed.
+func namedCallee(store Store, last BlockNode, fx Expr) bool {
+	switch fx := fx.(type) {
+	case *ConstExpr:
+		return true
+	case *NameExpr:
+		if fx.Path.Type != VPBlock {
+			return fx.Path.Type == VPUverse
+		}
+		return isNamedAt(last.GetBlockNodeForPath(store, fx.Path), fx.Path.Index)
+	case *SelectorExpr:
+		if fx.GetAttribute(ATTR_NAMED_CALLEE) == true {
+			return true
+		}
+		if _, ok := evalStaticTypeOf(store, last, fx.X).(*TypeType); ok {
+			return true
+		}
+		return libVar(store, last, fx.X)
+	case *IndexExpr:
+		return libVar(store, last, fx.X)
+	}
+	return false
+}
+
+// libVar reports whether x reads a /p/ or stdlib package-level variable, or
+// an element or field of one. Such a variable is fixed after the package's
+// init, so a function read from it is as much named as a declared one.
+func libVar(store Store, last BlockNode, x Expr) bool {
+	switch x := x.(type) {
+	case *NameExpr:
+		return x.Path.Type == VPBlock &&
+			isLibVarAt(last.GetBlockNodeForPath(store, x.Path), x.Path.Index)
+	case *SelectorExpr:
+		if x.GetAttribute(ATTR_NAMED_CALLEE) == true {
+			return true // pkg.Var, marked where the selector resolved
+		}
+		return libVar(store, last, x.X)
+	case *IndexExpr:
+		return libVar(store, last, x.X)
+	}
+	return false
+}
+
+// markFuncHandle marks x, a declared function or method expression used as a
+// value, to be wrapped in a FuncHandleExpr; a crossing one needs no handle.
+func markFuncHandle(x Expr, t Type) {
+	if ft, ok := t.(*FuncType); ok && !ft.IsCrossing() {
+		x.SetAttribute(ATTR_FUNC_HANDLE, t)
+	}
+}
+
+// wrapFuncHandles wraps each marked name in a FuncHandleExpr. It runs before
+// codaPackageSelectors, which may replace the name inside the wrapper.
+func wrapFuncHandles(n Node) Node {
+	return Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		if n.GetAttribute(ATTR_PREPROCESS_SKIPPED) == AttrPreprocessFuncLitExpr {
+			return n, TRANS_SKIP
+		}
+		t, ok := n.GetAttribute(ATTR_FUNC_HANDLE).(Type)
+		if !ok {
+			return n, TRANS_CONTINUE
+		}
+		n.DelAttribute(ATTR_FUNC_HANDLE)
+		hx := &FuncHandleExpr{X: n.(Expr)}
+		hx.SetSpan(n.GetSpan())
+		hx.SetAttribute(ATTR_TYPEOF_VALUE, t)
+		setPreprocessed(hx)
+		return hx, TRANS_SKIP
+	})
+}
+
+// isNamedAt reports whether index in bn is a declared function or a /p/ or
+// stdlib package-level variable.
+func isNamedAt(bn BlockNode, index uint16) bool {
+	return isDeclaredFuncAt(bn, index) || isLibVarAt(bn, index)
+}
+
+// isLibVarAt reports whether index in bn is a package-level variable of a /p/
+// or stdlib package. A realm's variable does not count: the realm may store a
+// function it was handed and call it later.
+func isLibVarAt(bn BlockNode, index uint16) bool {
+	pn, ok := bn.(*PackageNode)
+	if !ok || IsRealmPath(pn.PkgPath) || IsEphemeralPath(pn.PkgPath) {
+		return false
+	}
+	nss := pn.GetNameSources()
+	return int(index) < len(nss) && nss[index].Type == NSValueDecl
+}
+
+func isDeclaredFuncAt(bn BlockNode, index uint16) bool {
+	// A name declared inside a FuncDecl's own block is a receiver, parameter or
+	// result (its source is that FuncDecl too), never a declared function.
+	if _, ok := bn.(*FuncDecl); ok {
+		return false
+	}
+	nss := bn.GetNameSources()
+	if int(index) >= len(nss) {
+		return false
+	}
+	_, ok := nss[index].Origin.(*FuncDecl)
+	return ok
 }

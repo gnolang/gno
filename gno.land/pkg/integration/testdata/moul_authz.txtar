@@ -7,12 +7,16 @@ stdout 'g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0'
 
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/testing/resource -func Edit -args edited -gas-fee 740001ugnot -gas-wanted 7_600_000 -chainid tendermint_test alice
+# The async flow cannot queue: authz calls admin's non-crossing handler from
+# resource's Edit, so admin's code runs read-only and its append is refused.
+! gnokey maketx call -pkgpath gno.land/r/testing/resource -func Edit -args edited -gas-fee 740001ugnot -gas-wanted 7_600_000 -chainid tendermint_test alice
+stderr 'gno.land/r/testing/admin.s code was entered without crossing and is read-only'
 
-gnokey maketx call -pkgpath gno.land/r/testing/admin -func ExecuteAction -args 0 -gas-fee 760001ugnot -gas-wanted 7_600_000 -chainid tendermint_test alice
+! gnokey maketx call -pkgpath gno.land/r/testing/admin -func ExecuteAction -args 0 -gas-fee 760001ugnot -gas-wanted 7_600_000 -chainid tendermint_test alice
+stderr 'out of bounds'
 
 gnokey maketx call -pkgpath gno.land/r/testing/resource -func Value -gas-fee 190001ugnot -gas-wanted 1_900_000 -chainid tendermint_test alice
-stdout 'edited'
+stdout 'init'
 
 
 -- admin/gnomod.toml --
@@ -32,6 +36,7 @@ import (
 type prop struct {
 	title  string
 	action authz.PrivilegedAction
+	done   bool
 }
 
 var props []*prop
@@ -48,6 +53,11 @@ func ExecuteAction(cur realm, index int) {
 	if unsafe.PreviousRealm().Address() != "g1rfznvu6qfa0sc76cplk5wpqexvefqccjunady0" {
 		panic(errors.New("not alice"))
 	}
+	// authz hands the action over unguarded: this realm runs it at most once.
+	if props[index].done {
+		panic(errors.New("already executed"))
+	}
+	props[index].done = true
 	if err := props[index].action(); err != nil {
 		panic(err)
 	}
@@ -72,7 +82,10 @@ import (
 // proposals routed through this realm.
 var a *authz.Authorizer = authz.NewWithAuthority(authz.NewRestrictedContractAuthority(
 	"gno.land/r/testing/admin",
-	admin.HandlePrivilegedAction,
+	// admin's handler is another realm's function: wrap it rather than pass it.
+	func(title string, action authz.PrivilegedAction) error {
+		return admin.HandlePrivilegedAction(title, action)
+	},
 	authz.NewAutoAcceptAuthority(),
 ))
 

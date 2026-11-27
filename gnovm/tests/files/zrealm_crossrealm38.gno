@@ -54,7 +54,6 @@ func main(cur realm) {
 
 // Realm:
 // finalizerealm["gno.land/r/tests/vm/crossrealm_f"]
-// finalizerealm["gno.land/r/tests/vm/crossrealm_f"]
 // c[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:15](279)={
 //     "Fields": [
 //         {
@@ -209,5 +208,4 @@ func main(cur realm) {
 //                  }
 //              },
 // d[0f5bbfc9234b76166575c9723efa3e0a3b15f9f8:10](-398)
-// finalizerealm["gno.land/r/tests/vm/crossrealm_f"]
 // finalizerealm["gno.land/r/test/impl"]

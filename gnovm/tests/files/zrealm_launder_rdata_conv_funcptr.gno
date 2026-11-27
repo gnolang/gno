@@ -30,9 +30,9 @@ func evilHook(i *launderrvictim.Immutable) {
 func main(cur realm) {
 	// Convert (no-op) then dispatch via victim's hook surface.
 	f := (func(i *launderrvictim.Immutable))(evilHook)
-	launderrvictim.ApplyHook(f)
+	launderrvictim.ApplyHook(cross(cur), f)
 	println("after:", launderrvictim.ReadImm())
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): i<VPBlock(1,0)>.Field
+// gno.land/r/launderrh_conv_funcptr's code was entered without crossing and is read-only (call its crossing function): i<VPBlock(1,0)>.Field

@@ -41,11 +41,10 @@
 //
 // Each Role has a free-form "meta any" slot. Meta() returns the stored
 // value as-is, so a pointer stored in meta can be retrieved by an untrusted
-// reader holding a Readonly() view. A direct field write through that
-// pointer is still blocked by the realm-ownership
-// gate, but invoking a MUTATOR METHOD on it (or passing it into a function
-// that mutates by argument) runs under whatever realm allocated it (borrow
-// rule #2) and commits the write. This includes common /p/ types such as
+// reader holding a Readonly() view. The VM refuses that reader's writes
+// through it, direct or by MUTATOR METHOD, but the pointer still publishes
+// its type's whole method set, and the owning realm's own code writes through
+// it with full authority. This includes common /p/ types such as
 // *addrset.Set and *avl.Tree — they are mutable pointers, not "just data".
 // Therefore store only:
 //

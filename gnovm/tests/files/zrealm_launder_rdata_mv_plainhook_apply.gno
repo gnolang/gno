@@ -1,29 +1,10 @@
 // PKGPATH: gno.land/r/launderrh_mv_plainhook_apply
 package launderrh_mv_plainhook_apply
 
+// Refused: a /p/ method has no power over another realm's object (R1).
+
 // Stored PlainHook (func()) that captures a /p/-typed pointer aliasing
-// victim memory and dispatches its /p/-Apply method later, with a
-// /p/-declared callback.
-//
-// Trace:
-//   1. main → m.Realm = /r/launderrh_mv_plainhook_apply
-//   2. RegisterPlainHook(closure) — borrow rule #1 → m.Realm = /r/-victim,
-//      closure stored.
-//   3. RunPlainHooks() — borrow rule #1 → m.Realm = /r/-victim. Body: h().
-//   4. h is /r/-attacker-declared → borrow rule #1 → m.Realm = /r/-attacker.
-//   5. Inside h: captured.Apply(EvilWrite). Apply is a /p/-method on
-//      *launderpkg.Immutable; recv is captured *launderpkg.Immutable
-//      aliasing victim memory. borrow rule #2 → m.Realm = /r/-victim.
-//   6. EvilWrite top-level /p/ fn → no shift → write commits under
-//      victim authority.
-//
-// Outcome: SUCCEEDS — but this is just the Apply-callback attack
-// dressed up as a stored PlainHook. The exploit primitive is the
-// same (B): victim invokes /p/-callback under its own authority.
-//
-// This test isolates the storage variant of the known-open Apply
-// laundering — it does NOT add a new exploit primitive, but proves
-// that storage doesn't help safety.
+// victim memory and calls its /p/ Apply later with a /p/ callback.
 
 import (
 	"gno.land/p/demo/tests/launderattack/v0"
@@ -31,20 +12,22 @@ import (
 )
 
 func main(cur realm) {
-	launderrvictim.ClearHooks()
+	launderrvictim.ClearHooks(cross(cur))
 	println("before:", launderrvictim.ReadEmbed())
 
 	we := launderrvictim.GetWithEmbed()
 	captured := &we.Immutable
 
-	launderrvictim.RegisterPlainHook(func() {
+	launderrvictim.RegisterPlainHook(cross(cur), func() {
 		captured.Apply(launderattack.EvilWrite)
 	})
-	launderrvictim.RunPlainHooks()
+	launderrvictim.RunPlainHooks(cross(cur))
 
 	println("after: ", launderrvictim.ReadEmbed())
 }
 
 // Output:
 // before: embed-orig
-// after:  pwnd-via-apply
+
+// Error:
+// cannot modify object owned by another realm from library code (call a crossing function of the owning realm): i<VPBlock(1,0)>.Field

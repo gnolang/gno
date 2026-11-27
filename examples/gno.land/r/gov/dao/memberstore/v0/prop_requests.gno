@@ -8,7 +8,7 @@ import (
 	"gno.land/r/gov/dao"
 )
 
-func NewChangeTiersRequest(cur realm, tiers map[string]Tier) dao.ProposalRequest {
+func NewChangeTiersRequest(cur realm, tiers map[string]Tier) *dao.ProposalRequest {
 	if len(tiers) == 0 {
 		panic("tiers list is empty")
 	}

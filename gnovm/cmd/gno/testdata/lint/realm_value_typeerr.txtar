@@ -1,0 +1,24 @@
+# gno lint reports a filetest's Go type error instead of crashing in the
+# realm value rule, which only runs on a filetest that type-checks.
+
+! gno lint .
+
+stderr 'z0_filetest.gno:4:11: cannot convert "s" \(untyped string constant\) to type int'
+! stderr 'nil pointer'
+
+-- te.gno --
+package te
+
+func F() int { return 1 }
+
+-- z0_filetest.gno --
+package main
+
+func main() {
+	b := int("s")
+	println(b)
+}
+
+-- gnomod.toml --
+module = "gno.land/r/demo/te"
+gno = "0.9"

@@ -1,9 +1,6 @@
 // Package launderpkg defines a struct type that the laundervictim
-// realm uses as the type of its package-level state. The Set method
-// is the "innocent /p/-helper" that an attacker tries to weaponize
-// via the receiver-borrow rule (PushFrameCall borrow rule 2):
-// when the receiver is owned by /r/X, calling Set borrows m.Realm to
-// /r/X, and the write inside Set runs with /r/X authority.
+// realm uses as the type of its package-level state. Its methods write the
+// receiver only when the calling code acts for the realm that owns it.
 package launderpkg
 
 type Object struct {
@@ -21,12 +18,8 @@ type Object struct {
 var PInitData = Object{Field: "p-init"}
 
 // Set is the canonical "/p/ helper that mutates /r/-owned state"
-// pattern. Looks benign — like list.Set, avl.Set, etc. — but if a
-// foreign caller obtains a pointer to a victim realm's Object, they
-// can invoke Set on it and the borrow rule grants them victim
-// authority for the call. Exposing a *Object out of a realm is
-// equivalent to consenting to mutation by any caller that holds the
-// pointer.
+// pattern. Called by another realm's code it writes with that realm's
+// authority, not the owner's, so a *Object handed out of a realm is a reader.
 func (o *Object) Set(s string) {
 	o.Field = s
 }
@@ -102,23 +95,17 @@ func (i *Immutable) Read() string {
 }
 
 // Apply is a higher-order helper that hands the *Immutable to a
-// caller-supplied callback. The signature looks read-only (no
-// mutator method on *Immutable itself), but Apply hands out an
-// addressable pointer to victim-owned memory while m.Realm is
-// borrowed to the victim. A /p/-declared callback substituted by
-// the caller therefore runs with victim authority. This is the
-// avl.Tree.Iterate / list.ForEach shape — common in /p/ libraries.
+// caller-supplied callback. The signature looks read-only, and a callback
+// from another realm gains no write authority through Apply. This is the
+// avl.Tree.Iterate / list.ForEach shape.
 func (i *Immutable) Apply(fn func(*Immutable)) {
 	fn(i)
 }
 
-// BumpToPwn is a no-arg, no-return /p/-method that mutates the
-// receiver. Used by stored-bound-method-value laundering probes:
-// `mv := victimImmPtr.BumpToPwn` has type `func()`, which fits
-// PlainHook = func(). When the bound method value is stored and
-// invoked later from /r/-victim context, recv-borrow borrow rule #2 fires on
-// the /r/-victim-stamped recv → m.Realm = /r/-victim → write
-// commits.
+// BumpToPwn is a no-arg, no-return /p/-method that mutates the receiver,
+// used by stored-bound-method-value probes: `mv := victimImmPtr.BumpToPwn`
+// has type `func()`, which fits PlainHook = func(). Another realm's code
+// invoking the bound value gets its write refused.
 func (i *Immutable) BumpToPwn() {
 	i.Field = "pwnd-via-bound-mv"
 }

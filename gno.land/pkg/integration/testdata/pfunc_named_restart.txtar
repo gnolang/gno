@@ -1,0 +1,50 @@
+# A /p/ function named in source writes for the calling realm. Called through a
+# value the realm made at init, R2a runs it read-only, so it writes nothing, both
+# before and after a restart when the call marks are rebuilt by preprocessing.
+
+loadpkg gno.land/p/demo/tests/launderattack/v0
+loadpkg gno.land/r/test/pnamed $WORK
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/test/pnamed -func Named -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '"pwnd-via-apply" string'
+
+! gnokey maketx call -pkgpath gno.land/r/test/pnamed -func ViaValue -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stderr 'cannot modify object owned by another realm from library code'
+
+gnoland restart
+
+gnokey maketx call -pkgpath gno.land/r/test/pnamed -func Named -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '"pwnd-via-apply" string'
+
+! gnokey maketx call -pkgpath gno.land/r/test/pnamed -func ViaValue -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stderr 'cannot modify object owned by another realm from library code'
+
+-- gnomod.toml --
+module = "gno.land/r/test/pnamed"
+gno = "0.9"
+
+-- pnamed.gno --
+package pnamed
+
+import (
+	"gno.land/p/demo/tests/launderattack/v0"
+	"gno.land/p/demo/tests/launderpkg/v0"
+)
+
+var (
+	obj  = &launderpkg.Immutable{Field: "orig"}
+	hook = launderattack.EvilWrite
+)
+
+func Named(cur realm) string {
+	obj.Field = "orig"
+	launderattack.EvilWrite(obj)
+	return obj.Field
+}
+
+func ViaValue(cur realm) string {
+	obj.Field = "orig"
+	hook(obj)
+	return obj.Field
+}

@@ -13,8 +13,8 @@ func init() {
 	counter = 100
 }
 
-// SetCounter: non-crossing. Calling this cross-realm triggers
-// the readonly check because it directly assigns a package var.
+// SetCounter: non-crossing. Called from another realm it runs read-only,
+// so its assignment to the package var is refused.
 func SetCounter(n int) {
 	counter = n
 }
@@ -39,9 +39,8 @@ func DoubleCounter(cur realm) int {
 
 // MutateBytes mutates the first byte of bz to 0xff. Used to test
 // whether a foreign realm can write to caller-allocated bytes.
-// Under storage=authority, bz has PkgID=caller; borrow rule #1 here
-// makes m.Realm=crossrealm_d (declaring realm); the write site
-// (bz[0] = ...) should fire readonly because bz.PkgID != m.Realm.ID.
+// bz has PkgID=caller; called without crossing, this body runs
+// read-only, so the write (bz[0] = ...) is refused.
 func MutateBytes(bz []byte) {
 	bz[0] = 0xff
 }

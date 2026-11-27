@@ -1,8 +1,8 @@
 // PKGPATH: gno.land/r/crossrealm
 package crossrealm
 
-// Negative control: without recover(), the cross-realm readonly
-// check properly aborts the entire transaction.
+// Negative control: without recover(), the refused non-crossing write
+// (crossrealm_d entered without crossing is read-only) aborts everything.
 
 import (
 	"gno.land/r/tests/vm/crossrealm_d"
@@ -20,4 +20,6 @@ func main(cur realm) {
 
 // Output:
 // counter: 100
-// counter after: 0
+
+// Error:
+// gno.land/r/tests/vm/crossrealm_d's code was entered without crossing and is read-only (call its crossing function): counter<~VPBlock(3,0)>

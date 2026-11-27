@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/valueban"
+gno = "0.9"

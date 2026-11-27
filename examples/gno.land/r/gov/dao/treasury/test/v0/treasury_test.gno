@@ -3,12 +3,10 @@ package test
 import (
 	"chain"
 	"chain/banker"
-	"chain/runtime/unsafe"
 	"sort"
 	"strings"
 	"testing"
 
-	"gno.land/p/nt/fqname/v0"
 	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/testutils/v0"
@@ -49,7 +47,7 @@ func (dp *dummyPayment) String() string   { return dp.str }
 
 func init(cur realm) {
 	// Register allowed Realm path.
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), []string{allowedRealm.PkgPath()}))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(cross(cur)), []string{allowedRealm.PkgPath()}))
 }
 
 func ugnotCoins(t *testing.T, amount int64) chain.Coins {
@@ -69,6 +67,33 @@ func ugnotBalance(t *testing.T, addr address) int64 {
 	return coins.AmountOf("ugnot")
 }
 
+const testRealmPath = "gno.land/r/gov/dao/treasury/test/v0"
+
+// tokenFuncs are the token realm's crossing functions; the registry stores
+// them and the wrappers call them with cross(rlm), so the actor is the caller.
+func tokenFuncs(ledger *grc20.PrivateLedger) (
+	func(cur realm, to address, amount int64),
+	func(cur realm, spender address, amount int64),
+	func(cur realm, from, to address, amount int64),
+) {
+	transfer := func(cur realm, to address, amount int64) {
+		if err := ledger.CallerTeller().Transfer(0, cur, to, amount); err != nil {
+			panic(err)
+		}
+	}
+	approve := func(cur realm, spender address, amount int64) {
+		if err := ledger.CallerTeller().Approve(0, cur, spender, amount); err != nil {
+			panic(err)
+		}
+	}
+	transferFrom := func(cur realm, from, to address, amount int64) {
+		if err := ledger.CallerTeller().TransferFrom(0, cur, from, to, amount); err != nil {
+			panic(err)
+		}
+	}
+	return transfer, approve, transferFrom
+}
+
 // Define a keyedToken type to hold the token and its key.
 type keyedToken struct {
 	key   string
@@ -78,30 +103,18 @@ type keyedToken struct {
 func registerGRC20Tokens(_ int, rlm realm, t *testing.T, tokenNames []string, toMint address) []keyedToken {
 	t.Helper()
 
-	var (
-		keyedTokens = make([]keyedToken, 0, len(tokenNames))
-		keys        = make([]string, 0, len(tokenNames))
-	)
+	keyedTokens := make([]keyedToken, 0, len(tokenNames))
 
+	// The caller sets the realm to this package's own path, so the crossing
+	// functions below live in the same realm as the tokens they move.
 	for _, name := range tokenNames {
-		// Create the token.
 		symbol := strings.ToUpper(name)
 		token, ledger := grc20.NewToken(name, symbol, 0, nextTokenID.Next(), rlm)
-
-		// Register the token.
-		grc20reg.Register(cross(rlm), token, symbol)
-
-		// Mint tokens to the specified address.
+		transfer, approve, transferFrom := tokenFuncs(ledger)
+		key := grc20reg.Register(cross(rlm), token, symbol, transfer, approve, transferFrom)
 		ledger.Mint(toMint, mintAmount)
-
-		// Add the token and key to the lists.
-		key := fqname.Construct(unsafe.CurrentRealm().PkgPath(), symbol)
 		keyedTokens = append(keyedTokens, keyedToken{key: key, token: token})
-		keys = append(keys, key)
 	}
-
-	// Set the token keys in the treasury.
-	treasury.SetTokenKeys(cross(rlm), keys)
 
 	return keyedTokens
 }
@@ -184,13 +197,20 @@ func TestSendGRC20Payment(cur realm, t *testing.T) {
 		},
 	)
 
-	// Create 3 GRC20 tokens and register them.
+	// Create 3 GRC20 tokens in this package's realm and register them.
+	testing.SetRealm(testing.NewCodeRealm(testRealmPath))
 	keyedTokens := registerGRC20Tokens(
 		0, cur,
 		t,
 		[]string{"TestToken0", "TestToken1", "TestToken2"},
 		treasuryAddr,
 	)
+	testing.SetRealm(allowedRealm)
+	keys := make([]string, len(keyedTokens))
+	for i := range keyedTokens {
+		keys[i] = keyedTokens[i].key
+	}
+	treasury.SetTokenKeys(cross(cur), keys)
 
 	const txAmount = 42
 

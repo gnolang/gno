@@ -1,0 +1,94 @@
+# The load-time marks (local helper, lent callback) give the same writes and the
+# same refusals before and after a restart. Realms come in through genesis;
+# lendboth is reached after the restart only as lendlazy's import (lazy load); a
+# maketx run script carries its own helper and loan.
+
+loadpkg gno.land/p/demo/tests/lendrunlib
+loadpkg gno.land/r/tests/vm/lendlocalhelper
+loadpkg gno.land/r/tests/vm/lendrun
+loadpkg gno.land/r/tests/vm/lendboth
+loadpkg gno.land/r/tests/vm/lendlazy
+gnoland start
+
+# (a) local helper: control writes, the non-helper is refused and writes nothing.
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlocalhelper -func Helper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(1 int\)'
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlocalhelper -func NotHelper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(true bool\)'
+stdout '\(1 int\)'
+
+# (b) lent callback through /p/: control writes, the unlent literal is refused.
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendrun -func Lend -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(1 int\)'
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendrun -func NotLent -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(true bool\)'
+stdout '\(1 int\)'
+
+# (c) both, in lendboth reached through lendlazy.
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlazy -func Both -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(2 int\)'
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlazy -func Neither -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(true bool\)\n\(true bool\)\n\(2 int\)'
+
+# run script: its own package is never saved, so its by-value call writes too
+# (marks decide nothing there); through a realm it called, they decide again.
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1 $WORK/script/script.gno
+stdout 'wrote: 2'
+stdout 'own non-helper refused: false 102'
+stdout 'realm helper: 2'
+stdout 'realm non-helper: true 2'
+
+gnoland restart
+
+# (c) first: the first call after the restart loads lendboth only as an import.
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlazy -func Both -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(4 int\)'
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlazy -func Neither -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(true bool\)\n\(true bool\)\n\(4 int\)'
+
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlocalhelper -func Helper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(3 int\)'
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendlocalhelper -func NotHelper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(true bool\)'
+stdout '\(3 int\)'
+
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendrun -func Lend -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(2 int\)'
+gnokey maketx call -pkgpath gno.land/r/tests/vm/lendrun -func NotLent -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(true bool\)'
+stdout '\(2 int\)'
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1 $WORK/script/script.gno
+stdout 'wrote: 2'
+stdout 'own non-helper refused: false 102'
+stdout 'realm helper: 4'
+stdout 'realm non-helper: true 4'
+
+-- script/script.gno --
+package main
+
+import (
+	"gno.land/p/demo/tests/lendrunlib"
+	"gno.land/r/tests/vm/lendlocalhelper"
+)
+
+var count int
+
+func main(cur realm) {
+	f := func() { count++ }
+	f()
+	lendrunlib.Run(func() { count++ })
+	println("wrote:", count)
+	refused := false
+	func() {
+		defer func() { refused = recover() != nil }()
+		var g func()
+		g = func() { count++ }
+		g = func() { count += 100 }
+		g()
+	}()
+	println("own non-helper refused:", refused, count)
+	println("realm helper:", lendlocalhelper.Helper(cross(cur)))
+	r, n := lendlocalhelper.NotHelper(cross(cur))
+	println("realm non-helper:", r, n)
+}

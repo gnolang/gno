@@ -1,0 +1,83 @@
+# A closure realm B made and saved, called by another realm, panics on B's
+# object; the caller recovers, the transaction commits, and B is unchanged.
+# Then a panic inside a /p/ method borrow is caught, and the caller's own write lands.
+
+loadpkg gno.land/p/demo/tests/recoverfv
+loadpkg gno.land/r/tests/vm/recoverfvb
+loadpkg gno.land/r/demo/tests/recoverfvtx $WORK/recoverfvtx
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/tests/recoverfvtx -func Poke -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/demo/tests/recoverfvtx.N()"
+stdout '1 int'
+
+gnokey query vm/qeval --data "gno.land/r/demo/tests/recoverfvtx.Rec()"
+stdout 'int is not of type string'
+
+gnokey query vm/qeval --data "gno.land/r/demo/tests/recoverfvtx.Wrote()"
+stdout 'read-only'
+
+gnokey query vm/qeval --data "gno.land/r/tests/vm/recoverfvb.N()"
+stdout '0 int'
+
+gnokey maketx call -pkgpath gno.land/r/demo/tests/recoverfvtx -func Lib -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/demo/tests/recoverfvtx.LibState()"
+stdout 'lib=2 int is not of type string'
+
+-- recoverfvtx/gnomod.toml --
+module = "gno.land/r/demo/tests/recoverfvtx"
+gno = "0.9"
+-- recoverfvtx/recoverfvtx.gno --
+package recoverfvtx
+
+import (
+	"gno.land/p/demo/tests/recoverfv"
+	"gno.land/r/tests/vm/recoverfvb"
+)
+
+var (
+	n     int
+	rec   string
+	wrote string
+	libn  int
+	librec string
+)
+
+func Poke(cur realm) {
+	n++
+	rec = try(recoverfvb.Saved())
+	wrote = try(recoverfvb.SavedInc())
+}
+
+func Lib(cur realm) {
+	libn = 1
+	librec = try(func() { recoverfv.Shared().Set("x") })
+	libn = 2
+}
+
+func try(fn func()) (s string) {
+	defer func() { s = sprint(recover()) }()
+	fn()
+	return
+}
+
+func sprint(r any) string {
+	if e, ok := r.(error); ok {
+		return e.Error()
+	}
+	if s, ok := r.(string); ok {
+		return s
+	}
+	return "?"
+}
+
+func N() int        { return n }
+func Rec() string   { return rec }
+func Wrote() string { return wrote }
+
+func LibState() string { return "lib=" + string(rune('0'+libn)) + " " + librec }

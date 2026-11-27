@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/pfuncvictim"
+gno = "0.9"

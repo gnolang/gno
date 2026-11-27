@@ -10,7 +10,7 @@ func main(cur realm) {
 	f := crossrealm_b.Fooer
 	crossrealm.SetFooer(cross(cur), f)
 	crossrealm.CallFooerFooCross(cross(cur))
-	f.SetS("ABCD")
+	f.SetS(cross(cur), "ABCD")
 	crossrealm.CallFooerFooCross(cross(cur))
 	print(".")
 }

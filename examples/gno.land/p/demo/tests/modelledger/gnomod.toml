@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/tests/modelledger"
+gno = "0.9"

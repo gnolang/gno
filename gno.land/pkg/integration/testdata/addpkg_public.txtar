@@ -154,7 +154,7 @@ func SaveArrayToPublicRealm(cur realm) {
 
 func SaveNestedToPublicRealm(cur realm) {
     nested := publicrealm.CreateNestedStruct(cross(cur))
-    nested.SetNormalRef(tree)
+    nested.SetNormalRef(cross(cur), tree)
     publicrealm.SaveYourNested(cross(cur), nested)
 }
 
@@ -162,7 +162,7 @@ var savedNestedInNormal *publicrealm.NestedStruct
 
 func SaveNestedToPublicRealmAfterSaving(cur realm) {
     nested := publicrealm.CreateNestedStruct(cross(cur))
-    nested.SetNormalRef(tree)
+    nested.SetNormalRef(cross(cur), tree)
     savedNestedInNormal = nested
     publicrealm.SaveYourNested(cross(cur), nested)
 }
@@ -296,6 +296,6 @@ func CreateNestedStruct(cur realm) *NestedStruct {
     }
 }
 
-func (n *NestedStruct) SetNormalRef(ref *avl.Tree) {
+func (n *NestedStruct) SetNormalRef(cur realm, ref *avl.Tree) {
     n.Level1.Level2.NormalRef = ref 
 }

@@ -1,0 +1,17 @@
+# Fixtures recovered here that abort on master; each prints the other realm's state
+# unchanged after the catch, and all but pborrow (see pborrow_write) a refused write.
+recover_fv_borrow.gno
+recover_fv_borrowp.gno
+recover_fv_bsaved.gno
+recover_fv_libmade.gno
+recover_fv_libmv.gno
+recover_fv_libnest.gno
+recover_fv_pborrow.gno
+recover_fv_rewrite.gno
+recover_fv_runbmv.gno
+recover_fv_runmk.gno
+recover_fv_runmv.gno
+recover_fv_runmvlocal.gno
+recover_fv_runq.gno
+recover_fv_runqmv.gno
+recover_fv_storedboom.gno

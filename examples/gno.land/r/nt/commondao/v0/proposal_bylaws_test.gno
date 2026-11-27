@@ -137,7 +137,7 @@ func TestAmendBylawsIsolation(t *testing.T) {
 // TestAmendBylawsLifecycle pins the executor and the stale re-check: the
 // definition applies its patch on execution, and a competing amendment
 // that lost the race fails cleanly without clobbering.
-func TestAmendBylawsLifecycle(t *testing.T) {
+func TestAmendBylawsLifecycle(cur realm, t *testing.T) {
 	dao := newTestDAO(t, "BylawsLifecycle")
 	set := bylawsOf(dao.ID())
 
@@ -153,7 +153,7 @@ func TestAmendBylawsLifecycle(t *testing.T) {
 	// Create the document through the executor.
 	create := newDef("Spend only by vote.")
 	uassert.NoError(t, create.Validate())
-	urequire.NoError(t, create.execute(0, nil))
+	urequire.NoError(t, create.execute(0, cur.Sub(subpathOf(dao.ID()))))
 	text, _ := set.Get("bylaws/spend.md")
 	uassert.Equal(t, "Spend only by vote.", text)
 
@@ -161,15 +161,15 @@ func TestAmendBylawsLifecycle(t *testing.T) {
 	// second is stale at Validate AND at execute, and clobbers nothing.
 	winner := newDef("Spend only by supermajority vote.")
 	loser := newDef("Spend freely.")
-	urequire.NoError(t, winner.execute(0, nil))
+	urequire.NoError(t, winner.execute(0, cur.Sub(subpathOf(dao.ID()))))
 	uassert.ErrorIs(t, loser.Validate(), bylaws.ErrStalePatch)
-	uassert.ErrorIs(t, loser.execute(0, nil), bylaws.ErrStalePatch)
+	uassert.ErrorIs(t, loser.execute(0, cur.Sub(subpathOf(dao.ID()))), bylaws.ErrStalePatch)
 	text, _ = set.Get("bylaws/spend.md")
 	uassert.Equal(t, "Spend only by supermajority vote.", text)
 
 	// Removal: an empty proposed text removes the document.
 	remove := newDef("")
 	uassert.Equal(t, "Remove Bylaws Document: bylaws/spend.md", remove.Title())
-	urequire.NoError(t, remove.execute(0, nil))
+	urequire.NoError(t, remove.execute(0, cur.Sub(subpathOf(dao.ID()))))
 	uassert.False(t, set.Has("bylaws/spend.md"))
 }

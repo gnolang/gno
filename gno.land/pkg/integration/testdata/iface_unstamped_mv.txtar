@@ -1,0 +1,34 @@
+# A method value a library builds while view-only has no stamp: called by the
+# victim it acts for no realm, so the write is refused on chain too.
+loadpkg gno.land/r/tests/vm/ifacevictim
+loadpkg gno.land/p/demo/tests/ifaceattack
+
+gnoland start
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1 $WORK/launder.gno
+stderr 'cannot modify object owned by another realm'
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1 $WORK/read.gno
+stdout 'victim: victim-orig'
+
+-- launder.gno --
+package main
+
+import (
+	"gno.land/p/demo/tests/ifaceattack"
+	"gno.land/r/tests/vm/ifacevictim"
+)
+
+func main(cur realm) {
+	mk := ifaceattack.MakeH
+	ifacevictim.ApplyOne(cross(cur), mk())
+}
+
+-- read.gno --
+package main
+
+import "gno.land/r/tests/vm/ifacevictim"
+
+func main(cur realm) {
+	println("victim:", ifacevictim.Read())
+}

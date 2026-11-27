@@ -24,7 +24,7 @@ var (
 // v0's operator-keyed NewValidatorProposalRequest with a single-element
 // slice; v0's executor re-resolves the signing pubkey from valoperCache
 // at execution time, so a mid-flight rotation publishes the current key.
-func NewValidatorProposalRequest(cur realm, addr address) dao.ProposalRequest {
+func NewValidatorProposalRequest(cur realm, addr address) *dao.ProposalRequest {
 	var (
 		valoper     = valopers.GetByAddr(addr)
 		votingPower = uint64(1)
@@ -63,7 +63,7 @@ func NewValidatorProposalRequest(cur realm, addr address) dao.ProposalRequest {
 	)
 
 	return validators.NewValidatorProposalRequest(cross(cur),
-		[]validators.ValoperChange{validators.NewValoperChange(valoper.OperatorAddress, votingPower)},
+		[]*validators.ValoperChange{validators.NewValoperChange(valoper.OperatorAddress, votingPower)},
 		title,
 		description,
 	)
@@ -77,7 +77,7 @@ func NewValidatorProposalRequest(cur realm, addr address) dao.ProposalRequest {
 // this realm's frame identity to any caller. The
 // closure and the request are now built inside valopers, which returns
 // the request with its executor sealed — see valopers.NewInstructionsProposalRequest.
-func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) dao.ProposalRequest {
+func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) *dao.ProposalRequest {
 	return valopers.NewInstructionsProposalRequest(cross(cur), newInstructions)
 }
 
@@ -89,7 +89,7 @@ func ProposeNewInstructionsProposalRequest(cur realm, newInstructions string) da
 // because this package is where proposal factories for the realm live —
 // see valopers.NewAuthorityRotationProposalRequest for why it takes a path
 // rather than an authz.Authority, and why it exists at all.
-func ProposeAuthorityRotationProposalRequest(cur realm, newContractPath string) dao.ProposalRequest {
+func ProposeAuthorityRotationProposalRequest(cur realm, newContractPath string) *dao.ProposalRequest {
 	return valopers.NewAuthorityRotationProposalRequest(cross(cur), newContractPath)
 }
 
@@ -99,7 +99,7 @@ func ProposeAuthorityRotationProposalRequest(cur realm, newContractPath string) 
 // set_minfee.gno MsgRun calls this); body now delegates to the
 // generic sys/params factory so the fee lives in
 // node:valoper:register_fee.
-func ProposeNewMinFeeProposalRequest(cur realm, newMinFee int64) dao.ProposalRequest {
+func ProposeNewMinFeeProposalRequest(cur realm, newMinFee int64) *dao.ProposalRequest {
 	if newMinFee < 0 {
 		panic(ErrNegativeMinFee)
 	}

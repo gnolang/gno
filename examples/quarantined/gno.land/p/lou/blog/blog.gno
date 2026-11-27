@@ -85,32 +85,40 @@ func NewBlog(_ int, rlm realm, title string, owner address, opts ...Options) (*B
 	}
 
 	for _, opt := range opts {
-		opt(blog)
+		opt.apply(blog)
 	}
 	return blog, nil
 }
 
-type Options func(*Blog)
-
-func WithDisableLikes() Options {
-	return func(b *Blog) {
-		b.DisableLikes = true
-		b.setDisablePostLikes(true)
-	}
+// Options configures a new Blog. It is a type with a method, not a func:
+// a func value from this library runs view-only and could not set the Blog up.
+type Options interface {
+	apply(*Blog)
 }
 
-func WithDisableComments() Options {
-	return func(b *Blog) {
-		b.DisableComments = true
-		b.setDisableComments(true)
-	}
+type disableLikes struct{}
+
+func (disableLikes) apply(b *Blog) {
+	b.DisableLikes = true
+	b.setDisablePostLikes(true)
 }
 
-func WithUserResolver(resolver UserResolver) Options {
-	return func(b *Blog) {
-		b.UserResolver = resolver
-	}
+type disableComments struct{}
+
+func (disableComments) apply(b *Blog) {
+	b.DisableComments = true
+	b.setDisableComments(true)
 }
+
+type userResolver struct{ resolver UserResolver }
+
+func (o userResolver) apply(b *Blog) { b.UserResolver = o.resolver }
+
+func WithDisableLikes() Options { return disableLikes{} }
+
+func WithDisableComments() Options { return disableComments{} }
+
+func WithUserResolver(resolver UserResolver) Options { return userResolver{resolver} }
 
 func (b *Blog) AddPost(_ int, rlm realm, post *Post) error {
 	b.Authorizable.AssertPreviousOnAuthList(0, rlm)

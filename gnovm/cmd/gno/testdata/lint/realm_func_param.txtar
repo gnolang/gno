@@ -1,0 +1,105 @@
+# gno lint warns (without failing) on crossing functions that call a function
+# value reached through a non-function parameter.
+
+gno lint .
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- params.gno --
+package params
+
+type Obj struct {
+	F  func()
+	Fs []func()
+	In *Obj
+}
+
+type Gen interface{ Handler() func() }
+
+var Hook func()
+
+func RunAll(cur realm, fs []func()) {
+	for _, f := range fs {
+		f()
+	}
+}
+
+func Run(cur realm, o *Obj) { o.F() }
+
+func RunM(cur realm, m map[string]func(), k string) { m[k]() }
+
+func RunP(cur realm, p *func()) { (*p)() }
+
+func RunCall(cur realm, g Gen) { g.Handler()() }
+
+func RunFieldChain(cur realm, o *Obj) { o.In.F() }
+
+func RunPtrChain(cur realm, o *Obj) { (*o).In.F() }
+
+func RunIndex(cur realm, o *Obj) { o.Fs[0]() }
+
+func RunRange(cur realm, o *Obj) {
+	for _, f := range o.Fs {
+		f()
+	}
+}
+
+func RunAssign(cur realm, o *Obj) { f := o.F; f() }
+
+func RunAssert(cur realm, x any) { x.(func())() }
+
+func RunSwitch(cur realm, x any) {
+	switch f := x.(type) {
+	case func():
+		f()
+	}
+}
+
+func RunVariadic(cur realm, fs ...func()) { fs[0]() }
+
+func RunFunc(cur realm, f func()) { f() }
+
+func RunMethod(cur realm, o *Obj) { o.M() }
+
+func RunMethodValue(cur realm, o *Obj) {
+	f := o.M
+	f()
+}
+
+func RunVar(cur realm) { Hook() }
+
+func RunReassign(cur realm, o *Obj) {
+	f := o.F
+	f = func() {}
+	f()
+}
+
+func RunShadow(cur realm, o *Obj) {
+	{
+		o := &Obj{}
+		o.F()
+	}
+}
+
+func (o *Obj) M() {}
+
+-- gnomod.toml --
+module = "gno.land/r/demo/params"
+gno = "0.9"
+
+-- stdout.golden --
+-- stderr.golden --
+gno.land/r/demo/params/params.gno:15: crossing function RunAll calls a function reached through parameter fs; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)
+gno.land/r/demo/params/params.gno:19: crossing function Run calls a function reached through parameter o; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)
+gno.land/r/demo/params/params.gno:21: crossing function RunM calls a function reached through parameter m; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)
+gno.land/r/demo/params/params.gno:23: crossing function RunP calls a function reached through parameter p; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)
+gno.land/r/demo/params/params.gno:25: crossing function RunCall calls a function reached through parameter g; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)
+gno.land/r/demo/params/params.gno:27: crossing function RunFieldChain calls a function reached through parameter o; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)
+gno.land/r/demo/params/params.gno:29: crossing function RunPtrChain calls a function reached through parameter o; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)
+gno.land/r/demo/params/params.gno:31: crossing function RunIndex calls a function reached through parameter o; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)
+gno.land/r/demo/params/params.gno:35: crossing function RunRange calls a function reached through parameter o; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)
+gno.land/r/demo/params/params.gno:39: crossing function RunAssign calls a function reached through parameter o; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)
+gno.land/r/demo/params/params.gno:41: crossing function RunAssert calls a function reached through parameter x; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)
+gno.land/r/demo/params/params.gno:46: crossing function RunSwitch calls a function reached through parameter x; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)
+gno.land/r/demo/params/params.gno:50: crossing function RunVariadic calls a function reached through parameter fs; a caller can pass this realm's own stored functions (take the function itself, or look it up by key) (code=gnoLintWarning)

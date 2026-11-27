@@ -80,17 +80,18 @@ func TestBasicPermissionsWithPermission(cur realm, t *testing.T) {
 			var called bool
 
 			perms := tc.setup()
-			testCaseFn := func() {
-				perms.WithPermission(tc.user, tc.permission, tc.args, func() {
-					called = true
-				})
-			}
 
+			// Literals written in place: a callback kept in a variable runs
+			// read-only, and the library panic it triggers is not recoverable.
 			if tc.err != "" {
-				urequire.PanicsWithMessage(t, cur, tc.err, testCaseFn, "expect panic with message")
+				urequire.PanicsWithMessage(t, cur, tc.err, func() {
+					perms.WithPermission(tc.user, tc.permission, tc.args, func() { called = true })
+				}, "expect panic with message")
 				return
 			} else {
-				urequire.NotPanics(t, cur, testCaseFn, "expect no panic")
+				urequire.NotPanics(t, cur, func() {
+					perms.WithPermission(tc.user, tc.permission, tc.args, func() { called = true })
+				}, "expect no panic")
 			}
 
 			urequire.Equal(t, tc.called, called, "expect callback to be called")
@@ -446,15 +447,16 @@ func TestBasicPermissionsSetUserRoles(cur realm, t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			perms := tc.setup()
 
-			setUserRoles := func() {
-				perms.SetUserRoles(tc.user, tc.expectedRoles...)
-			}
-
+			// Literals written in place, as above.
 			if tc.err != "" {
-				urequire.PanicsWithMessage(t, cur, tc.err, setUserRoles, "expected an error")
+				urequire.PanicsWithMessage(t, cur, tc.err, func() {
+					perms.SetUserRoles(tc.user, tc.expectedRoles...)
+				}, "expected an error")
 				return
 			} else {
-				urequire.NotPanics(t, cur, setUserRoles, "expected no error")
+				urequire.NotPanics(t, cur, func() {
+					perms.SetUserRoles(tc.user, tc.expectedRoles...)
+				}, "expected no error")
 			}
 
 			roles := perms.GetUserRoles(tc.user)

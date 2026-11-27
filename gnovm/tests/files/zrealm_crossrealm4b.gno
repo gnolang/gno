@@ -5,23 +5,12 @@ import (
 	tests "gno.land/r/tests/vm"
 )
 
-// Pointer-typed foreign var initialized via a foreign constructor
-// that returns &CompositeLit. Distinct from crossrealm4 in that the
-// pointer's target is a freshly heap-allocated HIV (not a slot in
-// /r/tests/vm's package block):
-//
-//   - The constructor's composite literal allocates a *StructValue
-//     stamped /r/tests/vm (borrow rule #1 makes
-//     checkConstructionTime accept the literal even though the
-//     caller is /r/crossrealm).
-//   - `&CompositeLit` wraps in a HIV stamped with the active
-//     currentRealmID — which is /r/tests/vm via borrow rule #1, not
-//     /r/crossrealm.
-//   - The returned pointer's Base is that HIV, NOT a block.
-//
-// At method-call time, IsReadonlyBy's HIV branch (ownership.go:466)
-// recurses into the wrapped StructValue's authority, which matches
-// m.Realm under borrow rule #2. Write succeeds.
+// Pointer-typed foreign var initialized via a foreign constructor that
+// returns &CompositeLit: the object is a fresh heap object owned by
+// /r/tests/vm, not a slot in its package block (contrast crossrealm4).
+// Constructing it without crossing is allowed; modifying it later via the
+// non-crossing method Modify is refused, because /r/tests/vm's code was
+// entered without crossing and is read-only.
 var somevalue *tests.TestRealmObject
 
 func init() {
@@ -29,9 +18,18 @@ func init() {
 }
 
 func main(cur realm) {
-	somevalue.Modify()
+	println("modify:", try(func() { somevalue.Modify() }))
 	println(somevalue)
 }
 
+// try runs fn and returns what it panicked with: a refused write in a
+// view-only frame is recovered by the caller, not revived.
+func try(fn func()) (r any) {
+	defer func() { r = recover() }()
+	fn()
+	return nil
+}
+
 // Output:
-// &(struct{("initial_modified" string)} gno.land/r/tests/vm.TestRealmObject)
+// modify: gno.land/r/tests/vm's code was entered without crossing and is read-only (call its crossing function): t<VPBlock(1,0)>.Field
+// &(struct{("initial" string)} gno.land/r/tests/vm.TestRealmObject)

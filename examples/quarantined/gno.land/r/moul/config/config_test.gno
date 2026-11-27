@@ -221,8 +221,9 @@ func TestTransferToContractAuthority(cur realm, t *testing.T) {
 	contractPath := "gno.land/r/testcontract"
 	contractRealm := testing.NewCodeRealm(contractPath) // Simulate contract realm
 
-	// Define a simple contract authority handler
-	handlerExecuted := false // Track if the handler itself gets called
+	// Define a simple contract authority handler. Once TransferManagement
+	// stores it, it runs read-only (R2a), so it keeps no tracker of its
+	// own: the action running is the evidence that the handler ran.
 	contractAuth := authz.NewContractAuthority(contractPath, func(title string, action authz.PrivilegedAction) error {
 		// Simulate contract checking the caller *before* executing
 		caller := unsafe.CurrentRealm().Address()
@@ -236,8 +237,7 @@ func TestTransferToContractAuthority(cur realm, t *testing.T) {
 			return errors.New("handler: caller is not the contract")
 		}
 
-		// Only mark executed and run action if caller is correct
-		handlerExecuted = true
+		// Only run the action if caller is correct
 		return action()
 	})
 
@@ -258,7 +258,6 @@ func TestTransferToContractAuthority(cur realm, t *testing.T) {
 
 	// Simulate an action authorized *by the contract* using Authorizer.Do
 	var contractActionExecuted bool
-	handlerExecuted = false         // Reset tracker
 	testing.SetRealm(contractRealm) // Call must originate from the contract now
 	err = Authorizer.DoByCurrent(0, cur, "some_contract_action", func() error {
 		contractActionExecuted = true
@@ -266,12 +265,10 @@ func TestTransferToContractAuthority(cur realm, t *testing.T) {
 		return nil
 	})
 	uassert.NoError(t, err, "contract action via Authorizer.Do failed")
-	uassert.True(t, handlerExecuted, "handler should have been executed by contract call") // Verify handler ran
 	uassert.True(t, contractActionExecuted, "contract action should have been executed")
 
 	// Simulate an action from a user - Should fail before handler is called
 	var userActionExecuted bool
-	handlerExecuted = false // Reset tracker
 	testing.SetRealm(testing.NewUserRealm(nonManagerAddr))
 	err = Authorizer.DoByCurrent(0, cur, "some_user_action", func() error {
 		userActionExecuted = true
@@ -283,7 +280,6 @@ func TestTransferToContractAuthority(cur realm, t *testing.T) {
 	// above is now belt-and-braces, not the guard being relied on.
 	uassert.Error(t, err, "user action via Authorizer.Do should fail when contract is authority")
 	uassert.ErrorContains(t, err, "unauthorized", "rejection should come from the contract-identity proposer")
-	uassert.False(t, handlerExecuted, "handler should NOT have been executed by user call")
 	uassert.False(t, userActionExecuted, "user action should not have been executed")
 }
 

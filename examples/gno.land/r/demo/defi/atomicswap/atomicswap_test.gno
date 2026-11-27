@@ -13,6 +13,8 @@ import (
 	"gno.land/r/tests/vm/test20"
 )
 
+const test20Key = "gno.land/r/tests/vm/test20.TST"
+
 func TestNewCustomCoinSwap_Claim(cur realm, t *testing.T) {
 	defer resetTestState()
 
@@ -129,12 +131,11 @@ func TestNewCustomGRC20Swap_Claim(cur realm, t *testing.T) {
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)
 
-	test20.PrivateLedger.Mint(sender, 100_000)
-	test20.PrivateLedger.Approve(sender, rlm, 70_000)
-
 	// Create a new swap
 	testing.SetRealm(testing.NewUserRealm(sender))
-	id, swap := NewCustomGRC20Swap(cross(cur), recipient, hashlockHex, timelock, test20.Token)
+	test20.Mint(cross(cur), sender, 100_000)
+	test20.Approve(cross(cur), rlm, 70_000)
+	id, swap := NewCustomGRC20Swap(cross(cur), recipient, hashlockHex, timelock, test20Key)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -203,12 +204,11 @@ func TestNewCustomGRC20Swap_Refund(cur realm, t *testing.T) {
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)
 
-	test20.PrivateLedger.Mint(sender, 100_000)
-	test20.PrivateLedger.Approve(sender, rlm, 70_000)
-
 	// Create a new swap
 	testing.SetRealm(testing.NewUserRealm(sender))
-	id, swap := NewCustomGRC20Swap(cross(cur), recipient, hashlockHex, timelock, test20.Token)
+	test20.Mint(cross(cur), sender, 100_000)
+	test20.Approve(cross(cur), rlm, 70_000)
+	id, swap := NewCustomGRC20Swap(cross(cur), recipient, hashlockHex, timelock, test20Key)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -268,12 +268,11 @@ func TestNewGRC20Swap_Claim(cur realm, t *testing.T) {
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(defaultTimelockDuration)
 
-	test20.PrivateLedger.Mint(sender, 100_000)
-	test20.PrivateLedger.Approve(sender, rlm, 70_000)
-
 	// Create a new swap
 	testing.SetRealm(testing.NewUserRealm(sender))
-	id, swap := NewGRC20Swap(cross(cur), recipient, hashlockHex, "gno.land/r/tests/vm/test20.TST")
+	test20.Mint(cross(cur), sender, 100_000)
+	test20.Approve(cross(cur), rlm, 70_000)
+	id, swap := NewGRC20Swap(cross(cur), recipient, hashlockHex, test20Key)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -340,12 +339,11 @@ func TestNewGRC20Swap_Refund(cur realm, t *testing.T) {
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
 
-	test20.PrivateLedger.Mint(sender, 100_000)
-	test20.PrivateLedger.Approve(sender, rlm, 70_000)
-
 	// Create a new swap
 	testing.SetRealm(testing.NewUserRealm(sender))
-	id, swap := NewGRC20Swap(cross(cur), recipient, hashlockHex, "gno.land/r/tests/vm/test20.TST")
+	test20.Mint(cross(cur), sender, 100_000)
+	test20.Approve(cross(cur), rlm, 70_000)
+	id, swap := NewGRC20Swap(cross(cur), recipient, hashlockHex, test20Key)
 	uassert.Equal(t, 1, id)
 
 	expected := `- status: active
@@ -406,18 +404,13 @@ func TestRender(cur realm, t *testing.T) {
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)
 
-	test20.PrivateLedger.Mint(alice, 100_000)
-	// SetRealm mutates the test's cur in place to look like alice's
-	// userRealm. cur's HIV pointer is unchanged so IsCurrent still passes;
-	// RealmTeller(0, cur) binds to alice via cur.Address().
+	// SetRealm mutates the test's cur in place to look like alice's userRealm.
 	testing.SetRealm(testing.NewUserRealm(alice))
-
-	userTeller := test20.Token.RealmTeller(0, cur)
-	userTeller.Approve(0, cur, rlm, 10_000)
-	bobSwapID, _ := NewCustomGRC20Swap(cross(cur), bob, hashlockHex, timelock, test20.Token)
-
-	userTeller.Approve(0, cur, rlm, 20_000)
-	_, _ = NewCustomGRC20Swap(cross(cur), charly, hashlockHex, timelock, test20.Token)
+	test20.Mint(cross(cur), alice, 100_000)
+	test20.Approve(cross(cur), rlm, 10_000)
+	bobSwapID, _ := NewCustomGRC20Swap(cross(cur), bob, hashlockHex, timelock, test20Key)
+	test20.Approve(cross(cur), rlm, 20_000)
+	_, _ = NewCustomGRC20Swap(cross(cur), charly, hashlockHex, timelock, test20Key)
 
 	testing.SetRealm(testing.NewUserRealm(bob))
 	Claim(cross(cur), bobSwapID, "secret")

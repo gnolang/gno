@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/fvechoy"
+gno = "0.9"

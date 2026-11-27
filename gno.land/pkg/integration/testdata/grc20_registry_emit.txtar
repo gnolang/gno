@@ -43,9 +43,5 @@ import "gno.land/r/nt/grc20reg/v0"
 // ledger still debits the owner.
 func TransferBy(cur realm, path string, to address, amount int64) {
 	owner := cur.Previous().Address()
-	grc20 := grc20reg.MustGet(path)
-	err := grc20.RealmTeller(0, cur).TransferFrom(0, cur, owner, to, amount)
-	if err != nil {
-		panic(err)
-	}
+	grc20reg.TransferFrom(0, cur, path, owner, to, amount)
 }

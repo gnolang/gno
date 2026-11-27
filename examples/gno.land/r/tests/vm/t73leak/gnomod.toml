@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/t73leak"
+gno = "0.9"

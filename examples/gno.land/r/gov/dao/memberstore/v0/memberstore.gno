@@ -179,7 +179,7 @@ func Render(path string) string {
 // malicious realm cannot replay an old cur to claim allowed-DAO
 // identity. After the check, rlm.PkgPath() is the authentic immediate
 // caller's realm.
-func Get(_ int, rlm realm) MembersByTier {
+func Get(_ int, rlm realm) *MembersByTier {
 	if !rlm.IsCurrent() {
 		panic("memberstore.Get: rlm is not the caller's live cur (stale capture or sibling frame)")
 	}
@@ -188,24 +188,28 @@ func Get(_ int, rlm realm) MembersByTier {
 		panic("this Realm is not allowed to get the Members data: " + currealm)
 	}
 
-	return members
+	return &members
 }
 
 // GetTier returns a tier by name. This is a read-only accessor.
-func GetTier(name string) (Tier, bool) {
-	return tiers.GetTier(name)
+func GetTier(name string) (*Tier, bool) {
+	t, ok := tiers.GetTier(name)
+	if !ok {
+		return nil, false
+	}
+	return &t, true
 }
 
 // IterateTiers iterates over all tiers in order. This is a read-only accessor.
 // The callback receives the tier name and tier data.
 // Return true from the callback to stop iteration.
-func IterateTiers(fn func(name string, tier Tier) bool) {
+func IterateTiers(fn func(name string, tier *Tier) bool) {
 	tiers.Iterate("", "", func(name string, value interface{}) bool {
 		tier, ok := value.(Tier)
 		if !ok {
 			return false
 		}
-		return fn(name, tier)
+		return fn(name, &tier)
 	})
 }
 
@@ -217,10 +221,55 @@ func setTiers(newTiers TiersByName) {
 
 // GetTierPower calculates the effective voting power for a tier given the current members.
 // This is a safe accessor that uses the internal tiers configuration.
-func GetTierPower(tierName string, members MembersByTier) float64 {
+func GetTierPower(tierName string, members *MembersByTier) float64 {
 	tier, ok := tiers.GetTier(tierName)
 	if !ok {
 		return 0
 	}
-	return tier.PowerHandler(members, tiers)
+	return tier.PowerHandler(*members, tiers)
+}
+
+// Writers. A realm changes the member store only through these crossing
+// functions; the caller is the realm that crossed in, and it must be an
+// allowed DAO.
+
+func mustAllow(cur realm) {
+	caller := cur.Previous().PkgPath()
+	if !dao.InAllowedDAOs(caller) {
+		panic("this Realm is not allowed to change the Members data: " + caller)
+	}
+}
+
+// DeleteAll removes every tier and member.
+func DeleteAll(cur realm) {
+	mustAllow(cur)
+	members.DeleteAll()
+}
+
+// SetTier adds an empty tier.
+func SetTier(cur realm, tier string) error {
+	mustAllow(cur)
+	return members.SetTier(tier)
+}
+
+// SetMember adds addr to tier.
+func SetMember(cur realm, tier string, addr address, m *Member) error {
+	mustAllow(cur)
+	return members.SetMember(tier, addr, m)
+}
+
+// RemoveMember removes addr from whichever tier holds it.
+func RemoveMember(cur realm, addr address) string {
+	mustAllow(cur)
+	return members.RemoveMember(addr)
+}
+
+// RemoveInvitationPoint spends one of addr's invitation points.
+func RemoveInvitationPoint(cur realm, addr address) {
+	mustAllow(cur)
+	m, _ := members.GetMember(addr)
+	if m == nil {
+		panic("not a member: " + addr.String())
+	}
+	m.RemoveInvitationPoint()
 }

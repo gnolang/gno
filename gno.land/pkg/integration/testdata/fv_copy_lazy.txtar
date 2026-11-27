@@ -1,0 +1,63 @@
+# Realm b copying a /p/ struct whose `any` field holds realm a's struct is
+# refused by type, whether or not the boxed value is loaded: after a restart
+# nothing is cached, and the same call is refused the same way twice.
+
+loadpkg gno.land/p/test/fvbox $WORK/fvbox
+loadpkg gno.land/r/test/fva $WORK/fva
+loadpkg gno.land/r/test/fvb $WORK/fvb
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/test/fva -func Store -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout OK!
+
+gnoland restart
+
+! gnokey maketx call -pkgpath gno.land/r/test/fvb -func Gate -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stderr 'cannot copy gno.land/r/test/fva.T outside realm gno.land/r/test/fva \(use a pointer\)'
+
+! gnokey maketx call -pkgpath gno.land/r/test/fvb -func Gate -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stderr 'cannot copy gno.land/r/test/fva.T outside realm gno.land/r/test/fva \(use a pointer\)'
+
+-- fvbox/gnomod.toml --
+module = "gno.land/p/test/fvbox"
+gno = "0.9"
+
+-- fvbox/fvbox.gno --
+package fvbox
+
+type Box struct{ V any }
+
+-- fva/gnomod.toml --
+module = "gno.land/r/test/fva"
+gno = "0.9"
+
+-- fva/fva.gno --
+package fva
+
+import "gno.land/p/test/fvbox"
+
+type T struct{ N int }
+
+var b *fvbox.Box
+
+func Store(cur realm) { b = &fvbox.Box{V: T{N: 1}} }
+
+func Get() *fvbox.Box { return b }
+
+-- fvb/gnomod.toml --
+module = "gno.land/r/test/fvb"
+gno = "0.9"
+
+-- fvb/fvb.gno --
+package fvb
+
+import (
+	"gno.land/p/test/fvbox"
+	"gno.land/r/test/fva"
+)
+
+var kept fvbox.Box
+
+func Gate(cur realm) {
+	kept = *fva.Get()
+}

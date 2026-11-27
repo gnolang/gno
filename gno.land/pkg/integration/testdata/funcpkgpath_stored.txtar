@@ -1,0 +1,45 @@
+# A function value survives stored state: a realm stores another realm's
+# function in one transaction, and a later transaction reports where that
+# function was declared — not where it is held.
+
+loadpkg gno.land/r/tests/vm/funcpkg
+
+gnoland start
+
+## deploy the holder realm
+gnokey maketx addpkg -pkgdir $WORK/holder -pkgpath gno.land/r/test/funcpkgholder -gas-fee 1000000ugnot -gas-wanted 8000000 -chainid=tendermint_test test1
+stdout 'OK!'
+
+## tx1: store a function value declared in gno.land/r/tests/vm/funcpkg
+gnokey maketx call -pkgpath gno.land/r/test/funcpkgholder -func Store -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout 'OK!'
+
+## tx2 (later transaction): the stored value still reports its declaring package
+gnokey maketx call -pkgpath gno.land/r/test/funcpkgholder -func Show -gas-fee 1000000ugnot -gas-wanted 5000000 -chainid=tendermint_test test1
+stdout '("gno.land/r/tests/vm/funcpkg" string)'
+stdout 'OK!'
+
+-- holder/gnomod.toml --
+module = "gno.land/r/test/funcpkgholder"
+gno = "0.9"
+
+-- holder/holder.gno --
+package funcpkgholder
+
+import (
+	"chain/runtime"
+
+	fp "gno.land/r/tests/vm/funcpkg"
+)
+
+var stored func()
+
+// Store keeps a function value declared in another realm.
+func Store(cur realm) {
+	stored = fp.GetFn(cross(cur))
+}
+
+// Show reports the declaring package of the stored value.
+func Show(cur realm) string {
+	return runtime.FuncPkgPath(stored)
+}

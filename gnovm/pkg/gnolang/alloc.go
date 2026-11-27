@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"math/bits"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/gnolang/gno/tm2/pkg/overflow"
@@ -38,6 +39,18 @@ type Allocator struct {
 	// checkConstructionTime's panic message so users see a readable
 	// realm path rather than an opaque PkgID hex.
 	currentRealmPath string
+	// scratch numbers the active read-only stretch (0: none); objects
+	// allocated in it carry the number and it may write them while unreal.
+	scratch uint32
+	// viewHoldID is the realm whose values code may hold while view-only
+	// (setViewOnly clears currentRealmID): the realm current on entry.
+	viewHoldID PkgID
+	// handHold, while handOver is set, is the realm handing arguments over:
+	// function values are judged against it instead of holdRealm.
+	handHold PkgID
+	handOver bool
+	// store loads a stored function value a strip must copy.
+	store Store
 
 	// anchors holds destinations that have been allocated but are not yet
 	// reachable from any GC root: composite-literal element buffers,
@@ -534,15 +547,11 @@ func (alloc *Allocator) AllocateHeapItem() {
 // "storage = authority" rule: every meaningfully-constructed
 // /r/-typed object must originate inside its declaring realm.
 //
-// Only fires at user-visible construction sites: composite literals
-// (doOpStructLit/ArrayLit/MapLit/SliceLit*) and the new()/make()
-// uverse builtins. Zero-value defaults (return-slot init, var
-// declarations, copies) are not "construction" in the sense that
-// matters here — they are anonymous placeholders that will be
-// overwritten or carry a copied PkgID.
-//
-// Anonymous composites, primitives, /p/, and stdlib types have no
-// declaring-realm constraint and pass through unchecked.
+// Fires at composite literals (doOpStructLit/ArrayLit/MapLit/SliceLit*)
+// and the new()/make() uverse builtins; it also refuses an anonymous
+// struct/array type holding a foreign one inline (checkBirth). Zero values
+// for declarations, make and call result slots are checked by checkBirth;
+// short-lived ones (missed map reads, failed assertions) are not.
 //
 // nil t skips the check (anonymous sub-allocations); alloc is assumed
 // non-nil.
@@ -550,16 +559,382 @@ func (alloc *Allocator) checkConstructionTime(t Type) {
 	if t == nil || alloc == nil {
 		return
 	}
-	pid := getDeclaredPkgID(t)
-	if !pid.IsRealmPkg() {
+	pid := constructionRealmID(t)
+	if pid.IsRealmPkg() && pid != alloc.currentRealmID {
+		alloc.panicForeignAlloc(t)
+	}
+	alloc.checkBirth(t)
+}
+
+// constructionRealmID returns the realm that owns a newly built value of t,
+// or zero. An unnamed all-exported struct belongs to no realm — it is the
+// same type everywhere — so only its fields can carry one (see checkBirth).
+func constructionRealmID(t Type) PkgID {
+	if st, ok := unwrapPointerType(t).(*StructType); ok && !realmOwnsStruct(st) {
+		return PkgID{}
+	}
+	return getDeclaredPkgID(t)
+}
+
+// stampCopyOwner stamps a copy of t: the declaring realm for a named type,
+// and for an exempt unnamed struct the realm the copy is made for.
+func (alloc *Allocator) stampCopyOwner(oi *ObjectInfo, t Type) {
+	if st, ok := unwrapPointerType(t).(*StructType); ok && !realmOwnsStruct(st) {
+		if alloc != nil { // nil alloc: no realm context to stamp
+			oi.SetPkgID(alloc.currentRealmID)
+		}
 		return
 	}
-	if pid != alloc.currentRealmID {
+	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
+		oi.SetPkgID(pid)
+	}
+}
+
+// checkBirth panics if a zero value of t, built here, would hold inline a
+// struct or array value whose type another realm declares. alloc nil: no check.
+func (alloc *Allocator) checkBirth(t Type) {
+	if alloc == nil {
+		return
+	}
+	if rid, ok := alloc.holdRealm(); ok {
+		if ft := firstForeignHeld(t, rid); ft != nil {
+			alloc.panicForeignAlloc(ft)
+		}
+	}
+}
+
+// holdRealm returns the realm whose struct/array values may be born or copied
+// here: the current realm, else (view-only) the realm current on entry; ok is
+// false with no realm at all (tooling, package main, /p/ tests).
+func (alloc *Allocator) holdRealm() (rid PkgID, ok bool) {
+	if alloc == nil {
+		return PkgID{}, false
+	}
+	if !alloc.currentRealmID.IsZero() {
+		return alloc.currentRealmID, true
+	}
+	return alloc.viewHoldID, !alloc.viewHoldID.IsZero()
+}
+
+// stripHold is the realm a copied or handed-over function value is judged
+// against: the handing-over realm in popCopyArgs, else holdRealm.
+func (alloc *Allocator) stripHold() PkgID {
+	if alloc.handOver {
+		return alloc.handHold
+	}
+	rid, _ := alloc.holdRealm()
+	return rid
+}
+
+// stripMaker returns tv, or a copy with no maker when tv is a non-crossing
+// function value whose maker is a realm other than hold. A stored value is
+// judged by its ObjectID and type, so loading it changes nothing.
+func (alloc *Allocator) stripMaker(tv TypedValue, hold PkgID) TypedValue {
+	var maker PkgID
+	switch cv := tv.V.(type) {
+	case *FuncValue:
+		maker = cv.ObjectInfo.ID.PkgID
+	case *BoundMethodValue:
+		maker = cv.ObjectInfo.ID.PkgID
+	case RefValue:
+		if tv.T == nil || tv.T.Kind() != FuncKind {
+			return tv
+		}
+		maker = cv.ObjectID.PkgID
+	default:
+		return tv
+	}
+	if !maker.IsRealmPkg() || maker == hold {
+		return tv
+	}
+	ft, ok := baseOf(tv.T).(*FuncType)
+	if !ok || ft.IsCrossing() {
+		return tv
+	}
+	if ref, isRef := tv.V.(RefValue); isRef {
+		oo := Object(nil)
+		if alloc.store != nil {
+			oo = alloc.store.GetObjectSafe(ref.ObjectID)
+		}
+		if oo == nil {
+			return tv
+		}
+		tv.V = oo
+	}
+	switch cv := tv.V.(type) {
+	case *FuncValue:
+		alloc.AllocateFunc()
+		cp := *cv
+		cp.ObjectInfo = ObjectInfo{scratch: alloc.scratch}
+		tv.V = &cp
+	case *BoundMethodValue:
+		alloc.AllocateBoundMethod()
+		cp := *cv
+		cp.ObjectInfo = ObjectInfo{scratch: alloc.scratch}
+		tv.V = &cp
+	}
+	return tv
+}
+
+// stripDeep is stripMaker reaching into struct and array values held by
+// value; a container with a stripped element is rebuilt, the rest shared.
+func (alloc *Allocator) stripDeep(tv TypedValue, hold PkgID) TypedValue {
+	switch cv := tv.V.(type) {
+	case *FuncValue, *BoundMethodValue:
+		return alloc.stripMaker(tv, hold)
+	case RefValue:
+		switch k := tv.T.Kind(); {
+		case k == FuncKind:
+			return alloc.stripMaker(tv, hold)
+		case (k == StructKind || k == ArrayKind) && holdsFuncByValue(tv.T) && alloc.store != nil:
+			oo := alloc.store.GetObjectSafe(cv.ObjectID)
+			if oo == nil {
+				return tv
+			}
+			tv.V = oo
+			if out := alloc.stripDeep(tv, hold); out.V != tv.V {
+				return out
+			}
+			tv.V = cv
+		}
+	case *StructValue:
+		if !holdsFuncByValue(tv.T) {
+			return tv
+		}
+		if fields, ok := alloc.stripList(cv.Fields, hold); ok {
+			alloc.AllocateStructFields(int64(len(fields)))
+			sv := alloc.NewStruct(tv.T, fields)
+			alloc.PopAnchor()
+			alloc.stampCopyOwner(&sv.ObjectInfo, tv.T)
+			tv.V = sv
+		}
+	case *ArrayValue:
+		if cv.Data != nil || !holdsFuncByValue(tv.T) {
+			return tv
+		}
+		if list, ok := alloc.stripList(cv.List, hold); ok {
+			alloc.AllocateListArray(int64(len(list)))
+			av := &ArrayValue{List: list}
+			alloc.stampPkgID(&av.ObjectInfo, tv.T)
+			alloc.PopAnchor()
+			tv.V = av
+		}
+	}
+	return tv
+}
+
+// stripList returns a fresh list with each element stripDeep'd, anchored
+// until the caller pops it, or ok false when no element changes.
+func (alloc *Allocator) stripList(list []TypedValue, hold PkgID) (out []TypedValue, ok bool) {
+	for i := range list {
+		nv := alloc.stripDeep(list[i], hold)
+		if nv.V == list[i].V {
+			continue
+		}
+		if out == nil {
+			out = make([]TypedValue, len(list))
+			copy(out, list)
+			alloc.PushAnchor(out)
+		}
+		out[i] = nv
+	}
+	return out, out != nil
+}
+
+// holdsFuncByValue reports whether a value of type t can hold a function
+// value inline: t is a func or interface type, or a struct or array of one.
+func holdsFuncByValue(t Type) bool {
+	switch tt := t.(type) {
+	case nil:
+		return false
+	case *DeclaredType:
+		return tt.funcHold.get(func() bool { return holdsFuncByValue(tt.Base) })
+	case *StructType:
+		return tt.funcHold.get(func() bool {
+			for _, f := range tt.Fields {
+				if holdsFuncByValue(f.Type) {
+					return true
+				}
+			}
+			return false
+		})
+	case *ArrayType:
+		return tt.funcHold.get(func() bool { return tt.Len > 0 && holdsFuncByValue(tt.Elt) })
+	}
+	switch baseOf(t).(type) {
+	case *FuncType, *InterfaceType:
+		return true
+	}
+	return false
+}
+
+// funcHoldCache memoizes holdsFuncByValue on the type itself, so it is freed
+// with the type; atomic since queries share types. 0: unknown, 1: no, 2: yes.
+type funcHoldCache struct{ v uint32 }
+
+func (c *funcHoldCache) get(compute func() bool) bool {
+	if v := atomic.LoadUint32(&c.v); v != 0 {
+		return v == 2
+	}
+	hf := compute()
+	v := uint32(1)
+	if hf {
+		v = 2
+	}
+	atomic.StoreUint32(&c.v, v)
+	return hf
+}
+
+// refusedCopy returns the foreign type that makes a copy of t refused here,
+// or nil if the copy is allowed.
+func (alloc *Allocator) refusedCopy(t Type) Type {
+	rid, ok := alloc.holdRealm()
+	if !ok || t == nil {
+		return nil
+	}
+	switch baseOf(t).(type) {
+	case *StructType, *ArrayType:
+		return firstForeignHeld(t, rid)
+	}
+	return nil
+}
+
+// checkCopy panics if a copy of a value of type t, made here, would hold
+// inline a struct or array value whose type another realm declares: such a
+// value lives only in its realm, which others reach by pointer.
+func (alloc *Allocator) checkCopy(t Type) {
+	ft := alloc.refusedCopy(t)
+	if ft == nil {
+		return
+	}
+	var path string
+	switch ft := ft.(type) {
+	case *DeclaredType:
+		path = ft.PkgPath
+	case *StructType:
+		path = ft.PkgPath
+	}
+	panic(fmt.Sprintf("cannot copy %s outside realm %s (use a pointer)", ft.String(), path))
+}
+
+func (alloc *Allocator) panicForeignAlloc(t Type) {
+	if st, ok := t.(*StructType); ok { // unnamed: say whose it is
 		panic(fmt.Sprintf(
-			"cannot allocate %s in realm %s",
-			t.String(), alloc.currentRealmPath,
+			"cannot allocate %s (declared in %s) in realm %s",
+			t.String(), st.PkgPath, alloc.currentRealmPath,
 		))
 	}
+	panic(fmt.Sprintf(
+		"cannot allocate %s in realm %s",
+		t.String(), alloc.currentRealmPath,
+	))
+}
+
+// firstForeignHeld returns the first type t holds inline that a realm other
+// than rid declares; nil if none. Pointers, slices, maps and interfaces hold
+// nothing inline.
+func firstForeignHeld(t Type, rid PkgID) Type {
+	for _, hr := range heldRealmsOf(t) {
+		if hr.pid != rid {
+			return hr.typ
+		}
+	}
+	return nil
+}
+
+// heldRealmsOf returns, one entry per realm, the realm-declared struct/array
+// types t holds by value. Cached on t like typeid (types are immutable after
+// preprocess); an empty answer is cached as a non-nil empty slice, or a type
+// holding no realm would be walked again on every check.
+func heldRealmsOf(t Type) []heldRealm {
+	switch tt := t.(type) {
+	case *DeclaredType:
+		return cachedHeldRealms(&tt.heldRealms, tt)
+	case *StructType:
+		return cachedHeldRealms(&tt.heldRealms, tt)
+	case *ArrayType:
+		return cachedHeldRealms(&tt.heldRealms, tt)
+	}
+	return nil
+}
+
+// heldRealmsCache holds a *[]heldRealm, read and written atomically since
+// queries run in parallel on shared types; a plain pointer so types stay
+// copyable. Two first callers may both compute; the answer is the same.
+type heldRealmsCache struct{ p unsafe.Pointer }
+
+func cachedHeldRealms(c *heldRealmsCache, t Type) []heldRealm {
+	if p := atomic.LoadPointer(&c.p); p != nil {
+		return *(*[]heldRealm)(p)
+	}
+	h := computeHeldRealms(t)
+	atomic.StorePointer(&c.p, unsafe.Pointer(&h))
+	return h
+}
+
+// Returns a non-nil slice in every case, so the result is always cacheable.
+// Children are resolved through the cache, so each type is visited once.
+func computeHeldRealms(t Type) []heldRealm {
+	switch tt := t.(type) {
+	case *DeclaredType:
+		switch tt.Base.(type) {
+		case *StructType, *ArrayType:
+		default:
+			return []heldRealm{}
+		}
+		out := []heldRealm{}
+		if pid := tt.GetPkgID(); pid.IsRealmPkg() {
+			out = append(out, heldRealm{pid, tt})
+		}
+		return mergeHeldRealms(out, heldRealmsOf(tt.Base))
+	case *StructType:
+		out := []heldRealm{}
+		if realmOwnsStruct(tt) {
+			if pid := tt.GetPkgID(); pid.IsRealmPkg() {
+				out = append(out, heldRealm{pid, tt})
+			}
+		}
+		for _, f := range tt.Fields {
+			out = mergeHeldRealms(out, heldRealmsOf(f.Type))
+		}
+		return out
+	case *ArrayType:
+		if tt.Len == 0 {
+			return []heldRealm{}
+		}
+		return mergeHeldRealms([]heldRealm{}, heldRealmsOf(tt.Elt))
+	}
+	return []heldRealm{}
+}
+
+// realmOwnsStruct reports whether an unnamed struct is a value a realm owns:
+// only unexported fields tie it to its package; an all-exported one is the
+// same type everywhere (same TypeID) and holds no realm of its own.
+func realmOwnsStruct(st *StructType) bool {
+	return FieldTypeList(st.Fields).HasUnexported()
+}
+
+// mergeHeldRealms appends src entries whose realm is not already in dst,
+// keeping the first type seen per realm.
+func mergeHeldRealms(dst, src []heldRealm) []heldRealm {
+merge:
+	for _, hr := range src {
+		for _, d := range dst {
+			if d.pid == hr.pid {
+				continue merge
+			}
+		}
+		dst = append(dst, hr)
+	}
+	return dst
+}
+
+// checkedDefaultTypedValue is defaultTypedValue plus checkBirth, for places the
+// current realm can keep: var declarations (doOpValueDecl), call result slots
+// (doOpCall) and keyed slice-literal zero-fill (doOpSliceLit2).
+func checkedDefaultTypedValue(alloc *Allocator, t Type) TypedValue {
+	alloc.checkBirth(t)
+	return defaultTypedValue(alloc, t)
 }
 
 // stampPkgID stamps PkgID on the given ObjectInfo. If t has a
@@ -579,6 +954,9 @@ func (alloc *Allocator) checkConstructionTime(t Type) {
 // storage slots / lexical scopes owned by the executing realm, not
 // data of a particular type.
 func (alloc *Allocator) stampPkgID(oi *ObjectInfo, t Type) {
+	if alloc != nil {
+		oi.scratch = alloc.scratch
+	}
 	if pid := getDeclaredPkgID(t); pid.IsRealmPkg() {
 		oi.SetPkgID(pid)
 		return
@@ -588,6 +966,14 @@ func (alloc *Allocator) stampPkgID(oi *ObjectInfo, t Type) {
 		return
 	}
 	oi.SetPkgID(alloc.currentRealmID)
+}
+
+// unbindReadOnly gives a method value bound in a read-only stretch no binder,
+// like a closure made there: it must not act for the realm it was bound in.
+func (alloc *Allocator) unbindReadOnly(oi *ObjectInfo) {
+	if alloc != nil && alloc.scratch != 0 {
+		oi.SetPkgID(PkgID{})
+	}
 }
 
 func (alloc *Allocator) NewString(s string) StringValue {

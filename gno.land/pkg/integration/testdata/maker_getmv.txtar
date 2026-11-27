@@ -1,0 +1,59 @@
+# A method value a realm's helper binds while read-only has no binder; handed
+# back to the realm's gate it runs read-only. Saving it is allowed; loaded from
+# the store it fires read-only, so the stored state is unchanged.
+
+loadpkg gno.land/r/demo/zvic $WORK/vic
+gnoland start
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1 $WORK/run1/run1.gno
+stderr 'gno.land/r/demo/zvic''s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs'
+gnokey query vm/qeval --data 'gno.land/r/demo/zvic.Box.Name'
+stdout 'orig'
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1 $WORK/run3/run3.gno
+stdout OK!
+
+gnoland restart
+! gnokey maketx call -pkgpath gno.land/r/demo/zvic -func FireHooks -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/demo/zvic''s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs'
+gnokey query vm/qeval --data 'gno.land/r/demo/zvic.Box.Name'
+stdout 'orig'
+gnokey query vm/qeval --data 'gno.land/r/demo/zvic.NumHooks()'
+stdout '1 int'
+
+-- vic/gnomod.toml --
+module = "gno.land/r/demo/zvic"
+gno = "0.9"
+
+-- vic/v.gno --
+package zvic
+
+type T struct{ Name string }
+
+var Box = &T{Name: "orig"}
+
+func (t *T) SetName(s string) { t.Name = s }
+
+func RunS(cur realm, f func(string)) { f("picked") }
+
+func GetMV() func(string) { return Box.SetName }
+
+var hooks []func(string)
+
+func AddHook(cur realm, f func(string)) { hooks = append(hooks, f) }
+func FireHooks(cur realm)               { for _, h := range hooks { h("stored") } }
+func NumHooks() int                     { return len(hooks) }
+
+-- run1/run1.gno --
+package main
+
+import "gno.land/r/demo/zvic"
+
+func main(cur realm) { zvic.RunS(cross(cur), zvic.GetMV()) }
+
+-- run3/run3.gno --
+package main
+
+import "gno.land/r/demo/zvic"
+
+func main(cur realm) { zvic.AddHook(cross(cur), zvic.GetMV()) }

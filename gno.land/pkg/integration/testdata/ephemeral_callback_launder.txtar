@@ -1,4 +1,5 @@
-# MsgRun callbacks run with their ephemeral realm's storage authority.
+# A MsgRun callback called back by a realm is entered without crossing: it runs
+# read-only and cannot write the realm's state.
 
 loadpkg gno.land/r/demo/xtreasury $WORK/xtreasury
 
@@ -7,7 +8,7 @@ gnoland start
 
 ## The read-only visitor must not be able to mutate treasury state.
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script/script.gno
-stderr 'cannot directly modify readonly tainted object'
+stderr 'run.s code was entered without crossing and is read-only'
 
 ## Verify persisted state after the rejected transaction.
 gnokey query vm/qeval --data 'gno.land/r/demo/xtreasury.TreasuryBalance()'

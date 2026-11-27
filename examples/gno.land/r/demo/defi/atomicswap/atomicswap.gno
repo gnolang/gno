@@ -45,7 +45,6 @@ import (
 	"time"
 
 	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/grc20/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/nt/grc20reg/v0"
 )
@@ -68,8 +67,7 @@ func NewCoinSwap(cur realm, recipient address, hashlock string) (int, *Swap) {
 // It uses gno.land/r/nt/grc20reg/v0 to lookup for a registered token.
 func NewGRC20Swap(cur realm, recipient address, hashlock string, tokenRegistryKey string) (int, *Swap) {
 	timelock := time.Now().Add(defaultTimelockDuration)
-	token := grc20reg.MustGet(tokenRegistryKey)
-	return NewCustomGRC20Swap(cur, recipient, hashlock, timelock, token)
+	return NewCustomGRC20Swap(cur, recipient, hashlock, timelock, tokenRegistryKey)
 }
 
 // NewCoinSwapWithTimelock creates a new atomic swap contract for native coin.
@@ -106,21 +104,19 @@ func NewCustomCoinSwap(cur realm, recipient address, hashlock string, timelock t
 
 // NewCustomGRC20Swap creates a new atomic swap contract for grc20 tokens.
 // It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
-func NewCustomGRC20Swap(cur realm, recipient address, hashlock string, timelock time.Time, token *grc20.Token) (int, *Swap) {
+func NewCustomGRC20Swap(cur realm, recipient address, hashlock string, timelock time.Time, tokenRegistryKey string) (int, *Swap) {
 	sender := cur.Previous().Address()
 	curAddr := cur.Address()
+	token := grc20reg.MustGet(tokenRegistryKey)
 
 	allowance := token.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
 
-	userTeller := token.RealmTeller(0, cur)
-	err := userTeller.TransferFrom(0, cur, sender, curAddr, allowance)
-	require(err == nil, "cannot retrieve tokens from allowance")
+	grc20reg.TransferFrom(0, cur, tokenRegistryKey, sender, curAddr, allowance)
 
 	amountStr := ufmt.Sprintf("%d%s", allowance, token.GetSymbol())
 	sendFn := func(cur realm, to address) {
-		err := userTeller.Transfer(0, cur, to, allowance)
-		require(err == nil, "cannot transfer tokens")
+		grc20reg.Transfer(0, cur, tokenRegistryKey, to, allowance)
 	}
 
 	swap := newSwap(sender, recipient, hashlock, timelock, amountStr, sendFn)

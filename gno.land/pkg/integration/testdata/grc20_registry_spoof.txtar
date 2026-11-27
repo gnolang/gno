@@ -1,0 +1,94 @@
+# The registry vouches for whose code runs: a registering realm must hand in
+# functions declared in its own source, so regspoof's attempt to register
+# foo20's move beside its own EVL token is refused.
+#
+# An honest realm's functions survive between transactions: ctoken registers in
+# its deployment transaction, and a later run script moves its tokens through
+# the registry wrapper.
+
+loadpkg gno.land/p/nt/grc20/v0
+loadpkg gno.land/r/nt/grc20reg/v0
+loadpkg gno.land/r/demo/defi/foo20
+loadpkg gno.land/r/tests/vm/regspoof
+loadpkg gno.land/r/test/ctoken $WORK/ctoken
+
+gnoland start
+
+! gnokey maketx call -pkgpath gno.land/r/tests/vm/regspoof -func TryRegister -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stderr 'must be declared in the registering realm'
+
+# The run script mints to its own realm address, then moves the tokens through
+# the stored crossing function registered a transaction earlier.
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 30000000 -chainid=tendermint_test test1 $WORK/run/move.gno
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/test/ctoken.BalanceOf(\"g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx\")"
+stdout '100 int64'
+
+gnokey query vm/qeval --data "gno.land/r/test/ctoken.BalanceOf(\"$test1_user_addr\")"
+stdout '0 int64'
+
+-- ctoken/gnomod.toml --
+module = "gno.land/r/test/ctoken"
+gno = "0.9"
+-- ctoken/ctoken.gno --
+package ctoken
+
+import (
+	"gno.land/p/nt/grc20/v0"
+	"gno.land/r/nt/grc20reg/v0"
+)
+
+var (
+	Token *grc20.Token
+	led   *grc20.PrivateLedger
+	Key   string
+)
+
+func init(cur realm) {
+	Token, led = grc20.NewToken("CToken", "CTK", 4, 0, cur)
+	Key = grc20reg.Register(cross(cur), Token, "", Transfer, Approve, TransferFrom)
+}
+
+func Transfer(cur realm, to address, amount int64) {
+	if err := led.Transfer(cur.Previous().Address(), to, amount); err != nil {
+		panic(err)
+	}
+}
+
+func Approve(cur realm, spender address, amount int64) {
+	if err := led.Approve(cur.Previous().Address(), spender, amount); err != nil {
+		panic(err)
+	}
+}
+
+func TransferFrom(cur realm, from, to address, amount int64) {
+	if err := led.TransferFrom(from, cur.Previous().Address(), to, amount); err != nil {
+		panic(err)
+	}
+}
+
+// MintToSelf credits the calling realm, so a run script can fund itself.
+func MintToSelf(cur realm, amount int64) {
+	if err := led.Mint(cur.Previous().Address(), amount); err != nil {
+		panic(err)
+	}
+}
+
+func BalanceOf(addr address) int64 {
+	return Token.BalanceOf(addr)
+}
+-- run/move.gno --
+package main
+
+import (
+	"gno.land/r/nt/grc20reg/v0"
+	"gno.land/r/test/ctoken"
+)
+
+const sink = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
+
+func main(cur realm) {
+	ctoken.MintToSelf(cross(cur), 100)
+	grc20reg.Transfer(0, cur, ctoken.Key, sink, 100)
+}

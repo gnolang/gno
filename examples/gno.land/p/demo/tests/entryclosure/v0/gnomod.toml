@@ -1,0 +1,2 @@
+module = "gno.land/p/demo/tests/entryclosure/v0"
+gno = "0.9"

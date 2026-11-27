@@ -34,10 +34,15 @@ func (probePropDef) Threshold() commondao.Threshold {
 
 func (probePropDef) Executor() commondao.ExecFunc {
 	return func(_ int, sub realm) error {
-		execCount++
-		activeSizeDuringExec = dao.ActiveProposalsSize()
+		probe(cross(sub))
 		return nil
 	}
+}
+
+// probe writes for the read-only executor; it crosses in with the sub.
+func probe(cur realm) {
+	execCount++
+	activeSizeDuringExec = dao.ActiveProposalsSize()
 }
 
 type probePropKind struct{}

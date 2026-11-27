@@ -1,0 +1,15 @@
+// PKGPATH: gno.land/r/zrealm_fv_echo_same_call
+package zrealm_fv_echo_same_call
+
+// R2b: fvecho's writer is handed back by another realm's code inside the
+// crossing call that made it; the copy has no maker, so R2a refuses it (the
+// error names R2a although the making call is still running).
+import "gno.land/r/tests/vm/fvecho"
+
+func main(cur realm) {
+	fvecho.Echo(cross(cur))
+	println("owner:", fvecho.Owner)
+}
+
+// Error:
+// gno.land/r/tests/vm/fvecho's code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs (otherwise give it a cur realm parameter and call it with cross): (const (ref(gno.land/r/tests/vm/fvecho) package{})).Owner

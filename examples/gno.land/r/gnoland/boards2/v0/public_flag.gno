@@ -70,48 +70,49 @@ func FlagThread(cur realm, boardID, threadID boards.ID, reason string) {
 		panic("flagging hidden threads is not allowed")
 	}
 
-	flagThread := func() {
-		if thread.Hidden {
-			panic("flagged thread is already hidden")
-		}
-
-		// Hide thread when flagging threshold is reached.
-		// Realm owners can hide with a single flag.
-		hide := flagItem(thread, caller, reason, getFlaggingThreshold(board.ID))
-		if hide || isRealmOwner {
-			// Remove thread from the list of visible threads
-			thread, removed := board.Threads.Remove(threadID)
-			if !removed {
-				panic("thread not found")
-			}
-
-			// Mark thread as hidden to avoid rendering content
-			thread.Hidden = true
-
-			// Keep track of hidden the thread to be able to restore it after moderation disputes
-			meta := board.Meta.(*BoardMeta)
-			meta.HiddenThreads.Add(thread)
-		}
-
-		chain.Emit(
-			"ThreadFlagged",
-			"caller", caller.String(),
-			"boardID", board.ID.String(),
-			"threadID", thread.ID.String(),
-			"reason", reason,
-		)
-	}
-
 	// Realm owners should be able to flag without permissions even when board is frozen
 	if isRealmOwner {
-		flagThread()
+		flagThread(caller, board, thread, threadID, reason, isRealmOwner)
 		return
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reason}
 	board.Permissions.WithPermission(caller, PermissionThreadFlag, args, func() {
-		flagThread()
+		flagThread(caller, board, thread, threadID, reason, isRealmOwner)
 	})
+}
+
+// flagThread runs by name, so it writes in both the direct and the permission path.
+func flagThread(caller address, board *boards.Board, thread *boards.Post, threadID boards.ID, reason string, isRealmOwner bool) {
+	if thread.Hidden {
+		panic("flagged thread is already hidden")
+	}
+
+	// Hide thread when flagging threshold is reached.
+	// Realm owners can hide with a single flag.
+	hide := flagItem(thread, caller, reason, getFlaggingThreshold(board.ID))
+	if hide || isRealmOwner {
+		// Remove thread from the list of visible threads
+		thread, removed := board.Threads.Remove(threadID)
+		if !removed {
+			panic("thread not found")
+		}
+
+		// Mark thread as hidden to avoid rendering content
+		thread.Hidden = true
+
+		// Keep track of hidden the thread to be able to restore it after moderation disputes
+		meta := board.Meta.(*BoardMeta)
+		meta.HiddenThreads.Add(thread)
+	}
+
+	chain.Emit(
+		"ThreadFlagged",
+		"caller", caller.String(),
+		"boardID", board.ID.String(),
+		"threadID", thread.ID.String(),
+		"reason", reason,
+	)
 }
 
 // FlagReply adds a new flag to a comment or reply.
@@ -138,34 +139,35 @@ func FlagReply(cur realm, boardID, threadID, replyID boards.ID, reason string) {
 		panic("flagging hidden comments or replies is not allowed")
 	}
 
-	flagReply := func() {
-		if reply.Hidden {
-			panic("flagged comment or reply is already hidden")
-		}
-
-		hide := flagItem(reply, caller, reason, getFlaggingThreshold(board.ID))
-		if hide || isRealmOwner {
-			reply.Hidden = true
-		}
-
-		chain.Emit(
-			"ReplyFlagged",
-			"caller", caller.String(),
-			"boardID", board.ID.String(),
-			"threadID", thread.ID.String(),
-			"replyID", reply.ID.String(),
-			"reason", reason,
-		)
-	}
-
 	// Realm owners should be able to flag without permissions even when board is frozen
 	if isRealmOwner {
-		flagReply()
+		flagReply(caller, board, thread, reply, reason, isRealmOwner)
 		return
 	}
 
 	args := boards.Args{caller, board.ID, thread.ID, reply.ID, reason}
 	board.Permissions.WithPermission(caller, PermissionReplyFlag, args, func() {
-		flagReply()
+		flagReply(caller, board, thread, reply, reason, isRealmOwner)
 	})
+}
+
+// flagReply runs by name, so it writes in both the direct and the permission path.
+func flagReply(caller address, board *boards.Board, thread, reply *boards.Post, reason string, isRealmOwner bool) {
+	if reply.Hidden {
+		panic("flagged comment or reply is already hidden")
+	}
+
+	hide := flagItem(reply, caller, reason, getFlaggingThreshold(board.ID))
+	if hide || isRealmOwner {
+		reply.Hidden = true
+	}
+
+	chain.Emit(
+		"ReplyFlagged",
+		"caller", caller.String(),
+		"boardID", board.ID.String(),
+		"threadID", thread.ID.String(),
+		"replyID", reply.ID.String(),
+		"reason", reason,
+	)
 }

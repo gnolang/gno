@@ -81,7 +81,7 @@ func TestExecutionKindNew(t *testing.T) {
 	// defaults to a supermajority threshold.
 	def, err := executionKind{}.New(dao.Readonly(), executionArgs{title: "T", body: "B", fn: fn})
 	urequire.NoError(t, err)
-	epd, ok := def.(executionPropDefinition)
+	epd, ok := def.(*executionPropDefinition)
 	urequire.True(t, ok, "expect an executionPropDefinition")
 	uassert.Equal(t, "T", epd.Title())
 	// The body is self-assembled: the realm's arbitrary-code disclosure

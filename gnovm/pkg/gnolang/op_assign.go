@@ -76,7 +76,7 @@ func (m *Machine) doOpAssign() {
 		sz := numStackValuesForPointer(lx)
 		lv, ro := m.resolvePointer(lx, lhsOperands[offset:offset+sz])
 		if ro {
-			m.Panic(typedString(readonlyAccessPanic(lx)))
+			m.refuseWrite(lx)
 		}
 		offset += sz
 		if m.Stage != StagePre && isUntyped(rvs[i].T) && rvs[i].T.Kind() != BoolKind {

@@ -38,7 +38,7 @@ func (m *Machine) doOpValueDecl() {
 			} else if nt.Kind() == InterfaceKind {
 				tv = TypedValue{}
 			} else {
-				tv = defaultTypedValue(m.Alloc, nt)
+				tv = checkedDefaultTypedValue(m.Alloc, nt)
 			}
 		} else {
 			tv = rvs[i]

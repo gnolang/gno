@@ -1,17 +1,10 @@
 // PKGPATH: gno.land/r/laundere
 package laundere
 
-// Attack E: /p/attack.TamperViaMethod wraps the receiver-borrow
-// loophole. The body of TamperViaMethod calls o.Set(s) — Set is a
-// /p/-method on the victim-stamped *Object receiver, so borrow rule 2
-// switches m.Realm to laundervictim for the duration of Set. Inside
-// Set, the write to o.Field runs with victim authority and succeeds.
-//
-// Known-open loophole. The /p/attack package is a thin wrapper
-// around the underlying capability — any /p/ package that imports
-// a /p/ type and re-dispatches through that type's methods inherits
-// the exploit. The borrow rule grants victim authority because the
-// receiver lives in victim's state.
+// A /p/ wrapper calling a /p/ method on another realm's object has no power
+// over it: library code writes only objects of the current realm (R1).
+
+// So the write below is refused.
 
 import (
 	"gno.land/p/demo/tests/launderattack/v0"
@@ -27,4 +20,6 @@ func main(cur realm) {
 
 // Output:
 // before: original-ptr
-// after:  pwnd-via-pattack-method
+
+// Error:
+// cannot modify object owned by another realm from library code (call a crossing function of the owning realm): o<VPBlock(1,0)>.Field

@@ -45,13 +45,12 @@ func memberByTier(tier string) *memberstore.Member {
 
 func init(cur realm) {
 	// Load members for testing
-	mstore := memberstore.Get(0, cur)
-	mstore.DeleteAll()
-	mstore.SetTier(memberstore.T1)
-	mstore.SetMember(memberstore.T1, testUser, memberByTier(memberstore.T1))
+	memberstore.DeleteAll(cross(cur))
+	memberstore.SetTier(cross(cur), memberstore.T1)
+	memberstore.SetMember(cross(cur), memberstore.T1, testUser, memberByTier(memberstore.T1))
 
 	// Set up the DAO implementation using proper constructor
-	govDAO := impl.NewGovDAO()
+	govDAO := impl.NewGovDAO(cross(cur))
 	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(govDAO, []string{"gno.land/r/test", "gno.land/r/gov/dao/impl/v0"}))
 }
 

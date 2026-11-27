@@ -33,7 +33,7 @@ func init(cur realm) {
 	// bar20 only ever creates this one token, so id 0 can't collide.
 	Token, adm = grc20.NewToken("Bar", "BAR", 4, 0, cur)
 	userTeller = adm.CallerTeller()
-	grc20reg.Register(cross(cur), Token, "")
+	grc20reg.Register(cross(cur), Token, "", Transfer, Approve, TransferFrom)
 }
 
 // Transfer moves the caller's own tokens. userTeller debits cur.Previous(), so

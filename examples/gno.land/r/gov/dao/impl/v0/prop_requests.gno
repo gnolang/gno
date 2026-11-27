@@ -15,7 +15,8 @@ import (
 	"gno.land/r/gov/dao/treasury/v0"
 )
 
-func NewChangeLawRequest(cur realm, newLaw Law) dao.ProposalRequest {
+func NewChangeLawRequest(cur realm, in *Law) *dao.ProposalRequest {
+	newLaw := *in // this realm's own copy
 	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
 	if member == nil {
 		panic("proposer is not a member")
@@ -31,7 +32,7 @@ func NewChangeLawRequest(cur realm, newLaw Law) dao.ProposalRequest {
 	return dao.NewProposalRequest("Change Law Proposal", "This proposal is looking to change the actual govDAO Law", e)
 }
 
-func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string) dao.ProposalRequest {
+func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string) *dao.ProposalRequest {
 	// Rejected here as well as in UpdateImpl so the mistake surfaces when the
 	// proposal is written, not when it executes. An empty realmPkg would be
 	// stored as an allowlist entry matching every user realm's empty
@@ -77,7 +78,7 @@ func NewUpgradeDaoImplRequest(cur realm, newDao dao.DAO, realmPkg, reason string
 	return dao.NewProposalRequest("Change DAO implementation", "This proposal is looking to change the actual govDAO implementation. Reason: "+reason, e)
 }
 
-func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string) dao.ProposalRequest {
+func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string) *dao.ProposalRequest {
 	// Reject a non-bech32 address at proposal-build time (see AddMember): keeps
 	// an unauthenticable / injection-bearing key out of the member store.
 	if !addr.IsValid() {
@@ -96,7 +97,8 @@ func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string)
 		panic("A portfolio for the proposed member is required")
 	}
 
-	member, _ := memberstore.Get(0, cur).GetMember(unsafe.OriginCaller())
+	proposer := unsafe.OriginCaller()
+	member, _ := memberstore.Get(0, cur).GetMember(proposer)
 	if member == nil {
 		panic("proposer is not a member")
 	}
@@ -118,10 +120,10 @@ func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string)
 		// above: it panics at zero, and AddMember spends points from this same
 		// captured member, so a proposer can drain their own between creation
 		// and execution. That panics and reverts, which loses nothing.
-		if err := memberstore.Get(0, cur).SetMember(tier, addr, memberByTier(tier)); err != nil {
+		if err := memberstore.SetMember(cross(cur), tier, addr, memberByTier(tier)); err != nil {
 			return err
 		}
-		member.RemoveInvitationPoint()
+		memberstore.RemoveInvitationPoint(cross(cur), proposer)
 
 		return nil
 	}
@@ -133,11 +135,11 @@ func NewAddMemberRequest(cur realm, addr address, tier string, portfolio string)
 		ufmt.Sprintf("New %s Member Proposal", tier),
 		ufmt.Sprintf("This is a proposal to add `%s` to **%s**.\n#### `%s`'s Portfolio:\n\n%s\n", name, tier, name, portfolio),
 		e,
-		FilterByTier{Tier: tier},
+		&FilterByTier{Tier: tier},
 	)
 }
 
-func NewWithdrawMemberRequest(cur realm, addr address, reason string) dao.ProposalRequest {
+func NewWithdrawMemberRequest(cur realm, addr address, reason string) *dao.ProposalRequest {
 	member, tier := memberstore.Get(0, cur).GetMember(addr)
 	if member == nil {
 		panic("user we want to remove not found")
@@ -149,7 +151,7 @@ func NewWithdrawMemberRequest(cur realm, addr address, reason string) dao.Propos
 	}
 
 	cb := func(cur realm) error {
-		memberstore.Get(0, cur).RemoveMember(addr)
+		memberstore.RemoveMember(cross(cur), addr)
 		return nil
 	}
 
@@ -162,7 +164,7 @@ func NewWithdrawMemberRequest(cur realm, addr address, reason string) dao.Propos
 	)
 }
 
-func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier string) dao.ProposalRequest {
+func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier string) *dao.ProposalRequest {
 	cb := func(cur realm) error {
 		// Fail on an unknown destination tier before touching the member.
 		//
@@ -191,7 +193,7 @@ func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier st
 			return ufmt.Errorf("destination tier is missing from the member store: %s", toTier)
 		}
 
-		prevTier := mbt.RemoveMember(addr)
+		prevTier := memberstore.RemoveMember(cross(cur), addr)
 		if prevTier == "" {
 			panic("member not found, so cannot be promoted")
 		}
@@ -200,7 +202,7 @@ func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier st
 			panic("previous tier changed from the one indicated in the proposal")
 		}
 
-		if err := mbt.SetMember(toTier, addr, memberByTier(toTier)); err != nil {
+		if err := memberstore.SetMember(cross(cur), toTier, addr, memberByTier(toTier)); err != nil {
 			// Unreachable: both of SetMember's failures are ruled out above.
 			// Panicking is what makes it safe to be wrong about that.
 			panic("promotion failed after removal: " + err.Error())
@@ -215,11 +217,11 @@ func NewPromoteMemberRequest(cur realm, addr address, fromTier string, toTier st
 		"Member Promotion Proposal",
 		ufmt.Sprintf("This is a proposal to promote %s from **%s** to **%s**.", tryResolveAddr(addr), fromTier, toTier),
 		e,
-		FilterByTier{Tier: toTier},
+		&FilterByTier{Tier: toTier},
 	)
 }
 
-func NewTreasuryPaymentRequest(cur realm, payment trs_pkg.Payment, reason string) dao.ProposalRequest {
+func NewTreasuryPaymentRequest(cur realm, payment trs_pkg.Payment, reason string) *dao.ProposalRequest {
 	// A foreign impl renders a Payment line no Banker will process, so it would
 	// fail only at execution, after the vote. Rejected here so the proposer
 	// sees it, not the voters. See IsCanonicalPayment.
@@ -270,7 +272,7 @@ func NewTreasuryPaymentRequest(cur realm, payment trs_pkg.Payment, reason string
 
 // NewTreasuryGRC20TokensUpdate creates a proposal request to update the list of GRC20 tokens registry
 // keys used by the treasury. The new list, if voted and accepted, will overwrite the current one.
-func NewTreasuryGRC20TokensUpdate(cur realm, newTokenKeys []string) dao.ProposalRequest {
+func NewTreasuryGRC20TokensUpdate(cur realm, newTokenKeys []string) *dao.ProposalRequest {
 	if len(newTokenKeys) == 0 {
 		panic("the list of new tokens is empty")
 	}

@@ -23,7 +23,7 @@ import (
 func main(cur realm) {
 	println("before:", launderrvictim.ReadImm())
 
-	launderrvictim.UseAnyMutator(launderattack.EvilAnyMutator(0))
+	launderrvictim.UseAnyMutator(cross(cur), launderattack.EvilAnyMutator(0))
 
 	println("after: ", launderrvictim.ReadImm())
 }

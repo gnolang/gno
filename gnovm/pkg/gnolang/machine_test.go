@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -212,6 +213,52 @@ func TestMachineString(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// deepForeignStack builds a chain-shaped machine (TestMode false) whose stack
+// holds frames from nested /p/ calls outside the active realm's import tree.
+func deepForeignStack(frames int) (*Machine, *FuncValue) {
+	m := NewMachineWithOptions(MachineOptions{PkgPath: "gno.land/r/deep", SkipPackage: true})
+	m.Realm = &Realm{Path: "gno.land/r/deep"}
+	fv := &FuncValue{FileName: "lib.gno", PkgPath: "gno.land/p/deep"}
+	for range frames {
+		m.Frames = append(m.Frames, Frame{Func: fv})
+	}
+	return m, fv
+}
+
+// TestForeignLibNoFrameWalkOnChain pins the cost of the chain path: the test
+// flag can only be set under the test runner, so no frame may be visited.
+func TestForeignLibNoFrameWalkOnChain(t *testing.T) {
+	const frames = 20000
+	const decisions = 200000
+	m, fv := deepForeignStack(frames)
+	defer m.Release()
+	start := time.Now()
+	for i := range decisions {
+		foreignLibShape(m, fv, i)
+	}
+	if elapsed := time.Since(start); elapsed > time.Second {
+		t.Fatalf("%d foreignLib decisions over %d frames took %v; the chain path must not walk frames", decisions, frames, elapsed)
+	}
+}
+
+func BenchmarkForeignLibDeepStack(b *testing.B) {
+	m, fv := deepForeignStack(20000)
+	defer m.Release()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		foreignLibShape(m, fv, i)
+	}
+}
+
+// foreignLibShape alternates the two shapes real calls use: a method value
+// (no caller, not iface) and an interface call made by a /p/ package.
+func foreignLibShape(m *Machine, fv *FuncValue, i int) bool {
+	if i%2 == 0 {
+		return m.foreignLib(fv, "", false)
+	}
+	return m.foreignLib(fv, "gno.land/p/caller", true)
 }
 
 func TestDeferGas(t *testing.T) {

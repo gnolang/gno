@@ -6,7 +6,7 @@ import (
 
 var (
 	law    *Law
-	govDAO *GovDAO = NewGovDAO()
+	govDAO *GovDAO = newGovDAO()
 )
 
 func init() {
@@ -47,9 +47,9 @@ func AddMember(cur realm, addr address) {
 		panic("caller is not on T1 or T2. To add members, propose them through proposals")
 	}
 
-	m.RemoveInvitationPoint()
+	memberstore.RemoveInvitationPoint(cross(cur), caller.Address())
 
-	if err := memberstore.Get(0, cur).SetMember(memberstore.T3, addr, memberByTier(memberstore.T3)); err != nil {
+	if err := memberstore.SetMember(cross(cur), memberstore.T3, addr, memberByTier(memberstore.T3)); err != nil {
 		panic(err.Error())
 	}
 }

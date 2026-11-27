@@ -142,3 +142,34 @@ func TestDoOpEnterCrossingRealmMismatchChargesNoGas(t *testing.T) {
 	require.Equal(t, int64(0), m.Cycles)
 	require.False(t, fr1.DidCrossing)
 }
+
+// TestFrameWalksChargePerFrame pins that calledBy, which walks
+// m.Frames once per call, charges OpCPUSlopeEnterCrossing per call frame
+// visited whichever way they answer: otherwise a deep library recursion
+// calling a method value at the bottom is unmetered CPU.
+func TestFrameWalksChargePerFrame(t *testing.T) {
+	const slope = int64(OpCPUSlopeEnterCrossing)
+	own := NewRealm("gno.land/r/test/realm_a")
+	other := NewRealm("gno.land/r/test/realm_b")
+	const lib = "gno.land/p/test/lib"
+	// A realm frame, depth library frames entered under realm rlm, and the
+	// callee's frame on top.
+	build := func(bottom string, rlm *Realm, depth int) *Machine {
+		m := &Machine{GasMeter: types.NewGasMeter(1 << 30)}
+		m.Frames = append(m.Frames, Frame{Func: &FuncValue{PkgPath: bottom}})
+		for range depth {
+			m.Frames = append(m.Frames, Frame{Func: &FuncValue{PkgPath: lib}, LastRealm: rlm})
+		}
+		m.Frames = append(m.Frames, Frame{Func: &FuncValue{PkgPath: lib}, LastRealm: rlm})
+		return m
+	}
+	for _, depth := range []int{0, 1, 50} {
+		want := int64(depth+1) * slope
+		m := build(own.Path, own, depth)
+		require.True(t, m.calledBy(own.ID))
+		require.Equal(t, want, m.Cycles, "calledBy accept, depth %d", depth)
+		m = build(own.Path, other, depth)
+		require.False(t, m.calledBy(own.ID))
+		require.Equal(t, slope, m.Cycles, "calledBy rejects at the first frame")
+	}
+}

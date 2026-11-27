@@ -14,8 +14,8 @@ type Law struct {
 	Supermajority float64
 }
 
-func NewLaw(supermajority float64) Law {
-	return Law{Supermajority: supermajority}
+func NewLaw(supermajority float64) *Law {
+	return &Law{Supermajority: supermajority}
 }
 
 func (l *Law) String() string {
@@ -51,10 +51,10 @@ func (pss ProposalsStatuses) GetStatus(id dao.ProposalID) *proposalStatus {
 }
 
 type proposalStatus struct {
-	YesVotes     memberstore.MembersByTier
-	NoVotes      memberstore.MembersByTier
-	AbstainVotes memberstore.MembersByTier
-	AllVotes     memberstore.MembersByTier
+	YesVotes     voteStore
+	NoVotes      voteStore
+	AbstainVotes voteStore
+	AllVotes     voteStore
 
 	Accepted bool
 	Denied   bool
@@ -64,16 +64,52 @@ type proposalStatus struct {
 	TiersAllowedToVote []string
 }
 
-func getMembers(cur realm) memberstore.MembersByTier {
+func getMembers(cur realm) *memberstore.MembersByTier {
 	return memberstore.Get(0, cur)
 }
 
-func newEmptyVoteStore() memberstore.MembersByTier {
-	mbt := memberstore.NewMembersByTier()
-	mbt.SetTier(memberstore.T1)
-	mbt.SetTier(memberstore.T2)
-	mbt.SetTier(memberstore.T3)
-	return mbt
+// voteStore records a proposal's votes: tier name -> address -> member. It is
+// this realm's own type, so this realm's code writes it; memberstore's
+// MembersByTier belongs to memberstore and changes only by crossing into it.
+type voteStore struct {
+	*bptree.BPTree
+}
+
+func newEmptyVoteStore() voteStore {
+	vs := voteStore{BPTree: bptree.NewBPTree32()}
+	for _, tn := range []string{memberstore.T1, memberstore.T2, memberstore.T3} {
+		vs.Set(tn, bptree.NewBPTree32())
+	}
+	return vs
+}
+
+// SetMember records addr's vote under tier.
+func (vs voteStore) SetMember(tier string, addr address, m *memberstore.Member) {
+	if t, ok := vs.Get(tier).(*bptree.BPTree); ok {
+		t.Set(string(addr), m)
+	}
+}
+
+// GetMember returns addr's recorded member and tier, if any.
+func (vs voteStore) GetMember(addr address) (m *memberstore.Member, tier string) {
+	vs.Iterate("", "", func(tn string, v any) bool {
+		mv := v.(*bptree.BPTree).Get(string(addr))
+		if mv == nil {
+			return false
+		}
+		m, tier = mv.(*memberstore.Member), tn
+		return true
+	})
+	return
+}
+
+// GetTierSize returns how many votes tier holds.
+func (vs voteStore) GetTierSize(tn string) int {
+	t, ok := vs.Get(tn).(*bptree.BPTree)
+	if !ok {
+		return 0
+	}
+	return t.Size()
 }
 
 func newProposalStatus(allowedToVote []string) *proposalStatus {
@@ -102,10 +138,10 @@ func (ps *proposalStatus) totalPower(_ int, rlm realm) float64 {
 	return tp
 }
 
-func (ps *proposalStatus) votePowerPercent(_ int, rlm realm, votes memberstore.MembersByTier) float64 {
+func (ps *proposalStatus) votePowerPercent(_ int, rlm realm, votes voteStore) float64 {
 	members := getMembers(cross(rlm))
 	var vp float64
-	memberstore.IterateTiers(func(tn string, tier memberstore.Tier) bool {
+	memberstore.IterateTiers(func(tn string, tier *memberstore.Tier) bool {
 		power := memberstore.GetTierPower(tn, members)
 		ts := votes.GetTierSize(tn)
 		vp = vp + (power * float64(ts))
@@ -189,7 +225,7 @@ func StringifyVotes(_ int, rlm realm, ps *proposalStatus) string {
 	return sb.String()
 }
 
-func writeVotes(_ int, rlm realm, sb *strings.Builder, t memberstore.MembersByTier, title string) {
+func writeVotes(_ int, rlm realm, sb *strings.Builder, t voteStore, title string) {
 	if t.Size() == 0 {
 		return
 	}

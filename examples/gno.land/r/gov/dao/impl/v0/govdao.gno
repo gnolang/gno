@@ -17,7 +17,11 @@ type GovDAO struct {
 	render *render
 }
 
-func NewGovDAO() *GovDAO {
+// NewGovDAO is crossing: the render handlers it builds are closures that
+// impl's gates run later, and only a closure built in a gate acts for impl.
+func NewGovDAO(cur realm) *GovDAO { return newGovDAO() }
+
+func newGovDAO() *GovDAO {
 	pss := NewProposalsStatuses()
 	d := &GovDAO{
 		pss: pss,
@@ -25,27 +29,20 @@ func NewGovDAO() *GovDAO {
 
 	d.render = NewRender(d)
 
-	// Attach to package var (impl owns _govdao). Plain assignment is
-	// fine — we're in impl's package, no realm transition needed.
-	// TODO: replace with future attach().
-	_govdao = d
-
+	// GovDAO is this realm's type, so d belongs to this realm wherever it is
+	// stored; only this realm's crossing code writes it.
 	return d
 }
 
-// Setting this to a global variable forces attaching the GovDAO struct to this
-// realm. TODO replace with future `attach()`.
-var _govdao *GovDAO
-
-func (g *GovDAO) PreCreateProposal(_ int, rlm realm, r dao.ProposalRequest) (address, error) {
-	if !g.isValidCall(0, rlm) {
+func (g *GovDAO) PreCreateProposal(cur realm, r *dao.ProposalRequest) (address, error) {
+	if !g.isValidCall(cur) {
 		return "", errors.New(ufmt.Sprintf("proposal creation must be done directly by a user or through the r/gov/dao proxy. caller realm: %v; caller's previous: %v",
-			rlm, rlm.Previous()))
+			cur.Previous(), cur.Previous().Previous()))
 	}
 
 	// Verify that the one creating the proposal is a member.
 	caller := unsafe.OriginCaller()
-	mem, _ := getMembers(cross(rlm)).GetMember(caller)
+	mem, _ := getMembers(cross(cur)).GetMember(caller)
 	if mem == nil {
 		return caller, errors.New("only members can create new proposals")
 	}
@@ -53,11 +50,12 @@ func (g *GovDAO) PreCreateProposal(_ int, rlm realm, r dao.ProposalRequest) (add
 	return caller, nil
 }
 
-func (g *GovDAO) PostCreateProposal(_ int, rlm realm, r dao.ProposalRequest, pid dao.ProposalID) {
+func (g *GovDAO) PostCreateProposal(cur realm, r *dao.ProposalRequest, pid dao.ProposalID) {
+	mustBeProxy(cur)
 	// Tiers Allowed to Vote
 	tatv := []string{memberstore.T1, memberstore.T2, memberstore.T3}
 	switch v := r.Filter().(type) {
-	case FilterByTier:
+	case *FilterByTier:
 		// only members from T1 are allowed to vote when adding new members to T1
 		if v.Tier == memberstore.T1 {
 			tatv = []string{memberstore.T1}
@@ -70,13 +68,13 @@ func (g *GovDAO) PostCreateProposal(_ int, rlm realm, r dao.ProposalRequest, pid
 	g.pss.Set(pid.String(), newProposalStatus(tatv))
 }
 
-func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
-	if !g.isValidCall(0, rlm) {
+func (g *GovDAO) VoteOnProposal(cur realm, r *dao.VoteRequest) error {
+	if !g.isValidCall(cur) {
 		return errors.New("proposal voting must be done directly by a user")
 	}
 
 	caller := unsafe.OriginCaller()
-	mem, tie := getMembers(cross(rlm)).GetMember(caller)
+	mem, tie := getMembers(cross(cur)).GetMember(caller)
 	if mem == nil {
 		return ErrMemberNotFound
 	}
@@ -116,8 +114,8 @@ func (g *GovDAO) VoteOnProposal(_ int, rlm realm, r dao.VoteRequest) error {
 	return nil
 }
 
-func (g *GovDAO) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool, error) {
-	if !g.isValidCall(0, rlm) {
+func (g *GovDAO) PreExecuteProposal(cur realm, pid dao.ProposalID) (bool, error) {
+	if !g.isValidCall(cur) {
 		return false, errors.New("proposal execution must be done directly by a user")
 	}
 	status := g.pss.GetStatus(pid)
@@ -136,12 +134,12 @@ func (g *GovDAO) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool,
 		return false, errors.New(ufmt.Sprintf("proposal already executed. Accepted: %v", status.Accepted))
 	}
 
-	if status.YesPercent(0, rlm) >= law.Supermajority {
+	if status.YesPercent(0, cur) >= law.Supermajority {
 		status.Accepted = true
 		return true, nil
 	}
 
-	if status.NoPercent(0, rlm) >= law.Supermajority {
+	if status.NoPercent(0, cur) >= law.Supermajority {
 		status.Denied = true
 		return false, nil
 	}
@@ -149,7 +147,10 @@ func (g *GovDAO) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool,
 	return false, errors.New(ufmt.Sprintf("proposal didn't reach supermajority yet: %v", law.Supermajority))
 }
 
-func (g *GovDAO) ExecuteProposal(_ int, rlm realm, pid dao.ProposalID, e dao.Executor) error {
+func (g *GovDAO) ExecuteProposal(cur realm, pid dao.ProposalID, e dao.Executor) error {
+	// Executing crosses into e as this realm, a gov/dao subpackage that
+	// executors trust, so only the proxy may drive it.
+	mustBeProxy(cur)
 	if e == nil {
 		panic("an executor is required to execute the proposal")
 	}
@@ -159,7 +160,7 @@ func (g *GovDAO) ExecuteProposal(_ int, rlm realm, pid dao.ProposalID, e dao.Exe
 		panic("proposal not found")
 	}
 
-	err := e.Execute(cross(rlm))
+	err := e.Execute(cross(cur))
 	if err != nil {
 		status.Accepted = false
 		status.Denied = true
@@ -183,18 +184,8 @@ func (g *GovDAO) Render(cur realm, pkgPath string, path string) string {
 // isValidCall verifies that the impl method is being invoked from the
 // r/gov/dao proxy via a legitimate user transaction (MsgCall or MsgRun).
 //
-// The proxy passes its own crossing-frame Cur as rlm when calling the
-// impl methods. rlm.IsCurrent() rejects stale or stashed realm values —
-// a malicious realm cannot replay a captured proxy cur to impersonate
-// the proxy. After the IsCurrent() check:
-//   - rlm.PkgPath() == "gno.land/r/gov/dao" identifies the proxy
-//     unforgeably (pkg path is set at mint time by installCrossingCur).
-//   - rlm.Previous() is the caller of the proxy.
-//
-// The proxy is the only legitimate entrypoint. The impl methods are
-// non-crossing and take rlm as a regular argument, so a direct user
-// MsgCall to them cannot supply a valid rlm: the IsCurrent() check
-// rejects any forged or stashed realm value.
+// The impl methods are crossing: cur.Previous() is the realm that crossed in,
+// which must be the proxy, and the proxy's own Previous() is its caller.
 //
 // This is also what makes the unsafe.OriginCaller()-based membership
 // checks safe. Those key on the transaction origin (an EOA), which is
@@ -204,14 +195,20 @@ func (g *GovDAO) Render(cur realm, pkgPath string, path string) string {
 // prev's package address equals the origin — never a third-party realm
 // in the middle. Relaxing this to allow realm intermediaries would let
 // one member's vote be cast under another origin: keep the two in sync.
-func (g *GovDAO) isValidCall(_ int, rlm realm) bool {
-	if !rlm.IsCurrent() {
+// mustBeProxy panics unless the r/gov/dao proxy crossed in. These methods are
+// crossing, so any realm holding a GovDAO could otherwise call them.
+func mustBeProxy(cur realm) {
+	if cur.Previous().PkgPath() != "gno.land/r/gov/dao" {
+		panic("only the gno.land/r/gov/dao proxy may call this")
+	}
+}
+
+func (g *GovDAO) isValidCall(cur realm) bool {
+	proxy := cur.Previous()
+	if proxy.PkgPath() != "gno.land/r/gov/dao" {
 		return false
 	}
-	if rlm.PkgPath() != "gno.land/r/gov/dao" {
-		return false
-	}
-	prev := rlm.Previous()
+	prev := proxy.Previous()
 	// MsgCall: proxy was called directly by an EOA (UserRealm).
 	if prev.IsUser() {
 		return true

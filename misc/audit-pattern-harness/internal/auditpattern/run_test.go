@@ -233,7 +233,7 @@ func TestPkgMutablePointerRule(t *testing.T) {
 
 // TestPkgMutablePointerIgnoresUnexported ensures an unexported field and an
 // unexported getter of the mutable /p/ type are not flagged — only exported
-// handles publish the mutators.
+// pointers expose the mutators.
 func TestPkgMutablePointerIgnoresUnexported(t *testing.T) {
 	dir := t.TempDir()
 	src := "package x\n\n" +

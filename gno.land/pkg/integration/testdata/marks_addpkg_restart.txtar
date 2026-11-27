@@ -1,0 +1,107 @@
+# Packages deployed by addpkg in the running node get their load-time marks from
+# that deploy; after a restart they get them from re-preprocessing the stored
+# source. Writes and refusals match both times, also for a realm whose callee
+# realm is first loaded after the restart as its import.
+
+loadpkg gno.land/p/demo/tests/lendrunlib
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/inner -pkgpath gno.land/r/$test1_user_addr/lendinner -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout 'OK!'
+gnokey maketx addpkg -pkgdir $WORK/outer -pkgpath gno.land/r/$test1_user_addr/lendouter -gas-fee 1000000ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1
+stdout 'OK!'
+
+# (a) local helper writes; (b) a literal lent to lendrunlib.Run writes.
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/lendinner -func Helper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(1 int\)'
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/lendinner -func Lend -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(2 int\)'
+# Their unmarked twins are refused and leave count at 2.
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/lendinner -func Refused -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(true bool\)\n\(true bool\)\n\(2 int\)'
+# (c) both, through lendouter.
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/lendouter -func Both -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(4 int\)'
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/lendouter -func Refused -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(true bool\)\n\(true bool\)\n\(4 int\)'
+
+gnoland restart
+
+# (c) first, so lendinner is loaded only as lendouter's import.
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/lendouter -func Both -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(6 int\)'
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/lendouter -func Refused -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(true bool\)\n\(true bool\)\n\(6 int\)'
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/lendinner -func Helper -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(7 int\)'
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/lendinner -func Lend -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(8 int\)'
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/lendinner -func Refused -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(true bool\)\n\(true bool\)\n\(8 int\)'
+
+# A second restart: the rebuilt marks are rebuilt again the same way.
+gnoland restart
+
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/lendinner -func Lend -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(9 int\)'
+gnokey maketx call -pkgpath gno.land/r/$test1_user_addr/lendinner -func Refused -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid tendermint_test test1
+stdout '\(true bool\)\n\(true bool\)\n\(9 int\)'
+
+-- inner/gnomod.toml --
+module = "gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/lendinner"
+gno = "0.9"
+
+-- inner/inner.gno --
+package lendinner
+
+import "gno.land/p/demo/tests/lendrunlib"
+
+var count int
+
+func Helper(cur realm) int {
+	f := func() { count++ }
+	f()
+	return count
+}
+
+func Lend(cur realm) int {
+	lendrunlib.Run(func() { count++ })
+	return count
+}
+
+func Both(cur realm) int {
+	f := func() { count++ }
+	f()
+	lendrunlib.Run(func() { count++ })
+	return count
+}
+
+// Refused: f assigned twice is no helper; w passed by name is not lent.
+func Refused(cur realm) (helperRefused, lendRefused bool, n int) {
+	func() {
+		defer func() { helperRefused = recover() != nil }()
+		var f func()
+		f = func() { count++ }
+		f = func() { count += 100 }
+		f()
+	}()
+	func() {
+		defer func() { lendRefused = recover() != nil }()
+		w := func() { count++ }
+		lendrunlib.Run(w)
+	}()
+	return helperRefused, lendRefused, count
+}
+
+-- outer/gnomod.toml --
+module = "gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/lendouter"
+gno = "0.9"
+
+-- outer/outer.gno --
+package lendouter
+
+import "gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/lendinner"
+
+func Both(cur realm) int { return lendinner.Both(cross(cur)) }
+
+func Refused(cur realm) (bool, bool, int) { return lendinner.Refused(cross(cur)) }

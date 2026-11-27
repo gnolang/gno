@@ -16,8 +16,8 @@ type Immutable struct {
 	Field string
 }
 
-// Read is /r/launderrvictim-declared, so calling it borrow rule #1 borrows
-// m.Realm to launderrvictim.
+// Read is /r/launderrvictim-declared; called from another realm it runs
+// read-only.
 func (i *Immutable) Read() string { return i.Field }
 
 var gImm *Immutable
@@ -38,29 +38,25 @@ func ReadImm() string { return gImm.Field }
 // AnyMutator. This is the dangerous shape from Attack L: victim
 // boxes its own /r/-declared data through a /p/-defined interface
 // that the attacker can implement.
-func UseAnyMutator(m launderpkg.AnyMutator) {
+func UseAnyMutator(cur realm, m launderpkg.AnyMutator) {
 	m.Run(gImm)
 }
 
 // ApplyHook dispatches a caller-supplied callback on gImm. The
 // callback's parameter type is /r/launderrvictim-declared, so /p/
 // packages can't supply this hook — only /r/ realms can.
-func ApplyHook(h func(*Immutable)) {
+func ApplyHook(cur realm, h func(*Immutable)) {
 	h(gImm)
 }
 
 // --- /p/-type embedded / fielded inside /r/-declared types ---
 //
 // The three shapes below mix /r/-declared containers with /p/-typed
-// inner state. Even though the container types are /r/-declared,
-// the inner /p/-typed values inherit /p/'s methods — including
-// Apply-style higher-order methods that take /p/-typed callbacks.
-// /p/-attacker code can supply such callbacks. The attacker reaches
-// the inner /p/-value (read access works), then invokes Apply with
-// a /p/-declared function pointer. Inside Apply (borrow rule #2ed
-// to /r/launderrvictim), the callback runs without any borrow rule #1 or #2
-// shift (top-level /p/ fn), so the write commits under victim
-// authority.
+// inner state. The container types are /r/-declared, but the inner
+// /p/-typed values bring /p/'s methods, including Apply-style higher-order
+// methods that take /p/-typed callbacks. The attacker can read the inner
+// value and reach Apply, but a write attempted through that callback is
+// refused.
 
 // WithEmbed embeds launderpkg.Immutable by VALUE (method promotion
 // gives WithEmbed an .Apply method).
@@ -196,31 +192,30 @@ func ReadBarePtrMapA() string     { return gBarePtrMap["a"].Field }
 // realm by PopFrameAndReturn — but wait, defers run BEFORE
 // PopFrameAndReturn. So m.Realm should still be victim's. Does
 // the deferred h then run under victim authority?
-func DeferCallback(h func(*Immutable)) {
+func DeferCallback(cur realm, h func(*Immutable)) {
 	defer h(gImm)
 }
 
 // PanicAfterPushDefer pushes a defer and then panics, so the defer
 // runs as part of panic unwinding. Tests that m.Realm is correctly
 // borrowed when the defer body invokes a foreign function.
-func PanicAfterPushDefer(h func(*Immutable)) {
+func PanicAfterPushDefer(cur realm, h func(*Immutable)) {
 	defer h(gImm)
 	panic("victim-induced panic")
 }
 
-// DeferApplyHook defers an ApplyHook call. The deferred ApplyHook
-// itself runs borrow rule #1 to /r/launderrvictim, and inside the
-// callback runs as borrow rule #1 of the attacker's realm — the standard
-// known-open Apply pattern, but now triggered via defer.
-func DeferApplyHook(h func(*Immutable)) {
-	defer ApplyHook(h)
+// DeferApplyHook defers an ApplyHook call. The callback is the
+// attacker's, so it writes nothing of the victim's — the Apply pattern,
+// triggered via defer.
+func DeferApplyHook(cur realm, h func(*Immutable)) {
+	defer ApplyHook(cur, h)
 }
 
 // RecoverAndRetry: inside a victim method, defer a recover, write
 // something to gImm, then panic. After the recover, the function
 // returns normally. Tests that internal panic/recover doesn't leak
 // state.
-func RecoverAndRetry(h func(*Immutable)) (recovered any) {
+func RecoverAndRetry(cur realm, h func(*Immutable)) (recovered any) {
 	defer func() {
 		recovered = recover()
 	}()
@@ -231,7 +226,7 @@ func RecoverAndRetry(h func(*Immutable)) (recovered any) {
 // CallThenPanic invokes h synchronously and then panics. If h is
 // attacker-supplied and writes via captured pointer, this is just
 // a re-shape of ApplyHook.
-func CallThenPanic(h func(*Immutable)) {
+func CallThenPanic(cur realm, h func(*Immutable)) {
 	h(gImm)
 	panic("victim panic after callback")
 }
@@ -241,7 +236,7 @@ func CallThenPanic(h func(*Immutable)) {
 // the /p/-method defers the attacker callback. Three frames at
 // callback time: attacker.main → victim.CallPDeferApply →
 // /p/.DeferApply (deferred fn dispatches here).
-func CallPDeferApply(fn func(*launderpkg.Immutable)) {
+func CallPDeferApply(cur realm, fn func(*launderpkg.Immutable)) {
 	gWithPtr.Inner.DeferApply(fn)
 }
 
@@ -257,8 +252,8 @@ type ImmHook func(*Immutable)
 
 var gHooks []ImmHook
 
-func RegisterHook(h ImmHook) { gHooks = append(gHooks, h) }
-func RunHooks() {
+func RegisterHook(cur realm, h ImmHook) { gHooks = append(gHooks, h) }
+func RunHooks(cur realm) {
 	for _, h := range gHooks {
 		h(gImm)
 	}
@@ -268,35 +263,40 @@ type PlainHook func()
 
 var gPlainHooks []PlainHook
 
-func RegisterPlainHook(h PlainHook) { gPlainHooks = append(gPlainHooks, h) }
-func RunPlainHooks() {
+func RegisterPlainHook(cur realm, h PlainHook) { gPlainHooks = append(gPlainHooks, h) }
+func RunPlainHooks(cur realm) {
 	for _, h := range gPlainHooks {
 		h()
 	}
 }
 
-func ClearHooks() {
+func ClearHooks(cur realm) {
 	gHooks = nil
 	gPlainHooks = nil
 }
 
 // MakeWriterClosure constructs a /r/-victim-declared closure that
-// captures gImm and writes through it. The closure body is /r/-victim-
-// declared, so borrow rule #1 fires at invocation → m.Realm = /r/-victim →
-// write commits with victim authority. Returning this closure to an
-// attacker is "consenting to write" by the victim.
+// captures gImm and writes through it. Called by another realm it runs
+// read-only, so the write is refused; MakeWriterX is the crossing form.
 func MakeWriterClosure(value string) func() {
 	return func() {
 		gImm.Field = value
 	}
 }
 
+// MakeWriterX returns a crossing closure: called with cross, it runs as this
+// realm and writes; a plain closure called without crossing is read-only.
+func MakeWriterX(value string) func(cur realm) {
+	return func(cur realm) {
+		gImm.Field = value
+	}
+}
+
 // MakeApplyTrampoline returns a closure that captures &gImm.Field
 // indirectly: it captures *Immutable, and dispatches a caller-supplied
-// callback fn on it. /r/-victim-declared body → borrow rule #1 → m.Realm =
-// /r/-victim. If `fn` is /p/-declared (e.g. EvilWrite), it inherits
-// victim authority. This is "victim returns a closure that's itself
-// an Apply-style trampoline" — a packaged Apply.
+// callback fn on it. Called by another realm the trampoline runs
+// read-only, and a /p/ fn (e.g. EvilWrite) picked by the caller runs
+// view-only, so neither writes gImm — a packaged Apply.
 func MakeApplyTrampoline() func(func(*Immutable)) {
 	return func(fn func(*Immutable)) {
 		fn(gImm)

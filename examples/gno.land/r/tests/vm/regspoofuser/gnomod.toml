@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/regspoofuser"
+gno = "0.9"

@@ -16,4 +16,7 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): somevalue<~VPBlock(3,0)>.Field
+// cannot allocate gno.land/r/tests/vm.TestRealmObject in realm gno.land/r/crossrealm
+
+// TypeCheckError:
+// gno.land/r/crossrealm/zrealm_crossrealm0.gno:12:5: cannot hold a value of gno.land/r/tests/vm.TestRealmObject outside its realm (use a pointer)

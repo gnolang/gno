@@ -36,10 +36,11 @@ func (s Schema) Name() string {
 // Fields returns the list field names that are defined in the schema.
 func (s Schema) Fields() []string {
 	fields := make([]string, s.fields.Len())
-	s.fields.ForEach(func(i int, v interface{}) bool {
-		fields[i] = v.(string)
-		return false
-	})
+	// Index loop, not ForEach: ForEach wraps its callback, so the callback
+	// could not write the local slice.
+	for i := range fields {
+		fields[i] = s.fields.Get(i).(string)
+	}
 	return fields
 }
 

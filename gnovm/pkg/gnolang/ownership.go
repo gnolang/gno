@@ -168,11 +168,15 @@ var (
 )
 
 type ObjectInfo struct {
-	ID       ObjectID  // set if real.
-	Hash     ValueHash `json:",omitempty"` // zero if dirty.
-	OwnerID  ObjectID  `json:",omitempty"` // parent in the ownership tree.
-	ModTime  uint64    // time last updated.
-	RefCount int       // for persistence. deleted/gc'd if 0.
+	ID   ObjectID  // set if real.
+	Hash ValueHash `json:",omitempty"` // zero if dirty.
+	// scratch is the read-only stretch that allocated the object (0: none).
+	// Unexported fields sit in the exported ones' padding (amino skips them),
+	// so object sizes, and with them gas, do not change.
+	scratch  uint32
+	OwnerID  ObjectID `json:",omitempty"` // parent in the ownership tree.
+	ModTime  uint64   // time last updated.
+	RefCount int      // for persistence. deleted/gc'd if 0.
 
 	// Object has multiple references (refcount > 1) and is persisted separately
 	IsEscaped bool `json:",omitempty"` // hash in iavl.
@@ -194,8 +198,12 @@ type ObjectInfo struct {
 
 	// Object is marked for deletion in current transaction
 	isNewDeleted bool
-	lastGCCycle  int64
-	owner        Object // mem reference to owner.
+	// s3Written: written in a by-value read-only stretch; finalize refuses to
+	// store it.
+	s3Written bool
+
+	lastGCCycle int64
+	owner       Object // mem reference to owner.
 }
 
 // Copy used for serialization of objects.

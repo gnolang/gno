@@ -1,6 +1,8 @@
 package valopers
 
 import (
+	"errors"
+
 	"gno.land/p/moul/authz/v0"
 	"gno.land/p/nt/ufmt/v0"
 	"gno.land/r/gov/dao"
@@ -63,9 +65,15 @@ func Auth() string {
 // such check to return an error would hit exactly that.
 func updateInstructions(_ int, rlm realm, newInstructions string) error {
 	return auth.DoByPrevious(0, rlm, "update-instructions", func() error {
-		instructions = newInstructions
+		writeInstructions(cross(rlm), newInstructions)
 		return nil
 	})
+}
+
+// writeInstructions is the actual write, a crossing function so the authz
+// action callback runs it with this realm's authority.
+func writeInstructions(_ realm, newInstructions string) {
+	instructions = newInstructions
 }
 
 // NewInstructionsProposalRequest builds the GovDAO proposal that rewrites
@@ -103,7 +111,7 @@ func updateInstructions(_ int, rlm realm, newInstructions string) error {
 // type, since the proxy would then invoke it on an attacker's behalf.
 // filetests/z_foreign_realm_capability_filetest.gno pins the first;
 // filetests/z_govdao_only_principal_filetest.gno pins the second.
-func NewInstructionsProposalRequest(cur realm, newInstructions string) dao.ProposalRequest {
+func NewInstructionsProposalRequest(cur realm, newInstructions string) *dao.ProposalRequest {
 	cb := func(cur realm) error {
 		return updateInstructions(0, cur, newInstructions)
 	}
@@ -132,12 +140,29 @@ const instructionsProposalTitle = "/r/gnops/valopers: Update instructions"
 // here Previous() is r/gov/dao — exactly the principal init.gno's authority
 // asserts. No same-package cross() trick is needed.
 func rotateAuthority(_ int, rlm realm, newContractPath string) error {
-	return auth.Transfer(0, rlm, authz.NewContractAuthority(
+	// Same gate as Authorizer.Transfer, but the assignment runs in this
+	// realm's crossing frame: authz is library code and cannot write the
+	// stored Authorizer under R2a.
+	if !rlm.IsCurrent() {
+		return errors.New("unauthorized")
+	}
+	newAuthority := authz.NewContractAuthority(
 		newContractPath,
 		func(_ string, action authz.PrivilegedAction) error {
 			return action()
 		},
-	))
+	)
+	if err := auth.Authority().Authorize(rlm.Previous().Address(), "transfer_authority", func() error { return nil }); err != nil {
+		return err
+	}
+	replaceAuthority(cross(rlm), newAuthority)
+	return nil
+}
+
+// replaceAuthority installs the new authority; a crossing function so the
+// stored Authorizer is written with this realm's authority.
+func replaceAuthority(_ realm, newAuthority authz.Authority) {
+	auth = authz.NewWithAuthority(newAuthority)
 }
 
 // NewAuthorityRotationProposalRequest builds the GovDAO proposal that
@@ -171,7 +196,7 @@ func rotateAuthority(_ int, rlm realm, newContractPath string) error {
 // can point the authority at a principal it controls. That is the same
 // power a majority already has over `instructions`, and it is the price of
 // being recoverable at all.
-func NewAuthorityRotationProposalRequest(cur realm, newContractPath string) dao.ProposalRequest {
+func NewAuthorityRotationProposalRequest(cur realm, newContractPath string) *dao.ProposalRequest {
 	cb := func(cur realm) error {
 		return rotateAuthority(0, cur, newContractPath)
 	}

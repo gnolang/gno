@@ -24,7 +24,7 @@ import (
 func main(cur realm) {
 	println("before:", launderrvictim.ReadImm())
 
-	launderrvictim.ApplyHook(func(i *launderrvictim.Immutable) {
+	launderrvictim.ApplyHook(cross(cur), func(i *launderrvictim.Immutable) {
 		i.Field = "pwnd-via-callback"
 	})
 
@@ -32,4 +32,4 @@ func main(cur realm) {
 }
 
 // Error:
-// cannot directly modify readonly tainted object (use a method or crossing function): i<VPBlock(1,0)>.Field
+// gno.land/r/launderrh3's code was entered without crossing and is read-only (call its crossing function): i<VPBlock(1,0)>.Field

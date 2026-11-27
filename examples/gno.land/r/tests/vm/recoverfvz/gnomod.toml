@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/recoverfvz"
+gno = "0.9"

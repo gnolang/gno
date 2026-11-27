@@ -150,7 +150,10 @@ func (r *VotingRecord) AddVote(vote Vote) (updated bool) {
 // stays pending: nothing can pass with zero YES votes.
 func TallyDefault(r ReadonlyVotingRecord, electorate *addrset.ReadonlySet, t Threshold) Outcome {
 	var yes, no, abstain int
-	r.Iterate(0, r.Size(), false, func(v Vote) bool {
+	// Walk the tree directly: Iterate wraps the callback, which would then
+	// run without write power and could not count into these locals.
+	r.votes.IterateByOffset(0, r.votes.Size(), func(_ string, value any) bool {
+		v := value.(Vote)
 		if !electorate.Has(v.addr) {
 			return false
 		}

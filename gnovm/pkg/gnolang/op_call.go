@@ -18,7 +18,7 @@ func (m *Machine) doOpPrecall() {
 	switch fv := v.(type) {
 	case *FuncValue:
 		m.incrCPU(OpCPUPrecallFunc)
-		m.PushFrameCall(cx, fv, TypedValue{}, false)
+		m.pushFrameCall(cx, fv, TypedValue{}, PkgID{}, false, false)
 		m.PushOp(OpCall)
 		isCrossing := fv.IsCrossing()
 		if isCrossing {
@@ -37,14 +37,16 @@ func (m *Machine) doOpPrecall() {
 		if fv.IsLazy() {
 			fn, recv = resolveLazyBound(m, fv)
 		}
-		// A value method runs on a copy of its receiver. A method value bound
-		// before stored children were loaded on copy shares the receiver's
-		// unread children by ref, so copy a real receiver here to keep the
-		// method from writing through them into the stored original. A receiver
-		// bound after that change is already an unloaded-free private copy
-		// (unreal), so this is a no-op for it.
-		recv = m.copyBoundReceiver(fv, recv)
-		m.PushFrameCall(cx, fn, recv, false)
+		// The receiver of a lazy bind or of a direct x.M(...) call is copied
+		// now, under the callee's realm (see getPointerToForCall). A stored
+		// bound value's receiver is copied there too (see copyBoundReceiver).
+		uncopied := fv.IsLazy() || isDirectValMethodCall(cx)
+		m.pushFrameCall(cx, fn, recv, methodValueBinder(cx, fv), false, uncopied)
+		if fr := m.LastFrame(); uncopied {
+			fr.Receiver = copyCallRecv(m.Alloc, m.Store, fr.Receiver)
+		} else {
+			fr.Receiver = m.copyBoundReceiver(fv, fr.Receiver)
+		}
 		m.PushOp(OpCall)
 		isCrossing := fn.IsCrossing()
 		if isCrossing {
@@ -311,7 +313,9 @@ func (m *Machine) doOpEnterCrossing() {
 		}
 		// Neither fri.WithCross nor fri.DidCrossing, yet
 		// Realm already switched implicitly.
-		if fri.LastRealm != m.Realm {
+		// A by-value call's read-only entry is the one legitimate implicit switch: it
+		// clears m.Realm but keeps this frame in its realm's code.
+		if fri.LastRealm != m.Realm && !m.readOnlyOf(fri.LastRealm) {
 			panic("crossing could not find corresponding cross(fn)(...) call")
 		}
 	}
@@ -375,7 +379,7 @@ func (m *Machine) doOpCall() {
 			numParams := len(ft.Params)
 			// Initialize return variables with default value.
 			for i, rt := range ft.Results {
-				dtv := defaultTypedValue(m.Alloc, rt.Type)
+				dtv := checkedDefaultTypedValue(m.Alloc, rt.Type)
 				ptr := b.GetPointerToInt(nil, numParams+i)
 				// Write to existing heap item if result is heap defined.
 				ptr.TV.AssignToBlock(dtv)
@@ -409,7 +413,9 @@ func (m *Machine) doOpCall() {
 		// would load every element for nothing.
 		args = []TypedValue{*m.PopValue()}
 	} else {
-		args = m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver)
+		args = m.popCopyArgs(bft, fr.NumArgs, fr.IsVarg, fr.Receiver, fr.callerHold())
+		m.handOffLends(fr, args)
+		m.lendArgs(fr, fs, args)
 	}
 	// Assign parameters in forward order.
 	for i, argtv := range args {
@@ -672,6 +678,18 @@ func (m *Machine) isRealmBoundary(cfr *Frame) bool {
 	return false
 }
 
+// isPanicBoundary: recover stops at a call that gained write power over another
+// realm (cross, or a realm switch), not at a read-only stretch; a switch into an
+// immutable package (/p/, stdlib, main) has none at StageRun, which refuses its writes.
+func (m *Machine) isPanicBoundary(cfr *Frame) bool {
+	if !m.isRealmBoundary(cfr) {
+		return false
+	}
+	// isRealmBoundary holds without cross only when m.Realm != nil.
+	return cfr.WithCross || m.Realm == cfr.LastRealm ||
+		!(m.Realm.ID.IsImmutablePkg() && m.Stage == StageRun)
+}
+
 // Finalize realm updates if realm boundary.
 // NOTE: resource intensive
 func (m *Machine) maybeFinalize(cfr *Frame) {
@@ -679,9 +697,9 @@ func (m *Machine) maybeFinalize(cfr *Frame) {
 		// /p/ and stdlib packages now carry a frozen, immutable realm
 		// (so the readonly gate works inside their method bodies), but
 		// that realm must never be persisted: skip finalization for it.
-		// isRealmBoundary still reports the frame as a boundary for
-		// panic-routing; we just don't run FinalizeRealmTransaction.
-		m.Realm.FinalizeRealmTransaction(m.Store)
+		// isRealmBoundary still reports the frame as a boundary; we just
+		// don't run FinalizeRealmTransaction. Panics use isPanicBoundary.
+		m.Realm.FinalizeRealmTransaction(m.Store, m.s3Written)
 	}
 }
 
@@ -768,7 +786,8 @@ func (m *Machine) doOpReturnToBlock() {
 	for i := range numResults {
 		rtv := results[i]
 		dst := &fblock.Values[numParams+i]
-		if hiv, ok := dst.V.(*HeapItemValue); ok {
+		hiv, _ := dst.V.(*HeapItemValue)
+		if hiv != nil {
 			dst = &hiv.Value
 		}
 		// `return r` of the named result r keeps r itself, so pointers
@@ -919,6 +938,31 @@ func conversionRecordedOn(target Expr) Type {
 	return nil
 }
 
+// isDirectValMethodCall reports whether cx calls a value-receiver method
+// selected in place (x.M(...)), whose receiver doOpSelector left uncopied.
+func isDirectValMethodCall(cx *CallExpr) bool {
+	sx, ok := cx.Func.(*SelectorExpr)
+	return ok && (sx.Path.Type == VPValMethod || sx.Path.Type == VPDerefValMethod)
+}
+
+func isStructOrArrayValue(v Value) bool {
+	switch v.(type) {
+	case *StructValue, *ArrayValue:
+		return true
+	}
+	return false
+}
+
+// methodValueBinder returns the realm stamp of a method value being called,
+// or zero for a plain x.M(...) call: that one is bound and called in one
+// step by the current realm, so it has no earlier binder to return to.
+func methodValueBinder(cx *CallExpr, bmv *BoundMethodValue) PkgID {
+	if sx, ok := cx.Func.(*SelectorExpr); ok && sx.Path.IsMethod() {
+		return PkgID{}
+	}
+	return bmv.ObjectInfo.ID.PkgID
+}
+
 func (m *Machine) doOpReturnCallDefers() {
 	cfr := m.MustPeekCallFrame(1)
 	dfr, ok := cfr.PopDefer()
@@ -930,7 +974,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		if m.Exception != nil {
 			// If crossing a realm boundary find the revive frame
 			// for transaction revival.
-			if m.isRealmBoundary(cfr) {
+			if m.isPanicBoundary(cfr) {
 				cfr := m.PopUntilLastReviveFrame()
 				if cfr == nil {
 					// or abort the transaction.
@@ -945,7 +989,7 @@ func (m *Machine) doOpReturnCallDefers() {
 			}
 			// Handle panic by calling OpReturnCallDefers on
 			// the next (last) call frame)
-			m.PopFrame()
+			m.popFrameRestore()
 			m.PushOp(OpPanic2)
 		} else {
 			// Otherwise continue with the return process,
@@ -958,10 +1002,12 @@ func (m *Machine) doOpReturnCallDefers() {
 	// Resolve the deferred callable, mirroring doOpPrecall's dispatch.
 	var fv *FuncValue
 	var recv TypedValue // receiver for PushFrameCall: the bound receiver, or zero for a plain func
+	var bindPID PkgID
 	switch cv := dfr.Callable.(type) {
 	case *FuncValue:
 		fv = cv // plain func: no receiver, recv stays zero
 	case *BoundMethodValue:
+		bindPID = methodValueBinder(&dfr.Source.Call, cv)
 		// A lazy interface bind resolves its concrete method + receiver now, at
 		// the deferred call — Go's call-time dispatch on the operand's current
 		// value (nil derefs raise within the walk, caught by the Run loop). A
@@ -971,10 +1017,6 @@ func (m *Machine) doOpReturnCallDefers() {
 		} else {
 			fv, recv = cv.Func, dfr.Args[0]
 		}
-		// Copy a stored receiver so a deferred value method cannot write
-		// through its unread children into the stored original (see doOpPrecall).
-		recv = m.copyBoundReceiver(cv, recv)
-		dfr.Args[0] = recv // the param-binding loop below reads dfr.Args
 	default: // nil (deferred a nil func value)
 		m.pushPanic(typedRuntimeError("runtime error: defer called a nil function"))
 		return
@@ -984,7 +1026,18 @@ func (m *Machine) doOpReturnCallDefers() {
 	ft := fv.GetType(m.Store)
 	m.incrCPU(OpCPUSlopeCallParam*int64(len(ft.Params)) +
 		OpCPUSlopeCallCapture*int64(len(fv.Captures)))
-	m.PushFrameCall(&dfr.Source.Call, fv, recv, true)
+	bmv, bound := dfr.Callable.(*BoundMethodValue)
+	lazy := bound && bmv.IsLazy()
+	m.pushFrameCall(&dfr.Source.Call, fv, recv, bindPID, true, lazy)
+	if bound { // copied under the callee's realm, as in doOpPrecall
+		if lazy {
+			recv = copyCallRecv(m.Alloc, m.Store, recv)
+		} else {
+			recv = m.copyBoundReceiver(bmv, recv)
+		}
+		m.LastFrame().Receiver = recv
+		dfr.Args[0] = recv // the param-binding loop below reads dfr.Args
+	}
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Push final empty *ReturnStmt;
 	// TODO: transform in preprocessor instead.
@@ -1024,6 +1077,7 @@ func (m *Machine) doOpReturnCallDefers() {
 		})
 		m.PushOp(OpCallDeferNativeBody)
 	}
+	m.handOffLends(m.LastFrame(), dfr.Args)
 	// Assign parameters in forward order.
 	for i, arg := range dfr.Args {
 		// We need to define, but b was already populated
@@ -1047,7 +1101,9 @@ func (m *Machine) doOpReturnCallDefers() {
 // Returns a slice of parameters with receiver (if any) and varg conversion.
 // For bound method calls the returned slice is 1 greater than len(ft.Params).
 // Constructed varg slice is allocated, but the result slice is not.
-func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv TypedValue) []TypedValue {
+// hold: the realm handing the arguments over; function values it does not
+// hold for arrive with no maker.
+func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv TypedValue, hold PkgID) []TypedValue {
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0
@@ -1055,9 +1111,6 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 		isMethod = 1
 	}
 	args := make([]TypedValue, isMethod+numParams)
-	if isMethod == 1 {
-		args[0] = recv
-	}
 	// args is a Go local, and every PopCopyValues below writes fresh copies
 	// into it. Anchor it so a GC triggered by one argument's copy still
 	// counts the arguments already copied; otherwise f(a, a, ..., a) frees
@@ -1065,7 +1118,15 @@ func (m *Machine) popCopyArgs(ft *FuncType, numArgs int, isVarg bool, recv Typed
 	// call block without allocating, so dropping the anchor on return is
 	// safe — GC only runs from Allocate. See Allocator.anchors.
 	m.Alloc.PushAnchor(args)
-	defer m.Alloc.PopAnchor()
+	lastOver, lastHold := m.Alloc.handOver, m.Alloc.handHold
+	m.Alloc.handOver, m.Alloc.handHold = true, hold
+	defer func() {
+		m.Alloc.handOver, m.Alloc.handHold = lastOver, lastHold
+		m.Alloc.PopAnchor()
+	}()
+	if isMethod == 1 {
+		args[0] = m.Alloc.stripDeep(recv, hold)
+	}
 	nvar := numArgs - (numParams - 1)
 	if ft.HasVarg() {
 		if isVarg {
@@ -1116,6 +1177,7 @@ func (m *Machine) doOpDefer() {
 	m.convertResultsPassedAsArgs(&ds.Call)
 	// Peek func to get type.
 	ftv := m.PeekValue(numArgs + 1)
+	hold, _ := m.Alloc.holdRealm()
 	// Push defer.
 	dfr := Defer{Source: ds}
 	switch cv := ftv.V.(type) {
@@ -1126,6 +1188,7 @@ func (m *Machine) doOpDefer() {
 			numArgs,
 			ds.Call.Varg,
 			TypedValue{},
+			hold,
 		)
 	case *BoundMethodValue:
 		// Args (and the receiver/operand) are captured now, at the defer
@@ -1138,6 +1201,7 @@ func (m *Machine) doOpDefer() {
 			numArgs,
 			ds.Call.Varg,
 			cv.Receiver,
+			hold,
 		)
 	case nil:
 		// deferred a nil func value; raised as call-of-nil at the deferred call.

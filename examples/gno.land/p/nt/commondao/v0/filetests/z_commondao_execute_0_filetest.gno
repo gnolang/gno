@@ -31,10 +31,15 @@ func (testPropDef) Executor() commondao.ExecFunc {
 	// for the executor). The DAO-scoped identity is the sub passed by the
 	// host, which the executor can read and move value from.
 	return func(_ int, sub realm) error {
-		subValid = sub.Address().IsValid()
-		subAddress = sub.Address()
+		record(cross(sub), sub.Address())
 		return nil
 	}
+}
+
+// record writes for the read-only executor; it crosses in with the sub.
+func record(cur realm, addr address) {
+	subValid = addr.IsValid()
+	subAddress = addr
 }
 
 type testPropKind struct{}

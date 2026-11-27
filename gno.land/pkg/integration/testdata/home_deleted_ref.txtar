@@ -1,0 +1,196 @@
+# A realm deletes an object another realm still holds a reference to. Using the
+# kept reference to write is refused (owner stays "victim"). Under R2a a warm
+# by-value copy can be saved, but loaded from the store it has no crossing id,
+# so a later call through it is refused and writes nothing. The exemption covers
+# a reference to an object deleted earlier in the transaction only while that
+# object is still in memory.
+
+loadpkg gno.land/p/zc/pp $WORK/pp
+loadpkg gno.land/r/zc/rv $WORK/rv
+loadpkg gno.land/r/zc/rs $WORK/rs
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/zc/rv -func Init -gas-fee 1000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+# A1 copies the deleted object and runs its value: refused.
+! gnokey maketx call -pkgpath gno.land/r/zc/rs -func A1 -args false -gas-fee 1000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+stderr 'unexpected object with id'
+! gnokey maketx call -pkgpath gno.land/r/zc/rs -func A1 -args true -gas-fee 1000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+stderr 'read-only'
+# A2 hands the copy to the realm whose code its value is: the save is allowed,
+# but a later call through the stored value is refused.
+gnokey maketx call -pkgpath gno.land/r/zc/rs -func A2 -gas-fee 1000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/zc/rv -func RunKept -gas-fee 1000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/zc/rv''s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs'
+gnokey query vm/qeval --data 'gno.land/r/zc/rv.Owner'
+stdout 'victim'
+# A2s keeps the copy and calls through it in the same transaction: the value
+# still has no maker, so RunKept runs read-only and the state is unchanged.
+! gnokey maketx call -pkgpath gno.land/r/zc/rs -func A2s -gas-fee 1000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+stderr 'gno.land/r/zc/rv''s code is read-only here: a function value writes only as a literal called where it is written, or passed in place to a plain function of this realm or a /p/ function called by name, while that call runs'
+gnokey query vm/qeval --data 'gno.land/r/zc/rv.Owner'
+stdout 'victim'
+# A5 copies warm and saves into the stranger's own realm: allowed, so the tx
+# reaches its own sentinel panic instead of a copy refusal.
+! gnokey maketx call -pkgpath gno.land/r/zc/rs -func A5 -gas-fee 1000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+stderr 'A5 kept'
+
+gnokey maketx call -pkgpath gno.land/r/zc/rv -func Init -gas-fee 1000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+# A2c is A2 with the copied object cold: the copy itself is refused before the
+# save (a different guard), so no later call is possible.
+! gnokey maketx call -pkgpath gno.land/r/zc/rs -func A2c -gas-fee 1000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+stderr 'unexpected object with id'
+# A5c is A5 with the object cold: the exemption does not cover it.
+! gnokey maketx call -pkgpath gno.land/r/zc/rs -func A5c -gas-fee 1000000ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1
+stderr 'unexpected object with id'
+
+gnokey query vm/qeval --data 'gno.land/r/zc/rv.Owner'
+stdout 'victim'
+
+-- rv/gnomod.toml --
+module = "gno.land/r/zc/rv"
+gno = "0.9"
+-- rv/rv.gno --
+package rv
+
+import "gno.land/p/zc/pp"
+
+var Owner = "victim"
+
+func SetOwner(s string) { Owner = s }
+
+type Pair = pp.Pair
+type Outer = pp.Outer
+
+var M = map[string]*Outer{}
+var Kept Outer
+
+func Init(cur realm)              { M["k"] = &Outer{Inner: Pair{F: SetOwner}} }
+func GetP() *Outer                { return M["k"] }
+func Del(cur realm)               { delete(M, "k") }
+func Put(cur realm, o *Outer)     { M["k"] = o }
+func RunOuter(cur realm, o Outer) { o.Inner.F("pwned-val") }
+func RunOuterP(cur realm, o *Outer) { o.Inner.F("pwned-ptr") }
+func Keep(cur realm, o Outer)     { Kept = o }
+func RunKept(cur realm)           { Kept.Inner.F("kept") }
+
+var P0 *Outer
+var Q *Pair
+
+func InitQ(cur realm)       { P0 = &Outer{Inner: Pair{F: SetOwner}}; Q = &P0.Inner }
+func GetP0() *Outer         { return P0 }
+func GetQ() *Pair           { return Q }
+func DelBoth(cur realm)     { P0 = nil; Q = nil }
+func PutQ(cur realm, q *Pair) { Q = q }
+func RunQ(cur realm) { Q.F("runq") }
+-- rs/gnomod.toml --
+module = "gno.land/r/zc/rs"
+gno = "0.9"
+-- rs/rs.gno --
+package rs
+
+import (
+	"gno.land/p/zc/pp"
+	"gno.land/r/zc/rv"
+)
+
+var keep pp.Outer
+
+func A1(cur realm, warm bool) {
+	p := rv.GetP()
+	if warm && p.Inner.F == nil {
+		panic("nil")
+	}
+	rv.Del(cross(cur))
+	o := *p
+	rv.RunOuter(cross(cur), o)
+	panic("A1 reached end owner=" + rv.Owner)
+}
+
+func A2(cur realm) {
+	rv.Init(cross(cur))
+	p := rv.GetP()
+	rv.Del(cross(cur))
+	o := *p
+	rv.Keep(cross(cur), o)
+}
+
+func A2s(cur realm) {
+	rv.Init(cross(cur))
+	p := rv.GetP()
+	rv.Del(cross(cur))
+	o := *p
+	rv.Keep(cross(cur), o)
+	rv.RunKept(cross(cur))
+}
+
+func A5(cur realm) {
+	rv.Init(cross(cur))
+	p := rv.GetP()
+	rv.Del(cross(cur))
+	keep = *p
+	panic("A5 kept")
+}
+
+func A2c(cur realm) {
+	p := rv.GetP()
+	rv.Del(cross(cur))
+	rv.Keep(cross(cur), *p)
+}
+
+func A5c(cur realm) {
+	p := rv.GetP()
+	rv.Del(cross(cur))
+	keep = *p
+}
+
+func B2(cur realm, mode int) {
+	p := rv.GetP0()
+	q := rv.GetQ()
+	rv.DelBoth(cross(cur))
+	o := *p
+	rv.PutQ(cross(cur), q)
+	switch mode {
+	case 0:
+		rv.RunOuter(cross(cur), o)
+	case 1:
+		rv.RunOuterP(cross(cur), &o)
+	case 3:
+		return
+	}
+	panic("B2 end owner=" + rv.Owner)
+}
+
+func B3(cur realm) {
+	q := rv.GetQ()
+	rv.DelBoth(cross(cur))
+	rv.PutQ(cross(cur), q)
+}
+
+func B1(cur realm, mode int) {
+	p := rv.GetP0()
+	q := rv.GetQ()
+	if q.F == nil {
+		panic("nil")
+	}
+	rv.DelBoth(cross(cur))
+	o := *p
+	rv.PutQ(cross(cur), q)
+	switch mode {
+	case 0:
+		rv.RunOuter(cross(cur), o)
+	case 1:
+		rv.RunOuterP(cross(cur), &o)
+	case 2:
+		rv.SetOwner("x") // sanity: must be read-only
+	}
+	panic("B1 end owner=" + rv.Owner)
+}
+-- pp/gnomod.toml --
+module = "gno.land/p/zc/pp"
+gno = "0.9"
+-- pp/pp.gno --
+package pp
+
+type Pair struct{ F func(string) }
+type Outer struct{ Inner Pair }

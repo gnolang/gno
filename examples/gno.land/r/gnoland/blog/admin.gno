@@ -43,7 +43,7 @@ func AdminRemoveModerator(_ realm, addr address) {
 	moderatorList.Set(addr.String(), false) // entry kept as a revocation record; isModerator checks the value
 }
 
-func NewPostProposalRequest(cur realm, slug, title, body, publicationDate, authors, tags string) dao.ProposalRequest {
+func NewPostProposalRequest(cur realm, slug, title, body, publicationDate, authors, tags string) *dao.ProposalRequest {
 	caller := cur.Previous().Address()
 	e := dao.NewSimpleExecutor(0, cur,
 		func(realm) error {

@@ -1,0 +1,115 @@
+# What a granter can hand another realm under the cross to write rule.
+# A crossing function literal written in the granter's source, called by the
+# callee with cross(cur), runs as the granter and spends within the cap,
+# and is dead after the granter's Close. The sender object itself, handed
+# over or stored by the callee, cannot be spent through by the callee.
+
+loadpkg gno.land/p/jaekwon/allowancesender/v0
+loadpkg gno.land/r/test/callee $WORK/callee
+loadpkg gno.land/r/test/granter $WORK/granter
+
+adduserfrom user1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start
+
+# A: callee stores the literal; granter closes; later call
+gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantAndStoreFn -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 9000000 -chainid=tendermint_test user1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/test/callee -func CallStored -args 1000 -gas-fee 1000000ugnot -gas-wanted 9000000 -chainid=tendermint_test user1
+stderr 'closed'
+
+# B: no close: stored literal used in a later tx
+gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantNoClose -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 9000000 -chainid=tendermint_test user1
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/test/callee -func CallStored -args 1000 -gas-fee 1000000ugnot -gas-wanted 9000000 -chainid=tendermint_test user1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/test/callee -func CallStored -args 5000000 -gas-fee 1000000ugnot -gas-wanted 9000000 -chainid=tendermint_test user1
+stderr 'cap exceeded'
+
+# C: callee holding the object itself tries to Send
+! gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantObject -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 9000000 -chainid=tendermint_test user1
+stderr 'cannot modify'
+
+# D: callee stores object; later tx Send on it
+gnokey maketx call -pkgpath gno.land/r/test/granter -func GrantStoreObjNoClose -send 1000000ugnot -gas-fee 1000000ugnot -gas-wanted 9000000 -chainid=tendermint_test user1
+stdout OK!
+! gnokey maketx call -pkgpath gno.land/r/test/callee -func SendStoredObj -args 1000 -gas-fee 1000000ugnot -gas-wanted 9000000 -chainid=tendermint_test user1
+stderr 'cannot modify'
+
+-- callee/gnomod.toml --
+module = "gno.land/r/test/callee"
+gno = "0.9"
+
+-- callee/callee.gno --
+package callee
+
+import (
+	"chain"
+
+	"gno.land/p/jaekwon/allowancesender/v0"
+)
+
+var fn func(realm, address, chain.Coins)
+var obj *allowancesender.AllowanceSender
+
+func StoreFn(cur realm, f func(realm, address, chain.Coins)) { fn = f }
+
+func CallStored(cur realm, amount int64) {
+	fn(cross(cur), cur.Address(), chain.NewCoins(chain.NewCoin("ugnot", amount)))
+}
+
+func UseObj(cur realm, al *allowancesender.AllowanceSender) {
+	al.Send(cur.Address(), chain.NewCoins(chain.NewCoin("ugnot", 10)))
+}
+
+func StoreObj(cur realm, al *allowancesender.AllowanceSender) { obj = al }
+
+func SendStoredObj(cur realm, amount int64) {
+	obj.Send(cur.Address(), chain.NewCoins(chain.NewCoin("ugnot", amount)))
+}
+
+-- granter/gnomod.toml --
+module = "gno.land/r/test/granter"
+gno = "0.9"
+
+-- granter/granter.gno --
+package granter
+
+import (
+	"chain"
+	"chain/banker"
+	"chain/runtime/unsafe"
+
+	"gno.land/p/jaekwon/allowancesender/v0"
+	"gno.land/r/test/callee"
+)
+
+func mk(cur realm) *allowancesender.AllowanceSender {
+	_ = unsafe.OriginSend()
+	src := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	return allowancesender.New(src, unsafe.CurrentRealm().Address(),
+		chain.NewCoins(chain.NewCoin("ugnot", 100000)))
+}
+
+func GrantAndStoreFn(cur realm) {
+	al := mk(cur)
+	defer al.Close()
+	callee.StoreFn(cross(cur), func(cur realm, to address, amt chain.Coins) { al.Send(to, amt) })
+}
+
+func GrantNoClose(cur realm) {
+	al := mk(cur)
+	callee.StoreFn(cross(cur), func(cur realm, to address, amt chain.Coins) { al.Send(to, amt) })
+}
+
+func GrantObject(cur realm) {
+	al := mk(cur)
+	defer al.Close()
+	callee.UseObj(cross(cur), al)
+}
+
+func GrantStoreObjNoClose(cur realm) {
+	al := mk(cur)
+	callee.StoreObj(cross(cur), al)
+}

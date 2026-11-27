@@ -295,7 +295,7 @@ func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
 					pkgPath = pid.String()
 				}
 				panic(fmt.Sprintf(
-					"cannot mutate %s: package is immutable post-init",
+					refuseImmutablePkg,
 					pkgPath))
 			}
 		}
@@ -344,7 +344,7 @@ func (rlm *Realm) DidUpdate(m *Machine, po, xo, co Object) {
 	if m != nil && m.Stage == StageRun &&
 		rlm.ID.IsImmutablePkg() && !rlm.ID.IsStdlibPkg() {
 		panic(fmt.Sprintf(
-			"cannot mutate %s: package is immutable post-init",
+			refuseImmutablePkg,
 			rlm.Path))
 	}
 	// XXX check if this boosts performance
@@ -495,8 +495,9 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 //----------------------------------------
 // transactions
 
-// OpReturn calls this when exiting a realm transaction.
-func (rlm *Realm) FinalizeRealmTransaction(store Store) {
+// OpReturn calls this when exiting a realm transaction. s3Written: some object
+// was written in a by-value read-only stretch this transaction; none may be stored.
+func (rlm *Realm) FinalizeRealmTransaction(store Store, s3Written bool) {
 	if bm.Enabled {
 		old := bm.StartStore(bm.RealmFinalizeTx)
 		defer func() { bm.StopStore(bm.RealmFinalizeTx, old, 0) }()
@@ -544,6 +545,7 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 	// given created and updated objects,
 	// mark all owned-ancestors also as dirty.
 	rlm.markDirtyAncestors(store)
+	rlm.assertNoUncrossedWrite(s3Written)
 	if debugAssert {
 		ensureUniq(rlm.created, rlm.updated)
 		ensureUniq(rlm.escaped)
@@ -571,6 +573,23 @@ func (rlm *Realm) FinalizeRealmTransaction(store Store) {
 		realmDiffs[fr.Path] += fr.sumDiff
 		fr.sumDiff = 0
 		store.SetPackageRealm(fr)
+	}
+}
+
+// assertNoUncrossedWrite panics if rlm is about to store an object that
+// read-only code wrote: a by-value stretch may write it, not persist it.
+func (rlm *Realm) assertNoUncrossedWrite(s3Written bool) {
+	if !s3Written {
+		return
+	}
+	for _, set := range [][]Object{rlm.created, rlm.updated} {
+		for _, oo := range set {
+			if oo.GetObjectInfo().s3Written {
+				panic(fmt.Sprintf(
+					refuseStoreUncrossed,
+					rlm.Path, rlm.Path))
+			}
+		}
 	}
 }
 

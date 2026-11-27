@@ -163,10 +163,12 @@ package) are not correlated.
 ### pkg_mutable_pointer
 
 Flags a pointer to a `/p/` type whose exported methods mutate the receiver,
-exposed as an exported function return, struct field, or package var. The known
-mutable type set is currently `avl.Tree` only; a pointer to another mutable
-`/p/` type, or the type reached behind a local alias, is not detected. Getters
-returning a locally-declared `*T` are already covered by `exported_pointer_leak`.
+exposed as an exported function return, struct field, or package var. The VM
+refuses a foreign caller's write to the stored object, so the pattern marks the
+encapsulation exposure, not a grant of authority. The known mutable type set is
+currently `avl.Tree` only; a pointer to another mutable `/p/` type, or the type
+reached behind a local alias, is not detected. Getters returning a
+locally-declared `*T` are already covered by `exported_pointer_leak`.
 
 ### Line reporting
 

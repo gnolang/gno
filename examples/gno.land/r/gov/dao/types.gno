@@ -31,31 +31,31 @@ type VoteRequest struct {
 	Metadata   interface{}
 }
 
-func NewVoteRequest(option VoteOption, proposalID ProposalID) VoteRequest {
-	return VoteRequest{
+func NewVoteRequest(option VoteOption, proposalID ProposalID) *VoteRequest {
+	return &VoteRequest{
 		Option:     option,
 		ProposalID: proposalID,
 	}
 }
 
-func NewVoteRequestWithMetadata(option VoteOption, proposalID ProposalID, metadata interface{}) VoteRequest {
-	return VoteRequest{
+func NewVoteRequestWithMetadata(option VoteOption, proposalID ProposalID, metadata interface{}) *VoteRequest {
+	return &VoteRequest{
 		Option:     option,
 		ProposalID: proposalID,
 		Metadata:   metadata,
 	}
 }
 
-func NewProposalRequest(title string, description string, executor Executor) ProposalRequest {
-	return ProposalRequest{
+func NewProposalRequest(title string, description string, executor Executor) *ProposalRequest {
+	return &ProposalRequest{
 		title:       title,
 		description: description,
 		executor:    executor,
 	}
 }
 
-func NewProposalRequestWithFilter(title string, description string, executor Executor, filter Filter) ProposalRequest {
-	return ProposalRequest{
+func NewProposalRequestWithFilter(title string, description string, executor Executor, filter Filter) *ProposalRequest {
+	return &ProposalRequest{
 		title:       title,
 		description: description,
 		executor:    executor,
@@ -203,19 +203,16 @@ const proxyPkgPath = "gno.land/r/gov/dao"
 // entrypoint of the victim — and run it with governance's identity, with no
 // proposal id minted, so nothing to render, audit or deny afterwards.
 //
-// NOT InAllowedDAOs: that is SafeExecutor's bug. It holds the impl path while
-// an executor's caller is the proxy, so it rejects the approved route and
-// fails open while empty. Exact path plus subpackages, because
-// impl.ExecuteProposal is non-crossing (Previous() is the proxy exactly), so
-// a bare prefix would reject every real proposal.
+// The caller is the impl: impl.ExecuteProposal is crossing, so Previous() is
+// the impl, a subpackage of this path. Exact path plus subpackages admits it
+// and the proxy; NOT InAllowedDAOs, which fails open while empty.
 //
 // Gates the executor object's INVOCATION only. Keeping a privileged closure,
 // or an exported entrypoint shaped like `func(realm) error`, out of reach
 // stays the consumer's job — see r/gnops/valopers/admin.gno
 // and p/moul/authz's NewContractAuthority godoc.
 func (e *SimpleExecutor) Execute(cur realm) error {
-	// IsCurrent first, as every other gate here does: otherwise Previous() is
-	// read from whatever realm value the caller threaded in.
+	// Always true in a crossing method; kept as a defensive check.
 	if !cur.IsCurrent() {
 		return errors.New("execution denied: cur is not the caller's live realm")
 	}
@@ -253,18 +250,9 @@ type SafeExecutor struct {
 }
 
 func (e *SafeExecutor) Execute(cur realm) error {
-	// IsCurrent first, matching every other allowlist gate in this tree
-	// (proxy.go's UpdateImpl, treasury, memberstore). Without it this method
-	// trusts whatever realm value it is handed, so a caller threading a stale
-	// or sibling-frame cur would have its Previous() read from that value
-	// rather than from the live frame.
-	//
-	// NewSafeExecutor has no call sites, so this type is currently dead code.
-	// Live proposal execution goes through the Executor interface to
-	// SimpleExecutor.Execute, which now gates on the invoking realm being the
-	// proxy -- deliberately NOT on InAllowedDAOs, which holds the impl path
-	// and therefore rejects the approved route and fails open while empty.
-	// That is this method's bug; see SimpleExecutor.Execute.
+	// NewSafeExecutor has no call sites. Since impl.ExecuteProposal is
+	// crossing, Previous() here is the impl, which InAllowedDAOs holds, so
+	// impl's executions are admitted; the allowlist still fails open while empty.
 	if !cur.IsCurrent() {
 		return errors.New("execution denied: cur is not the caller's live realm")
 	}
@@ -284,36 +272,33 @@ func (e *SafeExecutor) CreationRealm() string {
 	return e.e.CreationRealm()
 }
 
-// DAO is the govDAO implementation interface. All mutating/auth-gated
-// methods take rlm as their realm-typed parameter in the second position
-// (the `_ int, rlm realm` non-crossing form): callers thread the proxy's
-// cur as data without forcing a realm transition, so the impl's existing
-// unsafe.CurrentRealm()-based auth gates (isValidCall, memberstore.Get)
-// continue to see the proxy realm. Render stays unchanged.
+// DAO is the govDAO implementation interface. Its methods are crossing: the
+// proxy calls them with cross(cur), so the impl writes its own state and sees
+// the proxy as cur.Previous().
 type DAO interface {
 	// PreCreateProposal is called just before creating a new Proposal
 	// It is intended to be used to get the address of the proposal, that
 	// may vary depending on the DAO implementation, and to validate that
 	// the requester is allowed to do a proposal
-	PreCreateProposal(_ int, rlm realm, r ProposalRequest) (address, error)
+	PreCreateProposal(cur realm, r *ProposalRequest) (address, error)
 
 	// PostCreateProposal is called after creating the Proposal. It is
 	// intended to be used as a way to store a new proposal status, that
 	// depends on the actuall govDAO implementation
-	PostCreateProposal(_ int, rlm realm, r ProposalRequest, pid ProposalID)
+	PostCreateProposal(cur realm, r *ProposalRequest, pid ProposalID)
 
 	// VoteOnProposal will send a petition to vote for a specific proposal
 	// to the actual govDAO implementation
-	VoteOnProposal(_ int, rlm realm, r VoteRequest) error
+	VoteOnProposal(cur realm, r *VoteRequest) error
 
 	// PreExecuteProposal is called when someone is trying to execute a proposal by ID.
 	// Is intended to be used to validate who can trigger the proposal execution.
-	PreExecuteProposal(_ int, rlm realm, pid ProposalID) (bool, error)
+	PreExecuteProposal(cur realm, pid ProposalID) (bool, error)
 
 	// ExecuteProposal executes the proposal executor and on error changes proposal
 	// status to denied with the error message being the denial reason.
 	// It returns the executor error when it fails.
-	ExecuteProposal(_ int, rlm realm, pid ProposalID, e Executor) error
+	ExecuteProposal(cur realm, pid ProposalID, e Executor) error
 
 	// Render will return a human-readable string in markdown format that
 	// will be used to show new data through the dao proxy entrypoint.
@@ -335,10 +320,10 @@ type UpdateRequest struct {
 // /r/gov/dao could not mutate (e.g. append to) its own copy without
 // a DidUpdate panic. The internal copy ensures the UpdateRequest
 // and its AllowedDAOs both live entirely in /r/gov/dao's authority.
-func NewUpdateRequest(d DAO, allowedDAOs []string) UpdateRequest {
+func NewUpdateRequest(d DAO, allowedDAOs []string) *UpdateRequest {
 	cp := make([]string, len(allowedDAOs))
 	copy(cp, allowedDAOs)
-	return UpdateRequest{
+	return &UpdateRequest{
 		DAO:         d,
 		AllowedDAOs: cp,
 	}

@@ -110,7 +110,8 @@ func TestFiles(t *testing.T) {
 		}
 		if strings.HasSuffix(path, ".swp") ||
 			strings.HasSuffix(path, ".swo") ||
-			strings.HasSuffix(path, ".swn") {
+			strings.HasSuffix(path, ".swn") ||
+			strings.HasSuffix(path, ".txt") { // fixture lists, not file tests
 			return nil
 		}
 

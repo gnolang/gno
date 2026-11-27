@@ -1,0 +1,2 @@
+module = "gno.land/r/tests/vm/ctw"
+gno = "0.9"

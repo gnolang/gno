@@ -29,6 +29,13 @@ type Frame struct {
 	IsVarg        bool          // is form fncall(???, vargs...)
 	LastPackage   *PackageValue // previous frame's package
 	LastRealm     *Realm        // previous frame's realm
+	LastViewOnly  bool          // previous frame's Machine.viewOnly
+	LastViewRealm *Realm        // previous frame's Machine.viewRealm
+	LastViewS3    bool          // previous frame's Machine.viewS3
+	LastScratch   uint32        // previous frame's Allocator.scratch
+	LastViewHold  PkgID         // previous frame's Allocator.viewHoldID
+	LastCrossing  *crossingCall // previous frame's Machine.curCrossing
+	lendTok       *lendTok      // set when a literal was lent to this frame
 	WithCross     bool          // true if called like cross(fn)(...). expects crossing() after.
 	DidCrossing   bool          // true if crossing() was called.
 	Defers        []Defer       // deferred calls
@@ -44,6 +51,19 @@ type Frame struct {
 
 	// test info
 	TestOverridden bool // bool if overridden by test SetContext.
+
+}
+
+// callerHold is the hold realm (Allocator.holdRealm) of the code that pushed
+// call frame fr, as restoreRealmState would put it back.
+func (fr *Frame) callerHold() PkgID {
+	if fr.LastViewRealm != nil {
+		return fr.LastViewRealm.ID
+	}
+	if fr.LastRealm != nil {
+		return fr.LastRealm.ID
+	}
+	return fr.LastViewHold
 }
 
 func (fr Frame) String() string {

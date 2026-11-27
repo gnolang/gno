@@ -42,10 +42,9 @@ stdout '\(3 int\)'
 gnokey maketx call -pkgpath gno.land/r/test/reader -func Decl -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
 stdout '\(3 int\)'
 
-# The same for vault's own type, built by vault: nothing is converted to a
-# type of another realm.
-gnokey maketx call -pkgpath gno.land/r/test/reader -func Mint -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
-stdout '\("ab" string\)'
+# Holding vault's own type by value outside vault is refused at type check (R3).
+! gnokey maketx addpkg -pkgdir $WORK/minter -pkgpath gno.land/r/test/minter -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test test1
+stderr 'cannot hold a value of gno.land/r/test/vault.Tok outside its realm \(use a pointer\)'
 
 -- members/gnomod.toml --
 module = "gno.land/r/test/members"
@@ -156,6 +155,15 @@ func Decl(cur realm) int {
 	var a, b map[string]int = vault.Pair(cross(cur))
 	return a["x"] + b["y"]
 }
+
+-- minter/gnomod.toml --
+module = "gno.land/r/test/minter"
+gno = "0.9"
+
+-- minter/minter.gno --
+package minter
+
+import "gno.land/r/test/vault"
 
 func Mint(cur realm) string {
 	var a, b vault.Tok = vault.Mint(cross(cur))

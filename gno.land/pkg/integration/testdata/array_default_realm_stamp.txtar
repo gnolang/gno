@@ -1,29 +1,14 @@
-# Array defaults retain their declaring realm's ownership across realms.
+# A realm cannot hold another realm's array type by value: r/arruser's
+# struct field of type r/arrdecl.A is refused at type check (R3).
 
 loadpkg gno.land/r/arrdecl $WORK/arrdecl
-loadpkg gno.land/r/arruser $WORK/arruser
 gnoland start
 
-gnokey maketx call -pkgpath gno.land/r/arruser -func Register -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
-stdout 'OK!'
+! gnokey maketx addpkg -pkgdir $WORK/arruser -pkgpath gno.land/r/arruser -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stderr 'cannot hold a value of gno.land/r/arrdecl.A outside its realm \(use a pointer\)'
 
-gnokey query vm/qeval --data 'gno.land/r/arrdecl.Stored()'
-stdout '0 int'
-
-# r/arruser writing r/arrdecl's declared-type value is rejected: the object
-# is owned by its declaring realm, so a cross-realm write is readonly-tainted.
-! gnokey maketx call -pkgpath gno.land/r/arruser -func Write -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
-stderr 'cannot directly modify readonly tainted object'
-
-gnokey query vm/qeval --data 'gno.land/r/arrdecl.Stored()'
-stdout '0 int'
-
-# The declaring realm's own write through the stored pointer succeeds.
-gnokey maketx call -pkgpath gno.land/r/arrdecl -func Set -args 5 -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
-stdout 'OK!'
-
-gnokey query vm/qeval --data 'gno.land/r/arrdecl.Stored()'
-stdout '5 int'
+gnokey query vm/qeval --data 'gno.land/r/arrdecl.Ready()'
+stdout 'true bool'
 
 -- arrdecl/gnomod.toml --
 module = "gno.land/r/arrdecl"
@@ -44,7 +29,7 @@ func Register(a *A) bool {
 	return true
 }
 
-func Stored() int { return stored[0] }
+func Ready() bool { return stored == nil }
 
 func Set(cur realm, v int) { stored[0] = v }
 

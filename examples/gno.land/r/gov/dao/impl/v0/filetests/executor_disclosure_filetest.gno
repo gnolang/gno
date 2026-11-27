@@ -18,10 +18,10 @@ import (
 const user address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 
 func init(cur realm) {
-	memberstore.Get(0, cur).DeleteAll()
-	memberstore.Get(0, cur).SetTier(memberstore.T1)
-	memberstore.Get(0, cur).SetMember(memberstore.T1, user, memberstore.NewMember(3))
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), nil))
+	memberstore.DeleteAll(cross(cur))
+	memberstore.SetTier(cross(cur), memberstore.T1)
+	memberstore.SetMember(cross(cur), memberstore.T1, user, memberstore.NewMember(3))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(cross(cur)), nil))
 }
 
 // hostileExecutor implements dao.Executor directly rather than through
@@ -147,7 +147,7 @@ func main(cur realm) {
 	// treasury funds. It used to carry an empty description, so the realm
 	// receiving that authority appeared nowhere a voter would read.
 	upid := dao.MustCreateProposal(cross(cur),
-		impl.NewUpgradeDaoImplRequest(cross(cur), impl.NewGovDAO(), "gno.land/r/gov/dao/v1/impl", "reason"))
+		impl.NewUpgradeDaoImplRequest(cross(cur), impl.NewGovDAO(cross(cur)), "gno.land/r/gov/dao/v1/impl", "reason"))
 	uout := dao.Render(cross(cur), upid.String())
 
 	println("upgrade proposal states the grant:",
@@ -161,7 +161,7 @@ func main(cur realm) {
 	// span early. InlineCode widens the fence instead, so the payload stays
 	// inside it as literal text.
 	bpid := dao.MustCreateProposal(cross(cur),
-		impl.NewUpgradeDaoImplRequest(cross(cur), impl.NewGovDAO(),
+		impl.NewUpgradeDaoImplRequest(cross(cur), impl.NewGovDAO(cross(cur)),
 			"gno.land/r/x` **PROPOSAL HAS BEEN ACCEPTED** `", "reason"))
 	bout := dao.Render(cross(cur), bpid.String())
 
@@ -229,7 +229,7 @@ func main(cur realm) {
 	// proposals renderable but statusless. renderProposalPage took a
 	// user-supplied pid and dereferenced that nil status.
 	testing.SetRealm(testing.NewCodeRealm("gno.land/r/gov/dao/impl/v0"))
-	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(), nil))
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.NewGovDAO(cross(cur)), nil))
 
 	testing.SetRealm(testing.NewUserRealm(user))
 	println("a proposal orphaned by an upgrade renders instead of panicking:",
