@@ -1,16 +1,22 @@
 package multisig
 
 // Limits keep a single safe from becoming an unbounded storage or
-// render walk. Pending is the cap on proposals that are still live;
-// executed history is not capped and is paged by the realm.
+// render walk. Pending is the cap on proposals that are still live.
+// Retained is the cap on proposal records kept in state, including
+// finished ones. Older finished records are dropped; chain events
+// are the audit log. Unconsumed call authorizations are kept.
+//
+// MaxDenomLen matches the chain's std.MaxDenomLength (1 + 256 + 1 + 16).
+// A shorter cap would reject a legal realm denom.
 const (
 	MaxSigners    = 32
 	MaxPending    = 64
+	MaxRetained   = 128
 	MaxWatched    = 8
 	MaxNameLen    = 64
 	MaxMemoLen    = 280
 	MaxPayloadLen = 512
-	MaxDenomLen   = 128
+	MaxDenomLen   = 274
 	MaxTokenLen   = 256
 	MaxTargetLen  = 200
 

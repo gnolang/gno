@@ -17,6 +17,12 @@ import (
 	"gno.land/r/nt/grc20reg/v0"
 )
 
+// maxSafes bounds the factory. Create is permissionless, and every
+// safe is reachable from this list, so an open-ended list is a
+// storage sink. 1024 is a v0 ceiling, not a product decision about
+// how many treasuries the chain should have.
+const maxSafes = 1024
+
 var (
 	safes     []*msig.Safe
 	realmPath string
@@ -31,6 +37,9 @@ func init(cur realm) {
 // timelock in seconds for proposals created later; 0 executes as soon
 // as the threshold is met.
 func Create(cur realm, name, signers string, threshold int, delay int64) int64 {
+	if len(safes) >= maxSafes {
+		panic(msig.ErrTooManySafes.Error())
+	}
 	caller := cur.Previous().Address()
 	s, err := msig.New(cur.PkgPath(), cur.Address(), caller, name, signers, threshold, delay)
 	must(err)
@@ -51,6 +60,9 @@ func Deposit(cur realm, safeID int64, denom string, amount int64) {
 	s := mustSafe(safeID)
 	if amount <= 0 {
 		panic(msig.ErrAmount.Error())
+	}
+	if !msig.ValidDenom(denom) {
+		panic(msig.ErrDenom.Error())
 	}
 	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	b.SendCoins(cur.Address(), s.Address(), chain.NewCoins(chain.NewCoin(denom, amount)))
@@ -158,6 +170,9 @@ func Execute(cur realm, safeID, propID int64) {
 func canAfford(s *msig.Safe, eff msig.Effect) error {
 	switch eff.Kind {
 	case msig.KindCoin:
+		if !msig.ValidDenom(eff.Denom) {
+			return msig.ErrDenom
+		}
 		if banker.NewReadonlyBanker().GetCoin(s.Address(), eff.Denom) < eff.Amount {
 			return msig.ErrInsufficientBalance
 		}
@@ -211,6 +226,12 @@ func apply(cur realm, s *msig.Safe, eff msig.Effect) {
 }
 
 func applyCoin(cur realm, s *msig.Safe, eff msig.Effect) {
+	if eff.Amount <= 0 {
+		panic(msig.ErrAmount.Error())
+	}
+	if !msig.ValidDenom(eff.Denom) {
+		panic(msig.ErrDenom.Error())
+	}
 	sub := cur.Sub(s.Subpath())
 	if sub.Address() != s.Address() {
 		panic("safe address does not match its sub-realm")

@@ -36,6 +36,8 @@ var (
 	ErrLastSigner          = errors.New("multisig: cannot remove the last signer")
 	ErrUnknownSigner       = errors.New("multisig: signer not found")
 	ErrTooManyPending      = errors.New("multisig: too many pending proposals")
+	ErrHistory             = errors.New("multisig: proposal history is full")
+	ErrTooManySafes        = errors.New("multisig: too many safes")
 	ErrNotConsumable       = errors.New("multisig: call authorization is not consumable")
 	ErrConsumed            = errors.New("multisig: call authorization already consumed")
 	ErrBound               = errors.New("multisig: safe is already bound")

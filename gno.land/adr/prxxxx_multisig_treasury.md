@@ -118,8 +118,12 @@ because a third party can stick extra denoms on the address and set
 the gas cost.
 
 Caps, chosen so one safe cannot be walked without a bound: 32 signers,
-64 pending proposals, 8 watched denoms, 8 watched tokens, 30-day max
-delay, 280-byte memo, 512-byte payload.
+64 pending proposals, 128 retained proposals (older finished ones are
+dropped; an executed call that has not been consumed is kept), 1024
+safes in the factory, 8 watched denoms, 8 watched tokens, 30-day max
+delay, 366-day max lifetime, 280-byte memo, 512-byte payload. A denom
+has to match the chain's denom grammar before it is stored or passed
+to `GetCoin`.
 
 ## Alternatives
 
@@ -152,9 +156,145 @@ trust, can still be induced to approve. That is the signer's bug, same
 as handing a key to a program. The safe does not make it worse by
 calling out during `Execute`.
 
-`v0` is unaudited. Production use, and an upstream PR that genesis or
-GovDAO would depend on, waits on review of the signer rules, the
-sub-realm address match, the GRC20 teller path, and the pause switch.
+`v0` is unaudited by a third party. The review below is the author's
+pass over the paths a genesis treasury would depend on. It is not a
+substitute for that audit. Do not point genesis or GovDAO at this
+realm on the strength of this note.
+
+## Security review
+
+Threat model. The attacker can create safes, call every exported
+function, deploy a realm that calls this factory, pass a `cur` they
+control into a signer they have compromised, send arbitrary coins and
+denoms to any address, and fill storage up to the caps. They cannot
+forge `cur.Previous()`, mint a banker for an address they do not hold,
+or make `Execute` call a realm of their choosing. Signers are assumed
+honest about proposals they approve and careless about realms they
+pass `cur` into. The chain is assumed to run this code as written;
+there is no admin key.
+
+### Signer check
+
+`auth` requires `rlm.IsCurrent()` and then takes
+`rlm.Previous().Address()`. That is the realm that was current when
+this frame was entered, not `OriginCaller`. A callee the user called
+first does not inherit the user's vote. `maketx run` is an ephemeral
+realm: `IsUser()` would accept it, and this code does not use
+`IsUser()`. Deposit uses `IsUserCall()`, which is false for `maketx
+run` and for a realm in the middle of the stack. A realm may itself be
+a signer; that is intentional, and a signer who forwards `cur` into
+untrusted code can be induced to approve. `Execute` does not call out,
+so the safe does not add a second way to do that.
+
+### Sub-realm addresses
+
+`Bind` stores `chain.PackageAddress(host + "#" + subpath)`, the same
+derivation as `cur.Sub(subpath).Address()`. Coin and GRC20 sends go to
+that address. `applyCoin` and `applyGRC20` derive the sub again and
+panic if it does not match the stored address. With `Bind` as the only
+writer, the two cannot diverge; the panic is a tripwire. Two safes
+have different subpaths, so one safe's sub-token cannot send the
+other's coins. The factory's own address is not a wallet. `MsgCall
+-send` credits the called realm's primary address, which is why
+`Deposit` exists and why it refuses every caller that is not the
+signing user.
+
+### GRC20 teller
+
+The registry key is `path.symbol`. `canAfford` loads it with
+`grc20reg.Get` and reads `BalanceOf` on the safe's address. A token
+that was never registered fails here, and the proposal stays pending.
+`applyGRC20` builds `RealmTeller` with the sub-token, refuses anything
+`IsCanonicalTeller` rejects, and `Transfer`s. `Transfer` does not call
+the recipient. A teller minted for a different realm cannot pass the
+canonical check. Tokens outside `grc20reg` cannot be spent; that is a
+v0 limit, not a bypass.
+
+### Consume
+
+`Execute` of a call stores the payload and returns. It does not enter
+the target, so a callback cannot reenter on the safe's `cur` or on a
+banker minted from it. `Consume` requires `Previous().PkgPath()` to
+equal the proposal's target, refuses a second pull, and refuses to run
+while the safe is paused. The target package has to be a realm path,
+and it cannot be the factory or a `host#...` subpath. The last rule
+matters if a later version ever calls out: a target of the factory
+would otherwise be an authorization to act as the factory.
+
+### Pause
+
+Pause blocks coin, GRC20, and call execution, and it blocks `Consume`.
+Signer changes, threshold, delay, and unpause still run, so a paused
+safe can still be repaired. Pause does not freeze a timelock that
+already started. After unpause, a spend whose delay has elapsed can
+execute in a later message. It cannot execute in the same message as
+the unpause, because the unpause is the proposal that ran.
+
+### Render
+
+Names, memos, addresses, denoms, and token keys go through
+`sanitize.InlineText` before they are written into the page. Paths
+that do not parse render a fixed "unknown" string. Balances use
+`GetCoin` for one denom. Watched denoms are checked with `ValidDenom`
+again before `GetCoin`, so a denom that somehow failed the write-time
+check cannot panic the page.
+
+### DoS and storage
+
+`GetCoin` panics on a denom the chain rejects. Storing one, from
+`WatchDenom` or a coin proposal, would brick `Render` and `Balance`
+for that safe. `ValidDenom` now uses the chain grammar (length 3 to
+274, first byte `a-z` or `/`, remaining bytes the banker's set) and
+both writers use it. Regression: a denom such as `NO` is rejected, and
+`Render` skips a watched denom that fails the check.
+
+Retained proposals used to grow without a bound. Loading a safe walks
+that list, and so does stripping a removed signer's approvals. The cap
+is 128. Past that, the oldest terminal proposal is dropped.
+`ProposalForgotten` is emitted. An executed call that has not been
+consumed is not terminal: the target can still pull it. If every
+retained record is one of those, `Propose` returns `ErrHistory` until
+one is consumed. Pending proposals are capped at 64 before the history
+check, so a full pending set is `ErrTooManyPending`, not `ErrHistory`.
+Ids stay monotonic and are not reused. After a drop, `View` of that id
+is `ErrUnknownProposal`. Chain events are the record that outlives the
+cap.
+
+`Create` is permissionless. An unbounded factory list is a storage
+sink every `Render` of the home page walks. The ceiling is 1024 safes.
+A deposit that the creator can withdraw does not price this, so the
+ceiling is the control. Filling it blocks later creates. That is an
+accepted v0 limit.
+
+One signer can occupy all 64 pending slots until they expire (at most
+366 days). Any other current signer can cancel a proposal that has not
+reached the threshold. A 1-of-1 safe can only fill its own queue.
+Watched lists are capped at 8. Signer sets are capped at 32. Loops
+that walk proposals, signers, or watches are bounded by those caps.
+
+### Findings
+
+| Severity | Issue | Disposition |
+| --- | --- | --- |
+| Medium | A denom `GetCoin` panics on could be stored and then panic `Render` | Fixed. `ValidDenom` before the write. Regression in the package and realm tests. |
+| Medium | Finished proposals were retained forever, so one safe's stored list and its approval walk were unbounded | Fixed. 128 retained, oldest terminal proposal dropped, unconsumed calls kept. Regression: fill the cap, observe the oldest id disappear, observe `ErrHistory` while every retained call is unconsumed. |
+| Medium | `Create` had no ceiling | Fixed. 1024 safes. Regression: a full list panics `ErrTooManySafes` without calling `New`. |
+| Low | A call target of the factory, or `host#...`, could be authorized | Fixed. `validCallTarget` rejects both. The safe still does not call out. |
+| Low | `New` accepted an invalid creator address | Fixed. `ErrInvalidAddress`. |
+| Info | `armedAt == 0` means "not armed". A proposal armed at unix time 0 cannot execute | Accepted. Chain time is not 0. A test locks the current behavior. |
+| Info | Second balance, teller, and address-match checks in `applyCoin` / `applyGRC20` sit behind `canAfford` and `Bind` | Kept. They are unreachable when the first check holds. They panic rather than mark the proposal executed. |
+| Info | `expireIfDue` also marks a pending proposal expired, and `sweep` has already done that for every caller | Kept. A later caller that skips `sweep` still expires the proposal. |
+| Info | Any current signer can cancel a proposal that is under the threshold | Accepted. An armed proposal cannot be cancelled; signers revoke their own votes first. |
+| Info | A realm signer can be talked into approving by code it passed `cur` to | Accepted. Same class as a leaked key. `Execute` does not call out. |
+
+Statement coverage, measured by instrumenting each block-level
+statement with an event and running `gno test` (there is no `-cover`
+flag): `p/nt/multisig/v0` 523/531 (98.5%), `r/nt/multisig/v0` 241/251
+(96.0%), or 242/251 counting `init`, which runs before the test event
+log starts. The statements not hit are the defensive branches in the
+table above, plus `parseSigners` on an empty `strings.Split` result
+(`Split` does not return an empty slice) and `rel` when the realm path
+does not start with `gno.land`.
 
 ## Testing note
 

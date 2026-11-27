@@ -23,6 +23,7 @@ type Safe struct {
 	delay     int64
 	paused    bool
 	nonce     int64
+	nextID    int64
 	props     []*proposal
 	pending   []int64
 	denoms    []string
@@ -38,6 +39,9 @@ func New(hostPkg string, hostAddr, creator address, name, signersCSV string, thr
 	}
 	if !hostAddr.IsValid() || hostAddr != chain.PackageAddress(hostPkg) {
 		return nil, ErrHost
+	}
+	if !creator.IsValid() {
+		return nil, ErrInvalidAddress
 	}
 	if !validText(name, 1, MaxNameLen) {
 		return nil, ErrName
@@ -157,8 +161,25 @@ func (s *Safe) Signers() []address {
 	return out
 }
 
-// ProposalCount includes executed and expired proposals.
+// ProposalCount is how many proposals are still retained. Finished
+// proposals past MaxRetained are dropped, so this is not a lifetime count.
 func (s *Safe) ProposalCount() int { return len(s.props) }
+
+// Recent returns up to limit retained proposals, newest first.
+func (s *Safe) Recent(limit int) []ProposalView {
+	if s == nil || limit <= 0 || len(s.props) == 0 {
+		return nil
+	}
+	if limit > len(s.props) {
+		limit = len(s.props)
+	}
+	out := make([]ProposalView, limit)
+	n := len(s.props)
+	for i := 0; i < limit; i++ {
+		out[i] = s.props[n-1-i].view()
+	}
+	return out
+}
 
 // PendingCount is the number of stored-pending proposals, including
 // ones that are past their deadline until the next write sweeps them.
@@ -234,7 +255,7 @@ func (s *Safe) WatchDenom(_ int, rlm realm, denom string) error {
 	if _, err := s.auth(0, rlm); err != nil {
 		return err
 	}
-	if !validSymbol(denom, MaxDenomLen) {
+	if !validDenom(denom) {
 		return ErrDenom
 	}
 	if hasString(s.denoms, denom) {
@@ -556,7 +577,13 @@ func (s *Safe) propose(_ int, rlm realm, d draft, now int64) (int64, error) {
 	if err := s.validateDraft(d, now); err != nil {
 		return 0, err
 	}
-	id := int64(len(s.props)) + 1
+	if len(s.props) >= MaxRetained {
+		if !s.evictOne() {
+			return 0, ErrHistory
+		}
+	}
+	s.nextID++
+	id := s.nextID
 	p := &proposal{
 		id: id, kind: d.kind, proposer: caller, createdAt: now,
 		delay: s.delay, expiresAt: d.expiresAt, memo: d.memo,
@@ -596,7 +623,7 @@ func (s *Safe) validateDraft(d draft, now int64) error {
 		if err := s.validPay(d.to, d.amount); err != nil {
 			return err
 		}
-		if !validSymbol(d.denom, MaxDenomLen) {
+		if !validDenom(d.denom) {
 			return ErrDenom
 		}
 	case KindGRC20:
@@ -607,7 +634,7 @@ func (s *Safe) validateDraft(d draft, now int64) error {
 			return ErrToken
 		}
 	case KindCall:
-		if !validTarget(d.targetPkg) || d.targetPkg == s.hostPkg {
+		if !s.validCallTarget(d.targetPkg) {
 			return ErrTarget
 		}
 		if !validText(d.payload, 0, MaxPayloadLen) {
@@ -740,14 +767,15 @@ func (s *Safe) auth(_ int, rlm realm) (address, error) {
 }
 
 func (s *Safe) prop(id int64) (*proposal, error) {
-	if id <= 0 || int(id) > len(s.props) {
+	if id <= 0 {
 		return nil, ErrUnknownProposal
 	}
-	p := s.props[id-1]
-	if p == nil || p.id != id {
-		return nil, ErrUnknownProposal
+	for _, p := range s.props {
+		if p != nil && p.id == id {
+			return p, nil
+		}
 	}
-	return p, nil
+	return nil, ErrUnknownProposal
 }
 
 func (s *Safe) expireIfDue(p *proposal, now int64) error {
@@ -774,7 +802,10 @@ func (s *Safe) sweep(now int64) {
 	copy(ids, s.pending)
 	s.pending = nil
 	for _, id := range ids {
-		p := s.props[id-1]
+		p, err := s.prop(id)
+		if err != nil {
+			continue
+		}
 		if p.status == StatusPending && now >= p.expiresAt {
 			p.status = StatusExpired
 			chain.Emit(
@@ -815,7 +846,53 @@ func (s *Safe) refreshArm(p *proposal, now int64) {
 
 func (s *Safe) refreshAll(now int64) {
 	for _, id := range s.pending {
-		s.refreshArm(s.props[id-1], now)
+		p, err := s.prop(id)
+		if err != nil {
+			continue
+		}
+		s.refreshArm(p, now)
+	}
+}
+
+// evictOne drops the oldest finished proposal. An executed call that
+// has not been consumed stays: the target can still pull it. Returns
+// false when every retained record is still live.
+func (s *Safe) evictOne() bool {
+	idx := -1
+	var oldest int64
+	for i, p := range s.props {
+		if p == nil || !evictable(p) {
+			continue
+		}
+		if idx < 0 || p.id < oldest {
+			idx = i
+			oldest = p.id
+		}
+	}
+	if idx < 0 {
+		return false
+	}
+	dropped := s.props[idx]
+	next := make([]*proposal, 0, len(s.props)-1)
+	next = append(next, s.props[:idx]...)
+	next = append(next, s.props[idx+1:]...)
+	s.props = next
+	chain.Emit(
+		"ProposalForgotten",
+		"safe", s.idStr(),
+		"proposal", strconv.FormatInt(dropped.id, 10),
+	)
+	return true
+}
+
+func evictable(p *proposal) bool {
+	switch p.status {
+	case StatusCancelled, StatusExpired:
+		return true
+	case StatusExecuted:
+		return p.kind != KindCall || p.consumed
+	default:
+		return false
 	}
 }
 
@@ -877,6 +954,40 @@ func validText(s string, min, max int) bool {
 		if c < 0x20 || c == 0x7f {
 			return false
 		}
+	}
+	return true
+}
+
+// ValidDenom reports whether denom is accepted by the chain banker.
+// GetCoin panics on anything else, so a stored denom has to pass
+// before it is written or rendered.
+func ValidDenom(denom string) bool { return validDenom(denom) }
+
+func validDenom(s string) bool {
+	if len(s) < 3 || len(s) > MaxDenomLen {
+		return false
+	}
+	c0 := s[0]
+	if (c0 < 'a' || c0 > 'z') && c0 != '/' {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		c := s[i]
+		ok := (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+			c == '_' || c == '.' || c == ':' || c == '/' || c == '-'
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *Safe) validCallTarget(target string) bool {
+	if !validTarget(target) {
+		return false
+	}
+	if target == s.hostPkg || strings.HasPrefix(target, s.hostPkg+"#") {
+		return false
 	}
 	return true
 }

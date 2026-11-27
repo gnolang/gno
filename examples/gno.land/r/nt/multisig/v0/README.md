@@ -36,8 +36,13 @@ Signers are whatever `cur.Previous().Address()` is. A user must call
 with `maketx call`. `maketx run` is a different address. A realm can be
 a signer if its own address is on the list.
 
-Limits: 32 signers, 64 pending proposals, delay up to 30 days, expiry
-at most 366 days out and always later than `now + delay`.
+Limits: 32 signers, 64 pending proposals, 128 retained proposals
+(older finished ones are dropped; an unconsumed call authorization
+is kept), 1024 safes on this factory, delay up to 30 days, expiry
+at most 366 days out and always later than `now + delay`. A native
+denom has to match the chain's denom grammar. One signer can fill
+the pending list; any other signer can cancel those proposals while
+they are below the threshold.
 
 ## Local node
 

@@ -61,5 +61,8 @@ func ApprovalCount(safeID, propID int64) int {
 // A third party can send extra denoms to any address, so this reads
 // the denom the caller named instead of every coin the safe holds.
 func Balance(safeID int64, denom string) int64 {
+	if !msig.ValidDenom(denom) {
+		panic(msig.ErrDenom.Error())
+	}
 	return banker.NewReadonlyBanker().GetCoin(mustSafe(safeID).Address(), denom)
 }

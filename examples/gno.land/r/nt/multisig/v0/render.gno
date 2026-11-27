@@ -76,6 +76,9 @@ func renderSafe(id int64) string {
 	b.WriteString("\n## Balances\n\n")
 	b.WriteString("- ugnot: " + strconv.FormatInt(bankerGet(s.Address(), "ugnot"), 10) + "\n")
 	for _, denom := range s.WatchedDenoms() {
+		if !msig.ValidDenom(denom) {
+			continue
+		}
 		b.WriteString("- " + sanitize.InlineText(denom) + ": " + strconv.FormatInt(bankerGet(s.Address(), denom), 10) + "\n")
 	}
 	for _, key := range s.WatchedTokens() {
@@ -88,21 +91,16 @@ func renderSafe(id int64) string {
 	}
 	b.WriteString("\nSend native coins to the address above. Do not attach them to a call on the factory unless you use Deposit.\n\n")
 	b.WriteString("## Proposals\n\n")
-	n := s.ProposalCount()
-	if n == 0 {
+	views := s.Recent(20)
+	if len(views) == 0 {
 		b.WriteString("None yet.\n")
 		return b.String()
 	}
-	from := 0
-	if n > 20 {
-		from = n - 20
+	if s.ProposalCount() > len(views) {
+		b.WriteString("Showing the latest " + strconv.Itoa(len(views)) + ".\n\n")
 	}
 	now := nowUnix()
-	for i := n - 1; i >= from; i-- {
-		view, err := s.View(int64(i + 1))
-		if err != nil {
-			continue
-		}
+	for _, view := range views {
 		st := msig.DisplayStatus(view.Status, view.ExpiresAt, now)
 		pid := strconv.FormatInt(view.ID, 10)
 		b.WriteString("- [" + pid + " " + view.Kind.String() + "](" + rel() + ":" + strconv.FormatInt(id, 10) + "/" + pid + ") — " + st.String() + "\n")
