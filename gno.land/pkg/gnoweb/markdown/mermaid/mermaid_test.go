@@ -333,7 +333,7 @@ func checkAttr(t *testing.T, elem string, a xml.Attr, attrs []string) {
 	t.Helper()
 	name, v := a.Name.Local, a.Value
 	if name == "class" {
-		for _, c := range strings.Fields(v) {
+		for c := range strings.FieldsSeq(v) {
 			require.True(t, strings.HasPrefix(c, "gno-mermaid__"), "class %q", c)
 		}
 		return

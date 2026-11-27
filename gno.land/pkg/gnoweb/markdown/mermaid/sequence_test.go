@@ -9,9 +9,10 @@ import (
 )
 
 func TestSequenceErrors(t *testing.T) {
-	many := "sequenceDiagram\n"
+	var many strings.Builder
+	many.WriteString("sequenceDiagram\n")
 	for i := 0; i <= maxParticipants; i++ {
-		many += "participant P" + strings.Repeat("x", i) + "\n"
+		many.WriteString("participant P" + strings.Repeat("x", i) + "\n")
 	}
 	renderErrors(t, map[string][2]string{
 		"no participants":   {"sequenceDiagram\ntitle x", "no participants"},
@@ -35,7 +36,7 @@ func TestSequenceErrors(t *testing.T) {
 		"activate unknown":  {"sequenceDiagram\nA->>B: x\nactivate C", "unknown participant"},
 		"non-ASCII keyword": {"sequenceDiagram\nNote r\u0130ght of A: x", "note"},
 		"header":            {"sequenceDiagram A->>B: x", "sequenceDiagram line"},
-		"participants":      {many, "participants"},
+		"participants":      {many.String(), "participants"},
 		"unclosed accDescr": {"sequenceDiagram\naccDescr {\n  text", "accDescr block"},
 	})
 }

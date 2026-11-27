@@ -148,8 +148,8 @@ func splitTitle(s string) (string, string) {
 	end := strings.IndexByte(s, '[')
 	if end < 0 {
 		end = len(s)
-		if i := strings.Index(s, "-->"); i >= 0 {
-			end = strings.LastIndexByte(strings.TrimSpace(s[:i]), ' ') + 1
+		if before, _, ok := strings.Cut(s, "-->"); ok {
+			end = strings.LastIndexByte(strings.TrimSpace(before), ' ') + 1
 		}
 	}
 	return decodeEntities(strings.TrimSpace(s[:end])), strings.TrimSpace(s[end:])

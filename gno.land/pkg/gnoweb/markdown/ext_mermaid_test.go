@@ -110,11 +110,11 @@ func TestMermaidUnrenderedFootnote(t *testing.T) {
 	// none of the document's tries.
 	m := goldmark.New(goldmark.WithExtensions(extension.Footnote))
 	NewGnoExtension().Extend(m)
-	unused := ""
+	var unused strings.Builder
 	for i := range maxMermaidTries {
-		unused += fmt.Sprintf("[^u%d]:\n    ```mermaid\n    sequenceDiagram\n    A->>B: hi\n    ```\n\n", i)
+		unused.WriteString(fmt.Sprintf("[^u%d]:\n    ```mermaid\n    sequenceDiagram\n    A->>B: hi\n    ```\n\n", i))
 	}
-	src := []byte(unused + seqFence)
+	src := []byte(unused.String() + seqFence)
 	doc := m.Parser().Parse(text.NewReader(src), parser.WithContext(NewGnoParserContext(GnoContext{Mermaid: true})))
 	var out bytes.Buffer
 	require.NoError(t, m.Renderer().Render(&out, src, doc))
