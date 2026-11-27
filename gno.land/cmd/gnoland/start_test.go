@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -62,6 +63,19 @@ func prepareNodeRPC(t *testing.T, nodeDir string, addr string) {
 		"p2p.laddr", "tcp://127.0.0.1:0",
 	}
 	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
+}
+
+// TestStart_DefaultLogLevel guards the default log level: debug output from a
+// long-running node is large enough to fill a disk (#5903).
+func TestStart_DefaultLogLevel(t *testing.T) {
+	t.Parallel()
+
+	cfg := &startCfg{}
+	fs := flag.NewFlagSet("start", flag.ContinueOnError)
+	cfg.RegisterFlags(fs)
+	require.NoError(t, fs.Parse(nil))
+
+	assert.Equal(t, "info", cfg.logLevel)
 }
 
 func TestStart_Lazy(t *testing.T) {

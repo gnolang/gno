@@ -59,10 +59,11 @@ To build a genesis file yourself — adding validators, balances, or transaction
 — use [`gnogenesis`](../../../contribs/gnogenesis), a dedicated CLI for
 generating and manipulating `genesis.json`.
 
-> ⚠️ **Set `-log-level info` on any node you leave running.** The default is
-> `debug`, which writes enough to fill a disk: one operator reported 1.3 TB of
-> logs on a testnet node
-> ([#5903](https://github.com/gnolang/gno/issues/5903)). Rotate your logs too.
+> ⚠️ **Don't leave `-log-level debug` on a node you leave running.** It writes
+> enough to fill a disk: one operator reported 1.3 TB of logs on a testnet node
+> ([#5903](https://github.com/gnolang/gno/issues/5903)). The default is `info`;
+> releases before that change defaulted to `debug`, so pass `-log-level info`
+> explicitly on older binaries. Rotate your logs too.
 
 Flags worth knowing on `gnoland start`:
 
@@ -72,7 +73,7 @@ Flags worth knowing on `gnoland start`:
 | `-genesis` | Path to `genesis.json` (default `genesis.json`) |
 | `-chainid` | Chain ID; must match the network's exactly (default `dev`) |
 | `-data-dir` | Node data directory (default `gnoland-data`) |
-| `-log-level` | `debug`, `info`, `warn`, `error` — **default `debug`**, see above |
+| `-log-level` | `debug`, `info`, `warn`, `error` — default `info`, see above |
 | `-skip-genesis-sig-verification` | Don't panic on genesis txs with invalid signatures |
 | `-skip-failing-genesis-txs` | Don't panic when a genesis tx fails to replay |
 
@@ -204,8 +205,8 @@ genesis, so a box sized for steady state alone will OOM on first boot.
 is disk I/O, and consensus is latency-sensitive — a slow disk shows up as missed
 blocks, not as a slow node. Size it for growth: the data directory grows with
 chain history, and `application.prune_strategy = nothing` (needed for historical
-queries) means it never shrinks. Budget for logs separately, and set
-`-log-level info` — see the warning above.
+queries) means it never shrinks. Budget for logs separately, and keep
+`-log-level` at `info` or above — see the warning above.
 
 Per-network requirements, when they differ, are in that network's deployment
 directory.
