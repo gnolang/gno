@@ -23,6 +23,7 @@ type AppConfig struct {
 	genesisFile      string
 	txsFile          string
 	validatorKeyFile string
+	stateDir         string
 
 	// Web Configuration
 	noWeb                bool
@@ -199,6 +200,13 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 	)
 
 	fs.StringVar(
+		&c.stateDir,
+		"state-dir",
+		defaultCfg.stateDir,
+		"persist this chain's transaction history in the given directory, and replay it on the next start",
+	)
+
+	fs.StringVar(
 		&c.genesisFile,
 		"genesis",
 		defaultCfg.genesisFile,
@@ -300,6 +308,10 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 func (c *AppConfig) validateConfigFlags() error {
 	if (c.balancesFile != "" || c.txsFile != "") && c.genesisFile != "" {
 		return ErrConflictingFileArgs
+	}
+
+	if c.stateDir != "" && (c.txsFile != "" || c.genesisFile != "") {
+		return ErrConflictingStateDir
 	}
 
 	return nil
