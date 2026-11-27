@@ -306,16 +306,22 @@ func TestWriterEscapes(t *testing.T) {
 }
 
 func TestWriterBound(t *testing.T) {
-	// Past MaxOutputLen a writer drops what it is given, so a drawing Render
-	// refuses is not drawn in full first.
+	// Past MaxOutputLen a writer drops every element it is given, so a
+	// drawing Render refuses is not drawn in full first.
 	var w svgWriter
 	for w.b.Len() <= MaxOutputLen {
 		w.rect(classBox, 1, 2, 3, 4, 5)
 	}
 	n := w.b.Len()
+	w.group(classFill)
 	w.rect(classBox, 1, 2, 3, 4, 5)
+	w.line(classStroke, 1, 2, 3, 4)
+	w.circle(classStroke, 1, 2, 3)
+	w.polygon(classHead, 1, 2, 3, 4)
+	w.polyline(classEdge, 1, 2, 3, 4)
 	w.text(classMuted, 1, 2, anchorMiddle, 0, "a & b", "c")
 	w.path(classStroke, new(pathData).cmd('M', 1, 2))
+	w.end()
 	assert.Equal(t, n, w.b.Len())
 }
 
@@ -324,7 +330,7 @@ func TestWriteNum(t *testing.T) {
 		0: "0", -0.001: "0", 1.005: "1", 2.5: "2.5", 1.234: "1.23", -3: "-3",
 		1e307: "1000000000", -1e307: "-1000000000", math.Inf(1): "0", math.NaN(): "0",
 	} {
-		var b buffer
+		var b bytes.Buffer
 		writeNum(&b, v)
 		assert.Equal(t, want, b.String(), "%v", v)
 	}

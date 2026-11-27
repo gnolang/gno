@@ -91,39 +91,15 @@ const (
 // attribute values are numbers it formats (a translation included), classes
 // and anchors, or escaped text. No method writes a style, an event handler,
 // a link or a reference to another resource.
+//
+// Once it holds more than MaxOutputLen bytes, it drops every element it is
+// given: Render refuses such a drawing, so one too large stops growing
+// rather than being drawn in full.
 type svgWriter struct {
-	b buffer
+	b bytes.Buffer
 }
 
-// buffer is what svgWriter and pathData write to. Once it holds more than
-// MaxOutputLen bytes it drops every write: Render refuses such a drawing, so
-// one too large stops growing rather than being drawn in full.
-type buffer struct {
-	bytes.Buffer
-}
-
-func (b *buffer) full() bool { return b.Len() > MaxOutputLen }
-
-func (b *buffer) Write(p []byte) (int, error) {
-	if b.full() {
-		return len(p), nil
-	}
-	return b.Buffer.Write(p)
-}
-
-func (b *buffer) WriteString(s string) (int, error) {
-	if b.full() {
-		return len(s), nil
-	}
-	return b.Buffer.WriteString(s)
-}
-
-func (b *buffer) WriteByte(c byte) error {
-	if b.full() {
-		return nil
-	}
-	return b.Buffer.WriteByte(c)
-}
+func (w *svgWriter) full() bool { return w.b.Len() > MaxOutputLen }
 
 // document wraps what w holds, a drawing bodyW wide, in an <svg> element of
 // width by height labelled for assistive technology, under the title if
@@ -168,15 +144,21 @@ func (w *svgWriter) document(width, height, bodyW float64, title, label, desc st
 }
 
 func (w *svgWriter) group(c class) {
-	w.b.WriteString(`<g class="`)
-	w.b.WriteString(string(c))
-	w.b.WriteString(`">`)
+	if w.open("g", c) {
+		w.b.WriteByte('>')
+	}
 }
 
-func (w *svgWriter) end() { w.b.WriteString("</g>") }
+func (w *svgWriter) end() {
+	if !w.full() {
+		w.b.WriteString("</g>")
+	}
+}
 
 func (w *svgWriter) rect(c class, x, y, width, height, radius float64) {
-	w.open("rect", c)
+	if !w.open("rect", c) {
+		return
+	}
 	w.attr("x", x)
 	w.attr("y", y)
 	w.attr("width", width)
@@ -188,7 +170,9 @@ func (w *svgWriter) rect(c class, x, y, width, height, radius float64) {
 }
 
 func (w *svgWriter) line(c class, x1, y1, x2, y2 float64) {
-	w.open("line", c)
+	if !w.open("line", c) {
+		return
+	}
 	w.attr("x1", x1)
 	w.attr("y1", y1)
 	w.attr("x2", x2)
@@ -197,7 +181,9 @@ func (w *svgWriter) line(c class, x1, y1, x2, y2 float64) {
 }
 
 func (w *svgWriter) circle(c class, cx, cy, r float64) {
-	w.open("circle", c)
+	if !w.open("circle", c) {
+		return
+	}
 	w.attr("cx", cx)
 	w.attr("cy", cy)
 	w.attr("r", r)
@@ -209,7 +195,9 @@ func (w *svgWriter) polygon(c class, xy ...float64) { w.points("polygon", c, xy)
 func (w *svgWriter) polyline(c class, xy ...float64) { w.points("polyline", c, xy) }
 
 func (w *svgWriter) points(name string, c class, xy []float64) {
-	w.open(name, c)
+	if !w.open(name, c) {
+		return
+	}
 	w.b.WriteString(` points="`)
 	for i, v := range xy {
 		switch {
@@ -225,9 +213,11 @@ func (w *svgWriter) points(name string, c class, xy []float64) {
 }
 
 func (w *svgWriter) path(c class, d *pathData) {
-	w.open("path", c)
+	if !w.open("path", c) {
+		return
+	}
 	w.b.WriteString(` d="`)
-	w.b.WriteString(d.b.String())
+	w.b.Write(d.b.Bytes())
 	w.b.WriteString(`"/>`)
 }
 
@@ -237,7 +227,9 @@ func (w *svgWriter) text(c class, x, y float64, a anchor, size float64, lines ..
 	if len(lines) == 0 || len(lines) == 1 && lines[0] == "" {
 		return
 	}
-	w.open("text", c)
+	if !w.open("text", c) {
+		return
+	}
 	w.attr("x", x)
 	w.attr("y", y)
 	if a != anchorStart {
@@ -266,7 +258,11 @@ func (w *svgWriter) text(c class, x, y float64, a anchor, size float64, lines ..
 	w.b.WriteString("</text>")
 }
 
-func (w *svgWriter) open(name string, c class) {
+// open starts an element, or reports false when w is full.
+func (w *svgWriter) open(name string, c class) bool {
+	if w.full() {
+		return false
+	}
 	w.b.WriteByte('<')
 	w.b.WriteString(name)
 	if c != "" {
@@ -274,6 +270,7 @@ func (w *svgWriter) open(name string, c class) {
 		w.b.WriteString(string(c))
 		w.b.WriteByte('"')
 	}
+	return true
 }
 
 func (w *svgWriter) attr(name string, v float64) {
@@ -286,7 +283,7 @@ func (w *svgWriter) attr(name string, v float64) {
 
 // pathData builds the d attribute of a path from numbers only.
 type pathData struct {
-	b buffer
+	b bytes.Buffer
 }
 
 func (p *pathData) cmd(c byte, args ...float64) *pathData {
@@ -307,7 +304,7 @@ const maxCoord = 1e9
 // writeNum writes v with at most two decimals. A value that is not finite,
 // which no layout should produce, is written as 0, and one past maxCoord as
 // the bound, so the document stays valid.
-func writeNum(b *buffer, v float64) {
+func writeNum(b *bytes.Buffer, v float64) {
 	if math.IsNaN(v) || math.IsInf(v, 0) {
 		v = 0
 	}
@@ -321,6 +318,6 @@ func writeNum(b *buffer, v float64) {
 // escape writes s as XML character data, valid in text and in attribute
 // values: markup characters become references and characters XML forbids
 // become U+FFFD.
-func escape(b *buffer, s string) {
+func escape(b *bytes.Buffer, s string) {
 	_ = xml.EscapeText(b, []byte(s))
 }
