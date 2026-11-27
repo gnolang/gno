@@ -4,6 +4,8 @@
 
 How to run a full node on **mainnet** and put yourself forward as a validator candidate. This assumes you're comfortable with Go, Docker, and `gnokey` — it only covers what's specific to mainnet.
 
+If you have a question, check the `#technical-start-here` channel on the gno.land [Discord](https://discord.com/invite/gnoland).
+
 The flow:
 
 1. Get the binaries.
@@ -14,7 +16,7 @@ The flow:
 
 ## 1. Binaries
 
-Run the version in the last row of [`UPGRADES.md`](./UPGRADES.md) with no *(pending)* cell — `v1.8.0` in the examples below — and pin it: the binary changes at every coordinated upgrade, and a node refuses to start a newer version before its halt height. A node that starts from genesis begins on `v1.7.1` instead, with `GNOROOT` at a checkout of `v1.7.1` (the node loads the standard libraries from it at genesis, and the two tags' differ), and switches to `v1.8.0` at its halt height; see [Start the node](#4-start-the-node).
+Run the version in the last row of [`UPGRADES.md`](./UPGRADES.md) with no *(pending)* cell — `v1.8.0` in the examples below — and pin it: the binary changes at every coordinated upgrade, and a node refuses to start a newer version before its halt height. A node that starts from genesis begins on `v1.7.1` instead, with `GNOROOT` at a checkout of `v1.7.1` (the node loads the standard libraries from it at genesis, and they differ between the two tags), and switches to `v1.8.0` at its halt height; see [Start the node](#4-start-the-node).
 
 **Native binary (recommended for validators).** Download `gnoland` for your platform from the version's [release page](https://github.com/gnolang/gno/releases/tag/v1.8.0), check it against `CHECKSUMS.txt` there (the same checksums are in `upgrades.json`), and point `GNOROOT` at a checkout of the same tag — the node reads `gnovm/stdlibs` from it:
 
@@ -111,9 +113,15 @@ gnoland start \
 
 `--skip-genesis-sig-verification` is **required**: some genesis transactions carry placeholder or intentionally-invalidated signatures (e.g. the `names.Enable` call runs with a patched caller), so the node panics on startup without it.
 
-Let the node sync, and wait until it has caught up to the chain tip before the next step.
+Let the node sync, and wait until it has caught up to the chain tip before the next step. It gets there from genesis or from a snapshot, by hand or with gnovisor.
 
-**Syncing from genesis stops at every past upgrade.** Each coordinated halt in [`UPGRADES.md`](./UPGRADES.md) fires again during replay: the node stops after committing that halt height. Restart it — with the same binary if it satisfies that row's `halt_min_version`, otherwise with that row's version — and it continues. Verified on 2026-09-22: a `v1.5.0` node with this configuration replayed the chain from genesis to the tip (height 251,330) in about two hours, stopping at 36300, 113000 and 162200 and resuming after a plain restart each time, with block ids and app hashes identical to the network's. `v1.8.0` cannot replay the blocks before its own halt: sync from genesis on `v1.7.1` with `GNOROOT` at a checkout of `v1.7.1` (or its container image), and when the node stops at `v1.8.0`'s halt height, restart it on `v1.8.0`. Started from genesis, `v1.8.0` stops within its first blocks with `wrong Block.Header.AppHash`. Verified on onyx on 2026-11-17 with the candidates built from the same commits. If a restart lands between a halt proposal's execution and its halt height while your binary already satisfies that halt's version, the node refuses to start; set `skip_upgrade_height` to that height in `config.toml` for that one restart, or use the previous version until the height. Set it back to `0` once the node is past that height: it bypasses both upgrade gates, so left in place it also lets a binary below that row's `halt_min_version` resume.
+**From genesis.** The sync stops at every past upgrade. Each coordinated halt in [`UPGRADES.md`](./UPGRADES.md) fires again during replay: the node stops after committing that halt height. Restart it — with the same binary if it satisfies that row's `halt_min_version`, otherwise with that row's version — and it continues. Verified on 2026-09-22: a `v1.5.0` node with this configuration replayed the chain from genesis to the tip (height 251,330) in about two hours, stopping at 36300, 113000 and 162200 and resuming after a plain restart each time, with block ids and app hashes identical to the network's. `v1.8.0` cannot replay the blocks before its own halt: sync from genesis on `v1.7.1` with `GNOROOT` at a checkout of `v1.7.1` (or its container image), and when the node stops at `v1.8.0`'s halt height, restart it on `v1.8.0`. Started from genesis, `v1.8.0` stops within its first blocks with `wrong Block.Header.AppHash`. Verified on onyx on 2026-11-17 with the candidates built from the same commits. If a restart lands between a halt proposal's execution and its halt height while your binary already satisfies that halt's version, the node refuses to start; set `skip_upgrade_height` to that height in `config.toml` for that one restart, or use the previous version until the height. Set it back to `0` once the node is past that height: it bypasses both upgrade gates, so left in place it also lets a binary below that row's `halt_min_version` resume.
+
+**From a snapshot.** <https://snapshots.gno.land/> publishes a pruned database (`db/`) of a mainnet node every 30 minutes, each kept 24 hours with its sha256; it holds no key and no configuration. Unpack the latest one into your node directory (`gnoland-data` by default) before its first start, or stop the node and move its `db/` aside first; the page gives the commands. Then start the node on the version [1. Binaries](#1-binaries) names: it syncs from its peers only the blocks since the snapshot, with no stop at past upgrades.
+
+**With gnovisor.** [gnovisor](https://github.com/AviaOne/gnovisor), an open-source upgrade supervisor by AviaOne (the gno.land counterpart of Cosmovisor), runs your node and takes it across every halt, switching the binary when the halt requires it: the past upgrades while the node catches up, from genesis or from a snapshot, then each new halt that GovDAO votes, once the node is at the tip. It prepares each version's binary and `GNOROOT` before the halt. Use gnovisor `v1.3.0` or later: earlier versions loop on the old binary when a node reaches a halt while catching up. gnovisor runs on Linux and starts the node from a binary or from gnoland's container image. Either way it runs the binary of each version's image, built without CGO, so the node must use the default `pebbledb` database, not `lmdbdb` or `mdbxdb`. Its README covers the setup.
+
+**Later halts, by hand.** At a halt GovDAO votes, a node at the tip stops producing blocks but its process keeps running ([what a halt looks like](../../../gno.land/cmd/gnoland/UPGRADES.md#what-a-halt-actually-looks-like)): stop it, and once it has exited, start it again on the version the halt names as its `halt_min_version`.
 
 ## 5. Register as a validator candidate
 
