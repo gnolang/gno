@@ -3037,6 +3037,17 @@ main.is-dev-mode .b-toc a {
 		overflow-x: auto;
 		contain: inline-size;
 		margin-block: var(--g-space-6);
+
+		/* The source after the drawing is visually hidden (.u-sr-only), but
+		   the view's pre rule outranks the utility: its padding and scroller
+		   would make an invisible keyboard stop. White space stays pre, so a
+		   screen reader reads the source line by line. */
+		& > pre {
+			padding: 0;
+			margin: -1px;
+			overflow: hidden;
+			white-space: pre;
+		}
 	}
 
 	/* Text classes are nested here so they outrank the default text fill. */
