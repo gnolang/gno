@@ -80,7 +80,7 @@ Get the node running first, then start onboarding. Two places:
 - [`misc/deployments/`](../../misc/deployments) — the target network's
   own genesis, peers, and `VALIDATOR.md`.
 
-Onboarding starts in `#general-chat` on
+Onboarding starts in `#technical-start-here` on
 [Discord](https://discord.com/invite/gnoland); the `#testnet-*` channels only
 become visible once you hold a candidate or validator role.
 
