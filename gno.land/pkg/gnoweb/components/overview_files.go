@@ -54,17 +54,24 @@ const maxDetailNames = 12
 
 // fileDecls is what a package's doc says one of its files declares.
 type fileDecls struct {
-	names         []string // exported top-level names, up to maxDetailNames
-	total         int      // all of them
-	actions       int
-	render, state bool
+	top     nameList // exported top-level names
+	methods nameList // exported methods of exported types, as T.M()
+	actions int
+	render  bool
+	state   bool
 }
 
-func (d *fileDecls) add(name string) {
-	if d.total < maxDetailNames {
-		d.names = append(d.names, name)
+// nameList keeps the first maxDetailNames names added, and counts them all.
+type nameList struct {
+	names []string
+	total int
+}
+
+func (l *nameList) add(name string) {
+	if l.total < maxDetailNames {
+		l.names = append(l.names, name)
 	}
-	d.total++
+	l.total++
 }
 
 // declsByFile groups what jdoc declares by file: types, then functions, then
@@ -82,19 +89,24 @@ func declsByFile(jdoc *doc.JSONDocumentation, realm bool) map[string]*fileDecls 
 	}
 	for _, t := range jdoc.Types {
 		if token.IsExported(t.Name) {
-			of(t.File).add(t.Name)
+			of(t.File).top.add(t.Name)
 		}
 	}
 	for _, fn := range jdoc.Funcs {
 		if fn.Type != "" {
-			continue // a method belongs to its type
+			// A method belongs to its type, and names its file only when
+			// the file declares nothing at the top level.
+			if token.IsExported(fn.Type) && token.IsExported(fn.Name) {
+				of(fn.File).methods.add(fn.Type + "." + fn.Name + "()")
+			}
+			continue
 		}
 		d := of(fn.File)
 		if ok, _ := RenderShape(fn); ok && realm {
 			d.render = true
 		}
 		if token.IsExported(fn.Name) {
-			d.add(fn.Name + "()")
+			d.top.add(fn.Name + "()")
 		}
 		if IsAction(fn) {
 			d.actions++
@@ -105,26 +117,31 @@ func declsByFile(jdoc *doc.JSONDocumentation, realm bool) map[string]*fileDecls 
 		d.state = d.state || (realm && !v.Const)
 		for _, vv := range v.Values {
 			if token.IsExported(vv.Name) {
-				d.add(vv.Name)
+				d.top.add(vv.Name)
 			}
 		}
 	}
 	return out
 }
 
-// summary names the first two exported names; detail is the full form, up to
-// maxDetailNames names and a count of the rest, empty when summary says it all.
+// summary names the first two exported names, or for a file of methods only,
+// its first two methods; detail is the full form, up to maxDetailNames names
+// and a count of the rest, empty when summary says it all.
 func (d *fileDecls) summary() (summary, detail string) {
-	switch {
-	case d.total == 0:
-		return "no exports", "Nothing exported at the top level"
-	case d.total <= 2:
-		return strings.Join(d.names, ", "), ""
+	l := d.top
+	if l.total == 0 {
+		l = d.methods
 	}
-	summary = strings.Join(d.names[:2], ", ") + " +" + strconv.Itoa(d.total-2)
-	detail = strings.Join(d.names, ", ")
-	if d.total > len(d.names) {
-		detail += " and " + strconv.Itoa(d.total-len(d.names)) + " more"
+	switch {
+	case l.total == 0:
+		return "no exports", "Nothing exported"
+	case l.total <= 2:
+		return strings.Join(l.names, ", "), ""
+	}
+	summary = strings.Join(l.names[:2], ", ") + " +" + strconv.Itoa(l.total-2)
+	detail = strings.Join(l.names, ", ")
+	if l.total > len(l.names) {
+		detail += " and " + strconv.Itoa(l.total-len(l.names)) + " more"
 	}
 	return summary, detail
 }

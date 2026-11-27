@@ -16,6 +16,7 @@ rendered page share it. Accepts: []FileLink.
         <span title="{{ .Name }}">{{ .Name }}</span>
       </span>
       <span class="b-pkg-list__desc"{{ with .Detail }} title="{{ . }}"{{ end }}>{{ .Summary }}</span>
+      {{ if or .Actions .Render .State .IsReadme .IsLicense .IsConfig .IsTest }}
       <span class="b-pkg-list__tags">
         {{ with .Actions }}<span class="b-pkg-list__stat" title="Exported crossing functions: each call sends a transaction.">{{ . }} {{ if eq . 1 }}action{{ else }}actions{{ end }}</span>{{ end }}
         {{ if .Render }}<span class="b-tag" title="Declares Render(), which draws the Content tab.">render</span>{{ end }}
@@ -25,6 +26,7 @@ rendered page share it. Accepts: []FileLink.
         {{ if .IsConfig }}<span class="b-tag">config</span>{{ end }}
         {{ if .IsTest }}<span class="b-tag">test</span>{{ end }}
       </span>
+      {{ end }}
     </a>
   </li>
   {{ end }}

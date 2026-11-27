@@ -194,7 +194,7 @@ func TestBuildFileLinks(t *testing.T) {
 		},
 		{
 			Name: "empty.gno", Link: link("empty.gno"), FileClass: FileClass{IsGno: true},
-			Summary: "no exports", Detail: "Nothing exported at the top level",
+			Summary: "no exports", Detail: "Nothing exported",
 		},
 		{Name: "foo_test.gno", Link: link("foo_test.gno"), FileClass: FileClass{IsGno: true, IsTest: true}},
 		{Name: "README.md", Link: link("README.md"), FileClass: FileClass{IsReadme: true}, Summary: "Documentation"},
@@ -212,6 +212,27 @@ func TestBuildFileLinks(t *testing.T) {
 	require.Empty(t, unknown[0].Summary)
 	require.Zero(t, unknown[0].Actions)
 	require.Equal(t, "Module path and Gno version", unknown[1].Summary)
+}
+
+// A file of methods only is described by them, not as exporting nothing.
+func TestBuildFileLinks_MethodsOnly(t *testing.T) {
+	t.Parallel()
+	jdoc := &doc.JSONDocumentation{
+		Types: []*doc.JSONType{{Name: "Uint", File: "uint256.gno"}},
+		Funcs: []*doc.JSONFunc{
+			{Name: "Cmp", Type: "Uint", File: "cmp.gno"},
+			{Name: "IsZero", Type: "Uint", File: "cmp.gno"},
+			{Name: "Eq", Type: "Uint", File: "cmp.gno"},
+			{Name: "lt", Type: "Uint", File: "cmp.gno"},      // unexported: not named
+			{Name: "Add", Type: "Uint", File: "uint256.gno"}, // the file has a type: named by it
+			{Name: "Get", Type: "inner", File: "inner.gno"},  // a method of an unexported type
+		},
+	}
+	got := buildFileLinks("/p/demo/uint256", []string{"cmp.gno", "uint256.gno", "inner.gno"}, jdoc, false)
+	require.Equal(t, "Uint.Cmp(), Uint.IsZero() +1", got[0].Summary)
+	require.Equal(t, "Uint.Cmp(), Uint.IsZero(), Uint.Eq()", got[0].Detail)
+	require.Equal(t, "Uint", got[1].Summary)
+	require.Equal(t, "no exports", got[2].Summary)
 }
 
 // TestBuildFileLinks_CapsDetail pins the tooltip's bound: a file declaring

@@ -35,7 +35,7 @@ shows:
 | Column | Source |
 |---|---|
 | Name, linked to its source | file list |
-| What the file declares: its first two exported top-level names, then `+N` (`Post, AddPost() +1`), or `no exports`; the full list, capped at 12 names, in the tooltip | `vm/qdoc` types, functions (shown with `()`), values, by `file` |
+| What the file declares: its first two exported top-level names, then `+N` (`Post, AddPost() +1`); for a file of methods only, its first two exported methods (`Uint.Cmp(), Uint.Eq() +10`); else `no exports`. The full list, capped at 12 names, in the tooltip | `vm/qdoc` types, functions (shown with `()`), methods, values, by `file` |
 | What a non-code file is for: `Documentation` (README.md), `Module path and Gno version` (gnomod.toml) | file name |
 | `N actions`: exported top-level crossing functions, each a call that sends a transaction | `vm/qdoc` `crossing` |
 | Tags `render` and `state` (a realm file declaring Render, or package variables; a pure package has neither), `readme`, `license`, `config`, `test` | `vm/qdoc`, file name |
@@ -46,9 +46,15 @@ for both. It is not the Actions tab's count, which lists every
 exported function, crossing or not; the tooltip says what is counted.
 
 `ui/dir_list` goes; `.b-list` stays, for the search results page. The list is
-`b-pkg-list` with a `b-pkg-list--files` modifier for the description column, which is hidden below
-`--lg`; a name cut by its column keeps its full form in a tooltip. The Source
-Files heading is no longer a link to the directory page.
+`b-pkg-list` with a `b-pkg-list--files` modifier for the description column.
+The name is what a reader scans for, so it is never cut. From `--lg` the rows
+share one grid (`subgrid`), whose name column is as wide as the longest name,
+up to half the row, so descriptions line up; a longer name wraps, and a row
+without tags lends their column to its description. Below `--lg`
+the description column is hidden, and the tags wrap under a name they would
+squeeze. A width computed from the names server-side would need an inline
+`style`, which gnoweb's `style-src` does not allow. The Source Files heading
+is no longer a link to the directory page.
 
 ### The trailing slash of a realm with Render opens the overview's files
 
@@ -78,8 +84,10 @@ the directory page with the doc-unavailable notice instead of redirecting.
 
 The redirect makes an anchor landing the common way into the overview, which
 exposed two defects the section tabs already had. The heading landed under the
-sticky header and section bar: `.b-pkg-section` now has a
-`scroll-margin-block-start` covering both (the bar may wrap to two rows). And
+sticky header and section bar. The overview's one anchor rule,
+`.c-overview-view [id]`, now covers both: the header alone below `--md`, and
+from `--md` the header and the bar, whose seven tabs at most wrap to three rows
+up to `--xl` and to two from it (measured with four-digit counts). And
 the section bar marked the section above, still in its top band: the
 `observer` controller now marks the fragment's link when the page opens on
 one, as a click does.
@@ -101,6 +109,9 @@ overview's other queries. They sit at the bottom of the page, so the overview
 waits for them at most `subpackageCardsWait` (500 ms), below a listing's 1.5 s:
 a card not ready by then shows its path and links, and fills in for a later
 reader. A card under a section heading takes an `h3` title (`Nested`).
+Rows would be denser, but would drop what a card says about each package, its
+description and activity, which is what the section gains; each card keeps
+its full path, as everywhere else a package is named.
 
 ### A failed `vm/qdoc` read says so once
 

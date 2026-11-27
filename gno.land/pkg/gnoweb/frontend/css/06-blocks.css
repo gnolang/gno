@@ -4241,26 +4241,28 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 	}
 }
 
-/* Anchor jumps clear the sticky subheader: one rule for EVERY anchor target
-   (sections, symbol cards, rendered headings), scoped to the overview view. */
+/* Anchor jumps clear the sticky chrome: one rule for EVERY anchor target
+   (sections, symbol cards, rendered headings), scoped to the overview view.
+   Below --md that is the header alone, up to two rows tall; from --md the
+   header and the section bar under it, whose seven tabs wrap to three rows
+   (115px) up to --xl and to two (85px) from it. The root's scroll-padding
+   adds the realm notice row. */
 .c-overview-view [id] {
-	/* The overview bar (tabs + search field) makes the sticky chrome tall, so
-	   anchors need extra clearance. */
 	scroll-margin-block-start: var(--g-space-32);
+
+	@media (--md) {
+		scroll-margin-block-start: calc(var(--s-header-size) + var(--g-space-32));
+	}
+
+	@media (--xl) {
+		scroll-margin-block-start: calc(var(--s-header-size) + var(--g-space-24));
+	}
 }
 
 /* --- Section wrapper --- */
 .b-pkg-section {
 	display: block;
 	margin-block-end: var(--g-space-10);
-	/* An anchor (a section tab, a redirect to #files) lands the heading below
-	   the sticky header, and from --md below the sticky section bar too, which
-	   can wrap to two rows: the margin covers both. */
-	scroll-margin-block-start: var(--s-header-offset);
-
-	@media (--md) {
-		scroll-margin-block-start: calc(var(--s-header-offset) + var(--g-space-20));
-	}
 }
 
 .b-pkg-section__header {
@@ -4491,26 +4493,57 @@ main.is-dev-mode > section:has(:is(.c-overview-view, .c-listing-view)) {
 }
 
 /* A file list (ui/file_list) adds a column between the name and the tags:
-   what the file declares. The name column has one width so those line up,
-   from --lg; below it the column is left out, the name keeping the room. A
-   name cut short keeps its full form in its tooltip. */
+   what the file declares. The name is what a reader scans for, so it is never
+   cut: below --lg the column is left out and the tags wrap under a name they
+   would squeeze; from --lg the rows share one grid, whose name column is as
+   wide as the longest name, up to half the row. A name longer than its room
+   wraps. */
 .b-pkg-list--files {
+	& .b-pkg-list__link {
+		flex-wrap: wrap;
+		row-gap: var(--g-space-1);
+	}
+
+	& .b-pkg-list__tags {
+		margin-inline-start: auto;
+	}
+
 	& .b-pkg-list__link > .c-with-icon {
 		min-inline-size: 0;
 
-		@media (--lg) {
-			flex: 0 0 var(--g-space-52);
+		& > span {
+			overflow-wrap: anywhere;
+		}
+	}
+
+	@media (--lg) {
+		display: grid;
+		grid-template-columns: fit-content(50%) minmax(0, 1fr) auto;
+		column-gap: var(--g-space-6);
+
+		& > .b-pkg-list__item,
+		& .b-pkg-list__link {
+			display: grid;
+			grid-column: 1 / -1;
+			grid-template-columns: subgrid;
+		}
+
+		& .b-pkg-list__tags {
+			justify-content: flex-end;
+		}
+
+		/* A row without tags lends their column to its description. */
+		& .b-pkg-list__desc:last-child {
+			grid-column: span 2;
 		}
 
 		/* A file that declares nothing to show lends the name its column. */
-		&:has(+ .b-pkg-list__desc:empty) {
-			flex: 1 1 auto;
-		}
+		& .b-pkg-list__link > .c-with-icon:has(+ .b-pkg-list__desc:empty) {
+			grid-column: span 2;
 
-		& > span {
-			overflow: hidden;
-			text-overflow: ellipsis;
-			white-space: nowrap;
+			& + .b-pkg-list__desc {
+				display: none;
+			}
 		}
 	}
 }
