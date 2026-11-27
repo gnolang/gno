@@ -1,111 +1,140 @@
-# PR0000: Give NewPebbleDB a 64 MiB block cache
+# PR6480: Size pebble's block cache and memtable from a gnoland-1 replay
 
 ## Status
 
-Proposed
+Accepted. This PR also carries #6467 (16 MiB memtable) and the part of #6265
+that opens `NewPebbleDB` with `DefaultPebbleOptions()`.
 
 ## Context
 
 `NewPebbleDB` (`tm2/pkg/db/pebbledb/pebbledb.go`) is the registered creator for
 the pebbledb backend, so it opens the app store (`gno.land/pkg/gnoland/app.go`)
 and, with the default `db_backend`, the `blockstore` and `state` databases. It
-passed an empty `pebble.Options`, which gives pebble's 8 MiB block cache.
-`DefaultPebbleOptions()` in the same file (500 MB cache, bloom filter) is only
-used by tests and benchmarks.
+passed an empty `pebble.Options`: an 8 MiB block cache and 4 MiB memtables.
+`DefaultPebbleOptions()` in the same file (500 MB cache, 64 MiB memtable, bloom
+filters, 3 compactions) was only used by benchmarks
+(`tm2/pkg/bptree/benchmarks`, `gnovm/cmd/benchstore`), so they measured a
+configuration no node ran.
 
-A pebble point lookup reads, per level it visits, an index block and then a data
-block, both through the block cache. pebble also reserves memtable memory out of
-that cache: each memtable arena calls `Cache.Reserve`, and the memtable kept for
-reuse after a flush keeps its reservation, so once memtables reach full size the
-cache sets aside 2 x `MemTableSize` for them. At the default 4 MiB memtable that
-is all 8 MiB, reached after about 8 MiB of writes, and from then on the cache
-holds no blocks at all. On a standalone pebble store with these options, a
-200-key working set read twice hits 0.0% after 77 MiB of writes, and 96.6% on
-the same store reopened with no writes. Every lookup then reads its index and
-data blocks outside the cache.
+pebble reserves memtable memory out of the block cache: each memtable arena
+calls `Cache.Reserve`, and the memtable kept for reuse after a flush keeps its
+reservation. Memtables grow one doubling per rotation from 256 KiB whatever the
+write rate, so every long-running database reaches 2 x `MemTableSize` reserved.
+At the defaults that is all 8 MiB, and the cache then holds no blocks at all:
+every point lookup reads its index and data blocks from outside the cache.
 
-On a store holding a realm with 1,000,000 avl keys (4.0M pebble entries,
-583 MiB of data in 118 sstables) the index blocks alone are **39.4 MiB**,
-measured from the sstable properties, so the cache needs room for that on top
-of the memtables.
+The 4 MiB memtable also rotates, flushes to L0 and triggers compactions several
+times per busy block.
 
-## Measurement
+## Measurement: gnoland-1 replay
 
-In-process gno.land app over ABCI, signed `MsgCall` transactions against a realm
-holding an avl tree of 1,000,000 keys, 100 tx per block, 100 warmup tx per
-shape. Every run starts from a fresh copy of the same pre-populated store, warm
-page cache, `taskset` 12 cores, GOMAXPROCS=12, 3 reps per arm with the arm order
-rotated. Every arm also sets the 16 MiB memtable of #6467, so only the cache
-differs. Those memtables reserve up to 32 MiB of the cache: the 8 MiB arms hold
-no blocks once the memtables reach 8 MiB between them, and the 64 MiB arms keep
-at least 32 MiB for blocks. `read` reads one random key, `rmw` reads and writes
-one, `walk` iterates 100 keys from a random start. n = 2000 tx per rep (1000 for
-`walk`).
-Get time is measured around every backend `Get`/`Has` during `DeliverTx`.
+gnoland-1 blocks replayed through the app with gnoreplay, the pebble options of
+the replay's app and state databases taken from the environment, everything
+else identical:
 
-| cache | shape | tx/s per rep | DeliverTx p50 ms per rep | Get ms per tx p50 | block cache hit | peak RSS |
-|---|---|---|---|---|--:|--:|
-| 8 MiB (default) | walk | 20, 20, 19 | 46.6, 46.3, 49.0 | 22.9, 22.9, 24.2 | 0.0% | 585 MiB |
-| **64 MiB** | walk | **32, 30, 30** | **28.6, 30.9, 31.3** | **5.5, 6.0, 6.0** | 96.6% | 712 to 738 MiB |
-| 256 MiB | walk | 32, 29, 28 | 29.2, 30.9, 31.5 | 5.7, 6.0, 6.1 | 97.3% | 946 to 1009 MiB |
-| 1 GiB | walk | 30, 30, 30 | 29.7, 30.7, 30.8 | 5.5, 5.7, 5.8 | 97.6% | 1115 to 1118 MiB |
-| 8 MiB (default) | rmw | 72, 75, 74 | 12.3, 12.2, 12.1 | 2.18, 2.13, 2.16 | 4.3% | |
-| **64 MiB** | rmw | 79, 60, 74 | 11.2, 15.4, 12.2 | **0.85, 1.03, 0.90** | 73.7% | |
-| 256 MiB | rmw | 81, 75, 75 | 10.7, 11.6, 11.4 | 0.76, 0.81, 0.81 | 76.0% | |
-| 8 MiB (default) | read | 114, 121, 115 | 7.2, 7.5, 7.6 | 0.55, 0.57, 0.59 | 92.1% | |
-| **64 MiB** | read | 121, 97, 89 | 7.2, 9.0, 9.1 | 0.45, 0.55, 0.54 | 95.7% | |
+- v1.7.1 tree, which replays history up to the v1.8.0 halt with no result
+  divergence (master diverges from genesis on gas); it commits every block, as
+  a node at the tip does.
+- `CGO_ENABLED=0`, go1.25.9, as release binaries are built; 4 vCPU microVM; the
+  database on tmpfs, so reads are page-cache hits; fsync disabled.
+- Three windows, each run from a fresh copy of a snapshot that a stock replay
+  from genesis left at the window's start:
+  - W1, heights 250,001 to 280,000, 16,204 txs;
+  - W2, heights 1,030,001 to 1,070,000, 10,499 txs, the densest stretch;
+  - W3, heights 1,580,001 to 1,620,000, 7,065 txs, the largest state.
+- 2 reps per arm (3 for stock), arm order reversed on the second rep;
+  rep-to-rep spread mostly under 2%, up to 5% on W3.
+- 0 result, gas or app hash divergences in all 69 runs.
 
-- Iteration-heavy access gains about 50% throughput: Get time falls from 48% to
-  20% of `DeliverTx` wall. Point access (`rmw`) spends 60% less time in Get, but
-  that was 17% of wall, so its throughput moves inside the rep-to-rep noise of
-  this shared host. Single-key `read` is unchanged within noise.
-- The gain is all in the first step: 256 MiB and 1 GiB do no better than
-  64 MiB. Next to #6467's memtables, 64 MiB kept at least 32 MiB for blocks;
-  with the default 4 MiB memtable it keeps 56 MiB, more than the 39.4 MiB index.
-- App hash and gas used are identical in every run. The cache only changes
-  where block bytes come from.
+Blocks/s relative to stock (stock: 203, 115 and 328 blocks/s), then W2's CPU
+per block, peak RSS of the replay process, block cache held at the end, p99
+`ApplyBlock` time, and memtable flushes:
+
+| arm | W1 | W2 | W3 | CPU/block | RSS | cache held | p99 apply | flushes |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|
+| stock: 8 MiB cache, 4 MiB memtable | | | | 16.1 ms | 3,016 MB | 0 MB | 113 ms | 834 |
+| 64 MiB cache | +32% | +23% | +31% | 12.2 ms | 3,002 MB | 44 MB | 95 ms | 834 |
+| 16 MiB memtable | +4% | +6% | +1% | 13.8 ms | 3,028 MB | 0 MB | 106 ms | 181 |
+| **64 MiB cache, 16 MiB memtable** | **+35%** | **+26%** | **+30%** | **10.6 ms** | **3,044 MB** | 13 to 29 MB | **90 ms** | **182** |
+| 256 MiB cache | +33% | +23% | +30% | 12.2 ms | 3,052 MB | 72 MB | 95 ms | 834 |
+| 500 MiB cache | +34% | +23% | +29% | 12.2 ms | 3,058 MB | 72 MB | 94 ms | 834 |
+| old `DefaultPebbleOptions()` | +36% | +28% | +28% | 9.8 ms | 3,416 MB | 54 MB | 89 ms | 44 |
+
+- The cache gain is all in the first step: 64, 256 and 500 MiB hit at the same
+  rate in every window (93.5%, 77.3%, 94.8%). Block processing never held more
+  than 72 MB of blocks; its misses are first reads of tables that flushes and
+  compactions just wrote.
+- The 16 MiB memtable is what lifts the hit rate further, to 97.2%, 92.9% and
+  97.9% next to the 64 MiB cache: it cuts W2's flushes from 834 to 182 and its
+  compaction volume from 5.7 GB to 1.3 GB, so fewer new tables are read cold.
+  It also cuts CPU per block by 8%, 13% and 4% over the 64 MiB cache alone.
+- The old `DefaultPebbleOptions()` (500 MB cache, 64 MiB memtable, bloom, 3
+  compactions) is within noise of 64 MiB + 16 MiB on throughput (+0.4, +1.4,
+  -2.2 points) and costs 290 to 520 MB more RSS per window, mostly from its
+  64 MiB memtables.
+- Bloom filters, 10 bits per key, measured on fully compacted copies of the
+  snapshots so every table carries filters: Get time fell 7 to 10% next to the
+  64 MiB cache, blocks/s moved -0.2%, +0.8% and +1.2%. The filters take 4.9 to
+  6.3 MiB per store.
+- The app store's index blocks: 10.4 MiB at height 250k, 12.7 MiB at 1.03M,
+  13.2 MiB at 1.58M, 13.5 MiB at 1.65M (629 MiB of data, 8.9M entries).
+
+## Measurement: synthetic workloads
+
+Earlier measurements on in-process apps driven over ABCI, before the replay:
+
+- Block cache, 1M avl keys, 100 tx per block, every arm with 16 MiB memtables:
+  64 MiB raised iteration-heavy tx/s from 20 to 30-32 and cut Get time per tx
+  by 60% for read-modify-write; 256 MiB and 1 GiB did no better.
+- Memtable, 100 read-modify-write tx per block: 16 MiB cut flushes from 100 to
+  20 per 100 blocks and Commit p99 from 85-318 ms to 55-83 ms at 1M keys;
+  64 MiB did no better than 16 MiB. Mainnet blocks are lighter, and the replay's p99
+  apply moved from 113 ms to 106 ms with the memtable alone.
+
+App hash and gas used were identical in every run of both.
 
 ## Decision
 
-`NewPebbleDB` creates a 64 MiB cache, passes it in `Options.Cache`, and drops
-its own reference once `pebble.Open` holds one. Nothing else changes.
-`NewPebbleDBWithOpts` callers keep full control.
+`DefaultPebbleOptions()` returns a 64 MiB block cache and 16 MiB memtables,
+nothing else, and `NewPebbleDB` opens with it, dropping its own cache reference
+once `pebble.Open` holds one. Benchmarks that call `DefaultPebbleOptions()` now
+measure what nodes run. `NewPebbleDBWithOpts` callers keep full control.
 
 ## Memory
 
-The cache allocates as blocks are read, so a database that reads little stays
-small. Memtables took all 8 MiB of the old cache and take 8 MiB of the new one,
-so blocks grow by at most 56 MiB per database: at most 168 MiB more for a
-node's three pebble databases, in practice less because `blockstore` and
-`state` read a small working set. Measured peak RSS of the benchmark process
-(one database): 585 MiB at 8 MiB, 706 to 752 MiB at 64 MiB across 6 runs.
+pebble counts memtables against the cache, so a database holds at most 64 MiB
+of blocks and memtables together, against 8 MiB before: at most 168 MiB more
+for a node's three databases. Release binaries are built with
+`CGO_ENABLED=0`, where pebble allocates both on the Go heap, so with
+`GOGC=100` the heap target can grow by up to twice that. The cache fills only
+as blocks are read: the replay process's peak RSS moved by +28 to +140 MB over
+stock.
 
 ## Alternatives considered
 
-- **256 MiB or larger**: no measured gain at 1M keys, 3 to 8x the memory.
-- **Bloom filter, 10 bits per key**, on top of 64 MiB: measured on a pair of
-  fully rewritten stores so every table carries filters. Get time per tx fell
-  a further 5 to 10% (`walk` 4.6 to 5.1 ms down to 4.2 to 4.3 ms) and tx/s
-  stayed inside the noise. It also only applies to tables written after the
-  change, so an existing node would see it gradually. Not worth a second
-  change today.
-- **`DefaultPebbleOptions()`** (500 MB cache, 64 MiB memtable, bloom): a
-  bigger memory commitment for no measured read gain over 64 MiB.
-- **`MaxOpenFiles`**: the table cache hit rate was 100% in every run (118
-  tables, default limit 1000). Nothing to tune at this size.
-- **Avoiding the gets instead**: within a block no key was fetched twice (the
-  cache store above deduplicates), and no transaction issued a backend
-  iterator, so there are no repeated round trips to batch.
+- **Larger caches (256 MiB, 500 MiB, 1 GiB)**: no measured gain, in the replay
+  or the synthetic runs. Nodes serving heavy query traffic, not measured here,
+  may want more; a configuration option is the follow-up for them.
+- **The old `DefaultPebbleOptions()`**: no throughput gain over this change,
+  290 to 520 MB more RSS, and a 1 GB heap target per database at its ceiling.
+- **64 MiB memtable**: four times the memory of 16 MiB for no measured gain.
+- **Bloom filters**: at most 1% blocks/s, and only for tables written after the
+  change.
+- **An 88 MiB cache, to keep 56 MiB for blocks next to 16 MiB memtables**: the
+  32 MiB left is more than the replay ever held (29 MB) and more than twice the
+  app store's index.
+- **3 concurrent compactions**: not measured on its own; with 16 MiB memtables
+  compaction volume is a quarter of what it was.
 
 ## Consequences
 
-- Stores up to about 1.4M avl keys in this layout read their index from memory
-  instead of re-decoding it per Get.
-- The index grows with the store (about 40 MiB per million avl keys in this
-  layout), so a larger store outgrows the 56 MiB block budget. Making the size
-  configurable is the natural follow-up; it is left out to keep this change to
-  one constant.
-- A larger `MemTableSize` takes twice its increase out of the block budget.
-  #6467's 16 MiB memtable leaves 32 MiB of the 64 MiB for blocks, below the
-  39.4 MiB index, so it should raise `blockCacheSize` to 88 MiB to keep 56 MiB
-  for blocks.
+- Block processing with per-block commits runs 26 to 35% faster on mainnet's
+  history.
+- 32 MiB of the cache is left for blocks. The app store's index grew 3.1 MiB
+  between heights 250k and 1.65M, about eight weeks of blocks, so at that rate
+  it reaches 32 MiB in about a year; a configuration option is the natural
+  follow-up for larger stores.
+- No change to state, app hash or gas. The on-disk format is unchanged, so
+  older binaries open databases written by this one.
+- Not measured: block sync's deferred writes on master (#6334), whose batches
+  are larger than a block; fsync cost; the blockstore database; query load.
