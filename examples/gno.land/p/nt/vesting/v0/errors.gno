@@ -1,0 +1,38 @@
+package vesting
+
+import "errors"
+
+// Sentinel errors. Callers match on the value; messages stay stable.
+var (
+	ErrNotBeneficiary = errors.New("vesting: caller is not the beneficiary")
+	ErrNotAdmin       = errors.New("vesting: caller is not the admin")
+	ErrAddress        = errors.New("vesting: invalid address")
+	ErrSame           = errors.New("vesting: address is unchanged")
+	ErrSelf           = errors.New("vesting: address is the factory or the grant")
+	ErrHost           = errors.New("vesting: invalid host realm")
+	ErrID             = errors.New("vesting: invalid grant id")
+	ErrUnknown        = errors.New("vesting: unknown grant")
+	ErrBound          = errors.New("vesting: grant is already bound")
+	ErrUnbound        = errors.New("vesting: grant is not bound")
+	ErrCurve          = errors.New("vesting: unknown curve")
+	ErrTotal          = errors.New("vesting: total must be positive")
+	ErrStart          = errors.New("vesting: start must be non-negative")
+	ErrCliff          = errors.New("vesting: cliff must be within the duration")
+	ErrDuration       = errors.New("vesting: duration must be positive")
+	ErrPeriod         = errors.New("vesting: period does not match the curve")
+	ErrTime           = errors.New("vesting: time must be non-negative")
+	ErrMath           = errors.New("vesting: schedule math overflow")
+	ErrNothing        = errors.New("vesting: nothing to release")
+	ErrIrrevocable    = errors.New("vesting: grant is irrevocable")
+	ErrRevoked        = errors.New("vesting: grant is already revoked")
+	ErrLabel          = errors.New("vesting: invalid label")
+	ErrDenom          = errors.New("vesting: invalid denom")
+	ErrToken          = errors.New("vesting: invalid token")
+	ErrAsset          = errors.New("vesting: invalid asset")
+	ErrPayment        = errors.New("vesting: payment must match the grant")
+	ErrUserCall       = errors.New("vesting: coin funding must be a direct user call")
+	ErrBusy           = errors.New("vesting: reentrant call")
+	ErrFunding        = errors.New("vesting: funding balance mismatch")
+	ErrBalance        = errors.New("vesting: insufficient balance")
+	ErrFull           = errors.New("vesting: grant id space exhausted")
+)
