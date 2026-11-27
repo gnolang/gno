@@ -9,6 +9,7 @@ require (
 	github.com/bmatsuo/lmdb-go v1.8.0
 	github.com/btcsuite/btcd/btcec/v2 v2.5.0
 	github.com/btcsuite/btcd/btcutil v1.2.0
+	github.com/cloudflare/circl v1.6.1
 	github.com/cockroachdb/apd/v3 v3.2.3
 	github.com/cockroachdb/pebble v1.1.5
 	github.com/consensys/gnark-crypto v0.20.1

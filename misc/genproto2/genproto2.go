@@ -22,6 +22,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
+	"github.com/gnolang/gno/tm2/pkg/crypto/mldsa65"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
@@ -54,6 +55,7 @@ func execGen(_ context.Context, _ []string) error {
 		ctypes.Package,
 		mempool.Package,
 		ed25519.Package,
+		mldsa65.Package,
 		blockchain.Package,
 		hd.Package,
 		multisig.Package,

@@ -21,6 +21,14 @@ const (
 	DefaultTxSizeCostPerByte      int64 = 10
 	DefaultSigVerifyCostED25519   int64 = 590
 	DefaultSigVerifyCostSecp256k1 int64 = 1000
+	// DefaultSigVerifyCostMLDSA65 scales the ed25519 cost by measured
+	// VerifyBytes time (mldsa65.BenchmarkVerifyBytes, i5-12600H, go1.25):
+	// ed25519 33 us, secp256k1 113 us, ML-DSA-65 76 us, so 590 * 76/33 ~ 1360,
+	// rounded up. Scaling from secp256k1 instead gives ~670; the higher figure
+	// is kept so the new key is never cheaper per microsecond than ed25519.
+	// The 5261 bytes of signature and public key are charged separately
+	// through TxSizeCostPerByte.
+	DefaultSigVerifyCostMLDSA65 int64 = 1400
 
 	DefaultGasPricesChangeCompressor int64 = 10
 	DefaultTargetGasRatio            int64 = 70 //  70% of the MaxGas in a block
@@ -44,11 +52,14 @@ type Params struct {
 	InitialGasPrice           std.GasPrice     `json:"initial_gasprice"`
 	UnrestrictedAddrs         []crypto.Address `json:"unrestricted_addrs" yaml:"unrestricted_addrs"`
 	FeeCollector              crypto.Address   `json:"fee_collector" yaml:"fee_collector"`
+	// Last on purpose: amino numbers fields by position, so appending keeps
+	// the field numbers of params already stored on a chain.
+	SigVerifyCostMLDSA65      int64            `json:"sig_verify_cost_mldsa65" yaml:"sig_verify_cost_mldsa65"`
 }
 
 // NewParams creates a new Params object
 func NewParams(maxMemoBytes, txSigLimit, txSizeCostPerByte,
-	sigVerifyCostED25519, sigVerifyCostSecp256k1, gasPricesChangeCompressor, targetGasRatio int64,
+	sigVerifyCostED25519, sigVerifyCostSecp256k1, sigVerifyCostMLDSA65, gasPricesChangeCompressor, targetGasRatio int64,
 	feeCollector crypto.Address,
 ) Params {
 	return Params{
@@ -57,6 +68,7 @@ func NewParams(maxMemoBytes, txSigLimit, txSizeCostPerByte,
 		TxSizeCostPerByte:         txSizeCostPerByte,
 		SigVerifyCostED25519:      sigVerifyCostED25519,
 		SigVerifyCostSecp256k1:    sigVerifyCostSecp256k1,
+		SigVerifyCostMLDSA65:      sigVerifyCostMLDSA65,
 		GasPricesChangeCompressor: gasPricesChangeCompressor,
 		TargetGasRatio:            targetGasRatio,
 		FeeCollector:              feeCollector,
@@ -76,6 +88,7 @@ func DefaultParams() Params {
 		DefaultTxSizeCostPerByte,
 		DefaultSigVerifyCostED25519,
 		DefaultSigVerifyCostSecp256k1,
+		DefaultSigVerifyCostMLDSA65,
 		DefaultGasPricesChangeCompressor,
 		DefaultTargetGasRatio,
 		crypto.AddressFromPreimage([]byte(DefaultFeeCollectorName)),
@@ -92,6 +105,7 @@ func (p Params) String() string {
 	fmt.Fprintf(sb, "TxSizeCostPerByte: %d\n", p.TxSizeCostPerByte)
 	fmt.Fprintf(sb, "SigVerifyCostED25519: %d\n", p.SigVerifyCostED25519)
 	fmt.Fprintf(sb, "SigVerifyCostSecp256k1: %d\n", p.SigVerifyCostSecp256k1)
+	fmt.Fprintf(sb, "SigVerifyCostMLDSA65: %d\n", p.SigVerifyCostMLDSA65)
 	fmt.Fprintf(sb, "GasPricesChangeCompressor: %d\n", p.GasPricesChangeCompressor)
 	fmt.Fprintf(sb, "TargetGasRatio: %d\n", p.TargetGasRatio)
 	fmt.Fprintf(sb, "FeeCollector: %s\n", p.FeeCollector.String())
@@ -122,6 +136,9 @@ func (p Params) Validate() error {
 	}
 	if p.SigVerifyCostSecp256k1 <= 0 {
 		return fmt.Errorf("invalid SECK256k1 signature verification cost: %d", p.SigVerifyCostSecp256k1)
+	}
+	if p.SigVerifyCostMLDSA65 <= 0 {
+		return fmt.Errorf("invalid ML-DSA-65 signature verification cost: %d", p.SigVerifyCostMLDSA65)
 	}
 	if p.TxSizeCostPerByte <= 0 {
 		return fmt.Errorf("invalid tx size cost per byte: %d", p.TxSizeCostPerByte)
@@ -214,7 +231,21 @@ func (ak AccountKeeper) GetParams(ctx sdk.Context) Params {
 	// caller (AnteHandler/handlers) hasn't necessarily applied the
 	// gas config that we'd be metering against yet.
 	ak.prmk.GetStruct(ctx.WithGasMeter(nil), "p", &params)
-	return params
+	return params.withDefaults()
+}
+
+// withDefaults fills the fields added after chains were already running, so
+// that a genesis file or a stored params struct written before them still
+// validates. Today that is only SigVerifyCostMLDSA65: without this, a zero
+// would fail Validate at InitGenesis and on every later auth param write, and
+// would let an ML-DSA-65 signature be verified for free. No block before this
+// field existed can hold an ML-DSA-65 key, so the default changes no replayed
+// result.
+func (p Params) withDefaults() Params {
+	if p.SigVerifyCostMLDSA65 == 0 {
+		p.SigVerifyCostMLDSA65 = DefaultSigVerifyCostMLDSA65
+	}
+	return p
 }
 
 func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
@@ -235,6 +266,8 @@ func (ak AccountKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		params.SigVerifyCostED25519 = sdkparams.MustParamInt64("sig_verify_cost_ed25519", value)
 	case "p:sig_verify_cost_secp256k1":
 		params.SigVerifyCostSecp256k1 = sdkparams.MustParamInt64("sig_verify_cost_secp256k1", value)
+	case "p:sig_verify_cost_mldsa65":
+		params.SigVerifyCostMLDSA65 = sdkparams.MustParamInt64("sig_verify_cost_mldsa65", value)
 	case "p:gas_price_change_compressor":
 		params.GasPricesChangeCompressor = sdkparams.MustParamInt64("gas_price_change_compressor", value)
 	case "p:target_gas_ratio":

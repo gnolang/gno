@@ -93,6 +93,18 @@ func (goo *GenesisState) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth 
 
 func (goo Params) MarshalBinary2(cdc *amino.Codec, buf []byte, offset int) (int, error) {
 	var err error
+	if goo.SigVerifyCostMLDSA65 != 0 {
+		{
+			before := offset
+			offset = amino.PrependVarint(buf, offset, int64(goo.SigVerifyCostMLDSA65))
+			valueLen := before - offset
+			if valueLen > 1 || (valueLen == 1 && buf[offset] != 0x00) {
+				offset = amino.PrependFieldNumberAndTyp3(buf, offset, 11, amino.Typ3Varint)
+			} else {
+				offset = before
+			}
+		}
+	}
 	{
 		repr, err := goo.FeeCollector.MarshalAmino()
 		if err != nil {
@@ -270,6 +282,9 @@ func (goo Params) SizeBinary2(cdc *amino.Codec) (int, error) {
 			s += 1 + amino.UvarintSize(uint64(len(repr))) + len(repr)
 		}
 	}
+	if goo.SigVerifyCostMLDSA65 != 0 {
+		s += 1 + amino.VarintSize(int64(goo.SigVerifyCostMLDSA65))
+	}
 	return s, nil
 }
 
@@ -427,6 +442,16 @@ func (goo *Params) UnmarshalBinary2(cdc *amino.Codec, bz []byte, anyDepth int) e
 			if err := goo.FeeCollector.UnmarshalAmino(repr); err != nil {
 				return err
 			}
+		case 11:
+			if typ3 != amino.Typ3Varint {
+				return fmt.Errorf("field 11: expected typ3 %v, got %v", amino.Typ3Varint, typ3)
+			}
+			v, n, err := amino.DecodeVarint(bz)
+			if err != nil {
+				return err
+			}
+			bz = bz[n:]
+			goo.SigVerifyCostMLDSA65 = int64(v)
 		default:
 			return fmt.Errorf("unknown field number %d for Params", fnum)
 		}

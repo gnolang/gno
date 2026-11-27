@@ -34,6 +34,7 @@ func TestCodecParity_Auth(t *testing.T) {
 			TxSizeCostPerByte:         10,
 			SigVerifyCostED25519:      590,
 			SigVerifyCostSecp256k1:    1000,
+			SigVerifyCostMLDSA65:      1400,
 			GasPricesChangeCompressor: 2,
 			TargetGasRatio:            70,
 			// The chain's opening gas price, and the one field here whose zero
