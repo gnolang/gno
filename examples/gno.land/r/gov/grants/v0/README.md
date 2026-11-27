@@ -26,4 +26,4 @@ GovDAO can stop it. A small first payment, an advance, is the only one paid with
 
 The rules and their durations are on the realm's page; the lifecycle is the pure package
 [`p/nt/grants/v0`](../../../../p/nt/grants/v0), and the reasoning is in
-`gno.land/adr/prxxxx_govdao_grants.md`.
+`gno.land/adr/pr6540_govdao_grants.md`.
