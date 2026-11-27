@@ -478,8 +478,41 @@ func (av *ArrayValue) Copy(alloc *Allocator, store Store, t Type, active map[Obj
 		// cp is a Go local until the caller roots it, so anchor its list
 		// while the elements are copied, as defaultArrayValue does.
 		alloc.PushAnchor(cp.List)
-		for i, tv := range av.List {
-			cp.List[i] = tv.copy(alloc, store, active)
+		if t.Elem().Kind() == InterfaceKind {
+			// The elements are interface slots, whose contents are
+			// sealed: every write into an interface slot copies on
+			// entry, interface-held values are not addressable (see
+			// isAddressable), and extracting one (type assertion)
+			// copies again. Share them instead of deep-copying —
+			// mirroring Go, where copying an array of interfaces copies
+			// the boxes' headers. This also keeps chains like
+			// `x = [1]any{x}` linear instead of quadratic.
+			//
+			// Only an object that exists in memory alone and is stamped
+			// with the executing realm is shared; anything else is
+			// deep-copied as before:
+			//   - a stored object (real, or still a RefValue): the
+			//     source can drop it, and finalize then deletes it while
+			//     the copy still refers to it;
+			//   - an object stamped with another realm: shared, it would
+			//     be persisted (and its storage deposit charged) as that
+			//     realm's object, which a private realm refuses outright;
+			//   - anything in an ephemeral run realm, whose new objects
+			//     any realm may adopt, so a shared one would end up
+			//     persisted by one realm and referenced by another.
+			share := alloc != nil && !alloc.currentRealmEphemeral
+			for i, tv := range av.List {
+				oo, ok := tv.V.(Object)
+				if !share || !ok || oo.GetIsReal() ||
+					oo.GetObjectID().PkgID != alloc.currentRealmID {
+					tv = tv.copy(alloc, store, active)
+				}
+				cp.List[i] = tv
+			}
+		} else {
+			for i, tv := range av.List {
+				cp.List[i] = tv.copy(alloc, store, active)
+			}
 		}
 		alloc.PopAnchor()
 	} else {
@@ -1357,7 +1390,9 @@ func (tv *TypedValue) ClearNum() {
 }
 
 // Copy returns tv by value: an array or struct is duplicated, nested ones
-// included, and store loads any of them still held as a RefValue.
+// included, and store loads any of them still held as a RefValue. The
+// elements of an array of interface type are shared instead (see
+// ArrayValue.Copy).
 func (tv TypedValue) Copy(alloc *Allocator, store Store) TypedValue {
 	return tv.copy(alloc, store, nil)
 }

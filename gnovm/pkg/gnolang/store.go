@@ -475,6 +475,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 		trace.Store("DECODE_REALM", gas, []byte(key), len(bz), "none")
 	}
 	amino.MustUnmarshal(bz, &rlm)
+	rlm.ephemeral = IsEphemeralPath(rlm.Path)
 	size = len(bz)
 	if debugAssert {
 		if rlm.ID != oid.PkgID {

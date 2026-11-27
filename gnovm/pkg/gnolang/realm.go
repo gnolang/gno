@@ -172,6 +172,10 @@ type Realm struct {
 	Storage uint64 // Amount of storage used
 	sumDiff int64  // Total size difference from added, updated, or deleted objects
 
+	// ephemeral caches IsEphemeralPath(Path), which runs a regex. Set where a
+	// Realm is built (NewRealm) or decoded (GetPackageRealm); not persisted.
+	ephemeral bool
+
 	newCreated []Object
 	newDeleted []Object
 	newEscaped []Object
@@ -229,9 +233,10 @@ func (rlm *Realm) touchForeignRealm(store Store, pid PkgID) *Realm {
 func NewRealm(path string) *Realm {
 	id := PkgIDFromPkgPath(path)
 	return &Realm{
-		ID:   id,
-		Path: path,
-		Time: 0,
+		ID:        id,
+		Path:      path,
+		Time:      0,
+		ephemeral: IsEphemeralPath(path),
 	}
 }
 

@@ -1,0 +1,55 @@
+# A realm copies a stored array of interfaces without reading its element,
+# clears the source slot, allocates enough garbage to trigger a GC, then
+# stores the copy. The copy must own its own element: shared, the element was
+# evicted, reloaded and persisted while also deleted, so arr2 could never be
+# read, updated or cleared again.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/alpha -pkgpath gno.land/r/foobar/alpha -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/alpha -func Move -gas-fee 10000000ugnot -gas-wanted 1000000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/foobar/alpha.Read()"
+stdout '\(1 int\)'
+
+gnokey maketx call -pkgpath gno.land/r/foobar/alpha -func Bump -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/foobar/alpha.Read()"
+stdout '\(2 int\)'
+
+gnokey maketx call -pkgpath gno.land/r/foobar/alpha -func Reset -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+-- alpha/gnomod.toml --
+module = "gno.land/r/foobar/alpha"
+gno = "0.9"
+
+-- alpha/a.gno --
+package alpha
+
+type S struct{ F int }
+
+var arr, arr2 [1]any
+
+func init() {
+	arr[0] = S{1}
+}
+
+func Move(cur realm) {
+	b := arr
+	arr[0] = nil
+	for i := 0; i < 30; i++ {
+		_ = make([]byte, 20000000)
+	}
+	arr2 = b
+}
+
+func Read() int { return arr2[0].(S).F }
+
+func Bump(cur realm) { arr2[0] = S{arr2[0].(S).F + 1} }
+
+func Reset(cur realm) { arr2 = [1]any{} }

@@ -1,0 +1,71 @@
+# A realm swaps out its array of interfaces and returns the old value. The
+# finalize at the crossing return deletes the elements the realm no longer
+# holds, so the returned copy must own its elements, whether another realm
+# stores it (Grab) or a MsgRun script reads it.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/alpha -pkgpath gno.land/r/foobar/alpha -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/beta -pkgpath gno.land/r/foobar/beta -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/alpha -func Fill -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/foobar/beta -func Grab -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey query vm/qeval --data "gno.land/r/foobar/beta.Read()"
+stdout '1 int'
+
+gnokey maketx call -pkgpath gno.land/r/foobar/alpha -func Fill -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr $WORK/script/run.gno
+stdout 'got: 1'
+
+-- alpha/gnomod.toml --
+module = "gno.land/r/foobar/alpha"
+gno = "0.9"
+
+-- alpha/a.gno --
+package alpha
+
+type S struct{ F int }
+
+var buf [2]any
+
+func Fill(cur realm) { buf = [2]any{S{1}, S{2}} }
+
+func Drain(cur realm) [2]any {
+	out := buf
+	buf = [2]any{}
+	return out
+}
+
+-- beta/gnomod.toml --
+module = "gno.land/r/foobar/beta"
+gno = "0.9"
+
+-- beta/b.gno --
+package beta
+
+import "gno.land/r/foobar/alpha"
+
+var mine [2]any
+
+func Grab(cur realm) { mine = alpha.Drain(cross(cur)) }
+
+func Read() int { return mine[0].(alpha.S).F }
+
+-- script/run.gno --
+package main
+
+import "gno.land/r/foobar/alpha"
+
+func main(cur realm) {
+	x := alpha.Drain(cross(cur))
+	println("got:", x[0].(alpha.S).F)
+}

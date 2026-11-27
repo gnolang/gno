@@ -307,9 +307,11 @@ func (m *Machine) setRealm(r *Realm) {
 	if r != nil {
 		m.Alloc.currentRealmID = r.ID
 		m.Alloc.currentRealmPath = r.Path
+		m.Alloc.currentRealmEphemeral = r.ephemeral
 	} else {
 		m.Alloc.currentRealmID = PkgID{}
 		m.Alloc.currentRealmPath = ""
+		m.Alloc.currentRealmEphemeral = false
 	}
 }
 

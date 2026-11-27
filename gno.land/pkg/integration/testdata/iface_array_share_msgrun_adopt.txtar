@@ -1,0 +1,69 @@
+# A MsgRun script copies an array of interfaces, then hands each copy by
+# pointer to a different realm, which adopts it. Each realm must pay for, and
+# own, its own element (+1071 bytes each): shared, one realm would persist
+# the element and the other only reference it.
+
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/pub -pkgpath gno.land/r/foobar/pub -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey maketx addpkg -pkgdir $WORK/pubtwo -pkgpath gno.land/r/foobar/pubtwo -gas-fee 10000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr
+stdout OK!
+
+gnokey query vm/qstorage --data gno.land/r/foobar/pub
+stdout 'storage: 2776,'
+
+gnokey query vm/qstorage --data gno.land/r/foobar/pubtwo
+stdout 'storage: 2196,'
+
+gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test $test1_user_addr $WORK/script/run.gno
+stdout OK!
+
+gnokey query vm/qstorage --data gno.land/r/foobar/pub
+stdout 'storage: 3847,'
+
+gnokey query vm/qstorage --data gno.land/r/foobar/pubtwo
+stdout 'storage: 3267,'
+
+gnokey query vm/qeval --data "gno.land/r/foobar/pub.Get()"
+stdout '\(1 int\)'
+
+-- pub/gnomod.toml --
+module = "gno.land/r/foobar/pub"
+gno = "0.9"
+
+-- pub/pub.gno --
+package pub
+
+var P *[1]any
+
+func Keep(cur realm, p *[1]any) { P = p }
+
+func Get() int { return P[0].([2]int)[0] }
+
+-- pubtwo/gnomod.toml --
+module = "gno.land/r/foobar/pubtwo"
+gno = "0.9"
+
+-- pubtwo/pubtwo.gno --
+package pubtwo
+
+var P *[1]any
+
+func Keep(cur realm, p *[1]any) { P = p }
+
+-- script/run.gno --
+package main
+
+import (
+	"gno.land/r/foobar/pub"
+	"gno.land/r/foobar/pubtwo"
+)
+
+func main(cur realm) {
+	a := [1]any{[2]int{1, 2}}
+	b := a
+	pubtwo.Keep(cross(cur), &a)
+	pub.Keep(cross(cur), &b)
+}

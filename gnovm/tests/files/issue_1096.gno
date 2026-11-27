@@ -129,12 +129,6 @@ func main() {
 	println(xx.X.Array[1])
 	println(x.Array[1])
 
-	println("----- manip2(xs...) with map")
-	xm := map[int]X{1: x}
-	xm[1].Array[1] = 123
-	println(xm[1].Array[1])
-	println(x.Array[1])
-
 	println("----- manip2(xs...) with convert")
 	xb := XB(x)
 	xb.Array[1] = 123
@@ -340,9 +334,6 @@ func (_ Z) manip2(xs ...X) {
 // ----- manip2(xs...) with struct 2
 // 123
 // 888
-// ----- manip2(xs...) with map
-// 123
-// 888
 // ----- manip2(xs...) with convert
 // 123
 // 888
@@ -395,6 +386,3 @@ func (_ Z) manip2(xs ...X) {
 // ----- defer y.manip()
 // 888
 // 0
-
-// TypeCheckError:
-// main/issue_1096.gno:134:2: cannot assign to xm[1].Array[1] (neither addressable nor a map index expression)

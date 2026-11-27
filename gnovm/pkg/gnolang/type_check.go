@@ -1026,10 +1026,12 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 			shouldPanic = false
 		}
 	case *StarExpr, *SelectorExpr:
-		shouldPanic = false
+		shouldPanic = !isAddressable(store, last, clx)
 	case *IndexExpr:
+		// a map index expression is assignable without being addressable.
 		xt := evalStaticTypeOf(store, last, clx.X)
-		shouldPanic = xt != nil && xt.Kind() == StringKind
+		shouldPanic = xt != nil && xt.Kind() != MapKind &&
+			!isAddressable(store, last, clx)
 	default:
 	}
 	if shouldPanic {

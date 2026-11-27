@@ -38,6 +38,11 @@ type Allocator struct {
 	// checkConstructionTime's panic message so users see a readable
 	// realm path rather than an opaque PkgID hex.
 	currentRealmPath string
+	// currentRealmEphemeral mirrors m.Realm.ephemeral: whether the
+	// executing realm is an ephemeral run realm (/e/…/run), whose new
+	// objects any realm may adopt. ArrayValue.Copy does not share
+	// elements there.
+	currentRealmEphemeral bool
 
 	// anchors holds destinations that have been allocated but are not yet
 	// reachable from any GC root: composite-literal element buffers,
