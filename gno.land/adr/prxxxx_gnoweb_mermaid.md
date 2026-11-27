@@ -56,6 +56,29 @@ deliberate differences remain: unquoted multi-word axis titles keep their
 spaces, an xychart without a range starts its y-axis at zero, and `#` does
 not start a comment in message text.
 
+### Two forms: the fence and `<gno-mermaid>`
+
+A ```` ```mermaid ```` fence is the form Mermaid, GitHub and every editor
+know; it draws the diagram at its natural size, centered. A `<gno-mermaid>`
+block takes the same source as its body and options as attributes, the
+way gnoweb's other blocks do (`<gno-details summary="…">`,
+`<gno-columns>`), with no fence inside:
+
+    <gno-mermaid width="full">
+    pie title Votes
+        "Yes" : 42
+    </gno-mermaid>
+
+Its one attribute, `width`, is `fit` (shrunk to the container when wider,
+never enlarged, as Mermaid draws by default) or `full` (the container's
+width); without it the diagram keeps its natural size and scrolls when
+wider, so its text stays the size of the page's. The body is read verbatim
+up to a `</gno-mermaid>` line, like a fence. Another attribute or value, a
+block its container or the document ends before the close tag, or a page
+with diagrams off shows the body as code, so a mistake shows the source
+rather than a guess. Inside `<gno-foreign>`, which does not load this
+extension, the tag is omitted like any other unknown one.
+
 ### The SVG: inline, CSP-clean, themed
 
 The SVG is inlined in the page, so its text uses the page font and the
@@ -103,8 +126,9 @@ East Asian text) breaks after a `/ . - _ ,` or between characters.
   at worst.
 - `Render` refuses a drawing wider or taller than 20,000 px or larger than
   512 KiB (`MaxOutputLen`), which also bounds how many items a type draws.
-- A document tries at most 20 fences and draws at most 2 MiB of SVG; the
-  fences past a bound stay code.
+- A document tries at most 20 diagrams, fences and `<gno-mermaid>` blocks
+  together, and draws at most 2 MiB of SVG; the diagrams past a bound stay
+  code.
 - `Render` turns a panic into an `*Error`, so a bug on some input shows the
   source rather than failing the page.
 - The page still goes through gnoweb's output cap (`maxRenderOutputBytes`).

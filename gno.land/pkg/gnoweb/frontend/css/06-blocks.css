@@ -3072,6 +3072,16 @@ main.is-dev-mode .b-toc a {
 		}
 	}
 
+	/* <gno-mermaid width="fit"> shrinks a diagram wider than its container,
+	   never enlarges it; width="full" gives it the container's width. */
+	.gno-mermaid--fit .gno-mermaid__svg {
+		max-width: 100%;
+	}
+
+	.gno-mermaid--full .gno-mermaid__svg {
+		width: 100%;
+	}
+
 	.gno-mermaid__box {
 		fill: var(--mermaid-box);
 		stroke: var(--mermaid-box-stroke);

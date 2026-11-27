@@ -157,7 +157,7 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.webMermaid,
 		"web-mermaid",
 		defaultCfg.webMermaid,
-		"gnoweb: draw ```mermaid code blocks in realm markdown as SVG diagrams (sequence, pie, xychart, timeline, kanban; other diagrams stay code)",
+		"gnoweb: draw Mermaid diagrams in realm markdown as SVG (sequence, pie, xychart, timeline, kanban; other diagrams stay code)",
 	)
 
 	fs.BoolVar(

@@ -206,7 +206,7 @@ func (c *webCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.mermaid,
 		"mermaid",
 		defaultWebOptions.mermaid,
-		"draw ```mermaid code blocks in realm markdown as SVG diagrams (sequence, pie, xychart, timeline, kanban; other diagrams stay code)",
+		"draw Mermaid diagrams in realm markdown as SVG (sequence, pie, xychart, timeline, kanban; other diagrams stay code)",
 	)
 
 	fs.BoolVar(

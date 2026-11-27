@@ -2,6 +2,7 @@ package markdown
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,10 +58,42 @@ func TestMermaidFallback(t *testing.T) {
 	assert.NotContains(t, html, "gno-mermaid")
 }
 
+func TestMermaidTag(t *testing.T) {
+	const pie = "pie\n\"a\" : 1\n"
+	// The golden file ext_mermaid/tag.md covers each width and an unknown one.
+	for name, c := range map[string]struct{ src, want string }{
+		"tag case":      {"<GNO-MERMAID width=full>\n" + pie + "</gno-mermaid >\n", `<div class="gno-mermaid gno-mermaid--full"><svg`},
+		"in a list":     {"- x\n\n  <gno-mermaid>\n  pie\n  \"a\" : 1\n  </gno-mermaid>\n", `<div class="gno-mermaid"><svg`},
+		"after text":    {"Votes:\n<gno-mermaid>\n" + pie + "</gno-mermaid>\n", "<p>Votes:</p>\n<div class=\"gno-mermaid\"><svg"},
+		"bad attribute": {"<gno-mermaid width=fit style=x>\n" + pie + "</gno-mermaid>\n", "<pre><code>pie"},
+		"unclosed":      {"<gno-mermaid>\n" + pie, "<pre><code>pie"},
+		"list ends":     {"- <gno-mermaid>\n  " + pie + "\nafter\n", "<pre><code>pie"},
+		"not drawable":  {"<gno-mermaid>\nflowchart LR\n<b>x</b>\n</gno-mermaid>\n", "&lt;b&gt;x&lt;/b&gt;"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			html, nodes := renderMermaidDoc(t, c.src, true)
+			assert.Equal(t, 1, nodes)
+			assert.Contains(t, html, c.want)
+			assert.Equal(t, strings.Contains(c.want, "<svg"), strings.Contains(html, "<svg"), html)
+			assert.NotContains(t, html, "gno-mermaid>", "the tags never reach the page")
+		})
+	}
+
+	// Disabled, a block shows its source as code.
+	html, _ := renderMermaidDoc(t, "<gno-mermaid width=\"full\">\n"+pie+"</gno-mermaid>\n", false)
+	assert.Contains(t, html, "<pre><code>pie")
+	assert.NotContains(t, html, "<svg")
+}
+
 func TestMermaidNotInForeign(t *testing.T) {
 	// The <gno-foreign> sandbox does not load the extension: a fence there
 	// stays code, even with diagrams enabled.
 	html, _ := renderMermaidDoc(t, "<gno-foreign>\n\n"+seqFence+"</gno-foreign>\n", true)
 	assert.Contains(t, html, "language-mermaid")
 	assert.NotContains(t, html, "<svg")
+
+	// A <gno-mermaid> block there is an unknown tag, omitted like any other.
+	html, _ = renderMermaidDoc(t, "<gno-foreign>\n\n<gno-mermaid>\npie\n\"a\" : 1\n</gno-mermaid>\n</gno-foreign>\n", true)
+	assert.NotContains(t, html, "<svg")
+	assert.NotContains(t, html, "gno-mermaid>")
 }
