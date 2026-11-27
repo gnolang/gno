@@ -4,6 +4,9 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/gnolang/gno/misc/gnodiff/internal/gen"
 )
 
 func TestSmokeBothSides(t *testing.T) {
@@ -41,13 +44,28 @@ func TestBothReject(t *testing.T) {
 	}
 }
 
+func TestGenerateSmoke(t *testing.T) {
+	if testing.Short() {
+		t.Skip("runs gc and GnoVM")
+	}
+	for _, seed := range []uint64{1, 2} {
+		src := gen.Generate(seed)
+		goRes := RunGo(context.Background(), src, Options{Timeout: 15 * time.Second})
+		gnoRes := RunGno(src, Options{})
+		class, reason := Classify(Program{Source: src}, goRes, gnoRes)
+		if class == ClassReal {
+			t.Fatalf("seed %d %s\n--- go ---\n%s\n--- gno ---\n%s\n%s", seed, reason, goRes.Summary(), gnoRes.Summary(), src)
+		}
+	}
+}
+
 func TestLoadCorpus(t *testing.T) {
 	progs, err := LoadDir(CorpusDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(progs) < 15 {
-		t.Fatalf("corpus has %d programs", len(progs))
+	if len(progs) < 250 {
+		t.Fatalf("corpus has %d programs, want at least 250", len(progs))
 	}
 	seen := map[string]bool{}
 	known := 0
@@ -58,7 +76,9 @@ func TestLoadCorpus(t *testing.T) {
 		seen[prog.Name] = true
 		if prog.Known != "" {
 			known++
-			if prog.Name != "runcap" {
+			switch prog.Name {
+			case "runcap", "control/unused_local", "const/unsigned_sub":
+			default:
 				t.Fatalf("unexpected known annotation on %s", prog.Name)
 			}
 		}
@@ -69,21 +89,21 @@ func TestLoadCorpus(t *testing.T) {
 			t.Fatalf("%s: %s", prog.Name, why)
 		}
 	}
-	if known != 1 {
-		t.Fatalf("known annotations = %d, want 1 (runcap)", known)
+	if known != 3 {
+		t.Fatalf("known annotations = %d, want 3", known)
 	}
 }
 
 func TestReportText(t *testing.T) {
 	rep := Report{
-		Total:     2,
-		Matched:   1,
-		Divergent: 1,
+		Total: 2,
+		Exact: 1,
+		Real:  1,
 		Cases: []CaseResult{
-			{Name: "ok", Match: true, Go: Result{Kind: KindOK, Stdout: "1"}, Gno: Result{Kind: KindOK, Stdout: "1"}},
+			{Name: "ok", Class: ClassExact, Go: Result{Kind: KindOK, Stdout: "1"}, Gno: Result{Kind: KindOK, Stdout: "1"}},
 			{
 				Name:   "bad",
-				Match:  false,
+				Class:  ClassReal,
 				Reason: "stdout",
 				Go:     Result{Kind: KindOK, Stdout: "1"},
 				Gno:    Result{Kind: KindOK, Stdout: "2"},
@@ -91,21 +111,32 @@ func TestReportText(t *testing.T) {
 		},
 	}
 	text := rep.Text()
-	if !strings.Contains(text, "DIVERGENCE bad") {
+	if !strings.Contains(text, "REAL bad") {
 		t.Fatalf("text:\n%s", text)
 	}
-	if strings.Contains(text, "DIVERGENCE ok") {
-		t.Fatalf("matched case leaked into the report:\n%s", text)
+	if strings.Contains(text, "REAL ok") {
+		t.Fatalf("exact case leaked into the report:\n%s", text)
 	}
 	if !rep.Failed() {
-		t.Fatal("unexpected divergence should fail the run")
+		t.Fatal("real divergence should fail the run")
 	}
 	known := Report{Total: 1, Known: 1, Cases: []CaseResult{{
-		Name: "z", Known: "wording", Match: false, Reason: "panic message",
-		Go:  Result{Kind: KindPanic, Panic: "a"},
-		Gno: Result{Kind: KindPanic, Panic: "b"},
+		Name: "z", Class: ClassKnown, Known: "cap", Reason: "stdout",
+		Go:  Result{Kind: KindOK, Stdout: "5 32"},
+		Gno: Result{Kind: KindOK, Stdout: "5 5"},
 	}}}
 	if known.Failed() {
-		t.Fatal("annotated divergences are reported and do not fail the run")
+		t.Fatal("known divergences are reported and do not fail the run")
+	}
+	wording := Report{Total: 1, PanicWording: 1, Cases: []CaseResult{{
+		Name: "d", Class: ClassPanicWording, Reason: "panic wording",
+		Go:  Result{Kind: KindPanic, Panic: "runtime error: integer divide by zero"},
+		Gno: Result{Kind: KindPanic, Panic: "runtime error: division by zero"},
+	}}}
+	if wording.Failed() {
+		t.Fatal("panic wording is reported and does not fail the run")
+	}
+	if !strings.Contains(wording.wordingText(), "integer divide by zero") {
+		t.Fatalf("wording report:\n%s", wording.wordingText())
 	}
 }

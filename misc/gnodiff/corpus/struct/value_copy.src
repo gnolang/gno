@@ -1,0 +1,31 @@
+package main
+
+type pair struct {
+	X int
+	Y int
+}
+
+type box struct {
+	Ns []int
+}
+
+func main() {
+	a := pair{1, 2}
+	b := a
+	b.X = 9
+	println(a.X, a.Y, b.X, b.Y)
+	c := &a
+	c.Y = 8
+	println(a.Y, c.X)
+	arr := [2]int{1, 2}
+	arr2 := arr
+	arr2[0] = 9
+	println(arr[0], arr2[0])
+	println(arr == [2]int{1, 2})
+	s := box{Ns: []int{1, 2}}
+	t := s
+	t.Ns[0] = 5
+	println(s.Ns[0], t.Ns[1])
+	println(pair{1, 2} == pair{1, 2})
+	println(pair{1, 2} == pair{2, 2})
+}

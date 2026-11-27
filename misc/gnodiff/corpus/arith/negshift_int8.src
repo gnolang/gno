@@ -1,0 +1,8 @@
+package main
+
+func main() {
+	var a int8 = 1
+	var s int8 = -1
+	println("before")
+	println(a << s)
+}

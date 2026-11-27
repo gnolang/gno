@@ -1,0 +1,10 @@
+package main
+
+func main() {
+	var a0 byte = 0
+	println(int64(a0))
+	var a1 byte = 1
+	println(int64(a1))
+	var a2 byte = 255
+	println(int64(a2))
+}

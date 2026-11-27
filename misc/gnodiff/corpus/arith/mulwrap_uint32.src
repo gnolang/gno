@@ -1,0 +1,7 @@
+package main
+
+func main() {
+	var a uint32 = 4294967295
+	var two uint32 = 2
+	println(a * two)
+}

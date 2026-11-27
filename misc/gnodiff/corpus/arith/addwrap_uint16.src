@@ -1,0 +1,8 @@
+package main
+
+func main() {
+	var a uint16 = 65535
+	var one uint16 = 1
+	println(a + one)
+	println(a + a)
+}

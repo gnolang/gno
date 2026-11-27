@@ -1,0 +1,7 @@
+package main
+
+func main() {
+	var a uint64 = 18446744073709551615
+	var two uint64 = 2
+	println(a * two)
+}

@@ -1,0 +1,7 @@
+package main
+
+func main() {
+	var a byte = 255
+	var two byte = 2
+	println(a * two)
+}

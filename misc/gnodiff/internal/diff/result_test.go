@@ -10,6 +10,39 @@ func TestNormalizePanicSynonym(t *testing.T) {
 	}
 }
 
+func TestClassifyPanicWording(t *testing.T) {
+	goRes := Result{Kind: KindPanic, Stdout: "before", Panic: "runtime error: index out of range [3] with length 2"}
+	gnoRes := Result{Kind: KindPanic, Stdout: "before", Panic: "runtime error: slice index out of bounds: 3 (len=2)"}
+	class, reason := Classify(Program{}, goRes, gnoRes)
+	if class != ClassPanicWording {
+		t.Fatalf("class = %s (%s)", class, reason)
+	}
+	nilGo := Result{Kind: KindPanic, Stdout: "before", Panic: "runtime error: index out of range [0] with length 0"}
+	nilGno := Result{Kind: KindPanic, Stdout: "before", Panic: "runtime error: nil slice index (out of bounds)"}
+	class, _ = Classify(Program{}, nilGo, nilGno)
+	if class != ClassPanicWording {
+		t.Fatalf("nil slice class = %s", class)
+	}
+	gnoRes.Panic = "runtime error: slice index out of bounds: 4 (len=2)"
+	class, _ = Classify(Program{}, goRes, gnoRes)
+	if class != ClassReal {
+		t.Fatalf("different index class = %s", class)
+	}
+	known := Program{Known: "cap", ExpectGo: "5 32", ExpectGno: "5 5"}
+	class, _ = Classify(known,
+		Result{Kind: KindOK, Stdout: "5 32"},
+		Result{Kind: KindOK, Stdout: "5 5"})
+	if class != ClassKnown {
+		t.Fatalf("known class = %s", class)
+	}
+	class, _ = Classify(known,
+		Result{Kind: KindOK, Stdout: "5 8"},
+		Result{Kind: KindOK, Stdout: "5 5"})
+	if class != ClassReal {
+		t.Fatalf("drifted known class = %s, want real", class)
+	}
+}
+
 func TestCanonicalRuntimePanics(t *testing.T) {
 	pairs := [][2]string{
 		{"runtime error: integer divide by zero", "runtime error: division by zero"},

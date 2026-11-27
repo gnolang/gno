@@ -1,0 +1,8 @@
+package main
+
+func main() {
+	var a uint = 18446744073709551615
+	var one uint = 1
+	println(a + one)
+	println(a + a)
+}

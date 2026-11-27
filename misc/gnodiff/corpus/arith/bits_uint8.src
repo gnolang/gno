@@ -1,0 +1,11 @@
+package main
+
+func main() {
+	var a uint8 = 255
+	var b uint8 = 1
+	println(a | b)
+	println(a & b)
+	println(a ^ b)
+	println(a &^ b)
+	println(^a)
+}

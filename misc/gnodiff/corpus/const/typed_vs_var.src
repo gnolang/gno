@@ -1,0 +1,12 @@
+package main
+
+func main() {
+
+	const c int8 = 3
+	var v int8 = 3
+	println(c+1, v+1)
+	const div = -10 / 3
+	var a int = -10
+	var b int = 3
+	println(div, a/b, a%b)
+}

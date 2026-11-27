@@ -1,0 +1,10 @@
+package main
+
+func main() {
+	var a0 uint = 0
+	println(uint8(a0))
+	var a1 uint = 1
+	println(uint8(a1))
+	var a2 uint = 18446744073709551615
+	println(uint8(a2))
+}

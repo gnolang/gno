@@ -1,0 +1,12 @@
+package main
+
+func f(n int) int {
+	n = n + 1
+	return n
+}
+
+func main() {
+	n := 1
+	println(f(n))
+	println(n)
+}

@@ -1,0 +1,8 @@
+package main
+
+func main() {
+
+	var s []int
+	println("before")
+	println(s[0])
+}

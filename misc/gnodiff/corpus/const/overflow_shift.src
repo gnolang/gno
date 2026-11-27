@@ -1,0 +1,8 @@
+package main
+
+const huge = 1 << 100
+
+func main() {
+	var x int64 = huge
+	println(x)
+}

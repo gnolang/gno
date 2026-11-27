@@ -1,0 +1,11 @@
+package main
+
+func main() {
+	var a int8 = -5
+	var b int8 = 2
+	println(a / b)
+	println(a % b)
+	var c int8 = 5
+	println(c / b)
+	println(c % b)
+}

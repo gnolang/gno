@@ -1,0 +1,10 @@
+// gc rejects an unread local. Gno runs the program.
+// gnodiff:known Gno does not reject locals that are declared and not used
+// gnodiff:expect-go reject: declared and not used
+// gnodiff:expect-gno 2
+package main
+
+func main() {
+	x := 1
+	println(2)
+}

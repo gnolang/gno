@@ -3,6 +3,8 @@
 // A constant conversion ([]rune("héllo")) agreed on this toolchain; the
 // variable below did not.
 // gnodiff:known string-to-[]rune uses cap == len in Gno; gc may use a larger cap
+// gnodiff:expect-go 5 32
+// gnodiff:expect-gno 5 5
 package main
 
 func main() {

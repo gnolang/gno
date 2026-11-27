@@ -1,0 +1,11 @@
+package main
+
+func main() {
+	var a uint = 1
+	var b uint = 2
+	println(a < b)
+	println(a == a)
+	println(a > b)
+	println(a != b)
+	println(a <= a)
+}

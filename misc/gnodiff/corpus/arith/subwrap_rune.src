@@ -1,0 +1,7 @@
+package main
+
+func main() {
+	var a rune = -2147483648
+	var one rune = 1
+	println(a - one)
+}

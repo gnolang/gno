@@ -1,0 +1,8 @@
+package main
+
+func main() {
+	var a int8 = 1
+	var b int8 = 0
+	println("before")
+	println(a / b)
+}

@@ -96,26 +96,120 @@ func NormalizeOutput(s string) string {
 	return strings.TrimRight(strings.Join(lines, "\n"), "\n")
 }
 
-// NormalizePanic reduces a panic value to the text that should agree across
-// toolchains. Wording that describes the same runtime event is rewritten to
-// a canonical form that still carries the indexes, so a wrong bound stays a
-// divergence.
-func NormalizePanic(s string) string {
+// cleanPanic is the panic text with only whitespace and a leading "panic:"
+// removed. It does not fold wording.
+func cleanPanic(s string) string {
 	s = strings.TrimSpace(s)
 	s = strings.TrimPrefix(s, "panic: ")
 	if i := strings.IndexByte(s, '\n'); i >= 0 {
 		s = s[:i]
 	}
-	s = strings.TrimSpace(s)
+	s = spaceRE.ReplaceAllString(strings.TrimSpace(s), " ")
+	return strings.TrimSpace(s)
+}
+
+// NormalizePanic reduces a panic value to the event it names. Wording for the
+// same event is folded, and indexes are kept, so a wrong bound stays distinct.
+func NormalizePanic(s string) string {
+	s = cleanPanic(s)
+	folded := s
 	for _, pair := range panicSynonyms {
-		s = strings.ReplaceAll(s, pair[0], pair[1])
+		folded = strings.ReplaceAll(folded, pair[0], pair[1])
 	}
-	s = spaceRE.ReplaceAllString(s, " ")
-	s = strings.TrimSpace(s)
-	if canon, ok := canonicalRuntimePanic(s); ok {
+	if canon, ok := canonicalRuntimePanic(folded); ok {
 		return canon
 	}
-	return s
+	return folded
+}
+
+// Class is how a pair of results relates.
+type Class string
+
+const (
+	// ClassExact is the same outcome and the same text.
+	ClassExact Class = "exact"
+	// ClassKnown is a documented difference (// gnodiff:known), and the
+	// outputs still match that seed's expect lines when it has them.
+	ClassKnown Class = "known"
+	// ClassPanicWording is the same panic event (kind, indexes, output
+	// before the panic) with different message text.
+	ClassPanicWording Class = "panic-wording"
+	// ClassReal is a behavioral disagreement, or a known seed whose output
+	// no longer matches the expect lines.
+	ClassReal Class = "real"
+)
+
+// Classify compares one gc result with one GnoVM result.
+func Classify(prog Program, goRes, gnoRes Result) (Class, string) {
+	if goRes.Kind == KindInternal || gnoRes.Kind == KindInternal {
+		return ClassReal, "runner failed"
+	}
+	if goRes.Truncated || gnoRes.Truncated {
+		if goRes.Truncated != gnoRes.Truncated || goRes.Stdout != gnoRes.Stdout || goRes.Kind != gnoRes.Kind {
+			return knownOrReal(prog, goRes, gnoRes, "output truncated")
+		}
+	}
+	if goRes.Kind != gnoRes.Kind {
+		return knownOrReal(prog, goRes, gnoRes, fmt.Sprintf("outcome %s vs %s", goRes.Kind, gnoRes.Kind))
+	}
+	switch goRes.Kind {
+	case KindOK:
+		if goRes.Stdout == gnoRes.Stdout {
+			return ClassExact, ""
+		}
+		return knownOrReal(prog, goRes, gnoRes, "stdout")
+	case KindPanic:
+		if goRes.Stdout != gnoRes.Stdout {
+			return knownOrReal(prog, goRes, gnoRes, "stdout before panic")
+		}
+		if cleanPanic(goRes.Panic) == cleanPanic(gnoRes.Panic) {
+			return ClassExact, ""
+		}
+		if NormalizePanic(goRes.Panic) == NormalizePanic(gnoRes.Panic) || nilSliceWording(goRes.Panic, gnoRes.Panic) {
+			return ClassPanicWording, "panic wording"
+		}
+		return knownOrReal(prog, goRes, gnoRes, "panic message")
+	case KindReject, KindNonTerm:
+		return ClassExact, ""
+	default:
+		return ClassReal, "unknown outcome"
+	}
+}
+
+func knownOrReal(prog Program, goRes, gnoRes Result, reason string) (Class, string) {
+	if prog.Known == "" {
+		return ClassReal, reason
+	}
+	if prog.ExpectGo != "" && !expectMatch(goRes, prog.ExpectGo) {
+		return ClassReal, "known go output changed"
+	}
+	if prog.ExpectGno != "" && !expectMatch(gnoRes, prog.ExpectGno) {
+		return ClassReal, "known gno output changed"
+	}
+	return ClassKnown, reason
+}
+
+func expectMatch(res Result, want string) bool {
+	if after, ok := strings.CutPrefix(want, "reject:"); ok {
+		return res.Kind == KindReject && strings.Contains(res.Detail, strings.TrimSpace(after))
+	}
+	if after, ok := strings.CutPrefix(want, "panic:"); ok {
+		return res.Kind == KindPanic && strings.Contains(cleanPanic(res.Panic), strings.TrimSpace(after))
+	}
+	want = NormalizeOutput(want)
+	switch res.Kind {
+	case KindOK:
+		return res.Stdout == want
+	case KindPanic:
+		got := NormalizeOutput(res.Stdout)
+		if got != "" {
+			got += "\n"
+		}
+		got += cleanPanic(res.Panic)
+		return NormalizeOutput(got) == want || cleanPanic(res.Panic) == want
+	default:
+		return oneLine(res.Detail) == want || res.Detail == want
+	}
 }
 
 var (
@@ -150,37 +244,21 @@ func canonicalRuntimePanic(s string) (string, bool) {
 	return "", false
 }
 
-// Compare reports whether the two results agree.
-// match is false when a runner itself failed (KindInternal): that is a
-// problem with the fuzzer, and it must not look like language agreement.
+// nilSliceWording is the nil-slice index panic. gc reports it as an ordinary
+// index panic with length 0; Gno names the nil slice and does not repeat the
+// index. Both sides panicked on the same operation.
+func nilSliceWording(goMsg, gnoMsg string) bool {
+	if !strings.Contains(cleanPanic(gnoMsg), "nil slice index") {
+		return false
+	}
+	m := indexGoRE.FindStringSubmatch(cleanPanic(goMsg))
+	return m != nil && m[2] == "0"
+}
+
+// Compare reports whether the results are free of a real behavioral
+// divergence. Panic-wording differences count as agreement here; Classify
+// records them separately.
 func Compare(goRes, gnoRes Result) (match bool, reason string) {
-	if goRes.Kind == KindInternal || gnoRes.Kind == KindInternal {
-		return false, "runner failed"
-	}
-	if goRes.Truncated || gnoRes.Truncated {
-		if goRes.Truncated != gnoRes.Truncated || goRes.Stdout != gnoRes.Stdout || goRes.Kind != gnoRes.Kind {
-			return false, "output truncated"
-		}
-	}
-	if goRes.Kind != gnoRes.Kind {
-		return false, fmt.Sprintf("outcome %s vs %s", goRes.Kind, gnoRes.Kind)
-	}
-	switch goRes.Kind {
-	case KindOK:
-		if goRes.Stdout != gnoRes.Stdout {
-			return false, "stdout"
-		}
-	case KindPanic:
-		if NormalizePanic(goRes.Panic) != NormalizePanic(gnoRes.Panic) {
-			return false, "panic message"
-		}
-		if goRes.Stdout != gnoRes.Stdout {
-			return false, "stdout before panic"
-		}
-	case KindReject, KindNonTerm:
-		return true, ""
-	default:
-		return false, "unknown outcome"
-	}
-	return true, ""
+	cl, reason := Classify(Program{}, goRes, gnoRes)
+	return cl == ClassExact || cl == ClassPanicWording, reason
 }

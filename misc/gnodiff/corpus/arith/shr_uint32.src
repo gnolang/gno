@@ -1,0 +1,9 @@
+package main
+
+func main() {
+	var a uint32 = 4294967295
+	println(a >> 1)
+	var one uint32 = 1
+	println(one << 1)
+	println(one << 0)
+}

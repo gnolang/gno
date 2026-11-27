@@ -1,0 +1,11 @@
+package main
+
+type cell struct{ N int }
+
+func (c *cell) Twice() int { return c.N * 2 }
+
+func main() {
+	var c *cell
+	println("before")
+	println(c.Twice())
+}

@@ -1,0 +1,22 @@
+package main
+
+type reader interface{ Read() int }
+
+type both interface {
+	reader
+	Write() int
+}
+
+type mem struct{ n int }
+
+func (m mem) Read() int  { return m.n }
+func (m mem) Write() int { return m.n + 1 }
+
+func main() {
+	var b both = mem{4}
+	println(b.Read(), b.Write())
+	r := b.Read
+	println(r())
+	_, ok := interface{}(b).(reader)
+	println(ok)
+}

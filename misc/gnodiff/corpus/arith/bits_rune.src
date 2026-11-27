@@ -1,0 +1,11 @@
+package main
+
+func main() {
+	var a rune = 2147483647
+	var b rune = 1
+	println(a | b)
+	println(a & b)
+	println(a ^ b)
+	println(a &^ b)
+	println(^a)
+}

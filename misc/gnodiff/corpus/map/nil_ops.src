@@ -1,0 +1,16 @@
+package main
+
+func main() {
+
+	var m map[string]int
+	println(m == nil, len(m))
+	_, ok := m["a"]
+	println(ok, m["a"])
+	delete(m, "a")
+	println(len(m))
+	sum := 0
+	for _, v := range m {
+		sum += v
+	}
+	println(sum)
+}

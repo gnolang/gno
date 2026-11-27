@@ -12,5 +12,8 @@ test:
 corpus:
 	go run . -out gnodiff-out
 
+generate:
+	go run . -generate 2000 -seed 1 -out gnodiff-out/generated
+
 fuzz:
-	go test -fuzz=FuzzPrograms -fuzztime=30s ./internal/diff/
+	go test -fuzz=FuzzGenerated -fuzztime=30s ./internal/diff/

@@ -1,0 +1,11 @@
+package main
+
+func main() {
+	var a byte = 255
+	var b byte = 1
+	println(a | b)
+	println(a & b)
+	println(a ^ b)
+	println(a &^ b)
+	println(^a)
+}

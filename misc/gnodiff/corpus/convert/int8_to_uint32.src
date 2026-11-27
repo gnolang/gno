@@ -1,0 +1,14 @@
+package main
+
+func main() {
+	var a0 int8 = 0
+	println(uint32(a0))
+	var a1 int8 = 1
+	println(uint32(a1))
+	var a2 int8 = 127
+	println(uint32(a2))
+	var a3 int8 = -128
+	println(uint32(a3))
+	var a4 int8 = -1
+	println(uint32(a4))
+}

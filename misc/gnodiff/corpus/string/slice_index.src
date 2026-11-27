@@ -1,0 +1,11 @@
+package main
+
+func main() {
+
+	s := "héllo"
+	println(s[:1] == "h")
+	println(len(s[1:3]))
+	println(s[len(s)-1] == 'o')
+	empty := ""
+	println(len(empty), empty == "")
+}

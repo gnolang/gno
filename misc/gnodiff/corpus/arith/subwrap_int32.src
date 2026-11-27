@@ -1,0 +1,7 @@
+package main
+
+func main() {
+	var a int32 = -2147483648
+	var one int32 = 1
+	println(a - one)
+}

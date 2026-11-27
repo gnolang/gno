@@ -1,0 +1,15 @@
+package main
+
+func main() {
+
+	var f float64 = 1.9
+	println(int(f))
+	var g float64 = -1.9
+	println(int(g))
+	var h float32 = 2.9
+	println(int(h))
+	var n float32 = -2.9
+	println(int(n))
+	pos := 1.25
+	println(int(pos * 4))
+}

@@ -1,0 +1,10 @@
+// A typed constant subtraction that does not fit in uint64.
+// gc rejects it. Gno wraps, which is the runtime rule, not the constant rule.
+// gnodiff:known Gno does not reject an overflowing typed constant expression
+// gnodiff:expect-go reject: overflows uint64
+// gnodiff:expect-gno 18446744073709551584
+package main
+
+func main() {
+	println(uint64(8) - uint64(40))
+}

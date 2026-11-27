@@ -1,0 +1,23 @@
+package main
+
+import "strings"
+
+func main() {
+	s := "héllo, world"
+	println(strings.Contains(s, "lo"))
+	println(strings.HasPrefix(s, "hé"))
+	println(strings.HasSuffix(s, "world"))
+	println(strings.Count("aaa", "a"))
+	println(strings.Index(s, "lo"))
+	println(strings.ToUpper("AbCé"))
+	println(strings.ToLower("AbCé"))
+	println(strings.TrimSpace("  a  "))
+	println(strings.Repeat("ab", 3))
+	println(strings.Replace("aaa", "a", "b", 2))
+	parts := strings.Split("a,b,c", ",")
+	println(len(parts), parts[0], parts[1], parts[2])
+	println(strings.Join(parts, "-"))
+	println(strings.EqualFold("AbC", "abc"))
+	fields := strings.Fields("a  b\tc")
+	println(len(fields), fields[0], fields[1], fields[2])
+}

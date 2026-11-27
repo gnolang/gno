@@ -1,0 +1,10 @@
+package main
+
+func main() {
+	var a0 uint64 = 0
+	println(int16(a0))
+	var a1 uint64 = 1
+	println(int16(a1))
+	var a2 uint64 = 18446744073709551615
+	println(int16(a2))
+}

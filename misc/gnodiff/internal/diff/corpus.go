@@ -16,35 +16,40 @@ type Program struct {
 	Name   string
 	Source string
 	// Known is the reason from a `// gnodiff:known ...` comment. A divergence
-	// on a known program is reported and does not fail the run.
-	Known string
+	// on a known program is reported and does not fail the run, unless an
+	// expect line is present and the output moved.
+	Known     string
+	ExpectGo  string
+	ExpectGno string
 }
 
 // CaseResult is one program after both sides have run.
 type CaseResult struct {
 	Name      string `json:"name"`
+	Class     Class  `json:"class"`
 	Known     string `json:"known,omitempty"`
-	Match     bool   `json:"match"`
 	Reason    string `json:"reason,omitempty"`
 	Go        Result `json:"go"`
 	Gno       Result `json:"gno"`
 	Minimized string `json:"minimized,omitempty"`
+	Source    string `json:"source,omitempty"`
 }
 
 // Report is the full corpus run.
 type Report struct {
-	Total     int          `json:"total"`
-	Matched   int          `json:"matched"`
-	Known     int          `json:"known"`
-	Divergent int          `json:"divergent"`
-	Internal  int          `json:"internal"`
-	Cases     []CaseResult `json:"cases"`
+	Total        int          `json:"total"`
+	Exact        int          `json:"exact"`
+	Known        int          `json:"known"`
+	PanicWording int          `json:"panicWording"`
+	Real         int          `json:"real"`
+	Internal     int          `json:"internal"`
+	Cases        []CaseResult `json:"cases"`
 }
 
-// Failed is true when an unexpected divergence or a runner failure was seen.
-// Annotated known divergences do not fail the run.
+// Failed is true when a real divergence or a runner failure was seen.
+// Known differences and panic-wording differences do not fail the run.
 func (r Report) Failed() bool {
-	return r.Divergent > 0 || r.Internal > 0
+	return r.Real > 0 || r.Internal > 0
 }
 
 // RunConfig is the corpus driver.
@@ -55,38 +60,45 @@ type RunConfig struct {
 	OnCase         func(CaseResult)
 }
 
-// LoadDir reads corpus/<name>/prog.src, one program per directory.
-// The seeds are not .go files: `go test` would vet them, and several
-// interesting cases (integer-to-string, variable slice bounds) are legal
-// programs that vet rejects.
+// LoadDir reads every *.src file under dir. corpus/<name>/prog.src keeps the
+// short name <name>. corpus/<category>/<id>.src is named <category>/<id>.
+// Seeds are not .go files: `go test` would vet them, and several interesting
+// cases are legal programs that vet rejects.
 func LoadDir(dir string) ([]Program, error) {
-	entries, err := os.ReadDir(dir)
+	var out []Program
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(d.Name(), ".src") {
+			return nil
+		}
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read %s: %w", path, err)
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		name := strings.TrimSuffix(rel, ".src")
+		name = strings.TrimSuffix(name, string(filepath.Separator)+"prog")
+		src := string(body)
+		out = append(out, Program{
+			Name:      name,
+			Source:    src,
+			Known:     directive(src, "known"),
+			ExpectGo:  directive(src, "expect-go"),
+			ExpectGno: directive(src, "expect-gno"),
+		})
+		return nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("read corpus %s: %w", dir, err)
 	}
-	var out []Program
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		path := filepath.Join(dir, entry.Name(), "prog.src")
-		body, err := os.ReadFile(path)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return nil, fmt.Errorf("read %s: %w", path, err)
-		}
-		src := string(body)
-		out = append(out, Program{
-			Name:   entry.Name(),
-			Source: src,
-			Known:  knownReason(src),
-		})
-	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	if len(out) == 0 {
-		return nil, fmt.Errorf("no programs in %s (expected <name>/prog.src)", dir)
+		return nil, fmt.Errorf("no programs in %s (expected *.src)", dir)
 	}
 	return out, nil
 }
@@ -111,17 +123,23 @@ func CorpusDir() string {
 	return "corpus"
 }
 
-func knownReason(src string) string {
-	const prefix = "// gnodiff:known"
+func directive(src, key string) string {
+	prefix := "// gnodiff:" + key
 	for line := range strings.SplitSeq(src, "\n") {
 		line = strings.TrimSpace(line)
-		if after, ok := strings.CutPrefix(line, prefix); ok {
-			reason := strings.TrimSpace(after)
-			if reason == "" {
-				return "annotated"
-			}
-			return reason
+		after, ok := strings.CutPrefix(line, prefix)
+		if !ok {
+			continue
 		}
+		// // gnodiff:go must not match // gnodiff:gno. Require end or space.
+		if after != "" && !strings.HasPrefix(after, " ") && !strings.HasPrefix(after, "\t") {
+			continue
+		}
+		reason := strings.TrimSpace(after)
+		if reason == "" {
+			return "annotated"
+		}
+		return reason
 	}
 	return ""
 }
@@ -137,6 +155,7 @@ func RunCorpus(progs []Program, cfg RunConfig) Report {
 		for _, prog := range progs {
 			rep.Cases = append(rep.Cases, CaseResult{
 				Name:   prog.Name,
+				Class:  ClassReal,
 				Known:  prog.Known,
 				Reason: "runner failed",
 				Go:     Result{Kind: KindInternal, Detail: err.Error()},
@@ -151,15 +170,19 @@ func RunCorpus(progs []Program, cfg RunConfig) Report {
 	rep.Total = len(progs)
 	for _, prog := range progs {
 		item := runOne(prog, cfg)
-		switch {
-		case item.Go.Kind == KindInternal || item.Gno.Kind == KindInternal:
-			rep.Internal++
-		case item.Match:
-			rep.Matched++
-		case prog.Known != "":
+		switch item.Class {
+		case ClassExact:
+			rep.Exact++
+		case ClassKnown:
 			rep.Known++
+		case ClassPanicWording:
+			rep.PanicWording++
 		default:
-			rep.Divergent++
+			if item.Go.Kind == KindInternal || item.Gno.Kind == KindInternal || item.Reason == "runner failed" {
+				rep.Internal++
+			} else {
+				rep.Real++
+			}
 		}
 		rep.Cases = append(rep.Cases, item)
 		if cfg.OnCase != nil {
@@ -172,23 +195,29 @@ func RunCorpus(progs []Program, cfg RunConfig) Report {
 func runOne(prog Program, cfg RunConfig) CaseResult {
 	goRes := RunGo(context.Background(), prog.Source, cfg.Options)
 	gnoRes := RunGno(prog.Source, cfg.Options)
-	match, reason := Compare(goRes, gnoRes)
+	class, reason := Classify(prog, goRes, gnoRes)
 	item := CaseResult{
 		Name:   prog.Name,
+		Class:  class,
 		Known:  prog.Known,
-		Match:  match,
 		Reason: reason,
 		Go:     goRes,
 		Gno:    gnoRes,
 	}
-	if match || prog.Known != "" || !cfg.Minimize {
+	if class != ClassExact {
+		item.Source = prog.Source
+	}
+	if class != ClassReal || !cfg.Minimize {
+		return item
+	}
+	if goRes.Kind == KindInternal || gnoRes.Kind == KindInternal {
 		return item
 	}
 	item.Minimized = Minimize(prog.Source, cfg.MinimizeBudget, func(src string) bool {
 		left := RunGo(context.Background(), src, cfg.Options)
 		right := RunGno(src, cfg.Options)
-		ok, _ := Compare(left, right)
-		return !ok
+		cl, _ := Classify(Program{Source: src}, left, right)
+		return cl == ClassReal && left.Kind != KindInternal && right.Kind != KindInternal
 	})
 	return item
 }
@@ -197,25 +226,23 @@ func runOne(prog Program, cfg RunConfig) CaseResult {
 // unexpected ones.
 func (r Report) Text() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "gnodiff: %d programs, %d matched, %d known, %d unexpected, %d runner failures\n",
-		r.Total, r.Matched, r.Known, r.Divergent, r.Internal)
-	if r.Divergent == 0 && r.Internal == 0 && r.Known == 0 {
+	fmt.Fprintf(&b, "gnodiff: %d programs, %d exact, %d known, %d panic-wording, %d real, %d runner failures\n",
+		r.Total, r.Exact, r.Known, r.PanicWording, r.Real, r.Internal)
+	if r.Real == 0 && r.Internal == 0 && r.Known == 0 && r.PanicWording == 0 {
 		b.WriteString("no divergences.\n")
 		return b.String()
 	}
 	b.WriteByte('\n')
 	for _, item := range r.Cases {
-		if item.Match && item.Known == "" {
+		if item.Class == ClassExact {
 			continue
 		}
-		label := "DIVERGENCE"
-		switch {
-		case item.Go.Kind == KindInternal || item.Gno.Kind == KindInternal:
-			label = "RUNNER"
-		case item.Match && item.Known != "":
-			label = "KNOWN-AGREES"
-		case item.Known != "":
+		label := "REAL"
+		switch item.Class {
+		case ClassKnown:
 			label = "KNOWN"
+		case ClassPanicWording:
+			label = "WORDING"
 		}
 		fmt.Fprintf(&b, "%s %s", label, item.Name)
 		if item.Reason != "" {
@@ -262,20 +289,74 @@ func (r Report) Write(dir string) error {
 	if err := os.WriteFile(filepath.Join(dir, "report.json"), body, 0o644); err != nil {
 		return err
 	}
+	if err := os.WriteFile(filepath.Join(dir, "panic-wording.txt"), []byte(r.wordingText()), 0o644); err != nil {
+		return err
+	}
 	reproDir := filepath.Join(dir, "repro")
 	for _, item := range r.Cases {
-		if item.Minimized == "" {
+		body := item.Minimized
+		if body == "" {
 			continue
 		}
 		if err := os.MkdirAll(reproDir, 0o755); err != nil {
 			return err
 		}
-		header := fmt.Sprintf("// gnodiff repro %s: %s\n// go: %s\n// gno: %s\n",
-			item.Name, item.Reason, oneLine(item.Go.Summary()), oneLine(item.Gno.Summary()))
-		path := filepath.Join(reproDir, item.Name+".go")
-		if err := os.WriteFile(path, []byte(header+item.Minimized), 0o644); err != nil {
+		header := fmt.Sprintf("// gnodiff repro %s (%s): %s\n// go: %s\n// gno: %s\n",
+			item.Name, item.Class, item.Reason, oneLine(item.Go.Summary()), oneLine(item.Gno.Summary()))
+		safe := strings.NewReplacer("/", "__", "\\", "__").Replace(item.Name)
+		path := filepath.Join(reproDir, safe+".go")
+		if err := os.WriteFile(path, []byte(header+body), 0o644); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// wordingText lists every distinct panic-message pair with one repro each,
+// so the texts can be filed as compatibility issues.
+func (r Report) wordingText() string {
+	type pair struct {
+		goMsg  string
+		gnoMsg string
+		names  []string
+		src    string
+	}
+	var pairs []pair
+	index := map[string]int{}
+	for _, item := range r.Cases {
+		if item.Class != ClassPanicWording {
+			continue
+		}
+		key := cleanPanic(item.Go.Panic) + "\n" + cleanPanic(item.Gno.Panic)
+		i, ok := index[key]
+		if !ok {
+			index[key] = len(pairs)
+			pairs = append(pairs, pair{
+				goMsg:  cleanPanic(item.Go.Panic),
+				gnoMsg: cleanPanic(item.Gno.Panic),
+				src:    item.Source,
+			})
+			i = len(pairs) - 1
+		}
+		pairs[i].names = append(pairs[i].names, item.Name)
+		if len(item.Source) < len(pairs[i].src) {
+			pairs[i].src = item.Source
+		}
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "# panic wording differences (%d programs, %d distinct pairs)\n\n", r.PanicWording, len(pairs))
+	if len(pairs) == 0 {
+		b.WriteString("none.\n")
+		return b.String()
+	}
+	for n, p := range pairs {
+		fmt.Fprintf(&b, "## %d\ngo:  %s\ngno: %s\nprograms: %s\n", n+1, p.goMsg, p.gnoMsg, strings.Join(p.names, ", "))
+		b.WriteString("--- repro ---\n")
+		b.WriteString(p.src)
+		if !strings.HasSuffix(p.src, "\n") {
+			b.WriteByte('\n')
+		}
+		b.WriteByte('\n')
+	}
+	return b.String()
 }

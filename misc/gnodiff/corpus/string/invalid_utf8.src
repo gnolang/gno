@@ -1,0 +1,17 @@
+package main
+
+func main() {
+
+	raw := string([]byte{0xff, 0xfe, 'A'})
+	repl := 0
+	var sizes int
+	for _, r := range raw {
+		sizes++
+		if r == '\uFFFD' {
+			repl++
+		}
+	}
+	println(len(raw), repl, sizes)
+	println(raw[2] == 'A')
+	println(string([]byte{0x00}) == "\x00")
+}

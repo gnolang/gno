@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	"github.com/gnolang/gno/misc/gnodiff/internal/gen"
 )
 
 // FuzzPrograms mutates seed sources with go test -fuzz. It is skipped during
@@ -63,6 +65,41 @@ func FuzzPrograms(f *testing.F) {
 		path := writeFuzzRepro(t, reduced)
 		t.Errorf("divergence (%s)\n--- go ---\n%s\n--- gno ---\n%s\nrepro: %s\n%s",
 			reason, goRes.Summary(), gnoRes.Summary(), path, reduced)
+	})
+}
+
+// FuzzGenerated drives the AST generator. Byte mutation of seeds mostly
+// fails to parse; this target spends its time on type-correct programs.
+func FuzzGenerated(f *testing.F) {
+	if !fuzzActive() {
+		f.Skip("native fuzz is opt-in: go test -fuzz=FuzzGenerated ./internal/diff/")
+	}
+	f.Add(uint64(1))
+	f.Add(uint64(2))
+	opt := Options{Timeout: 8 * time.Second}
+	f.Fuzz(func(t *testing.T, seed uint64) {
+		src := gen.Generate(seed)
+		if Unsupported(src) != "" || !parses(src) {
+			t.Fatalf("generator produced an out-of-subset program\n%s", src)
+		}
+		goRes := RunGo(context.Background(), src, opt)
+		gnoRes := RunGno(src, opt)
+		class, reason := Classify(Program{Source: src}, goRes, gnoRes)
+		if class != ClassReal {
+			return
+		}
+		if goRes.Kind == KindInternal || gnoRes.Kind == KindInternal {
+			t.Fatalf("runner failed\n--- go ---\n%s\n--- gno ---\n%s", goRes.Summary(), gnoRes.Summary())
+		}
+		reduced := Minimize(src, 12, func(candidate string) bool {
+			left := RunGo(context.Background(), candidate, opt)
+			right := RunGno(candidate, opt)
+			cl, _ := Classify(Program{Source: candidate}, left, right)
+			return cl == ClassReal && left.Kind != KindInternal && right.Kind != KindInternal
+		})
+		path := writeFuzzRepro(t, reduced)
+		t.Errorf("real divergence seed %d (%s)\n--- go ---\n%s\n--- gno ---\n%s\nrepro: %s\n%s",
+			seed, reason, goRes.Summary(), gnoRes.Summary(), path, reduced)
 	})
 }
 

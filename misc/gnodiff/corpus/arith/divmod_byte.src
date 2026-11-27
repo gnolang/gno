@@ -1,0 +1,8 @@
+package main
+
+func main() {
+	var a byte = 5
+	var b byte = 2
+	println(a / b)
+	println(a % b)
+}

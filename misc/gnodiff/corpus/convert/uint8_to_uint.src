@@ -1,0 +1,10 @@
+package main
+
+func main() {
+	var a0 uint8 = 0
+	println(uint(a0))
+	var a1 uint8 = 1
+	println(uint(a1))
+	var a2 uint8 = 255
+	println(uint(a2))
+}

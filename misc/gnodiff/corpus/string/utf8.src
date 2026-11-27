@@ -1,0 +1,25 @@
+package main
+
+func main() {
+
+	s := "héllo"
+	println(len(s))
+	println(s[0] == 'h')
+	n := 0
+	var last rune
+	for _, r := range s {
+		n++
+		last = r
+	}
+	println(n, last == 'o')
+	b := []byte(s)
+	b[0] = 'H'
+	println(s == "héllo")
+	println(string(rune(65)))
+	println(string(rune(0x1F600)) == "😀")
+	println(string(rune(0xD800)) == "\uFFFD")
+	var big uint64 = 0x110000
+	println(string(big) == "\uFFFD")
+	println(string(-1) == "\uFFFD")
+	println(string(rune(0x10FFFF)) != "\uFFFD")
+}

@@ -1,0 +1,9 @@
+package main
+
+func main() {
+	var a uint8 = 255
+	println(a >> 1)
+	var one uint8 = 1
+	println(one << 1)
+	println(one << 0)
+}

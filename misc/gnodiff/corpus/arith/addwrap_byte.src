@@ -1,0 +1,8 @@
+package main
+
+func main() {
+	var a byte = 255
+	var one byte = 1
+	println(a + one)
+	println(a + a)
+}

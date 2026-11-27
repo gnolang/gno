@@ -1,0 +1,9 @@
+package main
+
+func main() {
+	var n int32 = -8
+	println(n >> 1)
+	var p int32 = 8
+	println(p >> 1)
+	println(p << 1)
+}

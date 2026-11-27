@@ -1,0 +1,25 @@
+package main
+
+import "math"
+
+func main() {
+	println(math.Abs(-1.5) == 1.5)
+	println(math.Floor(1.9) == 1)
+	println(math.Ceil(-1.2) == -1)
+	println(math.Trunc(-1.9) == -1)
+	println(math.Round(1.5) == 2)
+	println(math.IsNaN(math.NaN()))
+	println(math.NaN() == math.NaN())
+	println(math.IsInf(math.Inf(1), 1))
+	println(math.IsInf(math.Inf(-1), -1))
+	println(math.IsInf(math.Inf(1), -1))
+	println(math.Signbit(math.Copysign(0, -1)))
+	println(!math.Signbit(0))
+	println(math.Float64bits(math.Copysign(0, -1)) == 0x8000000000000000)
+	println(math.Sqrt(4) == 2)
+	println(math.Pow(2, 10) == 1024)
+	println(math.Max(1, 2) == 2)
+	println(math.Min(-1, 2) == -1)
+	println(math.Mod(5.5, 2) == 1.5)
+	println(math.Dim(3, 1) == 2)
+}

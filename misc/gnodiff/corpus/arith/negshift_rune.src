@@ -1,0 +1,8 @@
+package main
+
+func main() {
+	var a rune = 1
+	var s rune = -1
+	println("before")
+	println(a << s)
+}

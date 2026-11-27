@@ -1,0 +1,11 @@
+package main
+
+func main() {
+	var a rune = 1
+	var b rune = 2
+	println(a < b)
+	println(a == a)
+	println(a > b)
+	println(a != b)
+	println(a <= a)
+}

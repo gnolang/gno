@@ -1,7 +1,10 @@
 package diff
 
 import (
+	"go/parser"
+	"go/token"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -24,6 +27,38 @@ func Unsupported(src string) string {
 			return name + " builtin is not in the Gno subset (added after Go 1.17)"
 		}
 	}
+	if why := unsupportedImport(src); why != "" {
+		return why
+	}
+	return ""
+}
+
+// allowedImport is the stdlib subset Gno ships for production code and whose
+// API matches gc closely enough to differential-test. fmt is test-only in
+// Gno (it needs reflect), so it stays out.
+func allowedImport(path string) bool {
+	switch path {
+	case "math", "strings", "strconv", "utf8":
+		return true
+	default:
+		return false
+	}
+}
+
+func unsupportedImport(src string) string {
+	f, err := parser.ParseFile(token.NewFileSet(), "main.go", src, parser.ImportsOnly)
+	if err != nil || f == nil {
+		return ""
+	}
+	for _, imp := range f.Imports {
+		path, err := strconv.Unquote(imp.Path.Value)
+		if err != nil {
+			return "imports could not be parsed"
+		}
+		if !allowedImport(path) {
+			return "imports of " + path + " are out of scope"
+		}
+	}
 	return ""
 }
 
@@ -38,7 +73,6 @@ var unsupportedPatterns = []pattern{
 	{regexp.MustCompile(`\bgo\b`), "goroutines are not in the Gno subset"},
 	{regexp.MustCompile(`\bunsafe\b`), "unsafe is not in the Gno subset"},
 	{regexp.MustCompile(`\bcomplex(?:64|128)\b`), "complex numbers are not in the Gno subset"},
-	{regexp.MustCompile(`\bimport\b`), "imports are out of scope (no shared stdlib subset yet)"},
 	{regexp.MustCompile(`\bfunc\s+[A-Za-z_]\w*\[`), "type parameters are not in the Gno subset"},
 	{regexp.MustCompile(`\btype\s+[A-Za-z_]\w*\[`), "type parameters are not in the Gno subset"},
 	{regexp.MustCompile(`\brange\s+[0-9]`), "integer range (Go 1.22) is not targeted by this fuzzer"},

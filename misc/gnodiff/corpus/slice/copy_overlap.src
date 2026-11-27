@@ -1,0 +1,11 @@
+package main
+
+func main() {
+
+	s := []int{1, 2, 3, 4}
+	n := copy(s[1:], s[0:3])
+	println(n, s[0], s[1], s[2], s[3])
+	d := []int{0, 0}
+	println(copy(d, []int{7, 8, 9}), d[0], d[1])
+	println(copy([]int{}, []int{1}))
+}

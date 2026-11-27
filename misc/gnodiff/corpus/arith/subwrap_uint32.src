@@ -1,0 +1,7 @@
+package main
+
+func main() {
+	var z uint32 = 0
+	var one uint32 = 1
+	println(z - one)
+}

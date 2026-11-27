@@ -1,0 +1,7 @@
+package main
+
+func main() {
+	var a int64 = -9223372036854775808
+	var one int64 = 1
+	println(a - one)
+}

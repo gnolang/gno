@@ -1,0 +1,17 @@
+package main
+
+const (
+	shift = 1 << 40
+	div   = 10 / 3
+	mix   = 2*3 + 4
+	bigf  = 1e2
+	huge  = 1 << 62
+)
+
+func main() {
+	println(int64(shift))
+	println(div)
+	println(mix)
+	println(int(bigf))
+	println(int64(huge))
+}

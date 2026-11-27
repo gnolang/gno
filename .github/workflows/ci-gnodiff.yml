@@ -1,0 +1,44 @@
+# Opt-in differential run. Not part of the default go test matrix: the
+# seed corpus and a generated batch each shell out to gc. The fast unit
+# tests stay on ci / misc.
+name: ci / gnodiff
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * *"
+  pull_request:
+    paths:
+      - "misc/gnodiff/**"
+      - ".github/workflows/ci-gnodiff.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  corpus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: misc/gnodiff/go.mod
+      - name: Fast tests
+        working-directory: misc/gnodiff
+        run: go test ./...
+      - name: Seed corpus
+        working-directory: misc/gnodiff
+        run: go run . -out gnodiff-out
+      - name: Generated batch
+        working-directory: misc/gnodiff
+        run: go run . -generate 600 -seed 20261126 -minimize=true -budget 8 -timeout 8s -out gnodiff-out/generated
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: gnodiff-out
+          path: misc/gnodiff/gnodiff-out
+          if-no-files-found: ignore
