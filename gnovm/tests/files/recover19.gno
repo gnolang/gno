@@ -11,4 +11,4 @@ func main() {
 }
 
 // Output:
-// recover: runtime error: nil pointer dereference
+// recover: runtime error: invalid memory address or nil pointer dereference

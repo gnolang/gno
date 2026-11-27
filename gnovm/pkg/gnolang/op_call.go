@@ -63,7 +63,7 @@ func (m *Machine) doOpPrecall() {
 		// values before the conversion.
 		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
 			if xv.Sign() < 0 {
-				m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", xv)))
+				m.Panic(typedRuntimeError(runtimeNegShift))
 			}
 		}
 		m.PushOp(OpConvert)

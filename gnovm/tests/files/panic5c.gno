@@ -6,12 +6,12 @@ func main() {
 }
 
 // Stacktrace:
-// panic: runtime error: division by zero
+// panic: runtime error: integer divide by zero
 // main<VPBlock(1,0)>()
 //     main/panic5c.gno:5
 
 // Error:
-// runtime error: division by zero
+// runtime error: integer divide by zero
 
 // TypeCheckError:
 // main/panic5c.gno:5:2: declared and not used: b

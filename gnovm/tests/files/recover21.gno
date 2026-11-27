@@ -14,4 +14,4 @@ func main() {
 }
 
 // Output:
-// recovered:  runtime error: negative shift amount: (-1 int)
+// recovered:  runtime error: negative shift amount

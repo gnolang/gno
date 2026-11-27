@@ -31,12 +31,12 @@ func main() {
 }
 
 // Output:
-// divzero => error: runtime error: division by zero
+// divzero => error: runtime error: integer divide by zero
 // nilcall => error: runtime error: call of nil function
 // makeslice => error: runtime error: makeslice: len out of range
-// nilderef => error: runtime error: nil pointer dereference
-// index => error: runtime error: slice index out of bounds: 5 (len=3)
-// slicebounds => error: runtime error: slice bounds out of range [1:5] with capacity 3
+// nilderef => error: runtime error: invalid memory address or nil pointer dereference
+// index => error: runtime error: index out of range [5] with length 3
+// slicebounds => error: runtime error: slice bounds out of range [:5] with capacity 3
 // uncomparable => error: runtime error: comparing uncomparable type []int
 // typeassert => error: int is not of type string
 // defernil => error: runtime error: defer called a nil function

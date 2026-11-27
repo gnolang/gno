@@ -26,4 +26,4 @@ func main() {
 }
 
 // Output:
-// runtime error: nil pointer dereference
+// runtime error: invalid memory address or nil pointer dereference

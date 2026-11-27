@@ -8,9 +8,9 @@ func main() {
 }
 
 // Stacktrace:
-// panic: runtime error: nil slice index (out of bounds)
+// panic: runtime error: index out of range [0] with length 0
 // main<VPBlock(1,0)>()
 //     main/for25.gno:6
 
 // Error:
-// runtime error: nil slice index (out of bounds)
+// runtime error: index out of range [0] with length 0

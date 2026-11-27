@@ -127,9 +127,9 @@ func (g *GovDAO) PreExecuteProposal(_ int, rlm realm, pid dao.ProposalID) (bool,
 		// (statuses live on the instance, so a fresh instance has none).
 		// Mirrors VoteOnProposal above, which returns this same error for
 		// the same lookup. Without it the nil deref panics with an opaque
-		// "runtime error: nil pointer dereference" that reads like a VM
-		// fault. It reports the condition only — see the ADR for why the
-		// proposal still cannot be resolved.
+		// "runtime error: invalid memory address or nil pointer dereference"
+		// that reads like a VM fault. It reports the condition only — see
+		// the ADR for why the proposal still cannot be resolved.
 		return false, errors.New("proposal not found")
 	}
 	if status.Denied || status.Accepted {

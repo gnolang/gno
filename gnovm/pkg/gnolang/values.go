@@ -418,13 +418,8 @@ func (av *ArrayValue) GetElementPointer(store Store, ii int, et Type) PointerVal
 // getElementPointer is GetElementPointer carrying fillValueTV's visited set, so
 // that filling an element of a base reached mid-walk cannot restart the walk.
 func (av *ArrayValue) getElementPointer(store Store, ii int, et Type, seen map[*TypedValue]struct{}, depth int) PointerValue {
-	if ii < 0 {
-		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
-	}
 	if av.Data == nil {
-		if ii >= len(av.List) {
-			panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.List)))})
-		}
+		checkIndex(ii, len(av.List))
 		ev := fillValueTVGuarded(store, &av.List[ii], seen, depth) // by reference
 		return PointerValue{
 			TV:    ev,
@@ -432,9 +427,7 @@ func (av *ArrayValue) getElementPointer(store Store, ii int, et Type, seen map[*
 			Index: ii,
 		}
 	}
-	if ii >= len(av.Data) {
-		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
-	}
+	checkIndex(ii, len(av.Data))
 	// heap alloc, so need to compare value rather than pointer.
 	// If you Deref the result, TypedValue.GetByteAtIndexInt is more efficient.
 	btv := &TypedValue{
@@ -528,23 +521,8 @@ func (sv *SliceValue) GetLength() int {
 
 // et is only required for .List byte-slices.
 func (sv *SliceValue) GetElementPointer(store Store, ii int, et Type) PointerValue {
-	// Necessary run-time slice bounds check
-	if ii < 0 {
-		excpt := &Exception{
-			Value: typedRuntimeError(fmt.Sprintf(
-				"runtime error: slice index out of bounds: %d", ii,
-			)),
-		}
-		panic(excpt)
-	} else if sv.Length <= ii {
-		excpt := &Exception{
-			Value: typedRuntimeError(fmt.Sprintf(
-				"runtime error: slice index out of bounds: %d (len=%d)",
-				ii, sv.Length,
-			)),
-		}
-		panic(excpt)
-	}
+	// Same bounds check gc uses for s[i]: negative omits the length.
+	checkIndex(ii, sv.Length)
 	return sv.GetBase(store).GetElementPointer(store, sv.Offset+ii, et)
 }
 
@@ -2122,7 +2100,7 @@ func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, st
 		// (e.g. reaching a promoted pointer-receiver method's receiver via an
 		// embedded field of a nil *T). Matches Go; previously crashed the VM.
 		if tv.V == nil {
-			panic(&Exception{Value: typedRuntimeError("runtime error: nil pointer dereference")})
+			panic(&Exception{Value: typedRuntimeError(runtimeNilPointerDeref)})
 		}
 		switch path.Depth {
 		case 0:
@@ -2156,7 +2134,7 @@ func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, st
 			path.SetDepth(0)
 		case 2:
 			if tv.V == nil {
-				panic(&Exception{Value: typedRuntimeError("runtime error: nil pointer dereference")})
+				panic(&Exception{Value: typedRuntimeError(runtimeNilPointerDeref)})
 			}
 			dtv = tv.V.(PointerValue).TV
 			isPtr = true
@@ -2177,7 +2155,7 @@ func (tv *TypedValue) getPointerToFromTV(gm types.GasMeter, alloc *Allocator, st
 		// lazily and this runs at call time via resolveInterfaceTrail, where
 		// eager-deref is exactly Go's call-time semantics.)
 		if tv.V == nil {
-			msg := "runtime error: nil pointer dereference"
+			msg := runtimeNilPointerDeref
 			if pt, ok := tv.T.(*PointerType); ok {
 				if dt, ok := pt.Elt.(*DeclaredType); ok {
 					msg = fmt.Sprintf(
@@ -2400,44 +2378,27 @@ func (tv *TypedValue) GetByteAtIndexInt(store Store, ii int) (res TypedValue, ok
 	case PrimitiveType:
 		if bt == StringType || bt == UntypedStringType {
 			sv := tv.GetString()
-			if ii >= len(sv) {
-				panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(sv)))})
-			}
-			if ii < 0 {
-				panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: invalid slice index %d (index must be non-negative)", ii))})
-			}
+			checkIndex(ii, len(sv))
 			res = TypedValue{T: Uint8Type}
 			res.SetUint8(sv[ii])
 			return res, true
 		}
 	case *ArrayType:
 		if av, aok := tv.V.(*ArrayValue); aok && av.Data != nil {
-			if ii < 0 {
-				panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d]", ii))})
-			}
-			if ii >= len(av.Data) {
-				panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(av.Data)))})
-			}
+			checkIndex(ii, len(av.Data))
 			res = TypedValue{T: bt.Elt}
 			res.SetUint8(av.Data[ii])
 			return res, true
 		}
 	case *SliceType:
 		if tv.V == nil {
-			panic(&Exception{Value: typedRuntimeError("runtime error: nil slice index (out of bounds)")})
+			// A nil slice has length 0. gc reports the index the same way
+			// as for an empty slice, including index 0.
+			checkIndex(ii, 0)
 		}
 		if sv, sok := tv.V.(*SliceValue); sok {
 			if base := sv.GetBase(store); base.Data != nil {
-				if ii < 0 {
-					panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-						"runtime error: slice index out of bounds: %d", ii,
-					))})
-				} else if sv.Length <= ii {
-					panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-						"runtime error: slice index out of bounds: %d (len=%d)",
-						ii, sv.Length,
-					))})
-				}
+				checkIndex(ii, sv.Length)
 				res = TypedValue{T: bt.Elt}
 				res.SetUint8(base.Data[sv.Offset+ii])
 				return res, true
@@ -2458,12 +2419,7 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 				T: Uint8Type,
 			}
 
-			if ii >= len(sv) {
-				panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: index out of range [%d] with length %d", ii, len(sv)))})
-			}
-			if ii < 0 {
-				panic(&Exception{Value: typedRuntimeError(fmt.Sprintf("runtime error: invalid slice index %d (index must be non-negative)", ii))})
-			}
+			checkIndex(ii, len(sv))
 
 			btv.SetUint8(sv[ii])
 			return PointerValue{
@@ -2480,11 +2436,13 @@ func (tv *TypedValue) GetPointerAtIndex(m *Machine, rlm *Realm, alloc *Allocator
 		ii := int(iv.ConvertGetInt())
 		return av.GetElementPointer(store, ii, bt.Elt)
 	case *SliceType:
+		ii := int(iv.ConvertGetInt())
 		if tv.V == nil {
-			panic(&Exception{Value: typedRuntimeError("runtime error: nil slice index (out of bounds)")})
+			// Same event as indexing a length-0 slice. ConvertGetInt runs
+			// first so the reported index matches the non-nil path.
+			checkIndex(ii, 0)
 		}
 		sv := tv.V.(*SliceValue)
-		ii := int(iv.ConvertGetInt())
 		return sv.GetElementPointer(store, ii, bt.Elt)
 	case *MapType:
 		if tv.V == nil {
@@ -2675,33 +2633,11 @@ func (tv *TypedValue) GetCapacity() int {
 }
 
 func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
-	if low < 0 {
-		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-			"runtime error: invalid slice index %d (index must be non-negative)",
-			low,
-		))})
-	}
-	if high < 0 {
-		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-			"runtime error: invalid slice index %d (index must be non-negative)",
-			low,
-		))})
-	}
-	if low > high {
-		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-			"runtime error: invalid slice index %d > %d",
-			low, high,
-		))})
-	}
 	switch t := baseOf(tv.T).(type) {
 	case PrimitiveType:
-		if tv.GetLength() < high {
-			panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-				"runtime error: slice bounds out of range [%d:%d] with string length %d",
-				low, high, tv.GetLength(),
-			))})
-		}
 		if t == StringType || t == UntypedStringType {
+			// gc compares the high bound with the string length first.
+			checkSlice2(low, high, tv.GetLength(), boundLength)
 			return TypedValue{
 				T: tv.T,
 				V: alloc.NewString(tv.GetString()[low:high]),
@@ -2711,12 +2647,7 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			"non-string primitive type cannot be sliced",
 		)})
 	case *ArrayType:
-		if tv.GetLength() < high {
-			panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-				"runtime error: slice bounds out of range [%d:%d] with array length %d",
-				low, high, tv.GetLength(),
-			))})
-		}
+		checkSlice2(low, high, tv.GetLength(), boundLength)
 		av := tv.V.(*ArrayValue)
 		st := alloc.NewType(&SliceType{
 			Elt: t.Elt,
@@ -2733,16 +2664,10 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 		}
 	case *SliceType:
 		// XXX consider restricting slice expansion if slice is readonly.
-		if tv.GetCapacity() < high {
-			panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-				"runtime error: slice bounds out of range [%d:%d] with capacity %d",
-				low, high, tv.GetCapacity(),
-			))})
-		}
+		// Capacity, not length: a slice may be resliced up to its cap.
+		// A nil slice has cap 0, so only [0:0] passes and stays nil.
+		checkSlice2(low, high, tv.GetCapacity(), boundCapacity)
 		if tv.V == nil {
-			if low != 0 || high != 0 {
-				panic(&Exception{Value: typedRuntimeError("runtime error: nil slice index out of range")})
-			}
 			return TypedValue{
 				T: tv.T,
 				V: nil,
@@ -2765,50 +2690,10 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 }
 
 func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) TypedValue {
-	if lowVal < 0 {
-		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-			"runtime error: invalid slice index %d (index must be non-negative)",
-			lowVal,
-		))})
-	}
-	if highVal < 0 {
-		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-			"runtime error: invalid slice index %d (index must be non-negative)",
-			highVal,
-		))})
-	}
-	if maxVal < 0 {
-		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-			"runtime error: invalid slice index %d (index must be non-negative)",
-			maxVal,
-		))})
-	}
-	if lowVal > highVal {
-		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-			"runtime error: invalid slice index %d > %d",
-			lowVal, highVal,
-		))})
-	}
-	if highVal > maxVal {
-		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-			"runtime error: invalid slice index %d > %d",
-			highVal, maxVal,
-		))})
-	}
-	if tv.GetCapacity() < highVal {
-		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-			"runtime error: slice bounds out of range [%d:%d:%d] with capacity %d",
-			lowVal, highVal, maxVal, tv.GetCapacity(),
-		))})
-	}
-	if tv.GetCapacity() < maxVal {
-		panic(&Exception{Value: typedRuntimeError(fmt.Sprintf(
-			"runtime error: slice bounds out of range [%d:%d:%d] with capacity %d",
-			lowVal, highVal, maxVal, tv.GetCapacity(),
-		))})
-	}
 	switch bt := baseOf(tv.T).(type) {
 	case *ArrayType:
+		// gc names the array's length, not a capacity, in this message.
+		checkSlice3(lowVal, highVal, maxVal, tv.GetLength(), boundLength)
 		av := tv.V.(*ArrayValue)
 		st := alloc.NewType(&SliceType{
 			Elt: bt.Elt,
@@ -2825,10 +2710,9 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, lowVal, highVal, maxVal int) T
 		}
 	case *SliceType:
 		// XXX consider restricting slice expansion if slice is readonly.
+		// A nil slice has cap 0, so only [0:0:0] passes and stays nil.
+		checkSlice3(lowVal, highVal, maxVal, tv.GetCapacity(), boundCapacity)
 		if tv.V == nil {
-			if lowVal != 0 || highVal != 0 || maxVal != 0 {
-				panic(&Exception{Value: typedRuntimeError("runtime error: nil slice index out of range")})
-			}
 			return TypedValue{
 				T: tv.T,
 				V: nil,

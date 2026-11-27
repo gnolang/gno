@@ -11,4 +11,4 @@ func main() {
 }
 
 // Output:
-// recover: runtime error: slice bounds out of range [0:1:10] with capacity 3
+// recover: runtime error: slice bounds out of range [::10] with capacity 3

@@ -24,11 +24,11 @@ func main(cur realm) {
 }
 
 // Output:
-// runtime error: nil pointer dereference
+// runtime error: invalid memory address or nil pointer dereference
 
 // Realm:
 // finalizerealm["gno.land/r/test"]
-// u[08ada09dee16d791fd406d629fe29bb0ed084a30:4](108)=
+// u[08ada09dee16d791fd406d629fe29bb0ed084a30:4](135)=
 //     @@ -2,9 +2,18 @@
 //          "ObjectInfo": {
 //              "ID": "08ada09dee16d791fd406d629fe29bb0ed084a30:4",
@@ -46,7 +46,7 @@ func main(cur realm) {
 //     +        },
 //     +        "V": {
 //     +            "@type": "/gno.StringValue",
-//     +            "value": "runtime error: nil pointer dereference"
+//     +            "value": "runtime error: invalid memory address or nil pointer dereference"
 //     +        }
 //     +    }
 //      }
@@ -56,7 +56,7 @@ func main(cur realm) {
 //                  "V": {
 //                      "@type": "/gno.RefValue",
 //     -                "Hash": "c179e3d792fe6624f9de9aed3795cb7b597a4eac",
-//     +                "Hash": "5ee2184d5765dce39681e4bc16225230f780ee6b",
+//     +                "Hash": "070ff6014a780b7255fb99eb247fa36185b14bd0",
 //                      "ObjectID": "08ada09dee16d791fd406d629fe29bb0ed084a30:4"
 //                  }
 //              },
