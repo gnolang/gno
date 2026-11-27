@@ -8,4 +8,4 @@ var (
 func main() {}
 
 // Error:
-// runtime error: division by zero
+// runtime error: integer divide by zero

@@ -12,4 +12,4 @@ func main() {
 }
 
 // Output:
-// recover: runtime error: invalid slice index -1 (index must be non-negative)
+// recover: runtime error: slice bounds out of range [-1::]

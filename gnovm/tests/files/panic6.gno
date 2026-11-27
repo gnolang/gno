@@ -20,9 +20,9 @@ func main() {
 }
 
 // Stacktrace:
-// panic: runtime error: nil pointer dereference
+// panic: runtime error: invalid memory address or nil pointer dereference
 // main<VPBlock(1,0)>()
 //     main/panic6.gno:16
 
 // Error:
-// runtime error: nil pointer dereference
+// runtime error: invalid memory address or nil pointer dereference

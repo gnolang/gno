@@ -254,7 +254,7 @@ var fixtures = []struct {
 			},
 			{
 				Line:  "d := 1/z",
-				Error: "runtime error: division by zero",
+				Error: "runtime error: integer divide by zero",
 			},
 			{
 				Line:   "x := recover()",

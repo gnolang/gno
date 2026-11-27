@@ -14,13 +14,13 @@ func main() {
 // world
 
 // Error:
-// runtime error: division by zero
+// runtime error: integer divide by zero
 
 // TypeCheckError:
 // main/panic8.gno:7:3: declared and not used: b
 
 // Stacktrace:
-// panic: runtime error: division by zero
+// panic: runtime error: integer divide by zero
 // defer func(){ ... }()
 //     main/panic8.gno:7
 // main<VPBlock(1,0)>()

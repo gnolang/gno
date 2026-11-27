@@ -1034,9 +1034,7 @@ func mulAssign(lv, rv *TypedValue) {
 
 // for doOpQuo and doOpQuoAssign.
 func quoAssign(lv, rv *TypedValue) *Exception {
-	expt := &Exception{
-		Value: typedRuntimeError("runtime error: division by zero"),
-	}
+	expt := zeroDivideException(lv.T)
 
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
@@ -1127,9 +1125,7 @@ func quoAssign(lv, rv *TypedValue) *Exception {
 
 // for doOpRem and doOpRemAssign.
 func remAssign(lv, rv *TypedValue) *Exception {
-	expt := &Exception{
-		Value: typedRuntimeError("runtime error: division by zero"),
-	}
+	expt := zeroDivideException(lv.T)
 
 	// set the result in lv.
 	// NOTE this block is replicated in op_assign.go
@@ -1390,7 +1386,7 @@ func shrCheckOverflow(val *big.Int, shift uint64, maxVal *big.Int) {
 // for doOpShl and doOpShlAssign.
 func shlAssign(m *Machine, lv, rv *TypedValue) {
 	if rv.Sign() < 0 {
-		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
+		m.Panic(typedRuntimeError(runtimeNegShift))
 	}
 
 	// doOpShlAssign keeps the count's own integer type, whose N may hold
@@ -1479,7 +1475,7 @@ func shlAssign(m *Machine, lv, rv *TypedValue) {
 // for doOpShr and doOpShrAssign.
 func shrAssign(m *Machine, lv, rv *TypedValue) {
 	if rv.Sign() < 0 {
-		m.Panic(typedRuntimeError(fmt.Sprintf("runtime error: negative shift amount: %v", rv)))
+		m.Panic(typedRuntimeError(runtimeNegShift))
 	}
 
 	// See shlAssign: doOpShrAssign keeps the count's own integer type.

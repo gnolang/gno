@@ -10,10 +10,10 @@ func main() {
 }
 
 // Error:
-// runtime error: division by zero
+// runtime error: integer divide by zero
 
 // Stacktrace:
-// panic: runtime error: division by zero
+// panic: runtime error: integer divide by zero
 // foo<VPBlock(3,1)>()
 //     main/panic3b.gno:6
 // main<VPBlock(1,2)>()
