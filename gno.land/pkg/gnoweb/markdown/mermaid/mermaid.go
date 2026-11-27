@@ -20,6 +20,7 @@ package mermaid
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -207,12 +208,19 @@ func scan(src string, m *meta) ([]line, error) {
 // YAML keys are case-sensitive, and a key needs a space after its colon.
 var frontTitle = regexp.MustCompile(`^title[ \t]*:(?:[ \t](.*))?$`)
 
-// yamlTyped matches the plain values YAML's core schema reads as a bool or
-// a number; keptNumber the numbers JavaScript writes back as written.
-var (
-	yamlTyped  = regexp.MustCompile(`^(?:true|True|TRUE|false|False|FALSE|[-+]?(?:[0-9]+|\.[0-9]+|[0-9]+\.[0-9]*)(?:[eE][-+]?[0-9]+)?|0o[0-7]+|0x[0-9a-fA-F]+|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$`)
-	keptNumber = regexp.MustCompile(`^-?[1-9][0-9]{0,14}$`)
-)
+// yamlTyped matches the plain values YAML's core schema, as js-yaml reads
+// it, takes for a bool or a number, binary and underscores in the digits
+// included; js-yaml reads one ending in an underscore as a string.
+var yamlTyped = regexp.MustCompile(`^(?:true|True|TRUE|false|False|FALSE|[-+]?(?:[0-9][0-9_]*(?:\.[0-9_]*)?|\.[0-9_]+)(?:[eE][-+]?[0-9]+)?|[-+]?0(?:b[01_]+|o[0-7_]+|x[0-9a-fA-F_]+)|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$`)
+
+// keptNumber reports whether JavaScript writes the number s back as s, as
+// Mermaid draws a numeric title: in its shortest form, without an exponent,
+// which it takes below 1e-6 and from 1e21, and not 0, which draws no title.
+func keptNumber(s string) bool {
+	v, err := strconv.ParseFloat(s, 64)
+	a := math.Abs(v)
+	return err == nil && a >= 1e-6 && a < 1e21 && strconv.FormatFloat(v, 'f', -1, 64) == s
+}
 
 // yamlScalar reads v, a value on one line, as YAML reads a string: a plain
 // value ends at a comment, a single-quoted one doubles its quotes and a
@@ -234,7 +242,7 @@ func yamlScalar(v string) (s string, ok bool) {
 			strings.ContainsRune("[]{},&*!|>%@`", rune(v[0])),
 			strings.HasPrefix(v+" ", "- "), strings.HasPrefix(v+" ", "? "),
 			strings.Contains(v+" ", ": "),
-			yamlTyped.MatchString(v) && !keptNumber.MatchString(v):
+			yamlTyped.MatchString(v) && !strings.HasSuffix(v, "_") && !keptNumber(v):
 			return "", false
 		}
 		return v, true

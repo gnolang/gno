@@ -112,6 +112,12 @@ func TestFrontmatterTitle(t *testing.T) {
 		`2026`:                "2026",
 		`-5`:                  "-5",
 		``:                    "",
+		// A number JavaScript writes back as written draws as written.
+		`3.14`:   "3.14",
+		`-3.14`:  "-3.14",
+		`0.5`:    "0.5",
+		`2024.1`: "2024.1",
+		`1_`:     "1_", // a string to js-yaml
 	} {
 		var m meta
 		_, err := scan("---\ntitle: "+value+"\n---\npie", &m)
@@ -127,6 +133,7 @@ func TestFrontmatterTitle(t *testing.T) {
 		">", "|-", "~", "null", "'unclosed", `"unclosed`, `"x" y`, `'x'#c`, `"\q"`, `"\ud800"`,
 		"[a, b]", "&anchor x", "*alias", "- x", "Time: 10:30", "a\n  continued", "\n  next line",
 		"false", "TRUE", "0", "1.50", "0x10", "1e3", "007", ".inf", "12345678901234567890",
+		"-0", "1.0", ".5", "+5", "1_000", "0b101", "-0x10", "0.0000001", "1000000000000000000000",
 	} {
 		_, err := scan("---\ntitle: "+value+"\n---\npie", &meta{})
 		var e *Error
