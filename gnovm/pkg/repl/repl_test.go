@@ -2,10 +2,15 @@ package repl
 
 import (
 	"bytes"
+	"io"
+	"math"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -295,4 +300,12 @@ func stripTrailingNL(s string) string {
 	} else {
 		return s
 	}
+}
+
+func TestReplKeepsStoreAllocator(t *testing.T) {
+	_, store := test.TestStore(gnoenv.RootDir(), io.Discard, nil)
+	alloc := gno.NewAllocator(math.MaxInt64)
+	store.SetAllocator(alloc)
+	NewRepl(WithStore(store), WithIO(os.Stdin, io.Discard, io.Discard))
+	require.Same(t, alloc, store.GetAllocator())
 }

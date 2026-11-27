@@ -230,13 +230,17 @@ func execRun(cfg *runCmd, args []string, cio commands.IO) error {
 	}
 
 	ctx := test.Context("", pkgPath, send)
+	// The store and the machine share one allocator, so store allocations
+	// count against maxAllocRun too.
+	alloc := gno.NewAllocator(maxAllocRun)
+	store.SetAllocator(alloc)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		Output:        output,
-		Input:         stdin,
-		Store:         store,
-		MaxAllocBytes: maxAllocRun,
-		Context:       ctx,
-		Debug:         cfg.debug || cfg.debugAddr != "",
+		Output:  output,
+		Input:   stdin,
+		Store:   store,
+		Alloc:   alloc,
+		Context: ctx,
+		Debug:   cfg.debug || cfg.debugAddr != "",
 	})
 
 	defer m.Release()
