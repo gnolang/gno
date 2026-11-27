@@ -1,13 +1,5 @@
 package vesting
 
-import (
-	"chain/banker"
-
-	vst "gno.land/p/nt/vesting/v0"
-
-	"gno.land/r/nt/grc20reg/v0"
-)
-
 // Count is the number of grants created.
 func Count() int { return len(grants) }
 
@@ -60,16 +52,6 @@ func OutstandingOf(id int64) int64 {
 // registry. A missing token reads as zero.
 func BalanceOf(id int64) int64 {
 	g := mustGrant(id)
-	switch g.Asset().Kind {
-	case vst.AssetCoin:
-		return banker.NewReadonlyBanker().GetCoin(g.Address(), g.Asset().Denom)
-	case vst.AssetGRC20:
-		tok := grc20reg.Get(g.Asset().Token)
-		if tok == nil {
-			return 0
-		}
-		return tok.BalanceOf(g.Address())
-	default:
-		return 0
-	}
+	bal, _ := assetBalance(g.Asset(), g.Address())
+	return bal
 }

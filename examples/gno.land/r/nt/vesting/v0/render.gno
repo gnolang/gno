@@ -1,14 +1,11 @@
 package vesting
 
 import (
-	"chain/banker"
 	"strconv"
 	"strings"
 
 	"gno.land/p/nt/markdown/sanitize/v0"
 	vst "gno.land/p/nt/vesting/v0"
-
-	"gno.land/r/nt/grc20reg/v0"
 )
 
 // Render serves the factory or one grant.
@@ -49,13 +46,13 @@ func renderHome() string {
 	for i := start; i < len(grants); i++ {
 		g := grants[i]
 		id := strconv.FormatInt(g.ID(), 10)
-		name := g.Label()
+		name := sanitize.InlineText(g.Label())
 		if name == "" {
 			name = "grant " + id
 		}
-		b.WriteString("- [" + sanitize.InlineText(name) + "](" + rel() + ":" + id + ")")
+		b.WriteString("- [" + name + "](" + rel() + ":" + id + ")")
 		b.WriteString(" — " + g.Asset().Kind.String())
-		b.WriteString(" — `" + sanitize.InlineText(g.Beneficiary().String()) + "`\n")
+		b.WriteString(" — " + sanitize.InlineCode(g.Beneficiary().String()) + "\n")
 	}
 	return b.String()
 }
@@ -68,15 +65,16 @@ func renderGrant(id int64) string {
 		return "# Vesting vault\n\nUnknown grant.\n"
 	}
 	b := new(strings.Builder)
-	title := view.Label
+	title := sanitize.InlineText(view.Label)
 	if title == "" {
 		title = "Grant " + strconv.FormatInt(view.ID, 10)
 	}
-	b.WriteString("# " + sanitize.InlineText(title) + "\n\n")
-	b.WriteString("Address: `" + sanitize.InlineText(view.Address.String()) + "`\n\n")
-	b.WriteString("Admin: `" + sanitize.InlineText(view.Admin.String()) + "`\n\n")
-	b.WriteString("Beneficiary: `" + sanitize.InlineText(view.Beneficiary.String()) + "`\n\n")
-	b.WriteString("Asset: " + view.Asset.Kind.String() + " `" + sanitize.InlineText(assetRef(view)) + "`\n\n")
+	bal, _ := assetBalance(view.Asset, view.Address)
+	b.WriteString("# " + title + "\n\n")
+	b.WriteString("Address: " + sanitize.InlineCode(view.Address.String()) + "\n\n")
+	b.WriteString("Admin: " + sanitize.InlineCode(view.Admin.String()) + "\n\n")
+	b.WriteString("Beneficiary: " + sanitize.InlineCode(view.Beneficiary.String()) + "\n\n")
+	b.WriteString("Asset: " + view.Asset.Kind.String() + " " + sanitize.InlineCode(assetRef(view)) + "\n\n")
 	b.WriteString("Curve: " + view.Terms.Curve.String() + "\n\n")
 	b.WriteString("Start: " + strconv.FormatInt(view.Terms.Start, 10) + "\n\n")
 	b.WriteString("Cliff: " + strconv.FormatInt(view.Terms.Cliff, 10) + " seconds\n\n")
@@ -89,7 +87,7 @@ func renderGrant(id int64) string {
 	b.WriteString("Claimable: " + strconv.FormatInt(view.Releasable, 10) + "\n\n")
 	b.WriteString("Claimed: " + strconv.FormatInt(view.Claimed, 10) + "\n\n")
 	b.WriteString("Returned: " + strconv.FormatInt(view.Returned, 10) + "\n\n")
-	b.WriteString("Balance: " + strconv.FormatInt(balanceView(view), 10) + "\n\n")
+	b.WriteString("Balance: " + strconv.FormatInt(bal, 10) + "\n\n")
 	switch {
 	case view.Revoked:
 		b.WriteString("Status: revoked at " + strconv.FormatInt(view.RevokedAt, 10) + ". Unvested tokens went back to the admin. Vested tokens stay claimable.\n\n")
@@ -119,21 +117,6 @@ func assetRef(view vst.GrantView) string {
 		return view.Asset.Token
 	}
 	return view.Asset.Denom
-}
-
-func balanceView(view vst.GrantView) int64 {
-	if view.Asset.Kind == vst.AssetGRC20 {
-		tok := grc20reg.Get(view.Asset.Token)
-		if tok == nil {
-			return 0
-		}
-		return tok.BalanceOf(view.Address)
-	}
-	return bankerGet(view.Address, view.Asset.Denom)
-}
-
-func bankerGet(addr address, denom string) int64 {
-	return banker.NewReadonlyBanker().GetCoin(addr, denom)
 }
 
 func rel() string {

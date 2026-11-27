@@ -50,6 +50,20 @@ func main(cur realm) {
 	if tok.BalanceOf(alice) != 20 {
 		panic("alice balance")
 	}
+
+	// A code realm (such as a multisig safe) can hold admin and cross-call Revoke.
+	must(led.Mint(alice, 10))
+	must(led.Approve(alice, factory, 10))
+	as(t0, alice)
+	id2 := vesting.CreateGRC20(cross(cur), bob, key, 10, t0, 0, 10, 0, 1, true, "realm-admin")
+	realmAddr := chain.PackageAddress("gno.land/r/nt/vesting/v0/filetests/z_auth")
+	vesting.TransferAdmin(cross(cur), id2, realmAddr)
+
+	impersonate(t0+5, alice)
+	vesting.Revoke(cross(cur), id2)
+	if vesting.ReturnedOf(id2) != 5 || tok.BalanceOf(realmAddr) != 5 {
+		panic("realm admin revoke")
+	}
 	println("ok")
 }
 

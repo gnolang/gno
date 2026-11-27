@@ -1,6 +1,7 @@
 package vesting
 
 import (
+	"strconv"
 	"testing"
 
 	"gno.land/p/nt/testutils/v0"
@@ -38,9 +39,19 @@ func TestPropertyInvariants(t *testing.T) {
 		ben := ben0
 		now := terms.Start - 5
 		var prevV int64
+		var prevClaimed int64
 		var prevNow int64 = -1
 		for step := 0; step < 12; step++ {
-			now += 1 + rng.intn(terms.Duration+2)
+			// Mostly move forward; occasionally repeat or step back to
+			// exercise backwards-clock safety under Invariant.
+			switch rng.intn(6) {
+			case 0:
+				if back := rng.intn(10); now > back {
+					now -= back
+				}
+			default:
+				now += 1 + rng.intn(terms.Duration+2)
+			}
 			v, err := g.Vested(now)
 			uassert.NoError(t, err)
 			rel, err := g.Releasable(now)
@@ -48,7 +59,9 @@ func TestPropertyInvariants(t *testing.T) {
 			if prevNow >= 0 && now >= prevNow {
 				uassert.True(t, v >= prevV)
 			}
+			uassert.True(t, g.Claimed() >= prevClaimed)
 			prevV = v
+			prevClaimed = g.Claimed()
 			prevNow = now
 			checkBooks(t, g, v, rel)
 			uassert.NoError(t, g.Invariant(now))
@@ -84,14 +97,14 @@ func TestPropertyInvariants(t *testing.T) {
 					uassert.ErrorIs(t, cerr, ErrNotBeneficiary)
 				}
 			case 3:
-				nxt := testutils.TestAddress("b" + itoaSmall(rng.intn(20)))
+				nxt := testutils.TestAddress("b" + strconv.FormatInt(rng.intn(20), 10))
 				if nxt != ben {
 					err = g.SetBeneficiary(ben, nxt)
 					uassert.NoError(t, err)
 					ben = nxt
 				}
 			default:
-				nxt := testutils.TestAddress("a" + itoaSmall(rng.intn(20)))
+				nxt := testutils.TestAddress("a" + strconv.FormatInt(rng.intn(20), 10))
 				if nxt != admin {
 					err = g.TransferAdmin(admin, nxt)
 					uassert.NoError(t, err)
@@ -191,17 +204,4 @@ func randomTerms(rng *lcg) Terms {
 		}
 	}
 	return Terms{Start: start, Cliff: cliff, Duration: duration, Period: period, Total: total, Curve: curve}
-}
-
-func itoaSmall(n int64) string {
-	if n < 0 {
-		n = 0
-	}
-	if n > 99 {
-		n = 99
-	}
-	if n < 10 {
-		return string(byte('0' + n))
-	}
-	return string([]byte{byte('0' + n/10), byte('0' + n%10)})
 }

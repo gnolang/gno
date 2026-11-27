@@ -250,7 +250,10 @@ func TestGRC20AndUnregistered(cur realm, t *testing.T) {
 		id = CreateGRC20(cur, bob, key, 80, t0, 0, 10, 5, 2, true, "token")
 	}(cross(cur))
 	uassert.Equal(t, int64(80), BalanceOf(id))
-	uassert.True(t, strings.Contains(Render(strconv.FormatInt(id, 10)), "Period: 5"))
+	tokPage := Render(strconv.FormatInt(id, 10))
+	uassert.True(t, strings.Contains(tokPage, "Period: 5"))
+	uassert.True(t, strings.Contains(tokPage, "`"+key+"`"))
+	uassert.False(t, strings.Contains(tokPage, `\.`))
 	setTime(t0 + 5)
 	at(t0+5, bob)
 	func(cur realm) {
@@ -280,13 +283,151 @@ func TestDrainedGrantDoesNotChangeBooks(cur realm, t *testing.T) {
 		id = CreateCoin(cur, alice, "ugnot", 20, t0, 0, 10, 0, 1, true, "drain")
 		sub := cur.Sub("g/" + strconv.FormatInt(id, 10))
 		b := banker.NewBanker(banker.BankerTypeRealmSend, sub)
-		b.SendCoins(sub.Address(), alice, chain.NewCoins(chain.NewCoin("ugnot", 20)))
+		// Partial drain: 15 remains while releasable is 10 and outstanding is 20.
+		// Must fail before changing books or sending coins.
+		b.SendCoins(sub.Address(), alice, chain.NewCoins(chain.NewCoin("ugnot", 5)))
 		mustPanic(t, "insufficient balance", func() { Claim(cur, id) })
 		mustPanic(t, "insufficient balance", func() { Revoke(cur, id) })
 	}(cross(cur))
 	uassert.Equal(t, int64(0), ClaimedOf(id))
 	uassert.False(t, RevokedOf(id))
+	uassert.Equal(t, int64(15), BalanceOf(id))
 	uassert.Equal(t, int64(10), ClaimableOf(id))
+
+	// Fully vested revoke (back == 0) on a partially drained grant must also
+	// fail closed before marking the grant revoked.
+	at(t0+10, alice)
+	func(cur realm) {
+		mustPanic(t, "insufficient balance", func() { Revoke(cur, id) })
+		// Drain the rest and verify full drain still leaves books untouched.
+		sub := cur.Sub("g/" + strconv.FormatInt(id, 10))
+		b := banker.NewBanker(banker.BankerTypeRealmSend, sub)
+		b.SendCoins(sub.Address(), alice, chain.NewCoins(chain.NewCoin("ugnot", 15)))
+		mustPanic(t, "insufficient balance", func() { Claim(cur, id) })
+		mustPanic(t, "insufficient balance", func() { Revoke(cur, id) })
+	}(cross(cur))
+	uassert.Equal(t, int64(0), ClaimedOf(id))
+	uassert.False(t, RevokedOf(id))
+	uassert.Equal(t, int64(0), BalanceOf(id))
+}
+
+func TestRevokeLeavesVestedClaimable(cur realm, t *testing.T) {
+	admin := testutils.TestAddress("revadmin")
+	ben := testutils.TestAddress("revben")
+	at(t0, admin)
+	var coinID, tokID int64
+	var key string
+	func(cur realm) {
+		allow("ugnot", 100)
+		credit("ugnot", 100)
+		coinID = CreateCoin(cur, ben, "ugnot", 100, t0, 0, 100, 0, 1, true, "rev-coin")
+
+		sym := "R" + strconv.FormatInt(int64(nextTok.Next()), 10)
+		tok, led := grc20.NewToken("Rev", sym, 0, seqid.ID(0), cur)
+		key = grc20reg.Register(cross(cur), tok, "")
+		uassert.NoError(t, led.Mint(admin, 100))
+		uassert.NoError(t, led.Approve(admin, factory(), 100))
+		tokID = CreateGRC20(cur, ben, key, 100, t0, 0, 100, 0, 1, true, "rev-tok")
+	}(cross(cur))
+
+	// Revoke mid-schedule with zero prior claims: 40 vested, 60 returned.
+	at(t0+40, admin)
+	adminCoinBefore := banker.NewReadonlyBanker().GetCoin(admin, "ugnot")
+	func(cur realm) {
+		Revoke(cur, coinID)
+		Revoke(cur, tokID)
+	}(cross(cur))
+	tok := grc20reg.Get(key)
+	uassert.Equal(t, int64(60), ReturnedOf(coinID))
+	uassert.Equal(t, int64(60), ReturnedOf(tokID))
+	uassert.Equal(t, adminCoinBefore+60, banker.NewReadonlyBanker().GetCoin(admin, "ugnot"))
+	uassert.Equal(t, int64(60), tok.BalanceOf(admin))
+
+	// Long after end, vested remains frozen at 40 and beneficiary claims 40.
+	at(t0+500, ben)
+	benCoinBefore := banker.NewReadonlyBanker().GetCoin(ben, "ugnot")
+	func(cur realm) {
+		uassert.Equal(t, int64(40), VestedOf(coinID))
+		uassert.Equal(t, int64(40), ClaimableOf(coinID))
+		uassert.Equal(t, int64(40), VestedOf(tokID))
+		uassert.Equal(t, int64(40), ClaimableOf(tokID))
+		Claim(cur, coinID)
+		Claim(cur, tokID)
+		mustPanic(t, "nothing to release", func() { Claim(cur, coinID) })
+		mustPanic(t, "nothing to release", func() { Claim(cur, tokID) })
+	}(cross(cur))
+	uassert.Equal(t, benCoinBefore+40, banker.NewReadonlyBanker().GetCoin(ben, "ugnot"))
+	uassert.Equal(t, int64(40), tok.BalanceOf(ben))
+	uassert.Equal(t, int64(0), BalanceOf(coinID))
+	uassert.Equal(t, int64(0), BalanceOf(tokID))
+}
+
+func TestPreexistingFactoryAndPreDonation(cur realm, t *testing.T) {
+	alice := testutils.TestAddress("prefund")
+	at(t0+10, alice)
+	nextID := int64(Count() + 1)
+	nextAddr := chain.DerivePkgSubAddr("gno.land/r/nt/vesting/v0", "g/"+strconv.FormatInt(nextID, 10))
+	credit("ugnot", 50) // Pre-existing factory balance.
+	testing.IssueCoins(nextAddr, chain.NewCoins(chain.NewCoin("ugnot", 25)))
+	factoryBefore := banker.NewReadonlyBanker().GetCoin(factory(), "ugnot")
+	var id int64
+	func(cur realm) {
+		allow("ugnot", 100)
+		credit("ugnot", 100)
+		id = CreateCoin(cur, alice, "ugnot", 100, t0, 0, 10, 0, 1, false, "pre")
+	}(cross(cur))
+	uassert.Equal(t, nextID, id)
+	uassert.Equal(t, factoryBefore, banker.NewReadonlyBanker().GetCoin(factory(), "ugnot"))
+	uassert.Equal(t, int64(125), BalanceOf(id))
+	uassert.Equal(t, int64(100), ClaimableOf(id))
+	at(t0+10, alice)
+	func(cur realm) {
+		Claim(cur, id)
+	}(cross(cur))
+	uassert.Equal(t, int64(25), BalanceOf(id))
+	uassert.Equal(t, int64(0), OutstandingOf(id))
+}
+
+func TestBackwardsClockRealmMutations(cur realm, t *testing.T) {
+	admin := testutils.TestAddress("bwadmin")
+	ben := testutils.TestAddress("bwben")
+	ben2 := testutils.TestAddress("bwben2")
+	admin2 := testutils.TestAddress("bwadmin2")
+	at(t0, admin)
+	var id int64
+	func(cur realm) {
+		allow("ugnot", 100)
+		credit("ugnot", 100)
+		id = CreateCoin(cur, ben, "ugnot", 100, t0, 0, 100, 0, 1, true, "bw")
+	}(cross(cur))
+
+	at(t0+40, ben)
+	func(cur realm) {
+		Claim(cur, id)
+	}(cross(cur))
+	uassert.Equal(t, int64(40), ClaimedOf(id))
+
+	// Clock steps backwards: role updates and revoke must still satisfy commit/Invariant.
+	at(t0+10, ben)
+	func(cur realm) {
+		mustPanic(t, "nothing to release", func() { Claim(cur, id) })
+		SetBeneficiary(cur, id, ben2)
+	}(cross(cur))
+	uassert.Equal(t, ben2, BeneficiaryOf(id))
+
+	at(t0+10, admin)
+	func(cur realm) {
+		TransferAdmin(cur, id, admin2)
+	}(cross(cur))
+	uassert.Equal(t, admin2, AdminOf(id))
+
+	at(t0+10, admin2)
+	func(cur realm) {
+		Revoke(cur, id)
+	}(cross(cur))
+	uassert.Equal(t, int64(60), ReturnedOf(id))
+	uassert.Equal(t, int64(60), banker.NewReadonlyBanker().GetCoin(admin2, "ugnot"))
+	uassert.Equal(t, int64(0), BalanceOf(id))
 }
 
 func TestReentrancyGuard(cur realm, t *testing.T) {
@@ -366,6 +507,10 @@ func TestRender(cur realm, t *testing.T) {
 		})
 		allow("ugnot", 8)
 		id = CreateCoin(cur, alice, "ugnot", 8, t0, 4, 8, 0, 1, true, nasty)
+		allow("ugnot", 2)
+		credit("ugnot", 2)
+		zwID := CreateCoin(cur, alice, "ugnot", 2, t0, 0, 2, 0, 1, false, "\u200b")
+		uassert.True(t, strings.Contains(Render(strconv.FormatInt(zwID, 10)), "# Grant "+strconv.FormatInt(zwID, 10)))
 	}(cross(cur))
 	home := Render("")
 	uassert.True(t, strings.Contains(home, "Vesting vault"))

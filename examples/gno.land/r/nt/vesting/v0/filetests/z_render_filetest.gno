@@ -4,6 +4,7 @@ package z_render
 
 import (
 	"chain"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -31,12 +32,12 @@ func main(cur realm) {
 	if !strings.Contains(page, "Vesting vault") {
 		panic("home")
 	}
-	one := vesting.Render(itoa(id))
+	one := vesting.Render(strconv.FormatInt(id, 10))
 	if strings.Contains(one, "](http://evil)") {
 		panic("link injected: " + one)
 	}
-	if !strings.Contains(one, "SHWN") {
-		panic("symbol")
+	if !strings.Contains(one, "`"+key+"`") {
+		panic("asset key: " + one)
 	}
 	if !strings.Contains(one, "irrevocable") {
 		panic("irrevocable line")
@@ -45,20 +46,6 @@ func main(cur realm) {
 		panic("bad path")
 	}
 	println("ok")
-}
-
-func itoa(n int64) string {
-	if n == 0 {
-		return "0"
-	}
-	var b [20]byte
-	i := len(b)
-	for n > 0 {
-		i--
-		b[i] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(b[i:])
 }
 
 func as(unix int64, user address) {

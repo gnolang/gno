@@ -11,7 +11,7 @@ balance sheet. The factory's own address is not a wallet.
 The schedule math lives in [`gno.land/p/nt/vesting/v0`](../../../../p/nt/vesting/v0).
 Why this is a grant contract, and not the genesis send-limit or the
 quarantined timelock, is in
-[`gno.land/adr/prxxxx_vesting_vault.md`](../../../../../../gno.land/adr/prxxxx_vesting_vault.md).
+[`gno.land/adr/pr6542_vesting_vault.md`](../../../../../../gno.land/adr/pr6542_vesting_vault.md).
 
 The beneficiary is `cur.Previous().Address()`. That is the signing user
 on `maketx call` and on `maketx run`, and the calling realm on a

@@ -16,18 +16,24 @@ refused before the send.
 
 On a bound grant, at a non-negative `now`:
 
-1. `claimed`, `returned`, and `frozen` are non-negative, and
-   `claimed + returned <= total`.
+1. `claimed`, `lastClaimAt`, `returned`, `frozen`, and `revokedAt` are
+   non-negative, and `claimed + returned <= total`.
 2. The stored address equals `chain.DerivePkgSubAddr(host, "g/<id>")`.
    The admin and the beneficiary are valid, and neither is the factory
-   or that address.
-3. While the grant is open, `returned` and `frozen` are zero.
-4. After revoke, `returned == total - frozen` and `frozen >= claimed`.
-   Later vesting does not increase `frozen`.
-5. `claimed` is at most the curve at `now` (the frozen amount, once
-   revoked). `releasable == curve - claimed`. `outstanding == total -
-   claimed - returned`.
-6. After a funding, claim, or revoke, the grant address still holds at
+   or that address. The label, asset, host, and schedule are valid.
+3. While the grant is open, `returned`, `frozen`, and `revokedAt` are
+   zero, and any positive `claimed` is backed by `VestedAmount` at
+   `lastClaimAt`.
+4. After revoke, `revocable` is true, `returned == total - frozen`,
+   and `frozen` is at least `claimed` and bounded by the curve at
+   `revokedAt` and `lastClaimAt`. Later vesting does not increase
+   `frozen`.
+5. `vested` at `now` is `frozen` once revoked, or `max(curve(now),
+   claimed)` while open (so a backwards clock step never un-claims or
+   breaks `Invariant`). `releasable == vested - claimed`.
+   `outstanding == total - claimed - returned`.
+6. Before any `Claim` or `Revoke` mutates books or sends funds, and
+   again after funding, claim, or revoke, the grant address holds at
    least `outstanding`. A direct donation can leave more. There is no
    sweep, so the extra stays there.
 
@@ -68,12 +74,12 @@ the token for a display symbol.
 | F2 | Authorizing with `OriginCaller` would let any realm in the call claim for the signer | High | Fixed. Every mutation uses `cur.Previous().Address()`. `filetests/z_auth_filetest.gno` sets `OriginCaller` to the beneficiary while the caller realm is the filetest, and the claim fails. |
 | F3 | `total * elapsed / duration` overflows int64 near `MaxInt64` | Medium | Fixed. 128-bit multiply and an explicit range check. `TestMulDivFloor`, `TestVestedAmountHuge`. |
 | F4 | Rounding up would pay the beneficiary more than the curve | Low | Floor. Dust is paid at the end, not before. `TestVestedAmountBoundaries`, `TestPropertyInvariants`. |
-| F5 | Updating books before the balance check lets a failed claim stick | Medium | Balance is checked first. `TestDrainedGrantDoesNotChangeBooks` empties the sub-address and checks that claim and revoke leave `claimed` and `revoked` unchanged. |
-| F6 | `GetCoins` on an attacker-chosen address is unbounded gas | Medium | Reads go through `GetCoin` or `BalanceOf` on one token key. |
-| F7 | `Render` writes the label and the path into markdown | Medium | Control characters rejected at `New`. `Render` caps the path at 64 bytes, refuses extra segments, and runs `sanitize.InlineText` on user strings. Home lists at most 20 grants. `TestRender`, `filetests/z_render_filetest.gno`. The asset line is the stored denom or registry key, not the token's symbol. |
+| F5 | Updating books before checking full outstanding balance lets a drained or partially drained grant mutate books before `commit` fails | Medium | `checkFunded` verifies `balance >= max(outstanding, amount)` before mutating books or sending, including when `Revoke` returns 0. `TestDrainedGrantDoesNotChangeBooks` tests partial, fully-vested, and full drain. |
+| F6 | `GetCoins` on an attacker-chosen address is unbounded gas | Medium | Reads go through `GetCoin` or `BalanceOf` on one token key via a single `assetBalance` helper. |
+| F7 | `Render` writes the label, addresses, and asset key into markdown | Medium | Control characters rejected at `New`. `Render` caps the path at 64 bytes, refuses extra segments, uses `sanitize.InlineText` for labels/titles (falling back when empty after stripping zero-width characters) and `sanitize.InlineCode` for addresses and the stored denom or registry key. Home lists at most 20 grants. `TestRender`, `filetests/z_render_filetest.gno`. |
 | F8 | One shared balance lets grant A pay grant B's beneficiary | High | Each grant is `cur.Sub("g/<id>")`. `pay` refuses to send if that sub-address does not match the address stored at `Bind`. `TestCoinClaimRevokeAndIsolation`, `filetests/z_grc20_filetest.gno`. |
 | F9 | A GRC20 `Transfer` that calls back into `Claim` could double-spend if the books moved first | Low | `busy` rejects re-entry. Canonical `grc20.Transfer` does not call out; the lock is defense in depth. `TestReentrancyGuard` sets `busy` from the same package. `filetests/z_reenter_filetest.gno` shows an outside realm's callback-shaped call does not move the books. A non-canonical teller is rejected with `IsCanonicalTeller`. The factory does not accept a teller argument. |
-| F10 | A backwards block time could un-claim | Medium | `vested` never returns less than `claimed`. After revoke, the frozen amount is what later claims use. `TestClockBackwardsDoesNotUnclaim`. `Invariant` rejects `claimed` above the curve. |
+| F10 | A backwards block time could un-claim or fail `Invariant` on role changes | Medium | `vested` never returns less than `claimed`. `Grant` records `lastClaimAt` so `Invariant` verifies `claimed` is curve-backed without failing when `now` steps backwards. `TestClockBackwardsDoesNotUnclaim`, `TestBackwardsClockRealmMutations`, `TestPropertyInvariants`. |
 | F11 | Admin pause could freeze vested tokens | Medium | Not implemented. Admin power is revoke of the unvested part, once. |
 | F12 | Sub-address derived differently at spend time than at create | High | `Bind` stores `DerivePkgSubAddr`. `pay` recomputes `cur.Sub` and compares. `Invariant` compares the stored address to `DerivePkgSubAddr` again. A mismatch panics before the send. |
 | F13 | Revoke page said the admin could revoke again | Low | Fixed. A revoked grant renders "already revoked". `TestRender`. |
@@ -251,21 +257,26 @@ still runs `sanitize.InlineText` on every user string.
   cliff, at the cliff, `cliff == 0`, `cliff == duration`, duration 1,
   at the end, long after the end, amounts near `MaxInt64`, and a tiny
   total where floor matters. Step curves included.
-- Seeded property test (40 trials, 12 steps): after every claim,
-  revoke, beneficiary change, and admin change, `Grant.Invariant`
-  holds, `claimed + releasable + returned == total` when revoked,
-  vested is monotonic in time, and a claim never exceeds vested.
-  `TestInvariantRejectsBrokenBooks` corrupts the books and checks that
-  the same function fails.
+- Seeded property test (40 trials, 12 steps, including backwards clock
+  steps): after every claim, revoke, beneficiary change, and admin
+  change, `Grant.Invariant` holds, `claimed + releasable + returned ==
+  total` when revoked, vested is monotonic on non-decreasing timestamps,
+  and a claim never exceeds vested. `TestInvariantRejectsBrokenBooks`
+  corrupts every invariant clause and checks that `Grant.Invariant`
+  rejects it.
 - Realm tests for coin create, exact-envelope rejection, isolation,
-  revoke before the remainder is claimed, claim-all-then-claim, GRC20
-  register / allowance / unregistered token, drained sub-address,
-  re-entry guard, render, a donation that must not become claimable
-  (`TestDonationDoesNotIncreaseClaim`), and admin/beneficiary
-  separation (`TestRolesStaySeparate`).
-- Filetests for impersonation, `maketx run`, foreign-realm coin
-  funding, two-grant isolation, render injection, and a hand-called
-  re-entry.
+  revoke leaving vested tokens claimable (`TestRevokeLeavesVestedClaimable`),
+  pre-existing factory balance and pre-donation to the next grant address
+  (`TestPreexistingFactoryAndPreDonation`), backwards-clock role updates
+  and revoke (`TestBackwardsClockRealmMutations`), claim-all-then-claim,
+  GRC20 register / allowance / unregistered token, partial and full
+  drained sub-address (`TestDrainedGrantDoesNotChangeBooks`), re-entry
+  guard, render (including `InlineCode` and zero-width fallback),
+  donation staying unclaimable (`TestDonationDoesNotIncreaseClaim`), and
+  admin/beneficiary separation (`TestRolesStaySeparate`).
+- Filetests for impersonation and code-realm admin revoke, `maketx run`,
+  foreign-realm coin funding, two-grant isolation, render injection, and
+  a hand-called re-entry.
 
 `gno` has no coverprofile. A one-off OpExec line trace under-counts:
 many statements never appear as a stmt-stack line, so that trace is not

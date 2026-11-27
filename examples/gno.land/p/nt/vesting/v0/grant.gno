@@ -18,6 +18,7 @@ type Grant struct {
 	terms       Terms
 	revocable   bool
 	claimed     int64
+	lastClaimAt int64
 	returned    int64
 	revoked     bool
 	revokedAt   int64
@@ -61,7 +62,7 @@ func New(hostPkg string, hostAddr, admin, beneficiary address, asset Asset, term
 }
 
 func validHost(pkg string, addr address) error {
-	if !strings.HasPrefix(pkg, "gno.land/r/") || strings.Contains(pkg, "#") || len(pkg) > 200 {
+	if !strings.HasPrefix(pkg, "gno.land/r/") || len(pkg) <= len("gno.land/r/") || strings.Contains(pkg, "#") || len(pkg) > 200 {
 		return ErrHost
 	}
 	if !addr.IsValid() || addr != chain.PackageAddress(pkg) {
@@ -100,17 +101,10 @@ func (g *Grant) Bind(id int64) (address, error) {
 		"asset", g.asset.Kind.String(),
 		"total", strconv.FormatInt(g.terms.Total, 10),
 		"curve", g.terms.Curve.String(),
-		"revocable", boolText(g.revocable),
+		"revocable", strconv.FormatBool(g.revocable),
 		"address", addr.String(),
 	)
 	return addr, nil
-}
-
-func boolText(v bool) string {
-	if v {
-		return "true"
-	}
-	return "false"
 }
 
 // ID is the factory id, or 0 before Bind.
@@ -259,8 +253,8 @@ func (g *Grant) Reclaimable(now int64) (int64, error) {
 // Outstanding is the amount the books still expect to be sitting on the
 // grant address: total, minus claimed, minus returned to the admin.
 func (g *Grant) Outstanding() (int64, error) {
-	if g == nil || g.subpath == "" {
-		return 0, ErrUnbound
+	if err := g.bound(); err != nil {
+		return 0, err
 	}
 	left, err := subInt(g.terms.Total, g.claimed)
 	if err != nil {
@@ -275,7 +269,7 @@ func (g *Grant) View(now int64) (GrantView, error) {
 	if err != nil {
 		return GrantView{}, err
 	}
-	rel, err := g.Releasable(now)
+	rel, err := subInt(v, g.claimed)
 	if err != nil {
 		return GrantView{}, err
 	}
@@ -301,8 +295,11 @@ func (g *Grant) View(now int64) (GrantView, error) {
 // moves the coins after this returns. A second call with nothing left
 // returns ErrNothing.
 func (g *Grant) Claim(caller address, now int64) (int64, error) {
-	if err := g.authBeneficiary(caller, now); err != nil {
+	if err := g.ready(now); err != nil {
 		return 0, err
+	}
+	if caller != g.beneficiary {
+		return 0, ErrNotBeneficiary
 	}
 	rel, err := g.Releasable(now)
 	if err != nil {
@@ -316,6 +313,9 @@ func (g *Grant) Claim(caller address, now int64) (int64, error) {
 		return 0, err
 	}
 	g.claimed = next
+	if !g.revoked {
+		g.lastClaimAt = now
+	}
 	chain.Emit(
 		"GrantClaimed",
 		"grant", strconv.FormatInt(g.id, 10),
@@ -330,8 +330,11 @@ func (g *Grant) Claim(caller address, now int64) (int64, error) {
 // vested; the realm sends it to the admin. What had already vested stays
 // claimable by the beneficiary. A second revoke fails.
 func (g *Grant) Revoke(caller address, now int64) (int64, error) {
-	if err := g.authAdmin(caller, now); err != nil {
+	if err := g.ready(now); err != nil {
 		return 0, err
+	}
+	if caller != g.admin {
+		return 0, ErrNotAdmin
 	}
 	if !g.revocable {
 		return 0, ErrIrrevocable
@@ -339,12 +342,9 @@ func (g *Grant) Revoke(caller address, now int64) (int64, error) {
 	if g.revoked {
 		return 0, ErrRevoked
 	}
-	v, err := VestedAmount(g.terms, now)
+	v, err := g.vested(now)
 	if err != nil {
 		return 0, err
-	}
-	if v < g.claimed {
-		v = g.claimed
 	}
 	returned, err := subInt(g.terms.Total, v)
 	if err != nil {
@@ -366,8 +366,11 @@ func (g *Grant) Revoke(caller address, now int64) (int64, error) {
 
 // SetBeneficiary moves the claim. Only the current beneficiary may call it.
 func (g *Grant) SetBeneficiary(caller, next address) error {
-	if err := g.authBeneficiary(caller, 0); err != nil {
+	if err := g.bound(); err != nil {
 		return err
+	}
+	if caller != g.beneficiary {
+		return ErrNotBeneficiary
 	}
 	if !next.IsValid() {
 		return ErrAddress
@@ -392,8 +395,11 @@ func (g *Grant) SetBeneficiary(caller, next address) error {
 // TransferAdmin moves the revoke right. An irrevocable grant still has
 // an admin of record, and that record can move, but Revoke keeps failing.
 func (g *Grant) TransferAdmin(caller, next address) error {
-	if err := g.authAdmin(caller, 0); err != nil {
+	if err := g.bound(); err != nil {
 		return err
+	}
+	if caller != g.admin {
+		return ErrNotAdmin
 	}
 	if !next.IsValid() {
 		return ErrAddress
@@ -415,32 +421,19 @@ func (g *Grant) TransferAdmin(caller, next address) error {
 	return nil
 }
 
-func (g *Grant) ready(now int64) error {
+func (g *Grant) bound() error {
 	if g == nil || g.subpath == "" {
 		return ErrUnbound
 	}
+	return nil
+}
+
+func (g *Grant) ready(now int64) error {
+	if err := g.bound(); err != nil {
+		return err
+	}
 	if now < 0 {
 		return ErrTime
-	}
-	return nil
-}
-
-func (g *Grant) authBeneficiary(caller address, now int64) error {
-	if err := g.ready(now); err != nil {
-		return err
-	}
-	if caller != g.beneficiary {
-		return ErrNotBeneficiary
-	}
-	return nil
-}
-
-func (g *Grant) authAdmin(caller address, now int64) error {
-	if err := g.ready(now); err != nil {
-		return err
-	}
-	if caller != g.admin {
-		return ErrNotAdmin
 	}
 	return nil
 }
@@ -467,25 +460,29 @@ func (g *Grant) vested(now int64) (int64, error) {
 //
 // A bound grant must satisfy all of these at now:
 //
-//   - claimed, returned, and frozen are non-negative, and claimed+returned
-//     is at most total
+//   - claimed, lastClaimAt, returned, frozen, and revokedAt are non-negative,
+//     and claimed+returned is at most total
 //   - the stored address is DerivePkgSubAddr(host, "g/<id>")
 //   - the admin and the beneficiary are valid and are neither the factory
 //     nor the grant address
-//   - while the grant is open, returned and frozen are zero
-//   - after revoke, returned is total-frozen and frozen is at least claimed
-//   - claimed is at most the curve (the frozen amount, once revoked)
-//   - releasable is that amount minus claimed
-//   - outstanding is total-claimed-returned
+//   - the label, asset, host, and schedule are valid
+//   - while the grant is open, returned, frozen, and revokedAt are zero,
+//     and claimed is backed by VestedAmount at lastClaimAt
+//   - after revoke, the grant is revocable, returned is total-frozen,
+//     frozen is at least claimed and bounded by the curve at revokedAt
+//     and lastClaimAt
+//   - vested at now is the frozen amount once revoked, or max(curve(now),
+//     claimed) while open; releasable is vested-claimed; outstanding is
+//     total-claimed-returned
 func (g *Grant) Invariant(now int64) error {
-	if g == nil || g.subpath == "" {
-		return ErrUnbound
-	}
-	if now < 0 {
-		return ErrTime
+	if err := g.ready(now); err != nil {
+		return err
 	}
 	if err := validHost(g.hostPkg, g.hostAddr); err != nil {
 		return err
+	}
+	if !validLabel(g.label) {
+		return ErrLabel
 	}
 	if err := g.asset.validate(); err != nil {
 		return err
@@ -493,7 +490,10 @@ func (g *Grant) Invariant(now int64) error {
 	if err := g.terms.Validate(); err != nil {
 		return err
 	}
-	if g.claimed < 0 || g.returned < 0 || g.frozen < 0 || g.revokedAt < 0 {
+	if g.claimed < 0 || g.lastClaimAt < 0 || g.returned < 0 || g.frozen < 0 || g.revokedAt < 0 {
+		return ErrMath
+	}
+	if g.claimed == 0 && g.lastClaimAt != 0 {
 		return ErrMath
 	}
 	if g.id <= 0 || g.subpath != "g/"+strconv.FormatInt(g.id, 10) {
@@ -514,7 +514,25 @@ func (g *Grant) Invariant(now int64) error {
 	}
 	var curve int64
 	if g.revoked {
+		if !g.revocable {
+			return ErrIrrevocable
+		}
 		if g.frozen < g.claimed || g.frozen > g.terms.Total {
+			return ErrMath
+		}
+		atRevoke, rerr := VestedAmount(g.terms, g.revokedAt)
+		if rerr != nil {
+			return rerr
+		}
+		refTime := g.revokedAt
+		if g.lastClaimAt > refTime {
+			refTime = g.lastClaimAt
+		}
+		atRef, rerr := VestedAmount(g.terms, refTime)
+		if rerr != nil {
+			return rerr
+		}
+		if g.frozen < atRevoke || g.frozen > atRef {
 			return ErrMath
 		}
 		back, berr := subInt(g.terms.Total, g.frozen)
@@ -526,9 +544,24 @@ func (g *Grant) Invariant(now int64) error {
 		if g.returned != 0 || g.frozen != 0 || g.revokedAt != 0 {
 			return ErrMath
 		}
+		if g.claimed > 0 {
+			if g.lastClaimAt == 0 {
+				return ErrMath
+			}
+			atClaim, cerr := VestedAmount(g.terms, g.lastClaimAt)
+			if cerr != nil {
+				return cerr
+			}
+			if g.claimed > atClaim {
+				return ErrMath
+			}
+		}
 		curve, err = VestedAmount(g.terms, now)
 		if err != nil {
 			return err
+		}
+		if curve < g.claimed {
+			curve = g.claimed
 		}
 	}
 	if curve > g.terms.Total || g.claimed > curve {

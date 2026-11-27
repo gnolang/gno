@@ -201,6 +201,8 @@ func TestGrantErrors(t *testing.T) {
 	long := strings.Repeat("k", MaxTokenLen+1)
 	_, err = New(hostPkg, hostAddr(), admin, ben, Asset{Kind: AssetGRC20, Token: long}, terms, true, "")
 	uassert.ErrorIs(t, err, ErrToken)
+	_, err = New("gno.land/r/", chain.PackageAddress("gno.land/r/"), admin, ben, coinAsset(), terms, true, "")
+	uassert.ErrorIs(t, err, ErrHost)
 	_, err = New(strings.Repeat("gno.land/r/", 30), hostAddr(), admin, ben, coinAsset(), terms, true, "")
 	uassert.ErrorIs(t, err, ErrHost)
 }
@@ -208,16 +210,97 @@ func TestGrantErrors(t *testing.T) {
 func TestInvariantRejectsBrokenBooks(t *testing.T) {
 	admin := testutils.TestAddress("ia")
 	ben := testutils.TestAddress("ib")
-	g := openGrant(t, admin, ben, linear(100, 0, 10, 50), true, 7)
+	fresh := func(revocable bool) *Grant {
+		return openGrant(t, admin, ben, linear(100, 0, 10, 50), revocable, 7)
+	}
+
+	g := fresh(true)
 	uassert.NoError(t, g.Invariant(100))
+	uassert.ErrorIs(t, g.Invariant(-1), ErrTime)
+
+	// Negative or out-of-range counters.
+	g = fresh(true)
 	g.claimed = -1
 	uassert.ErrorIs(t, g.Invariant(100), ErrMath)
-	g.claimed = 0
+
+	g = fresh(true)
+	g.lastClaimAt = -1
+	uassert.ErrorIs(t, g.Invariant(100), ErrMath)
+
+	// Open grant with non-zero revoke fields or unsupported claimed amount.
+	g = fresh(true)
 	g.returned = 1
 	uassert.ErrorIs(t, g.Invariant(100), ErrMath)
-	g.returned = 0
+
+	g = fresh(true)
+	g.frozen = 1
+	uassert.ErrorIs(t, g.Invariant(100), ErrMath)
+
+	g = fresh(true)
+	g.revokedAt = 100
+	uassert.ErrorIs(t, g.Invariant(100), ErrMath)
+
+	g = fresh(true)
+	g.lastClaimAt = 105
+	uassert.ErrorIs(t, g.Invariant(110), ErrMath)
+
+	g = fresh(true)
+	g.claimed = 1
+	uassert.ErrorIs(t, g.Invariant(110), ErrMath)
+
+	g = fresh(true)
+	g.claimed = 30
+	g.lastClaimAt = 105 // VestedAmount at 105 is 25 < 30.
+	uassert.ErrorIs(t, g.Invariant(110), ErrMath)
+
+	// Revoked irrevocable grant.
+	g = fresh(false)
+	g.revoked = true
+	g.revokedAt = 105
+	g.frozen = 25
+	g.returned = 25
+	uassert.ErrorIs(t, g.Invariant(105), ErrIrrevocable)
+
+	// Revoked grant with broken frozen / returned / claimed relations.
+	g = fresh(true)
+	_, err := g.Revoke(admin, 105) // frozen=25, returned=25
+	uassert.NoError(t, err)
+	uassert.NoError(t, g.Invariant(105))
+
+	g.returned = 24
+	uassert.ErrorIs(t, g.Invariant(105), ErrMath)
+	g.returned = 25
+
+	g.frozen = 30 // above VestedAmount(105) == 25
+	g.returned = 20
+	uassert.ErrorIs(t, g.Invariant(105), ErrMath)
+
+	g.frozen = 20 // below VestedAmount(105) == 25
+	g.returned = 30
+	uassert.ErrorIs(t, g.Invariant(105), ErrMath)
+
+	g.frozen = 25
+	g.returned = 25
+	g.claimed = 26 // above frozen
+	uassert.ErrorIs(t, g.Invariant(105), ErrMath)
+
+	// Corrupted address, roles, or label.
+	g = fresh(true)
 	g.addr = admin
 	uassert.ErrorIs(t, g.Invariant(100), ErrMath)
+
+	g = fresh(true)
+	g.admin = hostAddr()
+	uassert.ErrorIs(t, g.Invariant(100), ErrSelf)
+
+	g = fresh(true)
+	g.beneficiary = g.addr
+	uassert.ErrorIs(t, g.Invariant(100), ErrSelf)
+
+	g = fresh(true)
+	g.label = "bad\nlabel"
+	uassert.ErrorIs(t, g.Invariant(100), ErrLabel)
+
 	unbound, err := New(hostPkg, hostAddr(), admin, ben, coinAsset(), linear(100, 0, 10, 50), false, "")
 	uassert.NoError(t, err)
 	uassert.ErrorIs(t, unbound.Invariant(100), ErrUnbound)
@@ -248,24 +331,42 @@ func TestNilGrant(t *testing.T) {
 func TestClockBackwardsDoesNotUnclaim(t *testing.T) {
 	admin := testutils.TestAddress("admin3")
 	ben := testutils.TestAddress("ben3")
+	next := testutils.TestAddress("next3")
 	g := openGrant(t, admin, ben, linear(0, 0, 100, 100), true, 9)
 	got, err := g.Claim(ben, 40)
 	uassert.NoError(t, err)
 	uassert.Equal(t, int64(40), got)
+	uassert.NoError(t, g.Invariant(40))
+	// Clock steps backwards: vested stays at claimed, Invariant holds,
+	// and role updates and revoke do not fail.
 	v, err := g.Vested(10)
 	uassert.NoError(t, err)
 	uassert.Equal(t, int64(40), v)
 	rel, err := g.Releasable(10)
 	uassert.NoError(t, err)
 	uassert.Equal(t, int64(0), rel)
+	uassert.NoError(t, g.Invariant(10))
 	_, err = g.Claim(ben, 10)
 	uassert.ErrorIs(t, err, ErrNothing)
+	uassert.NoError(t, g.SetBeneficiary(ben, next))
+	uassert.NoError(t, g.Invariant(10))
+	uassert.NoError(t, g.TransferAdmin(admin, ben))
+	uassert.NoError(t, g.Invariant(10))
 	v, err = g.Vested(40)
 	uassert.NoError(t, err)
 	uassert.Equal(t, int64(40), v)
 	v, err = g.Vested(100)
 	uassert.NoError(t, err)
 	uassert.Equal(t, int64(100), v)
+	// Revoking while the clock is stepped back freezes at claimed (40),
+	// not the lower raw curve (10), and returns 60.
+	back, err := g.Revoke(ben, 10)
+	uassert.NoError(t, err)
+	uassert.Equal(t, int64(60), back)
+	uassert.NoError(t, g.Invariant(10))
+	uassert.NoError(t, g.Invariant(100))
+	_, err = g.Claim(next, 100)
+	uassert.ErrorIs(t, err, ErrNothing)
 }
 
 func TestStepRevokeBeforeAndAfter(t *testing.T) {

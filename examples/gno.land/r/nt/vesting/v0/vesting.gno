@@ -51,6 +51,7 @@ func CreateCoin(cur realm, beneficiary address, denom string, total, start, clif
 	if len(sent) != 1 || sent[0].Denom != denom || sent[0].Amount != total {
 		panic(vst.ErrPayment.Error())
 	}
+	now := mustNow()
 	g := newGrant(cur, cur.Previous().Address(), beneficiary, vst.Asset{Kind: vst.AssetCoin, Denom: denom}, total, start, cliff, duration, period, curve, revocable, label)
 	id, addr := bindNext(g)
 	bkr := banker.NewReadonlyBanker()
@@ -61,15 +62,13 @@ func CreateCoin(cur realm, beneficiary address, denom string, total, start, clif
 	}
 	b := banker.NewBanker(banker.BankerTypeOriginSend, cur)
 	b.SendCoins(cur.Address(), addr, chain.NewCoins(chain.NewCoin(denom, total)))
-	bkr = banker.NewReadonlyBanker()
 	// The factory may already hold this denom. Only `total` may leave,
 	// and the grant address must gain that same `total`.
-	if !spent(srcBefore, total, bkr.GetCoin(cur.Address(), denom)) ||
-		!funded(dstBefore, total, bkr.GetCoin(addr, denom)) {
+	if !moved(srcBefore, dstBefore, total, bkr.GetCoin(cur.Address(), denom), bkr.GetCoin(addr, denom)) {
 		panic(vst.ErrFunding.Error())
 	}
 	grants = append(grants, g)
-	commit(g, true)
+	commit(g, now, true)
 	return id
 }
 
@@ -79,6 +78,7 @@ func CreateCoin(cur realm, beneficiary address, denom string, total, start, clif
 func CreateGRC20(cur realm, beneficiary address, tokenKey string, total, start, cliff, duration, period, curve int64, revocable bool, label string) int64 {
 	unlock := guard()
 	defer unlock()
+	now := mustNow()
 	tok := grc20reg.Get(tokenKey)
 	if tok == nil {
 		panic(vst.ErrToken.Error())
@@ -101,11 +101,11 @@ func CreateGRC20(cur realm, beneficiary address, tokenKey string, total, start, 
 	if err := teller.TransferFrom(0, cur, caller, addr, total); err != nil {
 		panic(err.Error())
 	}
-	if !spent(srcBefore, total, tok.BalanceOf(caller)) || !funded(dstBefore, total, tok.BalanceOf(addr)) {
+	if !moved(srcBefore, dstBefore, total, tok.BalanceOf(caller), tok.BalanceOf(addr)) {
 		panic(vst.ErrFunding.Error())
 	}
 	grants = append(grants, g)
-	commit(g, true)
+	commit(g, now, true)
 	return id
 }
 
@@ -126,14 +126,14 @@ func Claim(cur realm, id int64) {
 	if rel == 0 {
 		panic(vst.ErrNothing.Error())
 	}
-	must(afford(g, rel))
+	checkFunded(g, rel)
 	got, err := g.Claim(caller, now)
 	must(err)
 	if got != rel {
 		panic(vst.ErrMath.Error())
 	}
 	pay(cur, g, caller, got)
-	commit(g, true)
+	commit(g, now, true)
 }
 
 // Revoke returns the unvested balance to the admin and leaves the
@@ -150,9 +150,7 @@ func Revoke(cur realm, id int64) {
 	}
 	back, err := g.Reclaimable(now)
 	must(err)
-	if back > 0 {
-		must(afford(g, back))
-	}
+	checkFunded(g, back)
 	got, err := g.Revoke(caller, now)
 	must(err)
 	if got != back {
@@ -161,7 +159,7 @@ func Revoke(cur realm, id int64) {
 	if got > 0 {
 		pay(cur, g, caller, got)
 	}
-	commit(g, true)
+	commit(g, now, true)
 }
 
 // SetBeneficiary moves the claim to next. Only the current beneficiary
@@ -170,8 +168,9 @@ func SetBeneficiary(cur realm, id int64, next address) {
 	unlock := guard()
 	defer unlock()
 	g := mustGrant(id)
+	now := mustNow()
 	must(g.SetBeneficiary(cur.Previous().Address(), next))
-	commit(g, false)
+	commit(g, now, false)
 }
 
 // TransferAdmin moves the revoke right. On an irrevocable grant the
@@ -180,8 +179,9 @@ func TransferAdmin(cur realm, id int64, next address) {
 	unlock := guard()
 	defer unlock()
 	g := mustGrant(id)
+	now := mustNow()
 	must(g.TransferAdmin(cur.Previous().Address(), next))
-	commit(g, false)
+	commit(g, now, false)
 }
 
 func newGrant(cur realm, admin, beneficiary address, asset vst.Asset, total, start, cliff, duration, period, curve int64, revocable bool, label string) *vst.Grant {
@@ -221,27 +221,23 @@ func spent(before, amount, after int64) bool {
 	return ok && after == want
 }
 
-func afford(g *vst.Grant, amount int64) error {
-	if amount <= 0 {
-		return vst.ErrMath
+// checkFunded verifies the grant address covers the full outstanding
+// liability (and at least need) before any books move or coins are sent.
+// Because Claim and Revoke reduce both balance and outstanding by the
+// same amount, checking this upfront prevents partial-drain mutations
+// from reaching commit.
+func checkFunded(g *vst.Grant, need int64) {
+	if need < 0 {
+		panic(vst.ErrMath.Error())
 	}
-	switch g.Asset().Kind {
-	case vst.AssetCoin:
-		if banker.NewReadonlyBanker().GetCoin(g.Address(), g.Asset().Denom) < amount {
-			return vst.ErrBalance
-		}
-	case vst.AssetGRC20:
-		tok := grc20reg.Get(g.Asset().Token)
-		if tok == nil {
-			return vst.ErrToken
-		}
-		if tok.BalanceOf(g.Address()) < amount {
-			return vst.ErrBalance
-		}
-	default:
-		return vst.ErrAsset
+	out, err := g.Outstanding()
+	must(err)
+	if need > out {
+		out = need
 	}
-	return nil
+	if live(g) < out {
+		panic(vst.ErrBalance.Error())
+	}
 }
 
 func pay(cur realm, g *vst.Grant, to address, amount int64) {
@@ -268,7 +264,6 @@ func pay(cur realm, g *vst.Grant, to address, amount int64) {
 		}
 		b := banker.NewBanker(banker.BankerTypeRealmSend, sub)
 		b.SendCoins(sub.Address(), to, chain.NewCoins(chain.NewCoin(g.Asset().Denom, amount)))
-		bkr = banker.NewReadonlyBanker()
 		if !moved(srcBefore, dstBefore, amount, bkr.GetCoin(sub.Address(), g.Asset().Denom), bkr.GetCoin(to, g.Asset().Denom)) {
 			panic(vst.ErrFunding.Error())
 		}
@@ -308,8 +303,8 @@ func moved(srcBefore, dstBefore, amount, srcAfter, dstAfter int64) bool {
 // grant address to still hold at least what the books say is outstanding.
 // A donation may leave more. A shortfall panics, and the transaction
 // reverts the mutation.
-func commit(g *vst.Grant, funds bool) {
-	must(g.Invariant(nowUnix()))
+func commit(g *vst.Grant, now int64, funds bool) {
+	must(g.Invariant(now))
 	if !funds {
 		return
 	}
@@ -321,17 +316,23 @@ func commit(g *vst.Grant, funds bool) {
 }
 
 func live(g *vst.Grant) int64 {
-	switch g.Asset().Kind {
+	bal, err := assetBalance(g.Asset(), g.Address())
+	must(err)
+	return bal
+}
+
+func assetBalance(a vst.Asset, addr address) (int64, error) {
+	switch a.Kind {
 	case vst.AssetCoin:
-		return banker.NewReadonlyBanker().GetCoin(g.Address(), g.Asset().Denom)
+		return banker.NewReadonlyBanker().GetCoin(addr, a.Denom), nil
 	case vst.AssetGRC20:
-		tok := grc20reg.Get(g.Asset().Token)
+		tok := grc20reg.Get(a.Token)
 		if tok == nil {
-			panic(vst.ErrToken.Error())
+			return 0, vst.ErrToken
 		}
-		return tok.BalanceOf(g.Address())
+		return tok.BalanceOf(addr), nil
 	default:
-		panic(vst.ErrAsset.Error())
+		return 0, vst.ErrAsset
 	}
 }
 
@@ -361,3 +362,11 @@ func guard() func() {
 }
 
 func nowUnix() int64 { return time.Now().Unix() }
+
+func mustNow() int64 {
+	now := nowUnix()
+	if now < 0 {
+		panic(vst.ErrTime.Error())
+	}
+	return now
+}

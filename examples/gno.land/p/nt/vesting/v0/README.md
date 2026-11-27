@@ -9,7 +9,7 @@ owns the grants, authenticates callers with a live `cur`, and sends.
 
 Design notes, the survey of existing vesting and timelock code, and
 the threat model are in
-[`gno.land/adr/prxxxx_vesting_vault.md`](../../../../../../gno.land/adr/prxxxx_vesting_vault.md).
+[`gno.land/adr/pr6542_vesting_vault.md`](../../../../../../gno.land/adr/pr6542_vesting_vault.md).
 
 A grant is a schedule plus books:
 
@@ -37,10 +37,14 @@ The package rejects a negative clock, a total that does not fit in
 int64 arithmetic, and a label that contains a control character.
 Rounding favors the vault. `Grant.Invariant` checks, at a unix second:
 
-- `claimed + returned <= total`, and both are non-negative
+- `claimed + returned <= total`, and all counters are non-negative
 - the stored address is still `DerivePkgSubAddr(host, "g/<id>")`
-- while the grant is open, nothing has been returned
-- after revoke, `returned == total - frozen` and `frozen >= claimed`
-- `claimed` never exceeds the curve, and `releasable == curve - claimed`
+- while the grant is open, nothing has been returned and `claimed` is
+  backed by `VestedAmount` at `lastClaimAt`
+- after revoke, the grant is revocable, `returned == total - frozen`,
+  and `frozen` is at least `claimed` and bounded by the curve at
+  `revokedAt` and `lastClaimAt`
+- `vested` is `frozen` once revoked or `max(curve(now), claimed)` while
+  open, and `releasable == vested - claimed`
 
 After a revoke, `claimed + releasable + returned == total`.
