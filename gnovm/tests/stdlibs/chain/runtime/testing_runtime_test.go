@@ -28,3 +28,16 @@ func TestTotalCoinRejectsAMalformedDenomWithNothingHeld(t *testing.T) {
 	// cannot pass with a TotalCoin that rejects everything.
 	require.Zero(t, empty.TotalCoin("ugnot"))
 }
+
+func TestTestBankerGetLockedCoinsReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	addr := crypto.Bech32Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	tb := &TestBanker{
+		CoinTable: map[crypto.Bech32Address]tm2std.Coins{
+			addr: tm2std.NewCoins(tm2std.NewCoin("ugnot", 1000)),
+		},
+	}
+	require.Nil(t, tb.GetLockedCoins(addr))
+	require.Nil(t, tb.GetLockedCoins("g1unknown"))
+}
