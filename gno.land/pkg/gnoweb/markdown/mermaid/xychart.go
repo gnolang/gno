@@ -8,7 +8,8 @@ import (
 
 const (
 	plotHeight = 280.0
-	minBand    = 36.0 // width of one category
+	chartWidth = 700.0 // Mermaid's default width, which the plot fills
+	minBand    = 36.0  // width of one category
 	tickLen    = 4.0
 	axisTitleH = 26.0 // room for the title above the y-axis or below the x-axis
 	maxTicks   = 12
@@ -240,7 +241,9 @@ func (d *xychart) draw(w *svgWriter) (float64, float64) {
 	for _, c := range d.categories {
 		band = max(band, textWidth(c, smallSize, false)+12)
 	}
-	plotW := band * float64(len(d.categories))
+	n := float64(len(d.categories))
+	plotW := max(band*n, chartWidth-(pad+labelW+tickLen+6)-pad)
+	band = plotW / n
 
 	top := pad
 	if d.yTitle != "" {
