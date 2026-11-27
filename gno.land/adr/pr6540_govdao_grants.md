@@ -106,6 +106,11 @@ change to GovDAO.
 - **Allowlist the desk in `AllowedDAOs`.** Grants it `UpdateImpl`. Rejected.
 - **Change GovDAO core** (a spender allowlist, a batch executor, a status getter). Cleaner, but a
   new impl and an upgrade vote; listed as follow-ups.
+- **A desk any DAO can run, now.** Grantees can already be any DAO (a realm, a hosted `host#dao`
+  identity, or the owner of a wallet account), and the lifecycle in `p/nt/grants/v0` knows nothing
+  of GovDAO. The desk does: its proposals, its hold and its pages are GovDAO's. Making it generic
+  before a second grantor exists would mean guessing what "approve", "hold" and "freeze" mean for
+  DAOs that decide differently. Deferred; see "Next: a desk for any DAO".
 - **Reuse `p/moul/grants/v0`.** Its grantees are addresses and its members vote on each milestone; here identity is the caller's realm, the whole grant is reserved, and payments follow
   reports without a vote unless GovDAO objects.
 - **Link the open vote from a member-supplied proposal id.** A member could point it at a
@@ -139,5 +144,20 @@ change to GovDAO.
   Simple Majority freeze (GovDAO votes by supermajority, so `NewFreezeRequest` does too).
 - Non-ugnot coins sent to the pool are stuck. Closed grants are never pruned.
 - Follow-ups: a proposal-status getter in `impl` (a hold that lasts until its vote ends), a
-  private-package getter, a batch executor (fund and approve in one vote), moving the pages into
-  `p/nt/grants` if a sub-DAO desk wants them.
+  private-package getter, a batch executor (fund and approve in one vote).
+
+## Next: a desk for any DAO
+
+If another DAO, a sub-DAO for instance, wants to fund grants, the desk becomes a hosted realm, as
+the wallet is for grantees, so that no grantor has to write and audit its own:
+
+- One realm holds a desk per grantor, each a sub-identity (`grants#<name>`) with its own pool
+  address, its own `Rules` and its own pages.
+- Each desk names an **authority**: the identity whose crossing calls may approve, cancel, freeze,
+  return funds and close. Any DAO whose executed proposals can make a crossing call qualifies;
+  `p/nt/commondao` hands its executors a DAO-scoped sub-identity that can.
+- GovDAO keeps a thin adapter with what is specific to it: the proposal builders, the sponsor's
+  review, and the hold, which reads GovDAO's proposals. A generic desk would offer a pause by its
+  authority, or by guardians the authority names, instead.
+- The wallet names the desk it applies to. `wallet/v0` is bound to this desk, so its accounts move
+  to a `wallet/v1` account by spending their balance there.
