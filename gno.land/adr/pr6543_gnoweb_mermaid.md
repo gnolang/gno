@@ -43,12 +43,13 @@ Mermaid, chosen for what realms show:
 | `kanban` | columns and cards by indentation, `id[label]` or a bare label, the `label`, `ticket`, `assigned` and `priority` metadata |
 
 Every type also takes `accTitle`, `accDescr`, `%%` comment lines, a YAML
-frontmatter (its `title` is drawn as YAML reads it; one YAML reads as a
-number is drawn only when JavaScript writes it back as written, as `3.14`
-or `2026`, not `1.50`, `1e3` or `1_000`, and a bool or `0` is refused) and
-entity codes (`#59;`, `#quot;`, any HTML entity name; a code for a control
-character, `#10;` or `#NewLine;`, draws as a space, as the browser shows
-Mermaid's). Keywords ignore ASCII case, as in Mermaid. `%%{init}%%`
+frontmatter (its `title` is drawn as Mermaid draws it: read with js-yaml
+4.3's JSON schema, then written as JavaScript writes it when truthy, so
+`1.50` draws `1.5`, `0x10` draws `16`, and `false`, `0` or `null` draw no
+title; a block scalar, a collection or an unclosed quote is refused) and
+entity codes (`#59;`, `#quot;`, any HTML entity name; a code for HTML
+white space, `#10;` or `#NewLine;`, draws as a space, as the browser shows
+Mermaid's, and one for another control character stays as written). Keywords ignore ASCII case, as in Mermaid. `%%{init}%%`
 directives and the frontmatter's configuration are ignored, since gnoweb's
 theme decides the colors, and so are kanban metadata keys outside the four
 above.

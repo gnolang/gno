@@ -21,6 +21,7 @@ import (
 	"cmp"
 	"fmt"
 	"math"
+	"math/big"
 	"regexp"
 	"strconv"
 	"strings"
@@ -208,27 +209,102 @@ func scan(src string, m *meta) ([]line, error) {
 // or at the end of the line.
 var frontTitle = regexp.MustCompile(`^title[ \t]*:(?:[ \t](.*))?$`)
 
-// yamlTyped matches the plain values YAML's core schema, as js-yaml reads
-// it, takes for a bool or a number, binary and underscores in the digits
-// included; js-yaml reads one ending in an underscore as a string.
-var yamlTyped = regexp.MustCompile(`^(?:true|True|TRUE|false|False|FALSE|[-+]?(?:[0-9][0-9_]*(?:\.[0-9_]*)?|\.[0-9_]+)(?:[eE][-+]?[0-9]+)?|[-+]?0(?:b[01_]+|o[0-7_]+|x[0-9a-fA-F_]+)|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$`)
+// Mermaid reads the frontmatter with js-yaml's JSON schema and draws the
+// title as JavaScript writes it, when it is truthy. These follow js-yaml
+// 4.3: its integers take decimal digits, or 0b, 0x or 0o ones, after an
+// optional sign; its floats match yamlFloat.
+var (
+	yamlFloat     = regexp.MustCompile(`^(?:[-+]?[0-9]+(?:\.[0-9]*)?(?:[eE][-+]?[0-9]+)?|\.[0-9]+(?:[eE][-+]?[0-9]+)?|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$`)
+	yamlIntDigits = map[int]string{2: "01", 8: "01234567", 10: "0123456789", 16: "0123456789abcdefABCDEF"}
+)
 
-// keptNumber reports whether JavaScript writes the number s back as s, as
-// Mermaid draws a numeric title: in its shortest form, without an exponent,
-// which it takes below 1e-6 and from 1e21, and not 0, which draws no title.
-func keptNumber(s string) bool {
-	v, err := strconv.ParseFloat(s, 64)
-	a := math.Abs(v)
-	return err == nil && a >= 1e-6 && a < 1e21 && strconv.FormatFloat(v, 'f', -1, 64) == s
+// mermaidTitle returns the title Mermaid draws for the plain YAML value v:
+// none for a null, false, 0 or NaN, true for true, a number as JavaScript
+// writes it (0x10 draws 16, 1.50 draws 1.5), and anything else as written.
+func mermaidTitle(v string) string {
+	switch v {
+	case "~", "null", "Null", "NULL", "false", "False", "FALSE":
+		return ""
+	case "true", "True", "TRUE":
+		return "true"
+	}
+	f, ok := yamlNumber(v)
+	switch {
+	case !ok:
+		return v
+	case f == 0 || math.IsNaN(f):
+		return ""
+	}
+	return jsNumber(f)
+}
+
+// yamlNumber reads v as js-yaml reads an integer, then a float; ok is false
+// when it reads neither, an infinite integer or float included, but for
+// .inf.
+func yamlNumber(v string) (float64, bool) {
+	digits, sign := v, 1.0
+	if digits != "" && (digits[0] == '-' || digits[0] == '+') {
+		if digits[0] == '-' {
+			sign = -1
+		}
+		digits = digits[1:]
+	}
+	base := 10
+	if len(digits) > 1 && digits[0] == '0' {
+		switch digits[1] {
+		case 'b':
+			base = 2
+		case 'o':
+			base = 8
+		case 'x':
+			base = 16
+		}
+		if base != 10 {
+			digits = digits[2:]
+		}
+	}
+	if digits != "" && strings.Trim(digits, yamlIntDigits[base]) == "" {
+		n, _ := new(big.Int).SetString(digits, base)
+		if f, _ := new(big.Float).SetInt(n).Float64(); !math.IsInf(f, 0) {
+			return sign * f, true
+		}
+	}
+	if !yamlFloat.MatchString(v) {
+		return 0, false
+	}
+	switch strings.ToLower(strings.TrimLeft(v, "+-")) {
+	case ".inf":
+		return sign * math.Inf(1), true
+	case ".nan":
+		return math.NaN(), true
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	return f, err == nil
+}
+
+// jsNumber writes f as JavaScript's Number.prototype.toString does: in its
+// shortest form, with an exponent below 1e-6 and from 1e21.
+func jsNumber(f float64) string {
+	switch a := math.Abs(f); {
+	case math.IsInf(f, 1):
+		return "Infinity"
+	case math.IsInf(f, -1):
+		return "-Infinity"
+	case a >= 1e-6 && a < 1e21:
+		return strconv.FormatFloat(f, 'f', -1, 64)
+	}
+	s := strconv.FormatFloat(f, 'e', -1, 64) // 1e-07: JavaScript writes 1e-7
+	m, e, _ := strings.Cut(s, "e")
+	return m + "e" + e[:1] + strings.TrimLeft(e[1:], "0")
 }
 
 // yamlScalar reads v, a value on one line, as YAML reads a string: a plain
 // value ends at a comment, a single-quoted one doubles its quotes and a
 // double-quoted one takes the escapes \" \\ \n \t and \uXXXX; only a comment
-// may follow the closing quote. ok is false for anything else YAML could
-// read there, which would not be the string written: a null, a block
-// scalar, a collection, an anchor, an unclosed quote, a bool, or a number
-// Mermaid would not draw as written (0 draws no title, 1.50 draws 1.5).
+// may follow the closing quote; a plain value is then drawn as Mermaid
+// draws it (see mermaidTitle). ok is false for what YAML would read as
+// something else than a scalar: a block scalar, a collection, an anchor,
+// an unclosed quote.
 func yamlScalar(v string) (s string, ok bool) {
 	v = strings.TrimSpace(v)
 	if v == "" || v[0] != '"' && v[0] != '\'' {
@@ -238,14 +314,12 @@ func yamlScalar(v string) (s string, ok bool) {
 		switch {
 		case v == "":
 			return "", true
-		case v == "~", v == "null", v == "Null", v == "NULL",
-			strings.ContainsRune("[]{},&*!|>%@`", rune(v[0])),
+		case strings.ContainsRune("[]{},&*!|>%@`", rune(v[0])),
 			strings.HasPrefix(v+" ", "- "), strings.HasPrefix(v+" ", "? "),
-			strings.Contains(v+" ", ": "),
-			yamlTyped.MatchString(v) && !strings.HasSuffix(v, "_") && !keptNumber(v):
+			strings.Contains(v+" ", ": "):
 			return "", false
 		}
-		return v, true
+		return mermaidTitle(v), true
 	}
 	q := v[0]
 	var b strings.Builder

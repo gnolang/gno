@@ -112,12 +112,37 @@ func TestFrontmatterTitle(t *testing.T) {
 		`2026`:                "2026",
 		`-5`:                  "-5",
 		``:                    "",
-		// A number JavaScript writes back as written draws as written.
-		`3.14`:   "3.14",
-		`-3.14`:  "-3.14",
-		`0.5`:    "0.5",
-		`2024.1`: "2024.1",
-		`1_`:     "1_", // a string to js-yaml
+		// As Mermaid draws them: js-yaml 4.3's JSON schema reads the value,
+		// and a truthy one is drawn as JavaScript writes it (checked against
+		// js-yaml 4.3.2).
+		`3.14`:                   "3.14",
+		`-3.14`:                  "-3.14",
+		`2024.1`:                 "2024.1",
+		`1e-7`:                   "1e-7",
+		`-.5`:                    "-.5", // a string to js-yaml
+		`1_000`:                  "1_000",
+		`~`:                      "",
+		`null`:                   "",
+		`false`:                  "",
+		`0`:                      "",
+		`-0`:                     "",
+		`.nan`:                   "",
+		`TRUE`:                   "true",
+		`1.50`:                   "1.5",
+		`1.0`:                    "1",
+		`.5`:                     "0.5",
+		`+5`:                     "5",
+		`007`:                    "7",
+		`1e3`:                    "1000",
+		`0x10`:                   "16",
+		`-0x10`:                  "-16",
+		`0b101`:                  "5",
+		`0o17`:                   "15",
+		`.inf`:                   "Infinity",
+		`-.inf`:                  "-Infinity",
+		`0.0000001`:              "1e-7",
+		`1000000000000000000000`: "1e+21",
+		`12345678901234567890`:   "12345678901234567000",
 	} {
 		var m meta
 		_, err := scan("---\ntitle: "+value+"\n---\npie", &m)
@@ -130,10 +155,8 @@ func TestFrontmatterTitle(t *testing.T) {
 	assert.Empty(t, m.title, "YAML keys are case-sensitive")
 
 	for _, value := range []string{
-		">", "|-", "~", "null", "'unclosed", `"unclosed`, `"x" y`, `'x'#c`, `"\q"`, `"\ud800"`,
+		">", "|-", "'unclosed", `"unclosed`, `"x" y`, `'x'#c`, `"\q"`, `"\ud800"`,
 		"[a, b]", "&anchor x", "*alias", "- x", "Time: 10:30", "a\n  continued", "\n  next line",
-		"false", "TRUE", "0", "1.50", "0x10", "1e3", "007", ".inf", "12345678901234567890",
-		"-0", "1.0", ".5", "+5", "1_000", "0b101", "-0x10", "0.0000001", "1000000000000000000000",
 	} {
 		_, err := scan("---\ntitle: "+value+"\n---\npie", &meta{})
 		var e *Error
