@@ -75,6 +75,76 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	assert.Equal(t, StringValue("1"), v.V)
 }
 
+func TestRunMemPackageBlankTypeDeclNoSlot(t *testing.T) {
+	// A blank type decl must not reserve a block slot: persisted package
+	// blocks are keyed by name index, so a `type _ ...` slot would shift
+	// every later name in the block. Reserve must ignore the blank
+	// identifier just like Define2 does.
+	db := memdb.NewMemDB()
+	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
+	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
+	store := NewStore(nil, baseStore, iavlStore)
+	m := NewMachine("std", store)
+	m.RunMemPackageWithOverrides(&std.MemPackage{
+		Type: MPStdlibProd,
+		Name: "std",
+		Path: "std",
+		Files: []*std.MemFile{
+			{Name: "a.gno", Body: "package std\n\ntype _ struct{}\n\nvar a = 1\n"},
+		},
+	}, true)
+	pn := store.GetBlockNode(PackageNodeLocation("std")).(*PackageNode)
+	assert.NotContains(t, pn.GetBlockNames(), Name(blankIdentifier))
+}
+
+func TestFauxCopiesSurviveSecondStaticBlockPass(t *testing.T) {
+	// PredefineFileSet and Preprocess both run initStaticBlocks over the same
+	// file, so the Reserve calls that copy an if/switch init name into each
+	// case run twice. The second run must recognize each copy by its
+	// declaration: appending instead gives every copied name a second slot,
+	// and every run of the case one more block item, with no shadow at all.
+	const src = `package main
+
+func f() (int, error) { return 1, nil }
+
+func main() {
+	if x, err := f(); err == nil {
+		println(x)
+	} else {
+		println(err)
+	}
+	switch v, w := 1, 2; v {
+	case 1:
+		v := 3
+		println(v, w)
+	default:
+		println(w)
+	}
+}
+`
+	m := NewMachine("", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	require.NoError(t, err)
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	PredefineFileSet(m.Store, pn, fset)
+	Preprocess(m.Store, pn, fn)
+
+	var got []uint16
+	Transcribe(fn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage == TRANS_ENTER {
+			switch n.(type) {
+			case *IfCaseStmt, *SwitchClauseStmt:
+				got = append(got, n.(BlockNode).GetNumNames())
+			}
+		}
+		return n, TRANS_CONTINUE
+	})
+	// then and else: x, err. case 1: v, w and its own v. default: v, w.
+	assert.Equal(t, []uint16{2, 2, 3, 2}, got)
+}
+
 // A realm record handed to RunMemPackageOverRealm has to be the one persisted
 // at the package's own path, and the run has to save it. Neither is checkable
 // after the fact: the ObjectIDs are minted off whichever counter arrives, and
