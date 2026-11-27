@@ -200,17 +200,7 @@ The release binaries are not reproducible from the tag (they are built without `
 
 ### Rehearse on the testnet first
 
-The testnet runs the same binary as mainnet; only the genesis balances and the
-on-chain transactions differ. Every mainnet release is therefore first cut as
-a release candidate on the same commit
-(`cut-release.sh v1.6.0-rc.1 --commit <code-commit> --push`), deployed to the
-testnet the way mainnet will take it, and checked there. A patch is switched to
-node by node; a coordinated upgrade goes through `set-halt` naming the rc, and
-the rehearsal checks that the halt fires, an early start is refused and blocks
-are produced after the restart. Either way, the nodes report the rc and a fresh
-node syncs from genesis with it. A fix means a new commit, through its own
-pull request, and `rc.2`. Only then is the final tag cut, on the same commit as
-the last rc.
+The testnet runs the same binary as mainnet; only the genesis balances and the on-chain transactions differ. Every mainnet release is therefore first cut as a release candidate on the same commit (`cut-release.sh v1.6.0-rc.1 --commit <code-commit> --push`), deployed to the testnet the way mainnet will take it, and checked there. A patch is switched to node by node; a coordinated upgrade goes through `set-halt` naming the rc, and the rehearsal checks that the halt fires, an early start is refused and blocks are produced after the restart. Either way, the nodes report the rc, and a fresh node syncs from genesis on the versions the testnet's ledger names and then on the rc, each binary with `GNOROOT` at its own tag. A fix means a new commit, through its own pull request, and `rc.2`. Only then is the final tag cut, on the same commit as the last rc.
 
 ### Publishing early, promoting once the switch is set
 
