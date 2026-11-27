@@ -12,10 +12,7 @@ const (
 	stripeW    = 4.0
 )
 
-const (
-	classLane   class = "gno-mermaid__lane"
-	classTicket class = "gno-mermaid__ticket"
-)
+const classTicket class = "gno-mermaid__ticket"
 
 // priorities maps a card priority to the series color of its stripe.
 var priorities = map[string]int{"very high": 4, "high": 2, "low": 1, "very low": 6}
@@ -166,7 +163,7 @@ func (d *kanban) draw(w *svgWriter) (float64, float64) {
 			if c.details != "" {
 				k.details = wrap([]string{c.details}, smallSize, inner, false)
 			}
-			k.h = cardHeight(k.lines, fontSize)
+			k.h = cardHeight(k.lines)
 			if len(k.details) > 0 {
 				k.h += textBlock(len(k.details), smallSize) + 4
 			}
@@ -175,18 +172,17 @@ func (d *kanban) draw(w *svgWriter) (float64, float64) {
 		}
 		laneH = max(laneH, h+laneGap/2)
 	}
-	top := pad
 	for i, col := range d.columns {
 		x := pad + float64(i)*(laneWidth+laneGap)
-		w.rect(classLane, x, top, laneWidth, laneH, 6)
-		w.text(classTitle, x+laneGap, baseline(top+10, fontSize), anchorStart, 0, titles[i]...)
-		w.text(classMuted, x+laneWidth-laneGap, baseline(top+11, smallSize), anchorEnd, smallSize, strconv.Itoa(len(col.cards)))
-		y := top + header
+		w.rect(classBox, x, pad, laneWidth, laneH, 6)
+		w.text(classTitle, x+laneGap, baseline(pad+10, fontSize), anchorStart, 0, titles[i]...)
+		w.text(classMuted, x+laneWidth-laneGap, baseline(pad+11, smallSize), anchorEnd, smallSize, strconv.Itoa(len(col.cards)))
+		y := pad + header
 		for j, k := range lanes[i] {
 			cx, cw := x+laneGap, laneWidth-2*laneGap
 			w.rect(classTicket, cx, y, cw, k.h, boxRadius)
 			if p := col.cards[j].priority; p >= 0 {
-				w.rect(classPeriod+" "+color(p), cx, y, stripeW, k.h, 2)
+				w.rect(classFill+" "+color(p), cx, y, stripeW, k.h, 2)
 			}
 			w.text("", cx+cardPad, baseline(y+cardPad, fontSize), anchorStart, 0, k.lines...)
 			if len(k.details) > 0 {
@@ -196,5 +192,5 @@ func (d *kanban) draw(w *svgWriter) (float64, float64) {
 			y += k.h + laneGap
 		}
 	}
-	return pad + float64(len(d.columns))*(laneWidth+laneGap) - laneGap + pad, top + laneH + pad
+	return pad + float64(len(d.columns))*(laneWidth+laneGap) - laneGap + pad, pad + laneH + pad
 }

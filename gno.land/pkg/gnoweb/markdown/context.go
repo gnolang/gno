@@ -109,7 +109,6 @@ func getLinkPolicyFromContext(ctx parser.Context) LinkPolicy {
 	return p
 }
 
-// getMermaidFromContext reports whether the parser context enables diagrams.
 func getMermaidFromContext(ctx parser.Context) bool {
 	v, _ := ctx.Get(gMermaidContextKey).(bool)
 	return v

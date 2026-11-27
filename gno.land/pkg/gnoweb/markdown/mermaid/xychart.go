@@ -18,8 +18,6 @@ const (
 
 const (
 	classGrid class = "gno-mermaid__grid"
-	classAxis class = "gno-mermaid__axis"
-	classBar  class = "gno-mermaid__bar"
 	classPlot class = "gno-mermaid__plot"
 )
 
@@ -270,11 +268,11 @@ func (d *xychart) draw(w *svgWriter) (float64, float64) {
 		w.line(classGrid, x0, y(v), x0+plotW, y(v))
 		w.text(classMuted, x0-tickLen-4, y(v)+4, anchorEnd, smallSize, labels[i])
 	}
-	w.line(classAxis, x0, top, x0, bottom)
-	w.line(classAxis, x0, bottom, x0+plotW, bottom)
+	w.line(classStroke, x0, top, x0, bottom)
+	w.line(classStroke, x0, bottom, x0+plotW, bottom)
 	for i, c := range d.categories {
 		cx := x0 + band*(float64(i)+0.5)
-		w.line(classAxis, cx, bottom, cx, bottom+tickLen)
+		w.line(classStroke, cx, bottom, cx, bottom+tickLen)
 		w.text(classMuted, cx, bottom+tickLen+14, anchorMiddle, smallSize, c)
 	}
 	w.text(classTitle, x0+plotW/2, height-pad-4, anchorMiddle, smallSize, d.xTitle)
@@ -291,7 +289,7 @@ func (d *xychart) draw(w *svgWriter) (float64, float64) {
 	bar := 0
 	for k, s := range d.series {
 		if s.bar {
-			w.group(classBar + " " + color(k))
+			w.group(classFill + " " + color(k))
 			for i, v := range s.values {
 				bx := x0 + band*float64(i) + (band-groupW)/2 + barW*float64(bar)
 				vy := y(v)

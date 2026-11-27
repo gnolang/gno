@@ -32,12 +32,8 @@ func TestXYChartErrors(t *testing.T) {
 
 func parseXY(t *testing.T, lines ...string) (*xychart, meta) {
 	t.Helper()
-	ls := make([]line, len(lines))
-	for i, l := range lines {
-		ls[i] = line{n: i + 1, text: l}
-	}
 	var m meta
-	d, err := parseXYChart("", ls, &m)
+	d, err := parseXYChart("", toLines(lines...), &m)
 	require.NoError(t, err)
 	return d.(*xychart), m
 }
@@ -85,12 +81,11 @@ func TestSplitTitle(t *testing.T) {
 func TestXYChartWideXTitle(t *testing.T) {
 	// The x-axis title, centered under the plot, fits the drawing.
 	const title = "A very long x axis title that is much wider than the plot"
-	out, err := Render("xychart-beta\nx-axis \"" + title + "\" [a]\nbar [1]")
+	out, width, err := Render("xychart-beta\nx-axis \"" + title + "\" [a]\nbar [1]")
 	require.NoError(t, err)
-	m := regexp.MustCompile(`width="([\d.]+)"(?s:.*)x="([\d.]+)" y="[\d.]+" text-anchor="middle" font-size="12">` + title).FindSubmatch(out)
+	m := regexp.MustCompile(`x="([\d.]+)" y="[\d.]+" text-anchor="middle" font-size="12">` + title).FindSubmatch(out)
 	require.NotNil(t, m, "%s", out)
-	width, _ := strconv.ParseFloat(string(m[1]), 64)
-	x, _ := strconv.ParseFloat(string(m[2]), 64)
+	x, _ := strconv.ParseFloat(string(m[1]), 64)
 	half := textWidth(title, smallSize, true) / 2
 	assert.GreaterOrEqual(t, x-half, pad-0.01)
 	assert.LessOrEqual(t, x+half, width-pad+0.01)

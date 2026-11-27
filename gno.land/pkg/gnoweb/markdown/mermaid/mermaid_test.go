@@ -32,7 +32,7 @@ func TestGolden(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			in, err := os.ReadFile(src)
 			require.NoError(t, err)
-			out, err := Render(string(in))
+			out, _, err := Render(string(in))
 			require.NoError(t, err)
 			checkSVG(t, out)
 			golden := strings.TrimSuffix(src, ".mmd") + ".svg"
@@ -47,17 +47,6 @@ func TestGolden(t *testing.T) {
 	}
 }
 
-func TestAccessibilityAndFrontmatter(t *testing.T) {
-	var m meta
-	lines, err := scan("---\ntitle: Top\nconfig:\n  title: nested\n---\ntimeline\naccDescr { Our roadmap }\n2020 : a", &m)
-	require.NoError(t, err)
-	assert.Equal(t, "Top", m.title, "a title nested under config is not the diagram's")
-	body, err := accessibility(lines[1:], &m)
-	require.NoError(t, err)
-	assert.Equal(t, "Our roadmap", m.accDescr)
-	assert.Len(t, body, 1)
-}
-
 func TestTabs(t *testing.T) {
 	// Mermaid separates words with tabs as with spaces.
 	for _, src := range []string{
@@ -66,7 +55,7 @@ func TestTabs(t *testing.T) {
 		"xychart-beta\nx-axis\t[a]\nbar\t[1]",
 		"timeline\n2020 :\ta\nsection\tS\n2021 : b",
 	} {
-		_, err := Render(src)
+		_, _, err := Render(src)
 		assert.NoError(t, err, src)
 	}
 }
@@ -77,7 +66,7 @@ func renderErrors(t *testing.T, cases map[string][2]string) {
 	t.Helper()
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			out, err := Render(c[0])
+			out, _, err := Render(c[0])
 			var e *Error
 			require.True(t, errors.As(err, &e), "got %v", err)
 			assert.Contains(t, e.Error(), c[1])
@@ -100,11 +89,24 @@ func TestRenderErrors(t *testing.T) {
 
 func TestScan(t *testing.T) {
 	var m meta
-	lines, err := scan("\n---\ntitle: \"From front\"\nconfig:\n  theme: dark\n---\n%%{init: {\n  \"theme\": \"dark\"\n}}%%\npie\n  %% a comment\n\t\"50%% off\" : 1\n", &m)
+	lines, err := scan("\n---\ntitle: \"From front\"\nconfig:\n  title: nested\n---\n%%{init: {\n  \"theme\": \"dark\"\n}}%%\npie\n  %% a comment\n\t\"50%% off\" : 1\naccDescr { Our share }\n", &m)
 	require.NoError(t, err)
-	assert.Equal(t, "From front", plain(m.title))
-	assert.Equal(t, []line{{n: 10, text: "pie"}, {n: 12, indent: 1, text: `"50%% off" : 1`}}, lines,
+	assert.Equal(t, "From front", plain(m.title), "a title nested under config is not the diagram's")
+	assert.Equal(t, []line{{n: 10, text: "pie"}, {n: 12, indent: 1, text: `"50%% off" : 1`}, {n: 13, text: "accDescr { Our share }"}}, lines,
 		"only whole-line comments are dropped, as Mermaid does")
+	body, err := accessibility(lines[1:], &m)
+	require.NoError(t, err)
+	assert.Equal(t, "Our share", m.accDescr)
+	assert.Equal(t, lines[1:2], body)
+}
+
+// toLines makes the lines of a diagram's body, numbered from 1.
+func toLines(texts ...string) []line {
+	ls := make([]line, len(texts))
+	for i, s := range texts {
+		ls[i] = line{n: i + 1, text: s}
+	}
+	return ls
 }
 
 func TestTitle(t *testing.T) {
@@ -117,7 +119,7 @@ func TestTitle(t *testing.T) {
 	assert.False(t, ok)
 }
 
-func TestLabelLines(t *testing.T) {
+func TestLabel(t *testing.T) {
 	for in, want := range map[string][]string{
 		"one":                     {"one"},
 		"a<br>b":                  {"a", "b"},
@@ -127,7 +129,7 @@ func TestLabelLines(t *testing.T) {
 		"<br>":                    {"", ""},
 		"#60;br#62;":              {"<br>"}, // an encoded tag stays text
 	} {
-		assert.Equal(t, want, labelLines(in), in)
+		assert.Equal(t, want, label(in), in)
 	}
 }
 
@@ -209,7 +211,7 @@ func TestWrap(t *testing.T) {
 func TestWriterEscapes(t *testing.T) {
 	var w svgWriter
 	w.text(classMuted, 1, 2, anchorStart, 0, `<script>alert("x")</script>`, "a & b\x00")
-	out, _, _ := w.document(10, 10, `<title>`, `"><img src=x onerror=alert(1)>`, "</desc><script>")
+	out := w.document(10, 10, 10, `<title>`, `"><img src=x onerror=alert(1)>`, "</desc><script>")
 	checkSVG(t, out)
 	s := string(out)
 	assert.NotContains(t, s, "<script")
@@ -218,12 +220,14 @@ func TestWriterEscapes(t *testing.T) {
 	assert.Contains(t, s, "a &amp; b�")
 }
 
-func TestNum(t *testing.T) {
+func TestWriteNum(t *testing.T) {
 	for v, want := range map[float64]string{
 		0: "0", -0.001: "0", 1.005: "1", 2.5: "2.5", 1.234: "1.23", -3: "-3",
 		1e307: "1000000000", -1e307: "-1000000000", math.Inf(1): "0", math.NaN(): "0",
 	} {
-		assert.Equal(t, want, num(v), "%v", v)
+		var b bytes.Buffer
+		writeNum(&b, v)
+		assert.Equal(t, want, b.String(), "%v", v)
 	}
 }
 
@@ -257,7 +261,7 @@ func FuzzRender(f *testing.F) {
 		f.Add(seed)
 	}
 	f.Fuzz(func(t *testing.T, src string) {
-		out, err := Render(src)
+		out, _, err := Render(src)
 		if err != nil {
 			var e *Error
 			require.True(t, errors.As(err, &e), "error %v is not an *Error", err)

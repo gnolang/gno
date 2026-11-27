@@ -11,14 +11,13 @@ import (
 // ems; pad is the margin around a diagram, cardPad the padding inside a box
 // of text and boxRadius its corner radius, the same in every diagram type.
 const (
-	fontSize   = 14.0
-	smallSize  = 12.0
-	titleSize  = 16.0
-	leading    = 1.3
-	lineHeight = leading * fontSize
-	pad        = 16.0
-	cardPad    = 8.0
-	boxRadius  = 4.0
+	fontSize  = 14.0
+	smallSize = 12.0
+	titleSize = 16.0
+	leading   = 1.3
+	pad       = 16.0
+	cardPad   = 8.0
+	boxRadius = 4.0
 )
 
 // class is a class attribute value. Its values are the Go constants below
@@ -31,9 +30,11 @@ const (
 	classTitle  class = "gno-mermaid__title"
 	classMuted  class = "gno-mermaid__muted"
 	classBox    class = "gno-mermaid__box"
+	classStroke class = "gno-mermaid__stroke"
 	classDashed class = "gno-mermaid__stroke gno-mermaid__dashed"
 	classEdge   class = "gno-mermaid__edge"
 	classHead   class = "gno-mermaid__head"
+	classFill   class = "gno-mermaid__fill" // in the series color
 )
 
 // palette are the series color classes, in the order series take them.
@@ -43,10 +44,8 @@ var palette = [...]class{
 	"gno-mermaid__c8", "gno-mermaid__c9", "gno-mermaid__c10", "gno-mermaid__c11",
 }
 
-// color returns the color class of the i-th series.
 func color(i int) class { return palette[i%len(palette)] }
 
-// titleHeight returns the room a title takes above a diagram.
 func titleHeight(title string) float64 {
 	if title == "" {
 		return 0
@@ -54,7 +53,7 @@ func titleHeight(title string) float64 {
 	return titleSize * 2
 }
 
-// titleWidth returns the width a title needs, margins included.
+// titleWidth includes the margins.
 func titleWidth(title string) float64 {
 	if title == "" {
 		return 0
@@ -73,9 +72,8 @@ func textBlock(n int, size float64) float64 {
 // baseline returns the first baseline of a text block whose top is at y.
 func baseline(y, size float64) float64 { return y + size*0.95 }
 
-// cardHeight returns the height of a box holding lines of text.
-func cardHeight(lines []string, size float64) float64 {
-	return textBlock(max(len(lines), 1), size) + 2*cardPad
+func cardHeight(lines []string) float64 {
+	return textBlock(max(len(lines), 1), fontSize) + 2*cardPad
 }
 
 // anchor is a text-anchor value.
@@ -97,22 +95,11 @@ type svgWriter struct {
 	b bytes.Buffer
 }
 
-// document wraps what w holds, a drawing of bodyW by bodyH, in an <svg>
-// element labelled for assistive technology, under the title if there is
-// one: the drawing is moved below the title and centered under it when the
-// title is wider. It returns the size of the whole.
-// Width returns the width, in px, of an SVG that Render drew: the first
-// width attribute, which document writes on the <svg> element.
-func Width(svg []byte) float64 {
-	_, rest, _ := bytes.Cut(svg, []byte(` width="`))
-	v, _, _ := bytes.Cut(rest, []byte(`"`))
-	w, _ := strconv.ParseFloat(string(v), 64)
-	return w
-}
-
-func (w *svgWriter) document(bodyW, bodyH float64, title, label, desc string) (out []byte, width, height float64) {
-	width = max(bodyW, titleWidth(title))
-	height = bodyH + titleHeight(title)
+// document wraps what w holds, a drawing bodyW wide, in an <svg> element of
+// width by height labelled for assistive technology, under the title if
+// there is one: the drawing is moved below the title and centered under it
+// when the title is wider.
+func (w *svgWriter) document(width, height, bodyW float64, title, label, desc string) []byte {
 	dx, dy := (width-bodyW)/2, titleHeight(title)
 
 	var b svgWriter
@@ -121,11 +108,11 @@ func (w *svgWriter) document(bodyW, bodyH float64, title, label, desc string) (o
 	b.attr("width", width)
 	b.attr("height", height)
 	b.b.WriteString(` viewBox="0 0 `)
-	b.b.WriteString(num(width))
+	writeNum(&b.b, width)
 	b.b.WriteByte(' ')
-	b.b.WriteString(num(height))
+	writeNum(&b.b, height)
 	b.b.WriteString(`" font-size="`)
-	b.b.WriteString(num(fontSize))
+	writeNum(&b.b, fontSize)
 	b.b.WriteString(`" role="img" aria-label="`)
 	escape(&b.b, label)
 	b.b.WriteString(`">`)
@@ -137,9 +124,9 @@ func (w *svgWriter) document(bodyW, bodyH float64, title, label, desc string) (o
 	b.text(classTitle, width/2, pad+titleSize, anchorMiddle, titleSize, title)
 	if dx != 0 || dy != 0 {
 		b.b.WriteString(`<g transform="translate(`)
-		b.b.WriteString(num(dx))
+		writeNum(&b.b, dx)
 		b.b.WriteByte(' ')
-		b.b.WriteString(num(dy))
+		writeNum(&b.b, dy)
 		b.b.WriteString(`)">`)
 		b.b.Write(w.b.Bytes())
 		b.b.WriteString("</g>")
@@ -147,7 +134,7 @@ func (w *svgWriter) document(bodyW, bodyH float64, title, label, desc string) (o
 		b.b.Write(w.b.Bytes())
 	}
 	b.b.WriteString("</svg>")
-	return b.b.Bytes(), width, height
+	return b.b.Bytes()
 }
 
 func (w *svgWriter) group(c class) {
@@ -187,10 +174,8 @@ func (w *svgWriter) circle(c class, cx, cy, r float64) {
 	w.b.WriteString("/>")
 }
 
-// polygon draws a closed shape through the points x0, y0, x1, y1, ….
 func (w *svgWriter) polygon(c class, xy ...float64) { w.points("polygon", c, xy) }
 
-// polyline draws an open line through the points x0, y0, x1, y1, ….
 func (w *svgWriter) polyline(c class, xy ...float64) { w.points("polyline", c, xy) }
 
 func (w *svgWriter) points(name string, c class, xy []float64) {
@@ -204,7 +189,7 @@ func (w *svgWriter) points(name string, c class, xy []float64) {
 		default:
 			w.b.WriteByte(' ')
 		}
-		w.b.WriteString(num(v))
+		writeNum(&w.b, v)
 	}
 	w.b.WriteString(`"/>`)
 }
@@ -216,8 +201,8 @@ func (w *svgWriter) path(c class, d *pathData) {
 	w.b.WriteString(`"/>`)
 }
 
-// text writes lines of text, the first baseline at y and each next one a
-// lineHeight lower. A size of 0 keeps the document's font size.
+// text writes lines of text, the first baseline at y and each next one
+// leading ems lower. A size of 0 keeps the document's font size.
 func (w *svgWriter) text(c class, x, y float64, a anchor, size float64, lines ...string) {
 	if len(lines) == 0 || len(lines) == 1 && lines[0] == "" {
 		return
@@ -265,7 +250,7 @@ func (w *svgWriter) attr(name string, v float64) {
 	w.b.WriteByte(' ')
 	w.b.WriteString(name)
 	w.b.WriteString(`="`)
-	w.b.WriteString(num(v))
+	writeNum(&w.b, v)
 	w.b.WriteByte('"')
 }
 
@@ -274,34 +259,33 @@ type pathData struct {
 	b bytes.Buffer
 }
 
-// cmd appends the path command c with its arguments.
 func (p *pathData) cmd(c byte, args ...float64) *pathData {
 	p.b.WriteByte(c)
 	for i, v := range args {
 		if i > 0 {
 			p.b.WriteByte(' ')
 		}
-		p.b.WriteString(num(v))
+		writeNum(&p.b, v)
 	}
 	return p
 }
 
-// maxCoord bounds the numbers num writes, far beyond any drawing Render
-// accepts (maxDimension), so a number is always a plain decimal.
+// maxCoord bounds the numbers writeNum writes, far beyond any drawing
+// Render accepts (maxDimension), so a number is always a plain decimal.
 const maxCoord = 1e9
 
-// num formats v with at most two decimals. A value that is not finite, which
-// no layout should produce, is written as 0, and one past maxCoord as the
-// bound, so the document stays valid.
-func num(v float64) string {
+// writeNum writes v with at most two decimals. A value that is not finite,
+// which no layout should produce, is written as 0, and one past maxCoord as
+// the bound, so the document stays valid.
+func writeNum(b *bytes.Buffer, v float64) {
 	if math.IsNaN(v) || math.IsInf(v, 0) {
-		return "0"
+		v = 0
 	}
 	v = math.Round(min(max(v, -maxCoord), maxCoord)*100) / 100
 	if v == 0 {
-		return "0" // not "-0"
+		v = 0 // not -0
 	}
-	return strconv.FormatFloat(v, 'f', -1, 64)
+	b.Write(strconv.AppendFloat(b.AvailableBuffer(), v, 'f', -1, 64))
 }
 
 // escape writes s as XML character data, valid in text and in attribute

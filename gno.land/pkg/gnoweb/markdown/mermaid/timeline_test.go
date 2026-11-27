@@ -21,16 +21,16 @@ func TestTimelineErrors(t *testing.T) {
 
 func TestTimelineParse(t *testing.T) {
 	var m meta
-	d, err := parseTimeline("", []line{
-		{text: "2023 : early"},
-		{text: "Section Later"},
-		{text: "2024 : a : b"},
-		{text: "     : c"},
-		{text: "2025"},
-		{text: "2026 : at 10:30 : https://gno.land : x :"},
-		{text: "Title Gno"},
-		{text: "# a comment"},
-	}, &m)
+	d, err := parseTimeline("", toLines(
+		"2023 : early",
+		"Section Later",
+		"2024 : a : b",
+		"     : c",
+		"2025",
+		"2026 : at 10:30 : https://gno.land : x :",
+		"Title Gno",
+		"# a comment",
+	), &m)
 	require.NoError(t, err)
 	tl := d.(*timeline)
 	require.Len(t, tl.periods, 4)

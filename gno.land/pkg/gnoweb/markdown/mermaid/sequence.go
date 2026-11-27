@@ -38,12 +38,10 @@ const (
 	classNote      class = "gno-mermaid__note"
 	classFrame     class = "gno-mermaid__frame"
 	classFrameLine class = "gno-mermaid__frame gno-mermaid__dashed"
-	classBadge     class = "gno-mermaid__badge"
 	classOnBadge   class = "gno-mermaid__on-badge"
 )
 
 type seqParticipant struct {
-	id    string
 	label []string
 	actor bool // a stick figure rather than a box
 	w, h  float64
@@ -96,9 +94,9 @@ type seqEvent struct {
 	text     []string
 	num      string // the autonumber, or ""
 	notePos  int
-	block    *seqBlock
-	keyword  string // of an open or section event
-	n        int    // source line
+	block    *seqBlock // of an open event
+	keyword  string    // of an open event
+	n        int       // source line
 	y, h     float64
 	l, r     float64 // horizontal extent, relative to participant 0
 }
@@ -137,7 +135,7 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 			return 0, errorf(n, "more than %d participants", maxParticipants)
 		}
 		ids[id] = len(d.parts)
-		d.parts = append(d.parts, &seqParticipant{id: id, label: []string{id}})
+		d.parts = append(d.parts, &seqParticipant{label: []string{id}})
 		return len(d.parts) - 1, nil
 	}
 	var open *seqBlock
@@ -154,7 +152,7 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 		switch kw := lowerASCII(word); kw {
 		case "participant", "actor":
 			id, alias, hasAlias := rest, "", false
-			if i := indexFold(rest, " as "); i >= 0 {
+			if i := strings.Index(lowerASCII(rest), " as "); i >= 0 {
 				id, alias, hasAlias = rest[:i], rest[i+4:], true
 			}
 			id = strings.TrimSpace(id)
@@ -169,7 +167,7 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 			p := d.parts[i]
 			p.actor = kw == "actor"
 			if hasAlias {
-				p.label = labelLines(strings.TrimSpace(alias))
+				p.label = label(alias)
 			}
 		case "note":
 			e, err := parseNote(l, rest, participant)
@@ -188,14 +186,14 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 			if open == nil || open.open.keyword != sectionOf[kw] {
 				return nil, errorf(l.n, "%q outside its block", kw)
 			}
-			e := &seqEvent{kind: seqSection, keyword: kw, text: label(rest), block: open}
+			e := &seqEvent{kind: seqSection, text: label(rest)}
 			open.sections = append(open.sections, e)
 			d.events = append(d.events, e)
 		case "end":
 			if open == nil || rest != "" {
 				return nil, errorf(l.n, "unexpected end")
 			}
-			d.events = append(d.events, &seqEvent{kind: seqClose, block: open})
+			d.events = append(d.events, &seqEvent{kind: seqClose})
 			open = open.parent
 		case "autonumber":
 			numbering = true
@@ -250,17 +248,6 @@ func parseSequence(args string, lines []line, m *meta) (diagram, error) {
 		return nil, errorf(0, "no participants")
 	}
 	return d, nil
-}
-
-// indexFold is strings.Index ignoring ASCII case, for an ASCII sub: unlike
-// strings.ToLower, it keeps byte offsets in s.
-func indexFold(s, sub string) int {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if equalFold(s[i:i+len(sub)], sub) {
-			return i
-		}
-	}
-	return -1
 }
 
 // statements splits lines at the semicolons that separate statements in
@@ -370,7 +357,6 @@ func parseNote(l line, rest string, participant func(int, string) (int, error)) 
 	return e, nil
 }
 
-// badgeWidth returns the width of the badge an autonumber is drawn in.
 func badgeWidth(num string) float64 {
 	return max(badgeH, textWidth(num, badgeSize, true)+10)
 }
@@ -393,7 +379,6 @@ func badgeX(e *seqEvent, a, b float64) float64 {
 // the drawing and the top of the participants drawn at the bottom.
 func (d *sequence) layout() (width, height, footTop float64) {
 	parts := d.parts
-	// Participant boxes.
 	var headH float64
 	for _, p := range parts {
 		tw := linesWidth(p.label, fontSize, false)
@@ -468,7 +453,7 @@ func (d *sequence) layout() (width, height, footTop float64) {
 	y := pad + headH + rowGap
 	top := y
 	condLine := smallSize * leading
-	var stack []*seqBlock
+	var cur *seqBlock // the innermost open block
 	extend := func(b *seqBlock, l, r float64) { b.l, b.r = min(b.l, l), max(b.r, r) }
 	for _, e := range d.events {
 		e.y = y
@@ -509,14 +494,14 @@ func (d *sequence) layout() (width, height, footTop float64) {
 			}
 		case seqOpen:
 			e.h = max(tabHeight, 14+float64(max(len(e.text), 1)-1)*condLine+6) + 8
-			e.block.top, e.block.l, e.block.r = y, math.Inf(1), math.Inf(-1)
-			stack = append(stack, e.block)
+			cur = e.block
+			cur.top, cur.l, cur.r = y, math.Inf(1), math.Inf(-1)
 		case seqSection:
 			e.h = max(tabHeight, 15+float64(max(len(e.text), 1)-1)*condLine+5) + 4
 		case seqClose:
 			e.h = 12
-			b := stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
+			b := cur
+			cur = b.parent
 			b.end = y + 2
 			if b.l > b.r { // it holds nothing
 				b.l, b.r = parts[0].x-20, parts[0].x+20
@@ -527,12 +512,12 @@ func (d *sequence) layout() (width, height, footTop float64) {
 			if need := b.labelWidth(); b.r-b.l < need {
 				b.r = b.l + need
 			}
-			if len(stack) > 0 {
-				extend(stack[len(stack)-1], b.l, b.r)
+			if cur != nil {
+				extend(cur, b.l, b.r)
 			}
 		}
-		if (e.kind == seqMessage || e.kind == seqNote) && len(stack) > 0 {
-			extend(stack[len(stack)-1], e.l, e.r)
+		if (e.kind == seqMessage || e.kind == seqNote) && cur != nil {
+			extend(cur, e.l, e.r)
 		}
 		y += e.h
 	}
@@ -655,7 +640,7 @@ func (d *sequence) drawMessage(w *svgWriter, e *seqEvent) {
 	}
 	if e.num != "" {
 		bx, bw := badgeX(e, a, b), badgeWidth(e.num)
-		w.rect(classBadge, bx-bw/2, ly-badgeH/2, bw, badgeH, badgeH/2)
+		w.rect(classHead, bx-bw/2, ly-badgeH/2, bw, badgeH, badgeH/2)
 		w.text(classOnBadge, bx, ly+4, anchorMiddle, badgeSize, e.num)
 	}
 }

@@ -67,7 +67,6 @@ func wide(r rune) bool {
 	return k == width.EastAsianWide || k == width.EastAsianFullwidth
 }
 
-// linesWidth returns the width of the longest of lines.
 func linesWidth(lines []string, size float64, bold bool) float64 {
 	var w float64
 	for _, l := range lines {
@@ -76,21 +75,19 @@ func linesWidth(lines []string, size float64, bold bool) float64 {
 	return w
 }
 
-// label returns the lines of a label (see labelLines), or nil for an empty one.
+// lineBreak is Mermaid's line break in a label.
+var lineBreak = regexp.MustCompile(`(?i)<br\s*/?>`)
+
+// label returns the lines of a label, or nil for an empty one: it splits the
+// label at its <br> tags, as Mermaid does, and decodes the entity codes of
+// each line (see decodeEntities), so an encoded tag stays text.
 func label(s string) []string {
 	if s = strings.TrimSpace(s); s == "" {
 		return nil
 	}
-	return labelLines(s)
-}
-
-// lineBreak is Mermaid's line break in a label.
-var lineBreak = regexp.MustCompile(`(?i)<br\s*/?>`)
-
-// labelLines splits a label at its <br> tags, as Mermaid does, and decodes
-// the entity codes of each line (see decodeEntities), so an encoded tag
-// stays text.
-func labelLines(s string) []string {
+	if !strings.Contains(s, "<") {
+		return []string{decodeEntities(s)}
+	}
 	lines := lineBreak.Split(s, -1)
 	for i, l := range lines {
 		lines[i] = decodeEntities(strings.TrimSpace(l))
@@ -102,7 +99,6 @@ func labelLines(s string) []string {
 // entity codes decoded.
 func plain(s string) string { return decodeEntities(unquote(strings.TrimSpace(s))) }
 
-// unquote strips the matching double or single quotes around s, if any.
 func unquote(s string) string {
 	if len(s) >= 2 && (s[0] == '"' || s[0] == '\'') && s[len(s)-1] == s[0] {
 		return s[1 : len(s)-1]
@@ -110,8 +106,6 @@ func unquote(s string) string {
 	return s
 }
 
-// cutQuoted cuts the double-quoted text that s starts with from what
-// follows it.
 func cutQuoted(s string) (inner, rest string, ok bool) {
 	if !strings.HasPrefix(s, `"`) {
 		return "", s, false

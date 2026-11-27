@@ -69,7 +69,6 @@ type meta struct {
 	title, accTitle, accDescr string
 }
 
-// diagram is a parsed diagram.
 type diagram interface {
 	// draw writes the diagram, without its title, into w from 0, 0 and
 	// returns its size, margins included.
@@ -95,54 +94,60 @@ var kinds = map[string]struct {
 	"kanban":          {"Kanban board", parseKanban},
 }
 
-// Render draws a Mermaid source as an SVG element.
-func Render(src string) (out []byte, err error) {
+// Render draws a Mermaid source as an SVG element and returns it with its
+// width, in px.
+func Render(src string) (svg []byte, width float64, err error) {
 	defer func() {
 		// The source is attacker input: a bug in a parser or a layout must
 		// show the source, not take the page down.
 		if r := recover(); r != nil {
-			out, err = nil, errorf(0, "internal error: %v", r)
+			svg, width, err = nil, 0, errorf(0, "internal error: %v", r)
 		}
 	}()
 	if len(src) > MaxSourceLen {
-		return nil, errorf(0, "source longer than %d bytes", MaxSourceLen)
+		return nil, 0, errorf(0, "source longer than %d bytes", MaxSourceLen)
 	}
 	if !utf8.ValidString(src) {
-		return nil, errorf(0, "source is not valid UTF-8")
+		return nil, 0, errorf(0, "source is not valid UTF-8")
 	}
 	var m meta
 	lines, err := scan(src, &m)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if len(lines) == 0 {
-		return nil, errorf(0, "empty diagram")
+		return nil, 0, errorf(0, "empty diagram")
 	}
 	keyword, args, _ := strings.Cut(lines[0].text, " ")
 	kind, ok := kinds[keyword]
 	if !ok {
-		return nil, errorf(lines[0].n, "unsupported diagram type %q", keyword)
+		return nil, 0, errorf(lines[0].n, "unsupported diagram type %q", keyword)
 	}
 	body, err := accessibility(lines[1:], &m)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	d, err := kind.parse(strings.TrimSpace(args), body, &m)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	var w svgWriter
 	bodyW, bodyH := d.draw(&w)
 	title := plain(m.title)
-	label := cmp.Or(plain(m.accTitle), title, kind.name)
-	out, width, height := w.document(bodyW, bodyH, title, label, plain(m.accDescr))
+	// Checked before document copies the body.
+	width, height := max(bodyW, titleWidth(title)), bodyH+titleHeight(title)
 	if width > maxDimension || height > maxDimension {
-		return nil, errorf(0, "diagram larger than %d px", maxDimension)
+		return nil, 0, errorf(0, "diagram larger than %d px", maxDimension)
 	}
-	if len(out) > MaxOutputLen {
-		return nil, errorf(0, "diagram larger than %d bytes", MaxOutputLen)
+	if w.b.Len() > MaxOutputLen {
+		return nil, 0, errorf(0, "diagram larger than %d bytes", MaxOutputLen)
 	}
-	return out, nil
+	label := cmp.Or(plain(m.accTitle), title, kind.name)
+	svg = w.document(width, height, bodyW, title, label, plain(m.accDescr))
+	if len(svg) > MaxOutputLen {
+		return nil, 0, errorf(0, "diagram larger than %d bytes", MaxOutputLen)
+	}
+	return svg, width, nil
 }
 
 // scan splits src into lines, dropping blank lines, %% comments and the
@@ -236,8 +241,10 @@ func lowerASCII(s string) string {
 	}, s)
 }
 
-// equalFold reports whether s and t are equal ignoring ASCII case.
-func equalFold(s, t string) bool { return len(s) == len(t) && lowerASCII(s) == lowerASCII(t) }
+// equalFold reports whether s and t are equal ignoring ASCII case: every
+// caller passes an ASCII keyword, and a non-ASCII rune that folds to ASCII
+// takes two bytes or more, so equal lengths keep the match ASCII-only.
+func equalFold(s, t string) bool { return len(s) == len(t) && strings.EqualFold(s, t) }
 
 // cutPrefixFold is strings.CutPrefix ignoring ASCII case, as Mermaid's
 // keywords do.

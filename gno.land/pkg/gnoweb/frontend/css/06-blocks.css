@@ -3032,9 +3032,8 @@ main.is-dev-mode .b-toc a {
 		--mermaid-box-stroke: var(--s-color-border-tertiary);
 		--mermaid-ground: var(--s-color-bg-base);
 
-		/* A diagram wider than its container scrolls, like a code block.
-		   The containment keeps its width from stretching a <gno-columns>
-		   column, or the page on a phone. */
+		/* The containment keeps a diagram's width from stretching a
+		   <gno-columns> column, or the page on a phone. */
 		overflow-x: auto;
 		contain: inline-size;
 		margin-block: var(--g-space-6);
@@ -3130,6 +3129,10 @@ main.is-dev-mode .b-toc a {
 		fill: var(--mermaid-ink);
 	}
 
+	.gno-mermaid__fill {
+		fill: var(--mermaid-c);
+	}
+
 	/* Series colors, in order: the server writes one of these classes on a
 	   shape that takes a series color (a slice, a bar, a line, a period, a
 	   card, a priority stripe), which sets --mermaid-c for it. All carry
@@ -3183,7 +3186,7 @@ main.is-dev-mode .b-toc a {
 		--mermaid-c: color-mix(in oklab, var(--g-color-red-400) 55%, white);
 	}
 
-	/* Sequence diagrams: notes, frames and autonumbers. */
+	/* Sequence diagrams: notes and frames. */
 	.gno-mermaid__note {
 		fill: var(--s-color-bg-warning-weak);
 		stroke: var(--s-color-border-warning);
@@ -3194,32 +3197,16 @@ main.is-dev-mode .b-toc a {
 		stroke: var(--mermaid-box-stroke);
 	}
 
-	.gno-mermaid__badge {
-		fill: var(--mermaid-ink);
-	}
-
-	/* Pie charts: slices parted by a hairline of page, legend swatches. */
+	/* Pie charts: slices parted by a hairline of page. */
 	.gno-mermaid__slice {
 		fill: var(--mermaid-c);
 		stroke: var(--mermaid-ground);
 		stroke-width: 2;
 	}
 
-	.gno-mermaid__swatch {
-		fill: var(--mermaid-c);
-	}
-
-	/* XY charts: axes, grid, bars and lines. */
-	.gno-mermaid__axis {
-		stroke: var(--mermaid-stroke);
-	}
-
+	/* XY charts: grid and lines. */
 	.gno-mermaid__grid {
 		stroke: var(--s-color-border-secondary);
-	}
-
-	.gno-mermaid__bar {
-		fill: var(--mermaid-c);
 	}
 
 	.gno-mermaid__plot {
@@ -3229,25 +3216,14 @@ main.is-dev-mode .b-toc a {
 		stroke-linejoin: round;
 	}
 
-	/* Timelines: sections and periods in a series color, events as cards
-	   edged with it. */
-	.gno-mermaid__period {
-		fill: var(--mermaid-c);
-	}
-
+	/* Timelines: events as cards edged in a series color. */
 	.gno-mermaid__card {
 		fill: var(--mermaid-box);
 		stroke: var(--mermaid-c);
 		stroke-width: 1.5;
 	}
 
-	/* Kanban boards: lanes on a surface, edged so they show on a surface
-	   too (a <gno-details> body, an alert), cards on the page color. */
-	.gno-mermaid__lane {
-		fill: var(--mermaid-box);
-		stroke: var(--mermaid-box-stroke);
-	}
-
+	/* Kanban boards: cards on the page color, in lanes drawn as boxes. */
 	.gno-mermaid__ticket {
 		fill: var(--mermaid-ground);
 		stroke: var(--mermaid-box-stroke);

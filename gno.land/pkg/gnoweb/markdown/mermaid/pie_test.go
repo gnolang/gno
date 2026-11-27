@@ -26,7 +26,7 @@ func TestPieErrors(t *testing.T) {
 func TestPieWhole(t *testing.T) {
 	// A single slice is a full circle: an arc cannot start and end at the
 	// same point. A zero slice draws nothing but keeps its legend row.
-	out, err := Render("pie\n\"all\" : 3\n\"none\" : 0")
+	out, _, err := Render("pie\n\"all\" : 3\n\"none\" : 0")
 	require.NoError(t, err)
 	s := string(out)
 	assert.Contains(t, s, `<circle class="gno-mermaid__slice gno-mermaid__c0"`)
@@ -39,7 +39,7 @@ func TestPieWhole(t *testing.T) {
 func TestPieNearlyWhole(t *testing.T) {
 	// A slice a hair short of a full turn would start and end at the same
 	// rounded point, which SVG does not draw: it goes through its middle.
-	out, err := Render("pie\n\"big\" : 999999\n\"small\" : 1")
+	out, _, err := Render("pie\n\"big\" : 999999\n\"small\" : 1")
 	require.NoError(t, err)
 	big := regexp.MustCompile(`d="M126 126L126 16A110 110 0 0 1 ([\d.]+ [\d.]+)A110 110 0 0 1 126 16Z"`)
 	m := big.FindSubmatch(out)
@@ -49,7 +49,7 @@ func TestPieNearlyWhole(t *testing.T) {
 
 func TestPieDuplicates(t *testing.T) {
 	// Mermaid keeps the first slice of a label.
-	d, err := parsePie("", []line{{text: `"a" : 1`}, {text: `"b" : 1`}, {text: `"a" : 8`}}, &meta{})
+	d, err := parsePie("", toLines(`"a" : 1`, `"b" : 1`, `"a" : 8`), &meta{})
 	require.NoError(t, err)
 	p := d.(*pie)
 	assert.Equal(t, []slice{{"a", 1}, {"b", 1}}, p.slices)
@@ -65,7 +65,7 @@ func TestPieColors(t *testing.T) {
 }
 
 func TestPieLegend(t *testing.T) {
-	d, err := parsePie("showData", []line{{text: `"a" : -0`}, {text: `"b" : 1e-300`}, {text: `"c" : 1`}}, &meta{})
+	d, err := parsePie("showData", toLines(`"a" : -0`, `"b" : 1e-300`, `"c" : 1`), &meta{})
 	require.NoError(t, err)
 	p := d.(*pie)
 	assert.Equal(t, "a 0% (0)", p.legend(p.slices[0]))

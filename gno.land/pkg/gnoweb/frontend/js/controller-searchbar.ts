@@ -1485,11 +1485,11 @@ export class SearchbarController extends BaseController {
 
 		const needle = q.toLowerCase();
 		const matches: PageMatch[] = [];
-		// A diagram's text is SVG, which a <mark> cannot highlight, and its
-		// source is visually hidden: neither is a match to reveal.
+		// Text inside an SVG cannot hold a <mark>, and visually hidden text
+		// is no match to reveal.
 		const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
 			acceptNode: (n) =>
-				n.parentElement?.closest(".gno-mermaid")
+				n.parentElement?.closest("svg, .u-sr-only")
 					? NodeFilter.FILTER_REJECT
 					: NodeFilter.FILTER_ACCEPT,
 		});

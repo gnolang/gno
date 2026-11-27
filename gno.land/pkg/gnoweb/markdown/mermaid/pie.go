@@ -13,10 +13,7 @@ const (
 	swatchSize = 12.0
 )
 
-const (
-	classSlice  class = "gno-mermaid__slice"
-	classSwatch class = "gno-mermaid__swatch"
-)
+const classSlice class = "gno-mermaid__slice"
 
 type slice struct {
 	label string
@@ -86,7 +83,6 @@ func parseSlice(l line) (slice, error) {
 	return slice{label: decodeEntities(name), value: math.Abs(v)}, nil // -0 is 0
 }
 
-// percent formats a share with at most one decimal.
 func percent(part, total float64) string {
 	return strconv.FormatFloat(math.Round(part/total*1000)/10, 'f', -1, 64) + "%"
 }
@@ -151,7 +147,7 @@ func (d *pie) draw(w *svgWriter) (float64, float64) {
 	ly := cy - legendH/2
 	for i, s := range d.slices {
 		y := ly + float64(i)*legendRow
-		w.rect(classSwatch+" "+d.sliceColor(i), lx, y+(legendRow-swatchSize)/2, swatchSize, swatchSize, 2)
+		w.rect(classFill+" "+d.sliceColor(i), lx, y+(legendRow-swatchSize)/2, swatchSize, swatchSize, 2)
 		w.text("", lx+swatchSize+8, y+legendRow/2+5, anchorStart, 0, d.legend(s))
 	}
 	return lx + legendW + pad, pad + bodyH + pad

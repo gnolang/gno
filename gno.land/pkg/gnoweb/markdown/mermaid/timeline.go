@@ -10,7 +10,6 @@ const (
 )
 
 const (
-	classPeriod  class = "gno-mermaid__period"
 	classCard    class = "gno-mermaid__card"
 	classOnColor class = "gno-mermaid__on-color"
 )
@@ -97,9 +96,8 @@ func (d *timeline) draw(w *svgWriter) (float64, float64) {
 		c.x, c.w = x, max(cw+2*cardPad, columnMinW)
 		x += c.w + columnGap
 		cols[i] = c
-		periodH = max(periodH, cardHeight(c.label, fontSize))
+		periodH = max(periodH, cardHeight(c.label))
 	}
-	contentW := x - columnGap - pad
 
 	// Sections span the columns of their periods, their labels wrapped to
 	// that span.
@@ -119,15 +117,14 @@ func (d *timeline) draw(w *svgWriter) (float64, float64) {
 		}
 		s.r = cols[i].x + cols[i].w
 	}
-	top := pad
 	sectionH := 0.0
 	for i, s := range spans {
 		if s != nil {
 			s.label = wrap(d.sections[i], fontSize, s.r-s.l-2*cardPad, true)
-			sectionH = max(sectionH, cardHeight(s.label, fontSize)+cardGap)
+			sectionH = max(sectionH, cardHeight(s.label)+cardGap)
 		}
 	}
-	periodTop := top + sectionH
+	periodTop := pad + sectionH
 	axisY := periodTop + periodH + 18
 	cardsTop := axisY + 18
 
@@ -135,7 +132,7 @@ func (d *timeline) draw(w *svgWriter) (float64, float64) {
 	for _, c := range cols {
 		y := cardsTop
 		for _, card := range c.cards {
-			y += cardHeight(card, fontSize) + cardGap
+			y += cardHeight(card) + cardGap
 		}
 		bottom = max(bottom, y)
 	}
@@ -154,26 +151,25 @@ func (d *timeline) draw(w *svgWriter) (float64, float64) {
 			continue // a section without periods
 		}
 		l, r := s.l, s.r
-		w.rect(classPeriod+" "+color(i), l, top, r-l, sectionH-cardGap, boxRadius)
-		w.text(classOnColor+" "+classTitle, (l+r)/2, baseline(top+cardPad, fontSize), anchorMiddle, 0, s.label...)
+		w.rect(classFill+" "+color(i), l, pad, r-l, sectionH-cardGap, boxRadius)
+		w.text(classOnColor+" "+classTitle, (l+r)/2, baseline(pad+cardPad, fontSize), anchorMiddle, 0, s.label...)
 	}
 
-	end := pad + contentW
+	end := x - columnGap
 	w.line(classEdge, pad, axisY, end+8, axisY)
-	w.polygon(classHead, end+12, axisY, end+2, axisY-5, end+2, axisY+5)
+	drawHead(w, '>', end+12, axisY, 1)
 	for i, c := range cols {
-		cx := c.x
-		mid := cx + c.w/2
+		mid := c.x + c.w/2
 		if len(c.cards) > 0 {
 			w.line(classDashed, mid, periodTop+periodH, mid, bottom-cardGap)
 		}
 		col := colorOf(i)
-		w.rect(classPeriod+" "+col, cx, periodTop, c.w, periodH, boxRadius)
+		w.rect(classFill+" "+col, c.x, periodTop, c.w, periodH, boxRadius)
 		w.text(classOnColor+" "+classTitle, mid, baseline(periodTop+(periodH-textBlock(len(c.label), fontSize))/2, fontSize), anchorMiddle, 0, c.label...)
 		y := cardsTop
 		for _, card := range c.cards {
-			h := cardHeight(card, fontSize)
-			w.rect(classCard+" "+col, cx, y, c.w, h, boxRadius)
+			h := cardHeight(card)
+			w.rect(classCard+" "+col, c.x, y, c.w, h, boxRadius)
 			w.text("", mid, baseline(y+cardPad, fontSize), anchorMiddle, 0, card...)
 			y += h + cardGap
 		}

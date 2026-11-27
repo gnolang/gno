@@ -42,12 +42,8 @@ func TestSequenceErrors(t *testing.T) {
 
 func parseSeq(t *testing.T, lines ...string) (*sequence, meta) {
 	t.Helper()
-	ls := make([]line, len(lines))
-	for i, l := range lines {
-		ls[i] = line{n: i + 1, text: l}
-	}
 	var m meta
-	d, err := parseSequence("", ls, &m)
+	d, err := parseSequence("", toLines(lines...), &m)
 	require.NoError(t, err)
 	return d.(*sequence), m
 }
@@ -75,12 +71,11 @@ func TestSequenceArrows(t *testing.T) {
 
 func TestSequenceNames(t *testing.T) {
 	s, _ := parseSeq(t, "gov-dao->>tre-asury: x", "participant C AS Carol", "Alice Smith->>C: y", "participant ȺȺȺȺ as x")
-	ids := []string{}
+	var labels [][]string
 	for _, p := range s.parts {
-		ids = append(ids, p.id)
+		labels = append(labels, p.label)
 	}
-	assert.Equal(t, []string{"gov-dao", "tre-asury", "C", "Alice Smith", "ȺȺȺȺ"}, ids, "an alias after a name that lowercases longer")
-	assert.Equal(t, []string{"Carol"}, s.parts[2].label)
+	assert.Equal(t, [][]string{{"gov-dao"}, {"tre-asury"}, {"Carol"}, {"Alice Smith"}, {"x"}}, labels, "an alias after a name that lowercases longer")
 }
 
 func TestSequenceStatements(t *testing.T) {

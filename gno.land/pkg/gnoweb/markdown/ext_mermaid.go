@@ -110,7 +110,7 @@ func renderMermaid(w util.BufWriter, _ []byte, node ast.Node, entering bool) (as
 		return ast.WalkContinue, nil // show the code
 	}
 	b.tries++
-	svg, err := mermaid.Render(n.src)
+	svg, width, err := mermaid.Render(n.src)
 	if err != nil || b.bytes+len(svg) > maxMermaidBytes {
 		return ast.WalkContinue, nil
 	}
@@ -131,7 +131,7 @@ func renderMermaid(w util.BufWriter, _ []byte, node ast.Node, entering bool) (as
 	// cannot know that width, and a style attribute is not allowed: this
 	// empty strut, as wide, holds it (see the MERMAID COMPONENT styles).
 	w.WriteString(`<svg class="gno-mermaid__floor" width="`)
-	w.WriteString(strconv.FormatFloat(math.Round(mermaid.Width(svg)*2/3), 'f', -1, 64))
+	w.WriteString(strconv.FormatFloat(math.Round(width*2/3), 'f', -1, 64))
 	w.WriteString(`" height="0" aria-hidden="true"></svg></div><pre class="u-sr-only">`)
 	w.Write(util.EscapeHTML([]byte(n.src)))
 	w.WriteString("</pre></div>\n")

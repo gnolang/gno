@@ -80,8 +80,8 @@ func TestKanbanParse(t *testing.T) {
 func TestKanbanTabs(t *testing.T) {
 	// A tab is one level, as in Mermaid: a card under a tab-indented column
 	// needs more than one character of indentation.
-	out, err := Render("kanban\n\tTodo\n\t  card\n")
+	out, _, err := Render("kanban\n\tTodo\n\t  card\n")
 	require.NoError(t, err)
 	assert.Contains(t, string(out), ">card<")
-	assert.Equal(t, 1, strings.Count(string(out), "gno-mermaid__lane"))
+	assert.Equal(t, 1, strings.Count(string(out), "gno-mermaid__box"), "one lane")
 }
