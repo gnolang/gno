@@ -62,7 +62,7 @@ nulla ac [blandit tempus](https://gitlab.org).
 	}
 
 	// Extract URLs from each file in the sourceDir
-	extractedUrls := extractUrls([]byte(mockFileContent))
+	extractedUrls := urlsOf(extractUrls([]byte(mockFileContent)))
 
 	if len(expectedUrls) != len(extractedUrls) {
 		t.Fatal("did not extract correct amount of URLs")
@@ -91,8 +91,17 @@ func TestExtractLinksSkipsRPCEndpoints(t *testing.T) {
 
 	require.Equal(t,
 		[]string{"https://docs.gno.land"},
-		extractUrls([]byte(mockFileContent)),
+		urlsOf(extractUrls([]byte(mockFileContent))),
 	)
+}
+
+func urlsOf(refs []urlRef) []string {
+	urls := make([]string, 0, len(refs))
+	for _, r := range refs {
+		urls = append(urls, r.url)
+	}
+
+	return urls
 }
 
 func TestShouldCheckURL(t *testing.T) {
@@ -279,9 +288,8 @@ func (m *mockTransport) RoundTrip(*http.Request) (*http.Response, error) {
 }
 
 func TestFlow(t *testing.T) {
-	t.Parallel()
-
-	// Replace the package-level HTTP client so checkUrl never hits the network.
+	// Not parallel: it swaps the package-level HTTP client so the URL check
+	// never hits the network.
 	origClient := httpClient
 	httpClient = &http.Client{Transport: &mockTransport{statusCode: http.StatusNotFound}}
 	t.Cleanup(func() { httpClient = origClient })
