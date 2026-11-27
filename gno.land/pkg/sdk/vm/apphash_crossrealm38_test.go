@@ -247,7 +247,21 @@ import (
 // Re-derived for the mainnet release line, which keeps markdown.gno identical
 // to the source gnoland-1 holds in state, so the CodeFence comment is not in
 // it. With develop's markdown.gno, develop's value above still holds.
-const expectedCrossrealm38Hash = "91649bb8181ca02d61f2880ddb7b5c9f59359d14d8e5a4c2cb429ab7893937b4"
+//
+// Hash bumped by the crypto/secp256k1 PR: adding the crypto/secp256k1 stdlib
+// (with native Verify) introduces a new stdlib MemPackage into the genesis
+// stdlib set, shifting the iavlStore Merkle root. This is the intended
+// consensus-breaking change of adding a new stdlib; the zrealm_crossrealm38.gno
+// filetest still passes.
+//
+// Bumped again by crypto/secp256k1.RecoverPubkey: recover.gno, its
+// recover_test.gno and the package doc line are stdlib source, which genesis
+// state holds. crossrealm38 does not import the package.
+//
+// Re-derived on the merge of master into this branch: master's stdlib
+// changes and this branch's new package sit in the same root, so neither
+// side's value survives.
+const expectedCrossrealm38Hash = "ffed4bd3f1e33daf62710f25709e61e64547b75186f2b51418ad2fc7e1a824d9"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()

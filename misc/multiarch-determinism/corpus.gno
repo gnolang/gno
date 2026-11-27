@@ -16,6 +16,7 @@ import (
 	"crypto/keccak256"
 	"crypto/merkle"
 	"crypto/modexp"
+	"crypto/secp256k1"
 	"crypto/sha256"
 	"crypto/subtle"
 	"hash/adler32"
@@ -270,6 +271,39 @@ func runBN254() {
 	emit("bn254-pairing", "", toHex(pcOut))
 }
 
+func runSecp256k1Recover() {
+	// Signer 0 of gnovm/stdlibs/crypto/secp256k1/testdata (private key 1),
+	// its high-S twin, the other recovery ID, a zero digest (which recovers
+	// some other key), and refused inputs: r = 0, s = n, r = 5 (no curve
+	// point), a recovered point at infinity, recovery ID 2, and short inputs.
+	digest := "4c358ead6f3ea252278a6c0e69069eecec31c517786eba631a79352dc8f61c56"
+	r := "a1842bb853abc7b49fe40f5af46b0f75aa6c962219e689f5a7ccea2b81d4f4e8"
+	s := "1091ef7e7b447cac51d460e19a242e5237810ddc1373a925bfd83f77263d0c2f"
+	highS := "ef6e108184bb8353ae2b9f1e65dbd1ac832dcf0a9bd4f715fffa1f15a9f93512"
+	zero := "0000000000000000000000000000000000000000000000000000000000000000"
+	five := "0000000000000000000000000000000000000000000000000000000000000005"
+	order := "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"
+	one := "0000000000000000000000000000000000000000000000000000000000000001"
+	gx := "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
+	cases := [][2]string{
+		{digest, r + s + "00"},
+		{digest, r + highS + "01"},
+		{digest, r + s + "01"},
+		{zero, r + s + "00"},
+		{digest, zero + s + "00"},
+		{digest, r + order + "00"},
+		{digest, five + s + "00"},
+		{one, gx + one + "00"},
+		{digest, r + s + "02"},
+		{digest[:62], r + s + "00"},
+		{digest, r + s},
+	}
+	for _, c := range cases {
+		key, ok := secp256k1.RecoverPubkey(fromHex(c[0]), fromHex(c[1]))
+		emit("secp256k1-recover", c[0], c[1], toHex(key[:]), strconv.FormatBool(ok))
+	}
+}
+
 func main() {
 	// Calls are ordered; each runner emits cases in a fixed order. The
 	// stable per-line format makes diffing across architectures trivial.
@@ -283,4 +317,5 @@ func main() {
 	runModExp()
 	runMerkle()
 	runBN254()
+	runSecp256k1Recover()
 }

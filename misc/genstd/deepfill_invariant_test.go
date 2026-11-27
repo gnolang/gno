@@ -21,7 +21,9 @@ import (
 // HeapItemValue.Value with no visited set. Extend the allowlist only after
 // giving DeepFill a cycle detector of its own.
 func TestDeepFillOnlyOnPointerFreeParams(t *testing.T) {
-	// Scalar and scalar-slice Go types, none of which can reach a heap item.
+	// Scalar, scalar-slice and byte-array Go types, none of which can reach a
+	// heap item. ArrayValue.DeepFill only visits the elements, and a byte
+	// array's elements are scalars.
 	pointerFree := map[string]bool{
 		"bool":     true,
 		"string":   true,
@@ -42,6 +44,8 @@ func TestDeepFillOnlyOnPointerFreeParams(t *testing.T) {
 		"[]byte":   true,
 		"[]int64":  true,
 		"[]string": true,
+		"[32]byte": true, // crypto/secp256k1.recoverPubkey's digest
+		"[65]byte": true, // and its signature
 	}
 
 	for _, dir := range []string{"../../gnovm/stdlibs", "../../gnovm/tests/stdlibs"} {

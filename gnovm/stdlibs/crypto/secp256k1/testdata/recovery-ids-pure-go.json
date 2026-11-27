@@ -1,0 +1,62 @@
+{
+  "fixture-signature-0": {
+    "evm_precompile": {
+      "recovered_address_to_ids": {
+        "0x003B1aBa4E66EbD7F5A9C3A2e2df99D93888C195": [
+          1
+        ],
+        "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf": [
+          0
+        ]
+      },
+      "rejected_count": 254
+    },
+    "recovery": {
+      "recovered_address_to_ids": {
+        "0x003B1aBa4E66EbD7F5A9C3A2e2df99D93888C195": [
+          1,
+          5
+        ],
+        "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf": [
+          0,
+          4
+        ]
+      },
+      "rejected_count": 252
+    }
+  },
+  "small-r-2": {
+    "evm_precompile": {
+      "recovered_address_to_ids": {
+        "0x10Cc35e4095C5A051069fC6c05990361b0d3c842": [
+          1
+        ],
+        "0xc6976CdD1BE940e02B538D1a20d585485cFf5fF2": [
+          0
+        ]
+      },
+      "rejected_count": 254
+    },
+    "recovery": {
+      "recovered_address_to_ids": {
+        "0x05DeD906c89809cd5b204F129AB0b1662E6aE549": [
+          2,
+          6
+        ],
+        "0x10Cc35e4095C5A051069fC6c05990361b0d3c842": [
+          1,
+          5
+        ],
+        "0xbaA546e42aA65A6e09EcB689D2c50a12a340e90A": [
+          3,
+          7
+        ],
+        "0xc6976CdD1BE940e02B538D1a20d585485cFf5fF2": [
+          0,
+          4
+        ]
+      },
+      "rejected_count": 248
+    }
+  }
+}

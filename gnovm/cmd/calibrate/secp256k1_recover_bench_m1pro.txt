@@ -1,0 +1,50 @@
+crypto/secp256k1.recoverPubkey: the run behind the PRELIMINARY row in
+gnovm/stdlibs/native_gas.go. The row is derived from the crypto/secp256k1
+verify row, not fitted: re-fit verify on the reference machine, rerun
+_PerVerify there, and recompute.
+
+Machine: Apple M1 Pro (10 cores), macOS, go1.25.9, 2026-11-11, on
+moul/secp-native 99e186e5b1 plus this change. The machine was shared and
+loaded (load average 20 to 68 over the day), so single timings swing
+several-fold and the price rests on a ratio instead.
+
+1. Paired ratio, the price's input. Each round verifies a 64-byte message
+   8 times (crypto/secp256k1.verify, the row this one is derived from), then
+   recovers one input 8 times, for each of 67 valid inputs: 64 from
+   deterministic keys, signer 0 of the recovery corpus, its high-S twin, and
+   a dense-s input (same digest and r, s chosen so that u2 = s/r has a dense
+   signed-digit form, near the most point additions the variable-base
+   multiplication does). "worst" is the slowest input's median ratio,
+   "typical" the median over inputs, "dense-s" that input's.
+
+   cd gnovm/cmd/calibrate
+   go test -run '^$' -bench RecoverPubkey_PerVerify -benchtime 200x .
+
+BenchmarkNative_Secp256k1_RecoverPubkey_PerVerify-10    	     200	 223538141 ns/op	         1.275 dense-s	         1.090 typical	         1.275 worst
+BenchmarkNative_Secp256k1_RecoverPubkey_PerVerify-10    	     200	 238781013 ns/op	         1.278 dense-s	         1.090 typical	         1.278 worst
+BenchmarkNative_Secp256k1_RecoverPubkey_PerVerify-10    	     200	 257270994 ns/op	         1.279 dense-s	         1.088 typical	         1.279 worst
+
+   Price: highest worst ratio x the verify row at 64 bytes x 1.2 margin
+          1.279 x (225693 + 25871*64/1024 = 227309) x 1.2 = 348,874 -> 350,000
+
+   The verify row is itself PRELIMINARY (Xeon Silver 4114), so this row
+   sits on the same basis. An earlier run of the same benchmark without the
+   dense-s input put the slowest of the 66 ordinary inputs at 1.140-1.172:
+   sampled signatures do not find the slow case, a constructed one does.
+
+2. Single timings, fastest and median of 10 rounds (-benchtime 100ms, load
+   average about 20), ns/op. Not used for the price; they show what refusals
+   cost next to a recovery. A bad recovery ID or scalar returns early, an r
+   with no curve point costs a square root, and a signature recovering the
+   point at infinity is found only after both multiplications, so it costs
+   nearly a recovery. The flat charge covers all of them.
+
+                                                      fastest       median
+BenchmarkNative_Secp256k1_RecoverPubkey               165,745      171,310
+BenchmarkNative_Secp256k1_RecoverPubkey_HighS         165,849      178,896
+BenchmarkNative_Secp256k1_RecoverPubkey_Slow          194,001      210,564
+BenchmarkNative_Secp256k1_RecoverPubkey_RefuseID          583          621
+BenchmarkNative_Secp256k1_RecoverPubkey_RefuseScalar      644          679
+BenchmarkNative_Secp256k1_RecoverPubkey_RefusePoint    14,883       15,958
+BenchmarkNative_Secp256k1_RecoverPubkey_RefuseInfinity 155,199    163,560
+BenchmarkNative_Secp256k1_Verify_64                   146,611      161,358

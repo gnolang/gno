@@ -1,0 +1,110 @@
+{
+  "digest-length-0": {
+    "status": "rejected"
+  },
+  "digest-length-31": {
+    "status": "rejected"
+  },
+  "digest-length-33": {
+    "status": "rejected"
+  },
+  "digest-length-64": {
+    "status": "rejected"
+  },
+  "r-max": {
+    "status": "rejected"
+  },
+  "r-order": {
+    "status": "rejected"
+  },
+  "r-zero": {
+    "status": "rejected"
+  },
+  "s-max": {
+    "status": "rejected"
+  },
+  "s-order": {
+    "status": "rejected"
+  },
+  "s-zero": {
+    "status": "rejected"
+  },
+  "signature-length-0": {
+    "status": "rejected"
+  },
+  "signature-length-1": {
+    "status": "rejected"
+  },
+  "signature-length-128": {
+    "status": "rejected"
+  },
+  "signature-length-64": {
+    "status": "rejected"
+  },
+  "signature-length-66": {
+    "status": "rejected"
+  },
+  "signer-0/canonical": {
+    "status": "recovered",
+    "public_key_hex": "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8",
+    "address": "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf"
+  },
+  "signer-0/high-s": {
+    "status": "recovered",
+    "public_key_hex": "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8",
+    "address": "0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf"
+  },
+  "signer-0/wrong-digest": {
+    "status": "recovered",
+    "public_key_hex": "043cf5fd94754fad36aa62020ae92a82e01c88d57293c0e09c24a7b4072128a3f738029a7a2c68b514ad1a96bfdc7706ee0f587e8e41c0283a7cf73d28e95ec987",
+    "address": "0x6502180bf3129B74D748a9803Cd026d62D2A5296"
+  },
+  "signer-0/wrong-parity": {
+    "status": "recovered",
+    "public_key_hex": "04a0584af124bc176e20b6f6b2f018c28804d8a2f0926617f493713a64007af34886e3a874928879322009ab327f079efb12feec2bb785a75727f4d8d8d2712ecd",
+    "address": "0x003B1aBa4E66EbD7F5A9C3A2e2df99D93888C195"
+  },
+  "signer-1/canonical": {
+    "status": "recovered",
+    "public_key_hex": "04c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a",
+    "address": "0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF"
+  },
+  "signer-1/high-s": {
+    "status": "recovered",
+    "public_key_hex": "04c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee51ae168fea63dc339a3c58419466ceaeef7f632653266d0e1236431a950cfe52a",
+    "address": "0x2B5AD5c4795c026514f8317c7a215E218DcCD6cF"
+  },
+  "signer-1/wrong-digest": {
+    "status": "recovered",
+    "public_key_hex": "04a58fadf74a4937594c6fa9efb714041e6e3b337bd3a928d3a2241faed4cb2c8364f1c51efb8860afea9fd7481a3b736ca66ea4cf456bcca077a13624946feb74",
+    "address": "0xCe73735534Ccb627bfB4e80257aCb236095F9306"
+  },
+  "signer-1/wrong-parity": {
+    "status": "recovered",
+    "public_key_hex": "0437cc43d16918329d908c4fab61bb1eb5a7949d8e6fc8f07c8261e2cf175b0641aa71e25ca9bb53b9338a7b66c4b24989451789f183843b6fedb889bac039c0ee",
+    "address": "0x07C296F59646400078adE552D9a1a9104042090e"
+  },
+  "signer-2/canonical": {
+    "status": "recovered",
+    "public_key_hex": "04f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9388f7b0f632de8140fe337e62a37f3566500a99934c2231b6cb9fd7584b8e672",
+    "address": "0x6813Eb9362372EEF6200f3b1dbC3f819671cBA69"
+  },
+  "signer-2/high-s": {
+    "status": "recovered",
+    "public_key_hex": "04f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9388f7b0f632de8140fe337e62a37f3566500a99934c2231b6cb9fd7584b8e672",
+    "address": "0x6813Eb9362372EEF6200f3b1dbC3f819671cBA69"
+  },
+  "signer-2/wrong-digest": {
+    "status": "recovered",
+    "public_key_hex": "04991ce394913f07c3df930f6861fe6e2a60d946cbbb4096d4274aa9200e672d3d1b58a6aa1af4f7a98d974dc3bd616932471a56f928adcb15e5134da9d6f7430f",
+    "address": "0xA14aB693f2aCbf1104cdA6ba6144D8C04781eAdc"
+  },
+  "signer-2/wrong-parity": {
+    "status": "recovered",
+    "public_key_hex": "040a45eba9ec264aa88ab71914d6b95fa5a156904cefb6cf0a88fb42b30fe49f8d086dec60a84608abd507008aa559fc75a71f5dfb2d156248684fdde2cfa09d24",
+    "address": "0xFCf92D2F39546D4dC8513Bed3C99cB3878190B4f"
+  },
+  "unrecoverable-point-r5": {
+    "status": "rejected"
+  }
+}
