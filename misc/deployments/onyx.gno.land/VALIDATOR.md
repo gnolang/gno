@@ -113,6 +113,8 @@ Let the node sync, and wait until it has caught up to the chain tip before the n
 
 **With gnovisor.** [gnovisor](https://github.com/AviaOne/gnovisor), an open-source upgrade supervisor by AviaOne (the gno.land counterpart of Cosmovisor), runs your node and takes it across every halt, switching the binary when the halt requires it: the past upgrades while the node catches up, from genesis or from a snapshot, then each new halt that GovDAO votes, once the node is at the tip. It prepares each version's binary and `GNOROOT` before the halt. Use gnovisor `v1.3.0` or later: earlier versions loop on the old binary when a node reaches a halt while catching up. gnovisor runs on Linux and starts the node from a binary or from gnoland's container image. Either way it runs the binary of each version's image, built without CGO, so the node must use the default `pebbledb` database, not `lmdbdb` or `mdbxdb`. Its README covers the setup.
 
+**Later halts, by hand.** At a halt GovDAO votes, a node at the tip stops producing blocks but its process keeps running ([what a halt looks like](../../../gno.land/cmd/gnoland/UPGRADES.md#what-a-halt-actually-looks-like)): stop it, and once it has exited, start it again on the version the halt names as its `halt_min_version`.
+
 ## 5. Register as a validator candidate
 
 Get your node's consensus public key:
