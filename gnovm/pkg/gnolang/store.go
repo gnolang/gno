@@ -22,7 +22,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/trace"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
-	stringz "github.com/gnolang/gno/tm2/pkg/strings"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -890,11 +889,10 @@ func (ds *defaultStore) SetType(tt Type) {
 		defer func() { bm.StopStore(bm.StoreSetType, old, size) }()
 	}
 	tid := tt.TypeID()
-	// Idempotent: if this TypeID is already known in-cache, do nothing.
-	// The cache is populated either by a previous SetType (which also
-	// persisted to backend) or by loading from backend on GetType — either
-	// way the backend already has the canonical entry.
-	if _, exists := ds.cacheTypes[tid]; exists {
+	// Idempotent only for the same in-memory type instance. A redeployed type
+	// may have the same TypeID but a different layout, which must replace the
+	// backend entry.
+	if cached, exists := ds.cacheTypes[tid]; exists && cached == tt {
 		return
 	}
 	// save type to backend.
@@ -1199,6 +1197,11 @@ func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
 }
 
 func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
+	// No package is stored under a longer path, and a key built from one may
+	// exceed the store's key length cap, which panics rather than misses.
+	if len(path) > std.PkgPathLimit {
+		return nil
+	}
 	var size int
 	if bm.Enabled {
 		old := bm.StartStore(bm.StoreGetMemPackage)
@@ -1237,6 +1240,9 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 // getMemPackageAllButProd reads and decodes the "#allbutprod" sibling blob (the
 // test/filetest files) for path, or nil if there is none. Charges decode gas.
 func (ds *defaultStore) getMemPackageAllButProd(path string) *std.MemPackage {
+	if len(path) > std.PkgPathLimit { // see getMemPackage
+		return nil
+	}
 	bz := ds.iavlStore.Get(ds.gctx, []byte(backendPackageAllButProdKey(path)))
 	if bz == nil {
 		return nil
@@ -1306,6 +1312,9 @@ func (ds *defaultStore) AddInertPackage(mpkg *std.MemPackage) {
 // GetInertPackage retrieves the MemPackage from the inert key space.
 // Returns nil if no inert package exists at path.
 func (ds *defaultStore) GetInertPackage(path string) *std.MemPackage {
+	if len(path) > std.PkgPathLimit { // see getMemPackage
+		return nil
+	}
 	pathkey := []byte(backendInertPackagePathKey(path))
 	bz := ds.iavlStore.Get(ds.gctx, pathkey)
 	if bz == nil {
@@ -1566,14 +1575,12 @@ func (ds *defaultStore) Print() {
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:cacheTypes..."))
 	for tid, typ := range ds.cacheTypes {
-		fmt.Printf("- %v: %v\n", tid,
-			stringz.TrimN(fmt.Sprintf("%v", typ), 50))
+		fmt.Printf("- %v: %.50s\n", tid, fmt.Sprintf("%v", typ))
 	}
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:cacheNodes..."))
 	ds.cacheNodes.Iterate()(func(loc Location, bn BlockNode) bool {
-		fmt.Printf("- %v: %v\n", loc,
-			stringz.TrimN(fmt.Sprintf("%v", bn), 50))
+		fmt.Printf("- %v: %.50s\n", loc, fmt.Sprintf("%v", bn))
 		return true
 	})
 	fmt.Println(colors.Red("//----------------------------------------"))

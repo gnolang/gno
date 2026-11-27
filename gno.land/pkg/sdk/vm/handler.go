@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -114,13 +115,29 @@ const (
 	QueryInertPaths = "qinertpaths"
 )
 
-func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	path := secondPart(req.Path)
-	if i := strings.IndexByte(path, '?'); i >= 0 { // cut query
-		path = path[:i]
+// queryEndpoint returns the endpoint Query serves for path: its second
+// segment, cut at '?'. It is "" when the first segment is not "vm".
+func queryEndpoint(path string) string {
+	endpoint := secondPart(path)
+	if i := strings.IndexByte(endpoint, '?'); i >= 0 { // cut query
+		endpoint = endpoint[:i]
 	}
+	return endpoint
+}
 
-	switch path {
+// QueryRunsCode implements abci.CodeExecutionQuerier: these endpoints run code
+// in a machine, through withQueryEvalMachine.
+func (vh vmHandler) QueryRunsCode(path string) bool {
+	switch queryEndpoint(path) {
+	case QueryRender, QueryEval, QueryEvalJSON:
+		return true
+	}
+	return false
+}
+
+func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	// A case that runs code in a machine also belongs in QueryRunsCode.
+	switch queryEndpoint(req.Path) {
 	case QueryRender:
 		res = vh.queryRender(ctx, req)
 	case QueryFuncs:
@@ -156,7 +173,21 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.Resp
 				secondPart(req.Path), req.Path)))
 	}
 
-	return res
+	// The one cap on every endpoint's answer, envelopes included. Nothing
+	// writes res.Data after this.
+	return capQueryOutput(res)
+}
+
+// capQueryOutput replaces an answer longer than maxQueryOutputBytes with an
+// ExportSizeExceededError. It runs after the query, so it bounds what one
+// answer adds to a batch, not what a single query allocates: the renderers
+// that can amplify their input stop at the same cap while writing.
+func capQueryOutput(res abci.ResponseQuery) abci.ResponseQuery {
+	if maxQueryOutputBytes <= 0 || int64(len(res.Data)) <= maxQueryOutputBytes {
+		return res
+	}
+	return sdk.ABCIResponseQueryFromError(ErrExportSizeExceeded(fmt.Sprintf(
+		"response size %d exceeds %d bytes", len(res.Data), maxQueryOutputBytes)))
 }
 
 // queryRender calls .Render(<path>) in readonly mode.
@@ -178,6 +209,11 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 		return
 	}
 
+	// Refuse before the copy below: the cap after dispatch would only see the
+	// answer once it had been copied, doubling a large Render result.
+	if maxQueryOutputBytes > 0 && int64(len(result)) > maxQueryOutputBytes {
+		return sdk.ABCIResponseQueryFromError(abciExportErr(errQueryOutputExceeded))
+	}
 	res.Data = []byte(result)
 	return
 }
@@ -189,11 +225,20 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 	if err != nil {
 		return sdk.ABCIResponseQueryFromError(err)
 	}
-	res.Data = []byte(fsigs.JSON())
+	// Same output as fsigs.JSON(), stopped at the response cap.
+	bz, err := marshalJSONCapped(maxQueryOutputBytes, amino.MarshalJSONTo, fsigs)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(abciExportErr(err))
+	}
+	res.Data = bz
 	return
 }
 
 // pathsLimit reads ?limit= from a query path, defaulted and capped.
+//
+// maxLimit paths of std.PkgPathLimit bytes plus a newline each come to about
+// 2.5 MB, past the output cap, so qpaths and qinertpaths answer only the
+// leading paths that fit it (see joinPathsCapped).
 //
 // XXX: implement pagination
 func pathsLimit(reqPath string) (int, error) {
@@ -217,6 +262,21 @@ func pathsLimit(reqPath string) (int, error) {
 	return limit, nil
 }
 
+// joinPathsCapped joins paths with newlines, stopping before the first path that
+// would take the answer past maxQueryOutputBytes, so a long listing is cut
+// rather than refused by capQueryOutput.
+func joinPathsCapped(paths []string) []byte {
+	n := -1
+	for i, p := range paths {
+		n += len(p) + 1
+		if maxQueryOutputBytes > 0 && int64(n) > maxQueryOutputBytes {
+			paths = paths[:i]
+			break
+		}
+	}
+	return []byte(strings.Join(paths, "\n"))
+}
+
 // queryPaths retrieves paginated package paths based on request data.
 // data can be username prefixed by a @ or a path prefix.
 func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -230,7 +290,7 @@ func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci
 		return sdk.ABCIResponseQueryFromError(err)
 	}
 
-	res.Data = []byte(strings.Join(paths, "\n"))
+	res.Data = joinPathsCapped(paths)
 	return
 }
 
@@ -327,7 +387,12 @@ func (vh vmHandler) queryDoc(ctx sdk.Context, req abci.RequestQuery) (res abci.R
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
-	res.Data = []byte(jsonDoc.JSON())
+	// Same output as jsonDoc.JSON(), stopped at the response cap.
+	bz, err := marshalJSONCapped(maxQueryOutputBytes, amino.MarshalJSONTo, jsonDoc)
+	if err != nil {
+		return sdk.ABCIResponseQueryFromError(abciExportErr(err))
+	}
+	res.Data = bz
 	return
 }
 
@@ -355,7 +420,7 @@ func (vh vmHandler) queryInertPaths(ctx sdk.Context, req abci.RequestQuery) (res
 	if err != nil {
 		return sdk.ABCIResponseQueryFromError(err)
 	}
-	res.Data = []byte(strings.Join(paths, "\n"))
+	res.Data = joinPathsCapped(paths)
 	return
 }
 

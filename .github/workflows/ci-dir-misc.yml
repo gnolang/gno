@@ -2,6 +2,12 @@
 # (not meant for miscellaneous workflows)
 name: ci / misc
 
+# One job lints and tests every Go program in MISC_MODULES (root Makefile),
+# instead of a lint, build and test job per program: they share the gno tree,
+# which each job compiled from scratch, and none has a `make generate` rule for
+# a build job to check. Testing after lint, in the same job and cache, reuses
+# that compile.
+
 on:
   push:
     branches:
@@ -9,6 +15,7 @@ on:
   pull_request:
     paths:
       - misc/**
+      - Makefile # MISC_MODULES, `make fix.misc`
       - .github/workflows/ci-dir-misc.yml
       # This only runs `go test` on the Go programs under misc/, so every
       # *.md under it is prose (misc/deployments/, misc/val-scenarios/, ...).
@@ -20,30 +27,84 @@ permissions:
 
 jobs:
   main:
-    strategy:
-      fail-fast: false
-      matrix:
-        # Fixed list, because misc/ also holds non-Go directories that a glob
-        # would pick up. ci-dir-contribs.yml can glob contribs/* for that
-        # reason and this one cannot.
-        #
-        # The cost is silence: a Go program under misc/ that is not listed here
-        # is simply never built, with nothing to say so. Some are covered
-        # elsewhere instead — genproto2 by a job in ci-codegen-verify,
-        # multiarch-determinism by its own workflow, gnoe2e by ci-gnoe2e,
-        # which also fires on chain and gpao changes, and stdlib_diff by
-        # deploy-pages, which runs its generator on pull requests touching it.
-        # A new one with neither is untested from its first commit.
-        program:
-          - audit-pattern-harness
-          - autocounterd
-          - genproto
-          - genstd
-          - gnopreview
-          - goscan
-          - loop
-    name: ${{ matrix.program }}
-    uses: ./.github/workflows/_ci-go.yml
-    with:
-      modulepath: misc/${{ matrix.program }}
-      tests-extra-args: "-coverpkg=github.com/gnolang/gno/misc/..."
+    name: lint and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: List the modules
+        # Not `echo "MODULES=$(make ...)"`: echo's status would hide a failing
+        # make, and the loops below would pass on an empty list.
+        run: |
+          modules="$(make -s print.misc-modules)"
+          test -n "$modules"
+          echo "MODULES=$modules" >> "$GITHUB_ENV"
+      # See "Go build cache" in _ci-go.yml.
+      - name: Restore Go cache
+        id: go-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/.cache/golangci-lint
+          key: go-${{ runner.os }}-misc-${{ github.sha }}
+          restore-keys: go-${{ runner.os }}-misc-
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          install-only: true
+          version: v2.11.4 # sync with misc/devdeps and the other golangci-lint-action steps
+          skip-cache: true
+      - name: golangci-lint
+        run: |
+          failed=""
+          for m in $MODULES; do
+            echo "::group::$m"
+            (cd "$m" && golangci-lint run --config="$GITHUB_WORKSPACE/.github/golangci.yml") || failed="$failed $m"
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::golangci-lint failed in:$failed"
+            exit 1
+          fi
+      - name: Verify 'go fix' has been applied
+        if: ${{ !cancelled() }}
+        run: |
+          make fix.misc
+          if ! git diff --exit-code -- misc; then
+            echo "::error::'go fix' would modify files. Run 'make fix' from the repo root and commit the result."
+            exit 1
+          fi
+      - name: Go test
+        if: ${{ !cancelled() }}
+        run: |
+          failed=""
+          for m in $MODULES; do
+            echo "::group::$m"
+            cov="$RUNNER_TEMP/cover/$m"
+            mkdir -p "$cov"
+            (cd "$m" && go test -covermode=set -timeout 30m -coverpkg=github.com/gnolang/gno/misc/... ./... -test.gocoverdir="$cov") || failed="$failed $m"
+            echo 'go coverage results:'
+            go tool covdata percent "-pkg=github.com/gnolang/gno/$m/..." -i="$cov" || true
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "::error::tests failed in:$failed"
+            exit 1
+          fi
+      - name: Prune Go cache to what this run used
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        run: find ~/.cache/go-build ~/.cache/golangci-lint -type f -mmin +120 -delete
+      - name: Save Go cache
+        if: ${{ !cancelled() && github.ref_name == github.event.repository.default_branch }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/.cache/golangci-lint
+          key: ${{ steps.go-cache.outputs.cache-primary-key }}

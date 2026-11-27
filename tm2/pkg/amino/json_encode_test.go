@@ -5,6 +5,36 @@ import (
 	"testing"
 )
 
+// failNthWriter fails only its nth Write, then accepts again.
+type failNthWriter struct{ n, calls int }
+
+func (w *failNthWriter) Write(p []byte) (int, error) {
+	w.calls++
+	if w.calls == w.n {
+		return 0, bytes.ErrTooLarge
+	}
+	return len(p), nil
+}
+
+// A write error inside a list is returned, not masked by the closing bracket.
+func TestMarshalJSONToListWriteError(t *testing.T) {
+	v := []string{"a", "bb", "ccc"}
+	for n := 1; ; n++ {
+		w := &failNthWriter{n: n}
+		err := NewCodec().MarshalJSONTo(w, v) // not gcdc: marshaling seals it
+		// Every write succeeded.
+		if w.calls < n {
+			if err != nil {
+				t.Fatalf("n=%d: unexpected error %v", n, err)
+			}
+			return
+		}
+		if err == nil {
+			t.Fatalf("n=%d: write %d failed but MarshalJSONTo returned nil", n, n)
+		}
+	}
+}
+
 // Verify that the output is the same whether the input is
 // written all at once or one byte at a time.
 func TestIfaceJSONWriterChunking(t *testing.T) {

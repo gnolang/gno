@@ -228,7 +228,7 @@ func (pkg *Package) WithP3SchemaFile(file string) *Package {
 
 // Parse the Go code in filename and scan the AST looking for struct doc comments.
 // Find the Type in pkg.Types and set its Comment and FieldComments, which are
-// used by genproto.GenerateProto3MessagePartial to set the Comment in the P3Doc
+// used by genproto2.GenerateProto3MessagePartial to set the Comment in the P3Doc
 // and related P3Field objects.
 func (pkg *Package) WithComments(filename string) *Package {
 	fset := token.NewFileSet()
