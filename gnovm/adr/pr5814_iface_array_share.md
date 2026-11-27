@@ -1,5 +1,8 @@
 # Share interface-held values when copying arrays
 
+**Status: on hold.** Blocked on a pending VM fix; the sharing in decision 1
+is to be re-verified against it before this is merged.
+
 ## Context
 
 `ArrayValue.Copy` deep-copied every element, including the value held by an
@@ -84,7 +87,9 @@ sharing, two copies of `[1]any{[2]int{1, 2}}` in a `qeval_json` result hold
 the same in-memory `[2]int`, so the second would render as a cycle instead of
 its value. An array or struct held by value that was first expanded by value
 is now expanded again at each occurrence, numbered as a new inline expansion
-so `:N` still names the Nth inline object in walk order. Such sharing only
+so `:N` still names the Nth inline object in walk order, while
+back-references keep naming its first expansion, as ADR-002 specifies
+(`TestExportValuesReexpandKeepsFirstID`). Such sharing only
 references older, sealed values, so it cannot form a cycle, and the export's
 size and depth budgets bound the walk. An object first emitted as a pointer
 or slice base keeps its back-references, which record real aliasing; shared
@@ -112,8 +117,8 @@ return, type switch) stays isolated with and without sharing.
 output matches `go run`.
 
 Immutability is not enough on its own: a shared value must also outlive every
-copy that refers to it, which only in-memory objects do (decision 1, "Stored
-elements").
+copy that refers to it, and stay correctly accounted for when it is persisted
+(decision 1, "Stored elements").
 
 ## Consequences
 

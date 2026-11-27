@@ -155,7 +155,7 @@ type exportSeen struct {
 }
 
 type exportID struct {
-	n       int  // the Object's last inline expansion
+	n       int  // the Object's first inline expansion
 	byValue bool // first expanded as an array or struct held by value
 }
 
@@ -163,10 +163,13 @@ func newExportSeen() *exportSeen {
 	return &exportSeen{ids: make(map[Object]exportID)}
 }
 
-// expand numbers an inline expansion of oo and emits it.
+// expand numbers an inline expansion of oo and emits it. Back-references
+// keep naming oo's first expansion, as ADR-002 specifies.
 func (s *exportSeen) expand(oo Object, byValue bool, lim *exportLimiter) Value {
 	s.n++
-	s.ids[oo] = exportID{n: s.n, byValue: byValue}
+	if _, again := s.ids[oo]; !again {
+		s.ids[oo] = exportID{n: s.n, byValue: byValue}
+	}
 	return exportCopyValue(oo, s, lim)
 }
 

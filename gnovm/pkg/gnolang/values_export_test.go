@@ -509,6 +509,31 @@ func Pair() [2]any {
 	require.Equal(t, 2, strings.Count(bz, `"N":"AgAAAAAAAAA="`), bz)
 }
 
+// TestExportValuesReexpandKeepsFirstID pins that re-expanding an array held by
+// value does not renumber it: a slice of it names its first expansion before
+// and after the re-expansion (ADR-002: "the ID assigned on first visit").
+func TestExportValuesReexpandKeepsFirstID(t *testing.T) {
+	m := NewMachine("testdata", nil)
+	defer m.Release()
+
+	nn := m.MustParseFile("testdata.gno", `package testdata
+func F() ([2]int, []int, [2]int, []int) {
+	var a [2]int
+	s := a[:]
+	return a, s, a, s
+}
+`)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", "testdata"))
+
+	tps := m.Eval(Call(Sel(Nx("testdata"), "F")))
+	require.Len(t, tps, 4)
+
+	bz := string(exportAndMarshal(t, tps))
+	require.Equal(t, 2, strings.Count(bz, `"ObjectID":":1"`), bz)
+	require.NotContains(t, bz, `"ObjectID":":2"`, bz)
+}
+
 // TestExportValuesPointerFirstKeepsRef pins that a struct first emitted as a
 // pointer's base is still a back-reference where it is later held by value:
 // only arrays and structs first expanded by value are expanded again.
