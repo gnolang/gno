@@ -1,0 +1,76 @@
+# gno lint: a banker call guarded only by a deferred recover() is a hint, not an error.
+
+gno lint ./pos ./neg ./near
+
+cmp stdout stdout.golden
+cmp stderr stderr.golden
+
+-- gnowork.toml --
+
+-- pos/gnomod.toml --
+module = "gno.land/r/demo/pos"
+gno = "0.9"
+
+-- pos/pos.gno --
+package pos
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+func TryPay(cur realm, to address) (ok bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			ok = false
+		}
+	}()
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	b.SendCoins(cur.Address(), to, chain.Coins{{"ugnot", 1}})
+	return true
+}
+
+-- neg/gnomod.toml --
+module = "gno.land/r/demo/neg"
+gno = "0.9"
+
+-- neg/neg.gno --
+package neg
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+func Pay(cur realm, to address) bool {
+	b := banker.NewBanker(banker.BankerTypeRealmSend, cur)
+	if b.GetCoin(cur.Address(), "ugnot") < 1 {
+		return false
+	}
+	b.SendCoins(cur.Address(), to, chain.Coins{{"ugnot", 1}})
+	return true
+}
+
+-- near/gnomod.toml --
+module = "gno.land/r/demo/near"
+gno = "0.9"
+
+-- near/near.gno --
+package near
+
+// A recover() next to a SendCoins that is not the chain banker: silent.
+
+type ledger struct{ sent int }
+
+func (l *ledger) SendCoins(n int) { l.sent += n }
+
+var l = &ledger{}
+
+func TrySend(cur realm, n int) {
+	defer func() { recover() }()
+	l.SendCoins(n)
+}
+
+-- stdout.golden --
+-- stderr.golden --
+pos/pos.gno:15:2: a failed banker SendCoins (for example an insufficient balance) ends the transaction and is not caught by the recover() deferred in TryPay; check the precondition before calling it (code=gnoUnrecoverableNativeHint)

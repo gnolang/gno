@@ -299,6 +299,9 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 				return
 			}
 
+			// Advisory hints: printed, never fatal.
+			lintHints(io, dir, mpkg)
+
 			// Construct machine for testing.
 			tm := test.Machine(newProdGnoStore(), goio.Discard, pkgPath, false, nil)
 			defer tm.Release()

@@ -29,6 +29,11 @@ const (
 	gnoLintError                gnoCode = "gnoLintError"
 	gnoPackageNameMismatchError gnoCode = "gnoPackageNameMismatchError"
 
+	// Advisory hints: printed, but never change the exit status.
+	gnoRenderLoopConcatHint    gnoCode = "gnoRenderLoopConcatHint"
+	gnoUnboundedBulkCopyHint   gnoCode = "gnoUnboundedBulkCopyHint"
+	gnoUnrecoverableNativeHint gnoCode = "gnoUnrecoverableNativeHint"
+
 	// TODO: add new gno codes here.
 )
 
