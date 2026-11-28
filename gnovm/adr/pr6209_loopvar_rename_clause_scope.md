@@ -124,11 +124,12 @@ the outer block's `i.loopvar`); the fix leaves that AST unchanged.
 
 Emitting `TRANS_BLOCK2` for two more node types touches every `Transcribe`
 /`TranscribeB` callback: 17 call sites in `preprocess.go`, one in
-`go2gno.go` (acts only on `TRANS_ENTER`) and three in package tests. None
-switch on stage with a panicking default, `preprocess1`'s `TRANS_BLOCK2`
-case matches only `*SwitchStmt` and returns `TRANS_CONTINUE` otherwise, and
-`TranscribeB` already handles `TRANS_BLOCK2` generically (including the pop
-on `TRANS_SKIP`). No callback outside the package exists.
+`go2gno.go` (acts only on `TRANS_ENTER`) and three in package tests. The
+only stage switches with a panicking default, `preprocess1`'s and
+`TranscribeB`'s, already have a `TRANS_BLOCK2` case: `preprocess1`'s matches
+only `*SwitchStmt` and returns `TRANS_CONTINUE` otherwise, and
+`TranscribeB`'s is generic (including the pop on `TRANS_SKIP`). No callback
+returns `TRANS_SKIP` at `TRANS_BLOCK2`. No callback outside the package exists.
 
 ## Alternatives considered
 
@@ -210,11 +211,12 @@ on `TRANS_SKIP`). No callback outside the package exists.
   history with the new binary (sync from genesis, or a hardfork that
   replays transactions) would reach different state, so the switch has to
   happen at an upgrade height rather than apply retroactively.
-- Not fixed here, both on master and both rejected at preprocess rather
-  than silently wrong: a func literal's param/result *type* inside a loop
-  over the same name (`func() (x [len(x)]int)`, #6506), because the names
-  are masked at the func literal's ENTER before its signature is walked;
-  and a type declared in a loop body that refers to itself under a loop
+- Not fixed here, both on master: a func literal's param/result *type*
+  inside a loop over the same name (`func() (x [len(x)]int)`, #6506),
+  because the names are masked at the func literal's ENTER before its
+  signature is walked (rejected with `name x not declared`, or, when a
+  package-level `x` exists, silently resolved to it: master and this change
+  both print 5 where Go prints 3); and, rejected at preprocess, a type declared in a loop body that refers to itself under a loop
   variable's name (`type T struct{ next *T }` in `for T := ...`), because a
   `TypeDecl` only removes its name at LEAVE.
 - Per-iteration copies of a loop's own variable are unchanged (closures in
