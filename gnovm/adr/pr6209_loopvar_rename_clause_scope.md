@@ -167,6 +167,16 @@ already handles `TRANS_BLOCK2` generically (including the pop on
   the init RHS captures the outer variable, not the loop's.
 - `for x := range <expr reading loop x>`, `switch x := x.(type)` and
   `for k, v = range ...` inside a loop declaring `x`/`k`/`v` now work.
+- Not every affected shape was rejected before. Some ran to completion on
+  master with a result that differs from Go's, and now give Go's result:
+  a `for i = range` assignment nested in a loop that declares `i` (master
+  assigned the outer `i` instead of the loop's), and a for-init reading a
+  shadowing function parameter of the same name (master read the enclosing
+  loop variable). Because already-deployed code can compute something
+  different after this change, it needs a coordinated upgrade rather than a
+  plain node restart. Comparing the AST after `initStaticBlocks1` at master
+  and at this change over the chain's stored packages would show which
+  deployed packages are affected.
 - Per-iteration copies of a loop's own variable are unchanged (closures in
   the body still see one value per iteration).
 - No gas change. `initStaticBlocks1` stays O(N) and allocates fewer
