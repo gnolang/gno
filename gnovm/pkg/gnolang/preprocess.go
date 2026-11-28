@@ -3374,12 +3374,60 @@ func defineOrDecl(
 
 	node := skipFile(bn)
 
+	// In `a, b := ...` where a is already declared in this block, Go assigns
+	// to a rather than redeclaring it: a keeps its type, the value must be
+	// assignable to it, and the implicit conversion `a = x` gives it applies.
+	// sts[i] still holds the value's type here, so collect the declared type
+	// of each name that already exists, check the value against it, and record
+	// the conversion. This must happen before the define loop below, which
+	// would otherwise hand Define2 the value's type and trip its "cannot
+	// change .T" guard.
+	var assignTo []Type // declared type of each assigned name, nil elsewhere
+	if isDefine {
+		for i, nx := range nameExprs {
+			if nx.Name == blankIdentifier {
+				continue
+			}
+			if _, ok := node.GetLocalIndex(nx.Name); !ok {
+				continue
+			}
+			lt := node.GetStaticTypeOf(store, nx.Name)
+			if lt == nil {
+				// The name is only reserved so far (an earlier pass, or a
+				// declaration later in the block): Define2 below fills the
+				// slot in, so this name is declared here, not assigned to.
+				continue
+			}
+			if err := checkAssignableTo(store, n, sts[i], lt); err != nil {
+				// The i'th value expression, or the single expression a
+				// multiple assignment unpacks.
+				valueExpr := valueExprs[0]
+				if len(valueExprs) == numNames {
+					valueExpr = valueExprs[i]
+				}
+				panic(fmt.Sprintf(
+					"cannot use %v (value of type %s) as %s value in assignment",
+					valueExpr.String(),
+					sts[i].String(),
+					lt.String(),
+				))
+			}
+			if assignTo == nil {
+				assignTo = make([]Type, numNames)
+			}
+			assignTo[i] = lt
+			sts[i] = lt
+			tvs[i] = anyValue(lt)
+		}
+	}
+
 	for i, nx := range nameExprs {
 		if nx.Name == blankIdentifier {
 			nx.Path = NewValuePathBlock(0, 0, nx.Name)
 		} else {
 			_, ok := node.GetLocalIndex(nx.Name)
-			if isDefine && ok {
+			autoAssigned := isDefine && ok && assignTo != nil && assignTo[i] != nil
+			if autoAssigned {
 				// Keep the original nx, this one is fake.
 				node.Define2(isConst, nx.Name, sts[i], tvs[i], noNameSource)
 			} else {
@@ -3387,10 +3435,25 @@ func defineOrDecl(
 				if isDefine {
 					nsType = NSDefine
 				}
-				node.Define2(isConst, nx.Name, sts[i], tvs[i], NameSource{nx, n, nsType, i})
+				// A declared variable takes the default type of an untyped
+				// value (`var ok = <comma-ok>` declares bool, not untyped
+				// bool). The slot and its placeholder must agree on it, or a
+				// later use of the name is still read as untyped, and a repeat
+				// preprocess of the same block sees the two types disagree. A
+				// const keeps its untyped type and its value.
+				st := sts[i]
+				tv := tvs[i]
+				if !isConst {
+					st = defaultTypeOfIfUntyped(st)
+					tv = anyValue(st)
+				}
+				node.Define2(isConst, nx.Name, st, tv, NameSource{nx, n, nsType, i})
 			}
 			nx.Path = bn.GetPathForName(nil, nx.Name)
 		}
+	}
+	if assignTo != nil {
+		n.SetAttribute(ATTR_ASSIGN_CONVERT, assignTo)
 	}
 }
 
@@ -3507,20 +3570,23 @@ func parseMultipleAssignFromOneExpr(
 		// Type assert case:
 		// var a, b = n.(T)
 		// a, b := n.(T)
+		// The ok result is an untyped bool, as in Go, so that it is
+		// assignable to a declared bool (`var v, ok B = x.(B)`).
 		tt := evalStaticType(store, bn, expr.Type)
-		tuple = &tupleType{Elts: []Type{tt, BoolType}}
+		tuple = &tupleType{Elts: []Type{tt, UntypedBoolType}}
 		expr.HasOK = true
 	case *IndexExpr:
 		// Map index case:
 		// var a, b = n[i], where n is a map
 		// a, b := n[i], where n is a map
+		// The ok result is an untyped bool, as in Go.
 		var mt *MapType
 		dt := evalStaticTypeOf(store, bn, expr.X)
 		mt, ok := baseOf(dt).(*MapType)
 		if !ok {
 			panic(fmt.Sprintf("invalid index expression on %T", dt))
 		}
-		tuple = &tupleType{Elts: []Type{mt.Value, BoolType}}
+		tuple = &tupleType{Elts: []Type{mt.Value, UntypedBoolType}}
 		expr.HasOK = true
 	default:
 		panic(fmt.Sprintf("unexpected value expression type %T", expr))
@@ -3574,12 +3640,25 @@ func parseMultipleAssignFromOneExpr(
 				targetTypes[i] = st
 			}
 		} else {
-			// Set types as return types.
+			// Set types as return types. A comma-ok result stays untyped here:
+			// it is what decides assignability against a declared target
+			// below, and against the type of a name being assigned below
+			// that. The name declared for it takes the default type there.
 			sts[i] = tuple.Elts[i]
 		}
 		tvs[i] = anyValue(sts[i])
 	}
 	recordAssignConversions(n, tuple.Elts, targetTypes)
+}
+
+// defaultTypeOfIfUntyped returns the default type of t when t is an untyped
+// type, and t otherwise. A declared variable cannot keep an untyped type: Go
+// gives it the default type of the value it is declared with.
+func defaultTypeOfIfUntyped(t Type) Type {
+	if isUntyped(t) {
+		return defaultTypeOf(t)
+	}
+	return t
 }
 
 // Identifies NameExprTypeHeapDefines.

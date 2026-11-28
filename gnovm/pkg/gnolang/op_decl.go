@@ -49,7 +49,10 @@ func (m *Machine) doOpValueDecl() {
 				if m.Stage != StagePre && rvs[i].T.Kind() != BoolKind {
 					panic("untyped conversion should not happen at runtime")
 				}
-				ConvertUntypedTo(&tv, nil)
+				// `var v, ok B = m[k]`: an untyped result converts to the
+				// declared type, not to its default. A declared bool gets the
+				// untyped bool, as the equivalent `var ok B = true` does.
+				ConvertUntypedTo(&tv, nt)
 			}
 		} else if nt != nil {
 			// if nt.T is an interface, maintain tv.T as-is.

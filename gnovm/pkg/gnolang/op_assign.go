@@ -2,6 +2,13 @@ package gnolang
 
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
+	// `a, b := ...` where a is already declared in this block assigns to a, so
+	// its value gets the conversion `a = x` gives it; preprocess records which
+	// in ATTR_ASSIGN_CONVERT. Convert before popping: Copy can allocate and so
+	// run GC, which counts live bytes from m.Values and would miss popped ones.
+	if convs, ok := s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+		m.convertTopValues(convs)
+	}
 	// Define each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
