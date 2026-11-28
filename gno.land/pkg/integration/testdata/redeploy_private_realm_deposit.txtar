@@ -1,25 +1,26 @@
 # A redeployed private realm's storage record must account for every deposit its
-# escrow holds.
+# escrow holds, and no more.
 #
 # AddPackage waives its already-exists refusal for a private package, so the same
-# path can be deployed a second time. Each deployment locks a storage deposit at
-# the realm's deposit escrow, and the prior deployment's objects are not evicted,
-# so the escrow accumulates both deposits. Refunds are sized from the realm
-# record and the escrow address is a hash of the path that nothing can sign for,
-# so any deposit the record fails to account for is stranded for good.
+# path can be deployed a second time. The redeploy replaces the package value at
+# the path, so everything the prior deployment owned becomes unreachable from Gno
+# in the same instant: no code in the new deployment can name it, and no later
+# message can free it. ReleaseRedeployedObjects deletes that graph as part of the
+# redeploy, so its bytes leave the record and its deposit leaves the escrow.
 #
-# A redeploy takes over the record persisted at the path: its storage and deposit
-# continue from the prior deployment, and vm/qstorage reads them back. The
-# redeploy is charged for the whole v2 copy (the objects are all newly minted,
-# nothing is evicted), and the record then equals the sum of both charges, which
-# is what the escrow holds.
+# Both halves are checked here, because they fail apart. The escrow address is a
+# truncated hash of the path that nothing can sign for, and refunds are sized
+# from the record, so a deposit the record fails to account for is stranded for
+# good: the blank-realm shape (rebuilding the record from zero and leaving the
+# money behind) reads the same on vm/qstorage as a correct release and is a very
+# different thing. Reading the escrow balance is what tells them apart.
 #
-# Rebuilt from a blank realm instead, the redeploy's record counts only the v2
-# copy and the first deployment's deposit drops out of it. The line this test
-# turns on is the vm/qstorage read after the redeploy: 10833 bytes / 1083300ugnot
-# with the record carried over, 6519 / 651900 from a blank realm. The blank-realm
-# record accounts for the redeploy alone, so v1's 428500ugnot deposit, which the
-# escrow still holds, is stranded. Storage price is 100 ugnot/byte.
+# The numbers: v1 costs 4285 bytes, v2 costs 6548. The redeploy releases v1 and
+# is charged for v2, so it moves 2263 bytes net and the record and the escrow
+# both land on 6548 bytes / 654800ugnot. Storage price is 100 ugnot/byte.
+#
+# g10xg43ncdnkpg8e02lfklmmwh4chvd49sq69haj is the deposit escrow for
+# gno.land/r/foobar/redeploy (DeriveStorageDepositBech32Addr).
 
 gnoland start
 
@@ -32,15 +33,26 @@ stdout 'STORAGE FEE:    428500ugnot'
 gnokey query vm/qstorage --data gno.land/r/foobar/redeploy
 stdout 'storage: 4285, deposit: 428500'
 
+gnokey query bank/balances/g10xg43ncdnkpg8e02lfklmmwh4chvd49sq69haj
+stdout '428500ugnot'
+
 # Redeploy v2 (private, same path, same creator) with strictly more realm state.
+# The charge is the difference, not the whole of v2: v1's 4285 bytes are released
+# in the same message, so 6548 - 4285 = 2263 bytes move.
 gnokey maketx addpkg -pkgdir $WORK/v2 -pkgpath gno.land/r/foobar/redeploy -gas-fee 10000000ugnot -gas-wanted 20000000 -max-deposit 5000000ugnot -chainid=tendermint_test $test1_user_addr
 stdout OK!
+stdout 'STORAGE DELTA:  2263 bytes'
+stdout 'STORAGE FEE:    226300ugnot'
 
-# The record continues from v1's baseline: 4285 + 6548 bytes, 428500 + 654800
-# ugnot, the sum of both charges and what the escrow holds. From a blank realm
-# this reads 6519 / 651900, stranding v1's 428500ugnot.
+# The record accounts for the live deployment and nothing else.
 gnokey query vm/qstorage --data gno.land/r/foobar/redeploy
-stdout 'storage: 10833, deposit: 1083300'
+stdout 'storage: 6548, deposit: 654800'
+
+# And the escrow agrees, which is the half that a blank-realm rebuild would fail:
+# it would read 6519 / 651900 above while the escrow still held 1083300ugnot,
+# stranding v1's 428500ugnot with nothing able to sign for it.
+gnokey query bank/balances/g10xg43ncdnkpg8e02lfklmmwh4chvd49sq69haj
+stdout '654800ugnot'
 
 # The redeploy replaced the code it took the record over from.
 gnokey query vm/qeval --data 'gno.land/r/foobar/redeploy.Which()'
