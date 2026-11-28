@@ -27,7 +27,8 @@
           "builders/rpc-clients",
           "builders/query-state-api",
           "builders/contributor-guide",
-          "builders/running-a-node"
+          "builders/running-a-node",
+          "cheatsheet"
         ]
       },
       {
