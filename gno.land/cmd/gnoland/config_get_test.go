@@ -224,6 +224,22 @@ func TestConfig_Get_Base(t *testing.T) {
 			true,
 		},
 		{
+			"tmkms listener socket mode fetched",
+			"consensus.priv_validator.tmkms_listener.socket_mode",
+			func(loadedCfg *config.Config, value []byte) {
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.TmkmsListener.SocketMode, unmarshalJSONCommon[string](t, value))
+			},
+			false,
+		},
+		{
+			"tmkms listener socket mode fetched, raw",
+			"consensus.priv_validator.tmkms_listener.socket_mode",
+			func(loadedCfg *config.Config, value []byte) {
+				assert.Equal(t, loadedCfg.Consensus.PrivValidator.TmkmsListener.SocketMode, escapeNewline(value))
+			},
+			true,
+		},
+		{
 			"node key path fetched",
 			"node_key_file",
 			func(loadedCfg *config.Config, value []byte) {
