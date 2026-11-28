@@ -320,18 +320,16 @@ func GCVisitorFn(gcCycle int64, alloc *Allocator, visitCount *int64) Visitor {
 
 		*visitCount++ // Count operations for gas calculation
 
-		// A map's O(N) MapList traversal (in VisitAssociated, below) is
-		// otherwise unmetered for entries whose key AND value are unboxed
-		// primitives — their data lives in TypedValue.N, so V == nil and vis
-		// is never called for them. Count one visit per such entry to reflect
-		// the real traversal cost. Boxed keys/values are already counted when
-		// vis reaches them, so they are not double-charged here.
-		if mv, ok := v.(*MapValue); ok {
-			for cur := mv.List.Head; cur != nil; cur = cur.Next {
-				if cur.Key.V == nil && cur.Value.V == nil {
-					*visitCount++
-				}
-			}
+		// A map's VisitAssociated walks every MapListItem of its MapList: one
+		// pointer chase per entry, the same DRAM-bound work an object visit
+		// costs on a scattered heap. vis only counts the entry's boxed key or
+		// value — and not even those once stamped this cycle — so a map of
+		// primitives, or of N references to one shared object, would walk N
+		// items for ~1 visit (gnolang/gno#5883). Count every entry, whatever
+		// it holds. List.Size is O(1) and insertion-order independent, so this
+		// adds no second walk and stays deterministic.
+		if mv, ok := v.(*MapValue); ok && mv.List != nil {
+			*visitCount = overflow.Addp(*visitCount, int64(mv.List.Size))
 		}
 
 		// Add object size to alloc.
