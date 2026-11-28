@@ -39,7 +39,9 @@ func newTryEvalStaticTestPkg(t *testing.T, pkgName, pkgPath string) (*defaultSto
 //
 // This is not observable from Gno source, because the sole caller's branch was
 // inverted in the matching direction and the two bugs cancelled out. This test
-// pins the contract directly so neither can be reintroduced alone.
+// pins the contract directly, so the recover bug cannot be reintroduced alone.
+// It does not cover the caller's branch; zrealm_crossrealm17b.gno and
+// interrealm_v2.txtar guard that.
 func TestTryEvalStatic_ErrNilOnSuccess(t *testing.T) {
 	t.Parallel()
 	st, pn := newTryEvalStaticTestPkg(t, "tryeval", "gno.land/r/test/tryeval")

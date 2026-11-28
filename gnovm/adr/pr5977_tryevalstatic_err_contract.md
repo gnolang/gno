@@ -92,13 +92,13 @@ if err != nil {
 ## Consequences
 
 - **No behaviour change in any exercised case.** The `else if` chain already discriminated on `tv`'s shape, and it reaches the same verdict for every input the suite produces. Full `TestFiles` passes.
-- One latent hole closes. A `*ConstExpr` callee (`err == nil` via the early return) currently **skips** the realm check; afterwards it is checked, like any other resolved callee. This never occurs in the suite (0 hits), so it is unobservable today, but the post-fix behaviour is the correct one.
+- One latent hole closes. A `*ConstExpr` callee (`err == nil` via the early return) previously **skipped** the realm check; afterwards it goes through the `else if` chain like any other resolved callee. The existing suite never produces one (0 hits), but it is constructible: a typed-nil conversion, `type F func(cur realm); F(nil)(cur)`, preprocesses to a `*ConstExpr` callee. Its `GetUnboundFunc()` is nil, so the chain is a no-op and the call fails at runtime with `call of nil function` both before and after the fix. A `*ConstExpr` holding a concrete func from another realm would now be rejected; no source shape producing one was found. `zrealm_crossrealm_curcall_constnil.gno` (new) pins the typed-nil case.
 - The runtime check in `machine.go` (the `IsCrossing` path in `PushFrameCall`) remains the authoritative enforcement point. The preprocess check stays best-effort.
-- Three regression guards, at three levels. All fail if either bug is reintroduced alone:
-  - `TestTryEvalStatic_ErrNilOnSuccess` (new, `preprocess_tryevalstatic_test.go`) pins the contract directly — it fails against master with `recovered panic with: <nil>`, and passes with the fix. `TestTryEvalStatic_ErrSetOnFailure` is the negative control and passes either way.
+- Three regression guards, at three levels. Between them they catch either bug reintroduced alone:
+  - `TestTryEvalStatic_ErrNilOnSuccess` (new, `preprocess_tryevalstatic_test.go`) pins the contract directly — it fails against master with `recovered panic with: <nil>`, and passes with the fix. It guards bug 1 only: it calls `tryEvalStatic` directly, so re-inverting the caller's branch (bug 2) leaves it passing. `TestTryEvalStatic_ErrSetOnFailure` is the negative control and passes either way.
   - `zrealm_crossrealm17b.gno` (existing) asserts a *preprocess-time* rejection — its expected error carries a `file:line` prefix. If the check is skipped, `machine.go` emits the same message without a prefix and the test fails.
   - `interrealm_v2.txtar` (existing) asserts the offending package *fails to deploy*. If the check is skipped, `addpkg` succeeds.
-- **No `.gno` filetest reproduces this, and none can.** Because the two bugs cancel, every Gno program behaves identically before and after the fix — there is no Gno-observable difference to assert. The defect exists only at the Go level, in `tryEvalStatic`'s contract, which is why the new guard is a Go unit test rather than a filetest.
+- **No `.gno` filetest shows a behaviour difference.** Because the two bugs cancel, every Gno program tried behaves identically before and after the fix, including the typed-nil `*ConstExpr` case above. The defect is at the Go level, in `tryEvalStatic`'s contract, which is why the bug-1 guard is a Go unit test rather than a filetest. Bug 2 is guarded by `zrealm_crossrealm17b.gno` and `interrealm_v2.txtar`.
 
 ## Alternatives considered
 
@@ -108,7 +108,7 @@ if err != nil {
 
 3. **Leave it alone; it works.** It works only while both bugs are present. The next person to fix one in isolation ships a silently weakened compile-time check. Rejected.
 
-4. **Add a filetest pinning the `ConstExpr` path.** Would be ideal, but the branch is unreachable from this call site — no Gno source shape was found that makes `n.Func` a `*ConstExpr` here. Rejected as not constructible.
+4. **Add a filetest pinning the `ConstExpr` path as a regression guard.** The path is reachable (`F(nil)(cur)`), but only with a nil func, which the chain ignores, so the verdict is the same either way and such a filetest cannot fail on a regression. Added anyway as coverage (`zrealm_crossrealm_curcall_constnil.gno`), not as a guard.
 
 5. **Rely only on the existing tests as guards.** They do catch a single-bug regression — that is the evidence for the table above — but they diagnose it badly. `zrealm_crossrealm17b`'s subject is embedded-container method dispatch, and it fails with an "error moved to runtime" diff; the txtar fails with `unexpected "gnokey" command success`. Neither names `tryEvalStatic`, and someone fixing the "obviously wrong" `recover()` would have to work backwards from either to find out why. The unit test fails on the contract that broke. Kept all three.
 

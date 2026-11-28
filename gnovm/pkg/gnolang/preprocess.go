@@ -4633,7 +4633,7 @@ func tryEvalStatic(store Store, pn *PackageNode, last BlockNode, x Expr) (tv Typ
 		defer func() {
 			r := recover()
 			if r == nil {
-				return // FIX: no panic -> eval succeeded -> leave err nil
+				return // no panic: evaluation succeeded, leave err nil
 			}
 			if e, ok := r.(error); ok {
 				err = e
