@@ -123,7 +123,7 @@ This resolved correctly before (inner block defines `i.loopvar`, RHS finds
 the outer block's `i.loopvar`); the fix leaves that AST unchanged.
 
 Emitting `TRANS_BLOCK2` for two more node types touches every `Transcribe`
-/`TranscribeB` callback: 18 call sites in `preprocess.go`, one in
+/`TranscribeB` callback: 17 call sites in `preprocess.go`, one in
 `go2gno.go` (acts only on `TRANS_ENTER`) and three in package tests. None
 switch on stage with a panicking default, `preprocess1`'s `TRANS_BLOCK2`
 case matches only `*SwitchStmt` and returns `TRANS_CONTINUE` otherwise, and
@@ -198,6 +198,12 @@ on `TRANS_SKIP`). No callback outside the package exists.
   `initStaticBlocks1` at master and at this change over the chain's stored
   packages would show which deployed packages are affected; the list above
   is what testing found, not a proof that nothing else changes.
+  Persisted values are not migrated: a closure or block stored in realm
+  state keeps the captures it was created with, while its source is
+  re-preprocessed under the new resolution, so a stored closure created
+  inside one of the shapes above may not match its re-preprocessed body
+  after the upgrade. The same AST comparison identifies the packages where
+  this can arise.
 - The change also turns some rejected transactions into accepted ones: an
   `addpkg` (or `maketx run`) that failed on master with `name x.loopvar
   not declared` / `name x not declared` now succeeds. A node replaying
@@ -219,7 +225,7 @@ on `TRANS_SKIP`). No callback outside the package exists.
   `SwitchStmt`, `FuncDecl` and `FuncLitExpr` now take the empty-parent fast
   path (one map per node before), and the second `initStaticBlocks` pass
   over a file allocates no frames (`TestSecondStaticBlockPassAllocatesNoFrames`:
-  3 allocations over 20 functions, 45 before).
+  3 allocations over 20 functions, 66 on master).
 - `transcribe` fires one extra callback per `ForStmt`/`RangeStmt`
   (`TRANS_BLOCK2`), a stage-switch miss in every callback but this one.
 - Regression coverage, each failing before the fix with the quoted error:
