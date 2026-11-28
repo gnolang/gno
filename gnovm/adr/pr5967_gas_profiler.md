@@ -177,6 +177,14 @@ repo-wide descriptor inventory:
 | `store` | `"DepthReadFlat"`, `"DepthSet"`, `"DepthDelete"`, `"ReadFlat"`, `"ReadPerByte"`, `"WriteFlat"`, `"Delete"`, `"IterNextFlat"`, `"ValuePerByte"`, `"AminoEncodePerByte"`, `"AminoDecodePerByte"`, `"MsgCall result"`, `"EmitEventPerByte"` (result and event bytes the block keeps, priced at the store-write per-byte rate) |
 | `other` | `"txSize"`, `"ante verify: …"`, and any descriptor not in the table |
 
+On-chain, the meter is wrapped only after the ante handler has run, so the
+whole ante phase is booked as a single `(ante)` node in `other`. That lump is
+not only `"txSize"` and signature checks: it also holds the auth keeper's
+account reads/writes and the fee deduction (store and amino gas), which is
+usually most of it. `-sample_index=store_gas` therefore shows only the store
+gas of the message itself. Splitting ante gas by dimension would need the
+wrapper installed before the ante handler runs (follow-up).
+
 The `refund` dimension is not descriptor-mapped: refund gas is booked
 directly by the `RefundGas` path (see Component 1), not via this table.
 
