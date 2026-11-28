@@ -1307,16 +1307,12 @@ func ValidateMemPackageAnyWith(mpkg *std.MemPackage, opts ValidateOptions) (errs
 			// ASCII-quoted (%+q) so the text does not follow the toolchain's
 			// unicode.IsPrint tables, which %q consults.
 			if mptype.IsUserlib() && !opts.AlreadyOnChain {
-				d, ok, serr := FindDirectiveComment(mfile.Body)
-				if serr != nil {
-					errs = multierr.Append(errs, fmt.Errorf(
-						"invalid file %q: %w", fname, serr))
-					skippedUnparsed = true
-					continue
+				d, ok, rerr := FindDirectiveComment(mfile.Body)
+				if rerr == nil && ok {
+					rerr = fmt.Errorf("directives are not supported: %+q", d)
 				}
-				if ok {
-					errs = multierr.Append(errs, fmt.Errorf(
-						"invalid file %q: directives are not supported: %+q", fname, d))
+				if rerr != nil {
+					errs = multierr.Append(errs, fmt.Errorf("invalid file %q: %w", fname, rerr))
 					skippedUnparsed = true
 					continue
 				}
@@ -1383,19 +1379,14 @@ func ValidateMemPackageAnyWith(mpkg *std.MemPackage, opts ValidateOptions) (errs
 // Dropping every CR over-approximates safely: interpreted strings cannot span
 // lines, and nothing else carries one into a line start.
 func hasRawGoGenerate(body string) bool {
-	if strings.IndexByte(body, '\r') >= 0 {
-		body = strings.ReplaceAll(body, "\r", "")
+	body = strings.ReplaceAll(body, "\r", "") // no copy when there is no CR
+	if !strings.Contains(body, "//go:generate") {
+		return false
 	}
-	for off := 0; off < len(body); {
-		rest := body[off:]
-		if isGoGenerateLine(rest) {
+	for line := range strings.SplitSeq(body, "\n") {
+		if isGoGenerateLine(line) {
 			return true
 		}
-		nl := strings.IndexByte(rest, '\n')
-		if nl < 0 {
-			break
-		}
-		off += nl + 1
 	}
 	return false
 }
@@ -1479,9 +1470,10 @@ func FindDirectiveComment(body string) (string, bool, error) {
 			if name, ok := directiveName(lit); ok {
 				return name, true, nil
 			}
-			// lit[2:]: the first line is checked after its opener, since
-			// go/printer's doc-comment reformat moves it to a line of its own.
-			if strings.HasPrefix(lit, "/*") && hasIndentedGoGenerate(lit[2:]) {
+			// go/scanner strips CR from a comment's lit, so this substring gate
+			// is exact for the line check behind it.
+			if strings.HasPrefix(lit, "/*") && strings.Contains(lit, "//go:generate") &&
+				hasIndentedGoGenerate(lit[2:]) {
 				return "//go:generate", true, nil
 			}
 		}

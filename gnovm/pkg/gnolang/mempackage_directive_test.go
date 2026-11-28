@@ -7,6 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"math/rand"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -274,12 +275,7 @@ func TestIndentedGoGenerateMirrorsPrinter(t *testing.T) {
 				if err != nil {
 					continue // not a file the transpiler could emit
 				}
-				runs := false
-				for line := range strings.SplitSeq(string(out), "\n") {
-					if isGoGenerateLine(line) {
-						runs = true
-					}
-				}
+				runs := slices.ContainsFunc(strings.Split(string(out), "\n"), isGoGenerateLine)
 				_, found, _ := FindDirectiveComment(src)
 				if runs && !found {
 					t.Errorf("go generate would run %q (formatted %q), but the scan accepts it", src, out)
@@ -322,13 +318,18 @@ func TestFindDirectiveComment_Terminates(t *testing.T) {
 
 func validateBody(t *testing.T, mptype MemPackageType, pkgPath, body string) error {
 	t.Helper()
+	return validateBodyWith(t, mptype, pkgPath, body, ValidateOptions{})
+}
+
+func validateBodyWith(t *testing.T, mptype MemPackageType, pkgPath, body string, opts ValidateOptions) error {
+	t.Helper()
 	name := pkgPath[strings.LastIndex(pkgPath, "/")+1:]
-	return ValidateMemPackageAny(&std.MemPackage{
+	return ValidateMemPackageAnyWith(&std.MemPackage{
 		Type:  mptype,
 		Name:  name,
 		Path:  pkgPath,
 		Files: []*std.MemFile{{Name: "z.gno", Body: body}},
-	})
+	}, opts)
 }
 
 func TestValidateMemPackage_Directives(t *testing.T) {
@@ -465,21 +466,18 @@ func TestValidateMemPackage_Directives(t *testing.T) {
 		// A genesis replay re-delivers deploys the chain already admitted; see
 		// ValidateOptions and the keeper's TestDirectiveRuleWaivedOnGenesisReplay.
 		replay := ValidateOptions{AlreadyOnChain: true}
-		mpkg := func(body string) *std.MemPackage {
-			return &std.MemPackage{
-				Type: MPUserProd, Name: "zz", Path: userPath,
-				Files: []*std.MemFile{{Name: "z.gno", Body: body}},
-			}
-		}
 		const tagged = "//go:build go1.99\n\npackage zz\nfunc F() {}\n"
-		assert.ErrorContains(t, ValidateMemPackageAnyWith(mpkg(tagged), ValidateOptions{}), "directives are not supported")
-		assert.NoError(t, ValidateMemPackageAnyWith(mpkg(tagged), replay))
-		assert.NoError(t, ValidateMemPackageWith(mpkg(tagged), replay))
+		assert.ErrorContains(t, validateBody(t, MPUserProd, userPath, tagged), "directives are not supported")
+		assert.NoError(t, validateBodyWith(t, MPUserProd, userPath, tagged, replay))
+		assert.NoError(t, ValidateMemPackageWith(&std.MemPackage{
+			Type: MPUserProd, Name: "zz", Path: userPath,
+			Files: []*std.MemFile{{Name: "z.gno", Body: tagged}},
+		}, replay), "the prod-only entry point takes the option too")
 
 		// Everything that decides what the package is still runs.
-		assert.Error(t, ValidateMemPackageAnyWith(mpkg("//go:build go1.99\n\npackage other\nfunc F() {}\n"), replay),
+		assert.Error(t, validateBodyWith(t, MPUserProd, userPath, "//go:build go1.99\n\npackage other\nfunc F() {}\n", replay),
 			"a wrong package name must still be refused")
-		assert.Error(t, ValidateMemPackageAnyWith(mpkg("//go:build go1.99\n\npackag zz\n"), replay),
+		assert.Error(t, validateBodyWith(t, MPUserProd, userPath, "//go:build go1.99\n\npackag zz\n", replay),
 			"an unparseable file must still be refused")
 	})
 
