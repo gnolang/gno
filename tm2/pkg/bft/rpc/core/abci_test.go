@@ -113,7 +113,7 @@ func TestABCIQuery_CodeExecutionOverEveryTransport(t *testing.T) {
 	env, conn := newCodeExecutionEnv(false)
 	routes := env.Routes(false)
 	mux := http.NewServeMux()
-	wm := rpcserver.NewWebsocketManager(routes)
+	wm := rpcserver.NewWebsocketManager(routes, nil)
 	wm.SetLogger(log.NewNoopLogger())
 	mux.HandleFunc("/websocket", wm.WebsocketHandler)
 	rpcserver.RegisterRPCFuncs(mux, routes, log.NewNoopLogger(), 0)

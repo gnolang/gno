@@ -25,10 +25,9 @@ func NewServer(logger *slog.Logger) *Server {
 	return &Server{
 		logger:  logger,
 		clients: make(map[*websocket.Conn]struct{}),
+		// nil defaults to gorilla/websocket's same-origin check.
 		upgrader: websocket.Upgrader{
-			CheckOrigin: func(r *http.Request) bool {
-				return true // XXX: adjust this
-			},
+			CheckOrigin: nil,
 		},
 	}
 }

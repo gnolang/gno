@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     ];
 
     // Establish the WebSocket connection to the event server
-    const ws = new WebSocket('ws://{{- .Remote -}}');
+    const ws = new WebSocket((window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '{{- .Path -}}');
 
     // `gracePeriod` mitigates reload loops due to excessive events. This period
     // occurs post-loading and lasts for the `graceTimeout` duration.

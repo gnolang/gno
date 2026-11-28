@@ -489,9 +489,8 @@ func (ds *App) setupHandlers(ctx context.Context) (http.Handler, error) {
 	}
 
 	if !ds.cfg.noWatch {
-		evtstarget := fmt.Sprintf("%s/_events", ds.cfg.webListenerAddr)
 		mux.Handle("/_events", ds.emitterServer)
-		mux.Handle("/", emitter.NewMiddleware(evtstarget, webhandler))
+		mux.Handle("/", emitter.NewMiddleware("/_events", webhandler))
 	} else {
 		mux.Handle("/", webhandler)
 	}

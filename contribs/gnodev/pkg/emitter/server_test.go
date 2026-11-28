@@ -45,3 +45,25 @@ func TestServer_ServeHTTP(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, sendEvt.Type(), recvEvt.Type)
 }
+
+func TestServer_CheckOrigin(t *testing.T) {
+	t.Parallel()
+
+	svr := NewServer(log.NewTestingLogger(t))
+	s := httptest.NewServer(http.HandlerFunc(svr.ServeHTTP))
+	defer s.Close()
+
+	u := "ws" + strings.TrimPrefix(s.URL, "http")
+	for origin, status := range map[string]int{
+		s.URL:                http.StatusSwitchingProtocols,
+		"http://evil.test":   http.StatusForbidden,
+		"http://localhost:1": http.StatusForbidden,
+	} {
+		c, resp, _ := websocket.DefaultDialer.Dial(u, http.Header{"Origin": {origin}})
+		require.NotNil(t, resp, "origin %q", origin)
+		assert.Equal(t, status, resp.StatusCode, "origin %q", origin)
+		if c != nil {
+			c.Close()
+		}
+	}
+}

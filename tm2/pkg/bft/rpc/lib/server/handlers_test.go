@@ -574,7 +574,7 @@ func gatedBatch(n int) string {
 func batchServer(release <-chan struct{}) (s *httptest.Server, calls *atomic.Int64, served chan struct{}) {
 	calls, served = new(atomic.Int64), make(chan struct{})
 	funcs := batchTestFuncs(calls, release)
-	wm := rs.NewWebsocketManager(funcs)
+	wm := rs.NewWebsocketManager(funcs, nil)
 	wm.SetLogger(log.NewNoopLogger())
 	mux := http.NewServeMux()
 	rs.RegisterRPCFuncs(mux, funcs, log.NewNoopLogger(), 0)
@@ -805,7 +805,7 @@ func TestWebsocketBatchLimit(t *testing.T) {
 			return "foo", nil
 		}, ""),
 	}
-	wm := rs.NewWebsocketManager(funcMap, rs.MaxBatchRequests(2))
+	wm := rs.NewWebsocketManager(funcMap, nil, rs.MaxBatchRequests(2))
 	wm.SetLogger(log.NewNoopLogger())
 	mux := http.NewServeMux()
 	mux.HandleFunc("/websocket", wm.WebsocketHandler)
@@ -904,7 +904,7 @@ func TestWebsocketBatchWriteDeadlinePerAnswer(t *testing.T) {
 	t.Parallel()
 
 	release := make(chan struct{})
-	wm := rs.NewWebsocketManager(batchTestFuncs(new(atomic.Int64), release), rs.WriteWait(200*time.Millisecond))
+	wm := rs.NewWebsocketManager(batchTestFuncs(new(atomic.Int64), release), nil, rs.WriteWait(200*time.Millisecond))
 	wm.SetLogger(log.NewNoopLogger())
 	s := httptest.NewServer(http.HandlerFunc(wm.WebsocketHandler))
 	defer s.Close()
@@ -959,16 +959,113 @@ func TestWebsocketBatchNullElement(t *testing.T) {
 }
 
 func newWSServer() *httptest.Server {
+	return newWSServerWithOrigins([]string{"*"})
+}
+
+func newWSServerWithOrigins(allowedOrigins []string) *httptest.Server {
 	funcMap := map[string]*rs.RPCFunc{
 		"c": rs.NewWSRPCFunc(func(ctx *types.Context, s string, i int) (string, error) { return "foo", nil }, "s,i"),
 	}
-	wm := rs.NewWebsocketManager(funcMap)
+	wm := rs.NewWebsocketManager(funcMap, allowedOrigins)
 	wm.SetLogger(log.NewNoopLogger())
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/websocket", wm.WebsocketHandler)
 
 	return httptest.NewServer(mux)
+}
+
+func TestWebsocketManagerCheckOrigin(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		allowedOrigins []string
+		origin         string
+		expectAllowed  bool
+	}{
+		{
+			name:           "wildcard allows all origins",
+			allowedOrigins: []string{"*"},
+			origin:         "http://evil.com",
+			expectAllowed:  true,
+		},
+		{
+			name:           "no origin header is allowed",
+			allowedOrigins: []string{},
+			origin:         "",
+			expectAllowed:  true,
+		},
+		{
+			name:           "no origin header is allowed under a narrowed list",
+			allowedOrigins: []string{"http://example.com"},
+			origin:         "",
+			expectAllowed:  true,
+		},
+		{
+			name:           "exact origin match",
+			allowedOrigins: []string{"http://example.com"},
+			origin:         "http://example.com",
+			expectAllowed:  true,
+		},
+		{
+			name:           "wildcard subdomain match",
+			allowedOrigins: []string{"http://*.example.com"},
+			origin:         "http://foo.example.com",
+			expectAllowed:  true,
+		},
+		{
+			name:           "deep subdomain wildcard match",
+			allowedOrigins: []string{"http://*.example.com"},
+			origin:         "http://a.b.example.com",
+			expectAllowed:  true,
+		},
+		{
+			name:           "empty allowed origins rejects cross-origin",
+			allowedOrigins: []string{},
+			origin:         "http://evil.com",
+			expectAllowed:  false,
+		},
+		{
+			name:           "non-matching origin rejected",
+			allowedOrigins: []string{"http://good.com"},
+			origin:         "http://evil.com",
+			expectAllowed:  false,
+		},
+		{
+			name:           "partial name does not match wildcard",
+			allowedOrigins: []string{"http://*.example.com"},
+			origin:         "http://evil-example.com",
+			expectAllowed:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := newWSServerWithOrigins(tt.allowedOrigins)
+			defer s.Close()
+
+			dialer := websocket.Dialer{}
+			header := http.Header{}
+			if tt.origin != "" {
+				header.Set("Origin", tt.origin)
+			}
+
+			conn, resp, err := dialer.Dial("ws://"+s.Listener.Addr().String()+"/websocket", header)
+			if tt.expectAllowed {
+				require.NoError(t, err, "expected WebSocket upgrade to succeed")
+				require.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
+				conn.Close()
+			} else {
+				require.Error(t, err, "expected WebSocket upgrade to be rejected")
+				if resp != nil {
+					require.Equal(t, http.StatusForbidden, resp.StatusCode)
+				}
+			}
+		})
+	}
 }
 
 func newWSStreamingServer() *httptest.Server {
@@ -980,7 +1077,7 @@ func newWSStreamingServer() *httptest.Server {
 			return "pong", nil
 		}, ""),
 	}
-	wm := rs.NewWebsocketManager(funcMap)
+	wm := rs.NewWebsocketManager(funcMap, []string{"*"})
 	wm.SetLogger(log.NewNoopLogger())
 
 	mux := http.NewServeMux()

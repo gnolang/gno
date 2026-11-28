@@ -17,8 +17,7 @@ import (
 var reloadscript string
 
 type middleware struct {
-	remote   string
-	muRemote sync.RWMutex
+	path string
 
 	next     http.Handler
 	tmpl     *template.Template
@@ -29,15 +28,17 @@ type middleware struct {
 // NewMiddleware creates an HTTP handler that acts as middleware. Its primary
 // purpose is to intercept HTTP responses and inject a WebSocket client script
 // into the body of HTML pages. This injection allows for dynamic content
-// updates on the client side without requiring a page refresh.
-func NewMiddleware(remote string, next http.Handler) http.Handler {
+// updates on the client side without requiring a page refresh. The script
+// dials path on the host that served the page, which is the host the
+// emitter's same-origin check expects.
+func NewMiddleware(path string, next http.Handler) http.Handler {
 	tmpl := template.Must(template.New("reloadscript").
 		Funcs(tmplFuncs).
 		Parse(reloadscript))
 
 	return &middleware{
 		tmpl:     tmpl,
-		remote:   remote,
+		path:     path,
 		next:     next,
 		onceExec: sync.Once{},
 	}
@@ -53,14 +54,11 @@ func (m *middlewareResponseWriter) Write(b []byte) (int, error) {
 }
 
 type data struct {
-	Remote       string
+	Path         string
 	ReloadEvents []events.Type
 }
 
 func (m *middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	m.muRemote.RLock()
-	defer m.muRemote.RUnlock()
-
 	// Create a buffer to hold the modified response
 	buffer := bytes.NewBuffer(nil)
 
@@ -84,7 +82,7 @@ func (m *middleware) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		script := &bytes.Buffer{}
 		script.WriteString(`<script type="text/javascript">`)
 		err := m.tmpl.Execute(script, &data{
-			Remote: m.remote,
+			Path: m.path,
 			ReloadEvents: []events.Type{
 				events.EvtReload, events.EvtReset, events.EvtTxResult,
 			},

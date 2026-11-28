@@ -112,6 +112,50 @@ func TestNodeRPCBatchLimit(t *testing.T) {
 	assert.Contains(t, string(msg), refusal)
 }
 
+func TestNodeRPCWebsocketOrigin(t *testing.T) {
+	for _, tt := range []struct {
+		name           string
+		allowedOrigins []string
+		status         map[string]int // by Origin header, "" for none
+	}{
+		{"narrowed list", []string{"https://gno.land"}, map[string]int{
+			"https://gno.land":  http.StatusSwitchingProtocols,
+			"https://evil.test": http.StatusForbidden,
+			"":                  http.StatusSwitchingProtocols,
+		}},
+		{"empty list", []string{}, map[string]int{
+			"https://evil.test": http.StatusForbidden,
+			"":                  http.StatusSwitchingProtocols,
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			config, genesisFile := cfg.ResetTestRoot("node_rpc_ws_origin_test")
+			defer os.RemoveAll(config.RootDir)
+			config.RPC.ListenAddress = "tcp://127.0.0.1:0"
+			config.RPC.CORSAllowedOrigins = tt.allowedOrigins
+
+			n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewNoopLogger())
+			require.NoError(t, err)
+			require.NoError(t, n.Start())
+			defer n.Stop()
+
+			url := "ws://" + n.rpcListeners[0].Addr().String() + "/websocket"
+			for origin, status := range tt.status {
+				header := http.Header{}
+				if origin != "" {
+					header.Set("Origin", origin)
+				}
+				c, resp, _ := websocket.DefaultDialer.Dial(url, header)
+				require.NotNil(t, resp, "origin %q", origin)
+				assert.Equal(t, status, resp.StatusCode, "origin %q", origin)
+				if c != nil {
+					c.Close()
+				}
+			}
+		})
+	}
+}
+
 // TestDefaultNewNodeWithGenesisProvider verifies that a custom GenesisDocProvider
 // is used in place of the on-disk loader and that its returned doc reaches the
 // node. This is the seam gnoland uses to inject the streaming genesis loader.
