@@ -1,0 +1,4 @@
+-- input.md --
+Escaped \<gno-button href="/r/test" label="Escaped" /> stays literal.
+-- output.html --
+<p>Escaped &lt;gno-button href=&quot;/r/test&quot; label=&quot;Escaped&quot; /&gt; stays literal.</p>

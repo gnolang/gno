@@ -86,7 +86,7 @@ Alloc gas is charged separately by the allocator and is not included here.
 | OpBody/OpIfCond | flat | — |
 | OpForLoop (simple) | flat | — |
 | OpForLoop (heap copy) | base + slope * N | N = heap var count |
-| OpRangeIter (array) | base + slope * N | N = element count |
+| OpRangeIter (array) | flat | — (an array ranged by value is copied, and ArrayValue.Copy charges per element) |
 | OpRangeIterString | flat | — (called once per rune, not per string) |
 | OpRangeIterMap | flat | — (called once per entry, not per map) |
 | OpSwitchClause/Case | flat | — |

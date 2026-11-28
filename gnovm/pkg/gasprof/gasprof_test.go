@@ -203,6 +203,8 @@ func TestDimensionOf_classifiesKnownDescriptors(t *testing.T) {
 		"ValuePerByte":         dimStore,
 		"AminoEncodePerByte":   dimStore,
 		"AminoDecodePerByte":   dimStore,
+		"MsgCall result":       dimStore,
+		"EmitEventPerByte":     dimStore,
 		"txSize":               dimOther,
 		"ante verify: x":       dimOther,
 		"some-new-descr":       dimOther, // unknown -> other (documented fallback)

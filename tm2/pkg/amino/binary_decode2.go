@@ -6,9 +6,3 @@ package amino
 func DecodeFieldNumberAndTyp3(bz []byte) (num uint32, typ Typ3, n int, err error) {
 	return decodeFieldNumberAndTyp3(bz)
 }
-
-// SkipField skips over a field value given its wire type.
-// Used by generated unmarshal code to skip unknown fields.
-func SkipField(bz []byte, typ Typ3) (n int, err error) {
-	return consumeAny(typ, bz)
-}

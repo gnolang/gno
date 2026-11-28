@@ -48,22 +48,28 @@ func (m *Machine) doOpAssign() {
 	// exact pricing is wanted, add a per-LHS multi-assign surcharge constant
 	// instead (consensus-breaking, so best batched with other gas changes).
 
-	// NOTE: PopValues returns forward order; rvs[0] is the leftmost RHS value.
-	rvs := m.PopValues(len(s.Lhs))
-
-	// The LHS operand frames sit just below, LHS_0 first. Pop the whole region
-	// once and resolve each LHS from its sub-slice in place.
+	// The RHS values sit on top in forward order, the LHS operand frames just
+	// below, LHS_0 first. Both stay on m.Values until the op returns or panics,
+	// so GC run by a Copy or an Assign2 still counts every destination, such as
+	// the map `f()[i]` writes into.
 	//
-	// INVARIANT: lhsOperands (like rvs) is a view into the live m.Values backing
-	// array, so nothing in the loop may push onto m.Values — an append would
-	// overwrite not-yet-resolved frames. resolvePointer and Assign2 run no
-	// bytecode, so they never push; the debug assert below guards regressions.
+	// INVARIANT: the deferred pop assumes the top len(window) slots stay in
+	// place, so no Go helper the op reaches may push to or pop from m.Values;
+	// the conversion below, resolvePointer and Assign2 reach none.
 	total := 0
 	for _, lx := range s.Lhs {
 		total += numStackValuesForPointer(lx)
 	}
-	lhsOperands := m.PopValues(total)
 	stackLen := len(m.Values)
+	window := m.PeekValues(total + len(s.Lhs))
+	lhsOperands, rvs := window[:total], window[total:]
+	defer m.PopValues(len(window))
+
+	// `a, b = f()` or `a, ok = m[k]` where a value differs from its Lhs only
+	// by name: convert it as `a = x` would, before any Lhs is written.
+	if convs, ok := s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+		m.convertTopValues(convs)
+	}
 
 	offset := 0
 	for i, lx := range s.Lhs {
@@ -78,7 +84,7 @@ func (m *Machine) doOpAssign() {
 		}
 		lv.Assign2(m, m.Alloc, m.Store, m.Realm, rvs[i], true)
 		if debug && len(m.Values) != stackLen {
-			panic("doOpAssign: value stack grew mid-loop; lhsOperands/rvs aliases corrupted")
+			panic("doOpAssign: value stack changed mid-loop")
 		}
 	}
 }
@@ -254,9 +260,17 @@ func (m *Machine) doOpShlAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 
-	// Per-N gas for BigInt Shl: charge per-kilobit of shift amount.
+	// Per-N gas for BigInt Shl: charge per-kilobit of both the shift amount
+	// and the operand bit-width, mirroring doOpShl (and doOpShrAssign below).
+	// This runs only at statement execution with a concrete-typed lvalue
+	// (const targets are rejected; a variable can't hold an untyped bigint),
+	// so the branch is currently unreachable — kept symmetric with doOpShl so
+	// the operand-size undercharge can't creep back if that ever changes.
 	if lv.TV.T == UntypedBigintType {
-		m.incrCPU(int64(rv.GetUint()) * OpCPUSlopeBigIntShl / 1024)
+		// Clamped for the same overflow reason as doOpShl.
+		shift := min(rv.GetUint(), uint64(maxBigintShift))
+		m.incrCPU(int64(shift) * OpCPUSlopeBigIntShl / 1024)
+		m.incrCPUBigUnary(lv.TV, OpCPUSlopeBigIntShl)
 	}
 
 	// lv <<= rv

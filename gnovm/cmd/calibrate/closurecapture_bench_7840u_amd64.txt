@@ -1,0 +1,92 @@
+# go test -run NONE -bench 'BenchmarkGrowBlockValues|BenchmarkClosureCapture' -benchtime=2s -count=10 -short ./gnovm/pkg/gnolang/
+# then -bench 'BenchmarkClosureCapture/names=(2000|60000)/' on a quieter machine (load 2.4 → 3.3); those rows replace the first run's.
+# Dev-box runs (AMD Ryzen 7 7840U, linux/amd64, unpinned) behind OpCPUSlopePreprocessCaptureGrowCopy and OpCPUSlopePreprocessClosureCapture — informational, like closurescan_bench_m5_arm64.txt.
+# Machine factor 1.52: the largest of this box's per-element literal families (SliceLit, SliceLit2, StructLit) against their published Xeon fits.
+# Grow copy slope = ceil(max over cases of 95% upper bound (t, n=10) of ns/slot × 1.52). Max: slots=512, mean 14.9, upper 16.3 → 24.8 → 25.
+# ns/capture = (preprocess time with names distinct names − with one name read names times) ÷ ((names−1)·depth); same bytes, same scans.
+# Capture slope = max over cases of (95% upper ns/capture × 1.52 − copies/capture × 25), rounded up to the next 100.
+# Max: names=60000/depth=8, mean 3371, upper 3565 → 5418 − 117.3 × 25 = 2486 → 2500. names=2000/depth=100 gives 2327.
+goos: linux
+goarch: amd64
+pkg: github.com/gnolang/gno/gnovm/pkg/gnolang
+cpu: AMD Ryzen 7 7840U w/ Radeon  780M Graphics     
+BenchmarkClosureCapture/names=32/depth=8-16         	    1252	   1919624 ns/op	         1.000 copies/capture	       913.0 ns/capture
+BenchmarkClosureCapture/names=32/depth=8-16         	    1225	   1662446 ns/op	         1.000 copies/capture	       835.6 ns/capture
+BenchmarkClosureCapture/names=32/depth=8-16         	    1530	   1778250 ns/op	         1.000 copies/capture	       858.2 ns/capture
+BenchmarkClosureCapture/names=32/depth=8-16         	    1474	   1999431 ns/op	         1.000 copies/capture	       984.6 ns/capture
+BenchmarkClosureCapture/names=32/depth=8-16         	    1371	   1940289 ns/op	         1.000 copies/capture	       884.3 ns/capture
+BenchmarkClosureCapture/names=32/depth=8-16         	    1324	   1616775 ns/op	         1.000 copies/capture	       789.3 ns/capture
+BenchmarkClosureCapture/names=32/depth=8-16         	    1480	   1725020 ns/op	         1.000 copies/capture	       842.1 ns/capture
+BenchmarkClosureCapture/names=32/depth=8-16         	    1518	   1741310 ns/op	         1.000 copies/capture	       821.2 ns/capture
+BenchmarkClosureCapture/names=32/depth=8-16         	    1500	   1650777 ns/op	         1.000 copies/capture	       810.9 ns/capture
+BenchmarkClosureCapture/names=32/depth=8-16         	    1388	   1849549 ns/op	         1.000 copies/capture	       870.5 ns/capture
+BenchmarkClosureCapture/names=200/depth=20-16       	     205	  13091113 ns/op	         1.281 copies/capture	       959.6 ns/capture
+BenchmarkClosureCapture/names=200/depth=20-16       	     204	  12637109 ns/op	         1.281 copies/capture	       922.0 ns/capture
+BenchmarkClosureCapture/names=200/depth=20-16       	     210	  14147743 ns/op	         1.281 copies/capture	      1034 ns/capture
+BenchmarkClosureCapture/names=200/depth=20-16       	     184	  17295039 ns/op	         1.281 copies/capture	      1298 ns/capture
+BenchmarkClosureCapture/names=200/depth=20-16       	     120	  21108710 ns/op	         1.281 copies/capture	      1527 ns/capture
+BenchmarkClosureCapture/names=200/depth=20-16       	     136	  14810482 ns/op	         1.281 copies/capture	      1087 ns/capture
+BenchmarkClosureCapture/names=200/depth=20-16       	     169	  12205428 ns/op	         1.281 copies/capture	       900.2 ns/capture
+BenchmarkClosureCapture/names=200/depth=20-16       	     150	  15331716 ns/op	         1.281 copies/capture	      1094 ns/capture
+BenchmarkClosureCapture/names=200/depth=20-16       	     158	  14809835 ns/op	         1.281 copies/capture	      1064 ns/capture
+BenchmarkClosureCapture/names=200/depth=20-16       	     187	  12880903 ns/op	         1.281 copies/capture	       926.7 ns/capture
+BenchmarkGrowBlockValues/slots=512-16               	  335512	      8263 ns/op	        16.14 ns/slot
+BenchmarkGrowBlockValues/slots=512-16               	  451993	      7096 ns/op	        13.86 ns/slot
+BenchmarkGrowBlockValues/slots=512-16               	  392043	      8531 ns/op	        16.66 ns/slot
+BenchmarkGrowBlockValues/slots=512-16               	  268774	      7842 ns/op	        15.32 ns/slot
+BenchmarkGrowBlockValues/slots=512-16               	  269953	      9007 ns/op	        17.59 ns/slot
+BenchmarkGrowBlockValues/slots=512-16               	  244927	      8889 ns/op	        17.36 ns/slot
+BenchmarkGrowBlockValues/slots=512-16               	  409455	      6347 ns/op	        12.40 ns/slot
+BenchmarkGrowBlockValues/slots=512-16               	  320360	      7457 ns/op	        14.56 ns/slot
+BenchmarkGrowBlockValues/slots=512-16               	  329950	      6177 ns/op	        12.07 ns/slot
+BenchmarkGrowBlockValues/slots=512-16               	  478962	      6447 ns/op	        12.59 ns/slot
+BenchmarkGrowBlockValues/slots=4096-16              	   44442	     49175 ns/op	        12.01 ns/slot
+BenchmarkGrowBlockValues/slots=4096-16              	   46429	     52601 ns/op	        12.84 ns/slot
+BenchmarkGrowBlockValues/slots=4096-16              	   55387	     43607 ns/op	        10.65 ns/slot
+BenchmarkGrowBlockValues/slots=4096-16              	   66184	     42673 ns/op	        10.42 ns/slot
+BenchmarkGrowBlockValues/slots=4096-16              	   57634	     36609 ns/op	         8.938 ns/slot
+BenchmarkGrowBlockValues/slots=4096-16              	   82591	     49674 ns/op	        12.13 ns/slot
+BenchmarkGrowBlockValues/slots=4096-16              	   43977	     48979 ns/op	        11.96 ns/slot
+BenchmarkGrowBlockValues/slots=4096-16              	   44280	     50091 ns/op	        12.23 ns/slot
+BenchmarkGrowBlockValues/slots=4096-16              	   68690	     41087 ns/op	        10.03 ns/slot
+BenchmarkGrowBlockValues/slots=4096-16              	   45735	     50165 ns/op	        12.25 ns/slot
+BenchmarkGrowBlockValues/slots=32768-16             	    7526	    341549 ns/op	        10.42 ns/slot
+BenchmarkGrowBlockValues/slots=32768-16             	    7784	    395245 ns/op	        12.06 ns/slot
+BenchmarkGrowBlockValues/slots=32768-16             	    6081	    337374 ns/op	        10.30 ns/slot
+BenchmarkGrowBlockValues/slots=32768-16             	    5766	    373438 ns/op	        11.40 ns/slot
+BenchmarkGrowBlockValues/slots=32768-16             	    7194	    378150 ns/op	        11.54 ns/slot
+BenchmarkGrowBlockValues/slots=32768-16             	    7136	    326693 ns/op	         9.970 ns/slot
+BenchmarkGrowBlockValues/slots=32768-16             	    6146	    395813 ns/op	        12.08 ns/slot
+BenchmarkGrowBlockValues/slots=32768-16             	    4330	    474509 ns/op	        14.48 ns/slot
+BenchmarkGrowBlockValues/slots=32768-16             	    4804	    480383 ns/op	        14.66 ns/slot
+BenchmarkGrowBlockValues/slots=32768-16             	    4934	    434305 ns/op	        13.25 ns/slot
+BenchmarkGrowBlockValues/slots=65536-16             	    3663	    804280 ns/op	        12.27 ns/slot
+BenchmarkGrowBlockValues/slots=65536-16             	    3609	    876321 ns/op	        13.37 ns/slot
+BenchmarkGrowBlockValues/slots=65536-16             	    3721	    894951 ns/op	        13.66 ns/slot
+BenchmarkGrowBlockValues/slots=65536-16             	    3429	    795357 ns/op	        12.14 ns/slot
+BenchmarkGrowBlockValues/slots=65536-16             	    4230	    681631 ns/op	        10.40 ns/slot
+BenchmarkGrowBlockValues/slots=65536-16             	    2808	    809636 ns/op	        12.35 ns/slot
+BenchmarkGrowBlockValues/slots=65536-16             	    2487	    871514 ns/op	        13.30 ns/slot
+BenchmarkGrowBlockValues/slots=65536-16             	    3111	    772602 ns/op	        11.79 ns/slot
+BenchmarkGrowBlockValues/slots=65536-16             	    3036	    831896 ns/op	        12.69 ns/slot
+BenchmarkGrowBlockValues/slots=65536-16             	    2875	    874605 ns/op	        13.35 ns/slot
+BenchmarkClosureCapture/names=2000/depth=100-16         	       6	 384491461 ns/op	         3.713 copies/capture	      1268 ns/capture
+BenchmarkClosureCapture/names=2000/depth=100-16         	       6	 374259265 ns/op	         3.713 copies/capture	      1225 ns/capture
+BenchmarkClosureCapture/names=2000/depth=100-16         	       6	 396167289 ns/op	         3.713 copies/capture	      1307 ns/capture
+BenchmarkClosureCapture/names=2000/depth=100-16         	       6	 463509806 ns/op	         3.713 copies/capture	      1477 ns/capture
+BenchmarkClosureCapture/names=2000/depth=100-16         	       5	 463883595 ns/op	         3.713 copies/capture	      1460 ns/capture
+BenchmarkClosureCapture/names=2000/depth=100-16         	       5	 583650134 ns/op	         3.713 copies/capture	      1829 ns/capture
+BenchmarkClosureCapture/names=2000/depth=100-16         	       5	 469231722 ns/op	         3.713 copies/capture	      1548 ns/capture
+BenchmarkClosureCapture/names=2000/depth=100-16         	       5	 494712518 ns/op	         3.713 copies/capture	      1607 ns/capture
+BenchmarkClosureCapture/names=2000/depth=100-16         	       5	 450496644 ns/op	         3.713 copies/capture	      1510 ns/capture
+BenchmarkClosureCapture/names=2000/depth=100-16         	       6	 434213238 ns/op	         3.713 copies/capture	      1410 ns/capture
+BenchmarkClosureCapture/names=60000/depth=8-16          	       1	4486501937 ns/op	       117.3 copies/capture	      3037 ns/capture
+BenchmarkClosureCapture/names=60000/depth=8-16          	       1	4437460449 ns/op	       117.3 copies/capture	      3350 ns/capture
+BenchmarkClosureCapture/names=60000/depth=8-16          	       1	4244216972 ns/op	       117.3 copies/capture	      3160 ns/capture
+BenchmarkClosureCapture/names=60000/depth=8-16          	       1	4359984650 ns/op	       117.3 copies/capture	      3538 ns/capture
+BenchmarkClosureCapture/names=60000/depth=8-16          	       1	4531638003 ns/op	       117.3 copies/capture	      3267 ns/capture
+BenchmarkClosureCapture/names=60000/depth=8-16          	       1	4587233744 ns/op	       117.3 copies/capture	      3997 ns/capture
+BenchmarkClosureCapture/names=60000/depth=8-16          	       1	4340486548 ns/op	       117.3 copies/capture	      3431 ns/capture
+BenchmarkClosureCapture/names=60000/depth=8-16          	       1	4376085505 ns/op	       117.3 copies/capture	      3482 ns/capture
+BenchmarkClosureCapture/names=60000/depth=8-16          	       1	4308541789 ns/op	       117.3 copies/capture	      3303 ns/capture
+BenchmarkClosureCapture/names=60000/depth=8-16          	       1	4363079724 ns/op	       117.3 copies/capture	      3143 ns/capture

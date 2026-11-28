@@ -174,7 +174,7 @@ repo-wide descriptor inventory:
 |---|---|
 | `cpu` | `"CPUCycles"` (incrCPU + native gas via uverse), `"GC"`, `"parsing"`, `"ComputeMapKey"`, `"stream output"` |
 | `alloc` | `"memory allocation"` |
-| `store` | `"DepthReadFlat"`, `"DepthSet"`, `"DepthDelete"`, `"ReadFlat"`, `"ReadPerByte"`, `"WriteFlat"`, `"Delete"`, `"IterNextFlat"`, `"ValuePerByte"`, `"AminoEncodePerByte"`, `"AminoDecodePerByte"` |
+| `store` | `"DepthReadFlat"`, `"DepthSet"`, `"DepthDelete"`, `"ReadFlat"`, `"ReadPerByte"`, `"WriteFlat"`, `"Delete"`, `"IterNextFlat"`, `"ValuePerByte"`, `"AminoEncodePerByte"`, `"AminoDecodePerByte"`, `"MsgCall result"`, `"EmitEventPerByte"` (result and event bytes the block keeps, priced at the store-write per-byte rate) |
 | `other` | `"txSize"`, `"ante verify: …"`, and any descriptor not in the table |
 
 The `refund` dimension is not descriptor-mapped: refund gas is booked

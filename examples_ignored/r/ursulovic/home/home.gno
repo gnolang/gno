@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/ownable"
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 	"gno.land/r/leon/hor"
 
 	"gno.land/r/ursulovic/registry"

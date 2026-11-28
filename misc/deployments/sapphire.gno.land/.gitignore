@@ -1,0 +1,5 @@
+# Pipeline working dir.
+/work/
+
+# Final genesis (moved here from work/ on success).
+/genesis.json

@@ -1,0 +1,133 @@
+# Checks the commits, digests and checksums the upgrade ledgers record against
+# the release tags, the registry and the releases (RELEASING.md, "Signing and
+# provenance"). Read-only, public data.
+name: ci / upgrades-ledger-digests
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # daily, 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Recorded values still match the tags, the registry and the releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          status=0
+          checked=0
+          fail() { echo "::error::$*"; status=1; }
+          # A tool's stderr goes here, not into the value it is compared on:
+          # a warning from a call that succeeds must not read as drift.
+          err="$(mktemp)"
+          trap 'rm -f "${err}"' EXIT
+          for ledger in misc/deployments/*/upgrades.json; do
+            echo "== ${ledger}"
+            # One line per recorded value: what it is, the reference to look
+            # up, the value it must have. A digest or binaries still null are
+            # pending the build: listed as notices, so a forgotten fill-in
+            # shows, but not checked. ran_as is checked by its own digest:
+            # untagged or on a mutable sha- tag, it is what a registry
+            # clean-up takes, and the ledger is the only record of what ran.
+            # Every entry's commit is checked against its version's tag:
+            # cut-release.sh's own commit check does not see an entry written
+            # after the cut.
+            # Read in full first: a jq error inside a process substitution
+            # would be swallowed and the ledger skipped as if it were empty.
+            values="$(jq -r '
+              .upgrades[]
+              | "commit \(.version) \(.commit)",
+                (select(.image.digest != null) | "image \(.image.ref) \(.image.digest)"),
+                (select(.ran_as != null) | "ran_as \(.image.ref | sub(":[^:]*$"; ""))@\(.ran_as) \(.ran_as)"),
+                (select(.binaries != null) | .binaries | to_entries[] | "binary \(.value)"),
+                (select(.image.digest == null) | "pending \(.version) image.digest"),
+                (select(.binaries == null) | "pending \(.version) binaries")
+            ' "${ledger}" 2>"${err}")" || { fail "${ledger}: cannot read the ledger: $(cat "${err}")"; continue; }
+            while read -r kind a b; do
+              [ -n "${kind}" ] || continue
+              if [ "${kind}" = pending ]; then
+                echo "::notice::${ledger}: ${a} ${b} is pending the build"
+                continue
+              fi
+              checked=$((checked + 1))
+              case "${kind}" in
+              commit)
+                # The version's tag in gnolang/gno, where `upgrades check`
+                # requires the release link to point and UPGRADES.md links
+                # the commit. The ref of an annotated tag, which
+                # cut-release.sh pushes, names a tag object, which names the
+                # commit; the ref of a lightweight tag names the commit itself.
+                if ! target="$(gh api "repos/gnolang/gno/git/ref/tags/${a}" \
+                  --jq '"\(.object.type) \(.object.sha)"' 2>"${err}")"; then
+                  fail "${ledger}: cannot read tag ${a}: $(cat "${err}")"
+                  continue
+                fi
+                read -r type sha <<<"${target}"
+                if [ "${type}" = tag ]; then
+                  if ! target="$(gh api "repos/gnolang/gno/git/tags/${sha}" \
+                    --jq '"\(.object.type) \(.object.sha)"' 2>"${err}")"; then
+                    fail "${ledger}: cannot read tag ${a}: $(cat "${err}")"
+                    continue
+                  fi
+                  read -r type sha <<<"${target}"
+                fi
+                if [ "${type}" = commit ] && [ "${sha}" = "${b}" ]; then
+                  printf '   ok  %-7s %s\n' "${kind}" "${a} ${b:0:9}"
+                else
+                  fail "${ledger}: ${a} points to ${type} ${sha}, but the ledger records commit ${b}"
+                fi
+                ;;
+              image | ran_as)
+                if ! actual="$(docker buildx imagetools inspect "${a}" --format '{{.Manifest.Digest}}' 2>"${err}")"; then
+                  fail "${ledger}: cannot resolve ${a}: $(cat "${err}")"
+                  continue
+                fi
+                if [ "${actual}" = "${b}" ]; then
+                  printf '   ok  %-7s %s\n' "${kind}" "${a}"
+                else
+                  fail "${ledger}: ${a} is recorded as ${b} but the registry serves ${actual}"
+                fi
+                ;;
+              binary)
+                # https://github.com/<owner>/<repo>/releases/download/<tag>/<asset>?checksum=sha256:<hex>
+                url="${a%%\?*}"
+                want="sha256:${a##*checksum=sha256:}"
+                IFS=/ read -r owner repo releases download tag asset <<<"${url#https://github.com/}"
+                if [ "${releases}/${download}" != "releases/download" ] || [ -z "${asset}" ]; then
+                  fail "${ledger}: not a release download URL: ${a}"
+                  continue
+                fi
+                if ! actual="$(gh api "repos/${owner}/${repo}/releases/tags/${tag}" \
+                  --jq ".assets[] | select(.name == \"${asset}\") | .digest" 2>"${err}")"; then
+                  fail "${ledger}: cannot read release ${tag}: $(cat "${err}")"
+                  continue
+                fi
+                if [ "${actual}" = "${want}" ]; then
+                  printf '   ok  %-7s %s\n' "${kind}" "${tag}/${asset}"
+                else
+                  fail "${ledger}: ${tag}/${asset} is recorded as ${want} but the release serves ${actual:-nothing}"
+                fi
+                ;;
+              *)
+                fail "${ledger}: unexpected value line: ${kind} ${a} ${b}"
+                ;;
+              esac
+            done <<<"${values}"
+          done
+          [ "${checked}" -gt 0 ] || { echo "::error::nothing in the ledgers was checked (none under misc/deployments/*/upgrades.json, or all empty)"; exit 1; }
+          exit "${status}"

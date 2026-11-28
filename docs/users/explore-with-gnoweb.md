@@ -6,7 +6,7 @@ to explore the blockchain ecosystem.
 
 ## Networks
 
-The main gnoweb instance is available at [gno.land](https://gno.land), which serves the Betanet (`gnoland1`). The Staging network is accessible at [staging.gno.land](https://staging.gno.land).
+The main gnoweb instance is available at [gno.land](https://gno.land), which serves mainnet (`gnoland-1`). The current testnet is at [latest.testnets.gno.land](https://latest.testnets.gno.land).
 
 For a complete list of all available networks (testnets and more), see [Networks](../resources/gnoland-networks.md).
 
@@ -74,7 +74,7 @@ func Render(path string) string {
 Based on the provided path, `gnoweb` queries the Gno.land network using the
 `qrender` ABCI query. It then renders the response data as Markdown.
 
-The realm above can be found on the Staging network at [`gno.land/r/docs/hello`](https://staging.gno.land/r/docs/hello).
+The source of the realm above is in the examples, at [`gno.land/r/docs/hello`](../../examples/quarantined/gno.land/r/docs/hello). It is not deployed on a public chain.
 
 While JS/TS clients for Gno exist and developers can create custom websites for their
 Gno.land applications as they see fit, the approach `gnoweb` takes with `Render()`
@@ -85,12 +85,44 @@ Developers can but do not have to provide a `Render()` function in their realms.
 Custom getter methods tailored to the specifics of the realm can be built instead.
 :::
 
+### Images and IPFS content
+
+Rendered pages load images only from gnoweb's own assets, `data:` SVG images,
+the IPFS gateway described below (with its `*.ipfs.` and `*.ipns.` subdomains
+when it is named by a DNS host) and these hosts (`cspImgHost` in
+`gno.land/cmd/gnoweb/main.go`):
+
+- `gnolang.github.io` and `sa.gno.services`
+- `imgur.com` and its subdomains
+- `github.com`, `*.github.io` and `*.githubusercontent.com`
+
+To show content stored on IPFS, use an `ipfs://<cid>/<path>` or
+`ipns://<name>/<path>` URL as the target of a markdown link or image. gnoweb
+resolves it through its configured IPFS gateway (`-ipfs-gateway`, Filebase's
+public gateway by default). It also rewrites links and images that point at a
+retired public gateway, such as ipfs.io or dweb.link, and images on Filebase's,
+to the configured gateway, so a stored image follows a gateway change. Prefer
+`ipfs://` to a gateway URL, so the gateway can change without touching your
+realm. The content still has to be pinned somewhere on the IPFS network: a
+gateway only serves what some node provides.
+
+:::warning
+The URL helpers in `p/nt/markdown/sanitize/v0`, which `p/moul/md/v0` uses,
+reject `ipfs://` URLs, so write the markdown yourself for a CID your realm
+controls. Never put a CID or URL that comes from users or other realms into
+markdown as is: check that the CID contains only ASCII letters and digits, then
+build `ipfs://<cid>` from it. If you add a path, allow only ASCII letters,
+digits, `-`, `_` and `.` in each segment, and reject `.` and `..` segments.
+Build the alt text or link label with `sanitize.InlineText`, as `md.Image` and
+`md.Link` would.
+:::
+
 ### Viewing source code
 
 All code uploaded to Gno.land is open-source and available for everyone to see,
 by design.
 
-Visit the [`gno.land/r/docs/source`](https://staging.gno.land/r/docs/source) realm to learn
+Read the [`gno.land/r/docs/source`](../../examples/quarantined/gno.land/r/docs/source) example realm to learn
 how you can do this.
 
 ## Alternative: Terminal UI with gnobro

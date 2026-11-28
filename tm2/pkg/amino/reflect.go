@@ -253,7 +253,7 @@ func unmarshalAminoReprType(rm reflect.Method) (rrt reflect.Type) {
 }
 
 // NOTE: do not change this definition.
-// It is also defined for genproto.
+// It is also defined for genproto2.
 func isListType(rt reflect.Type) bool {
 	return rt.Kind() == reflect.Slice ||
 		rt.Kind() == reflect.Array

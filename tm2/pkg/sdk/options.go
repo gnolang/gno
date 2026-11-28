@@ -19,6 +19,17 @@ func SetPruningOptions(opts store.PruningOptions) func(*BaseApp) {
 	}
 }
 
+// AllowDeferredCommits lets the node hold the application's commits in
+// memory during block sync (see BaseApp.DeferCommits). Only for an
+// application whose stores never iterate their database inside a block, as
+// gno.land's bptree and plain stores do not: while commits are held such an
+// iterator panics, ending the node at that block. An application whose
+// blocks can schedule a halt that the next binary checks on disk must also
+// call RequireFlushPoint from the block that does.
+func AllowDeferredCommits() func(*BaseApp) {
+	return func(app *BaseApp) { app.deferAllowed = true }
+}
+
 // SetMinGasPrices returns an option that sets the minimum gas prices on the app.
 func SetMinGasPrices(gasPricesStr string) func(*BaseApp) {
 	gasPrices, err := ParseGasPrices(gasPricesStr)

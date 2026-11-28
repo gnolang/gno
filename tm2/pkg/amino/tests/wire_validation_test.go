@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"encoding/binary"
 	"math"
 	"reflect"
 	"strings"
@@ -915,6 +916,35 @@ func TestUnmarshalAnyBinary2_RejectsNonASCIITypeURL(t *testing.T) {
 	}
 	if !strings.Contains(errG.Error(), "invalid type_url string bytes") {
 		t.Fatalf("generator: expected 'invalid type_url string bytes' error, got %q", errG.Error())
+	}
+}
+
+// A binary decode error quotes a type URL of at most 256 bytes, so an
+// unregistered type can be named, and gives a longer one by its length, since
+// the type URL comes off the wire at any length.
+func TestUnmarshalAny_TypeURLErrorQuotesOnlyShortURL(t *testing.T) {
+	cdc := amino.NewCodec()
+	cdc.RegisterPackage(Package)
+	cdc.Seal()
+
+	anyWithTypeURL := func(typeURL string) []byte {
+		return append(binary.AppendUvarint([]byte{0x0A}, uint64(len(typeURL))), typeURL...)
+	}
+	long := "/" + strings.Repeat("a", 256)
+
+	for name, decode := range map[string]func([]byte) error{
+		"reflect":   func(bz []byte) error { return cdc.UnmarshalAny(bz, new(Interface1)) },
+		"generator": func(bz []byte) error { return cdc.UnmarshalAnyBinary2(bz, new(Interface1), 0) },
+	} {
+		err := decode(anyWithTypeURL("/tests.Unregistered"))
+		if err == nil || !strings.Contains(err.Error(), `unrecognized type_url "/tests.Unregistered"`) {
+			t.Errorf("%s: expected the short type URL quoted, got %v", name, err)
+		}
+
+		err = decode(anyWithTypeURL(long))
+		if err == nil || !strings.Contains(err.Error(), "unrecognized type_url (length 257)") || strings.Contains(err.Error(), long) {
+			t.Errorf("%s: expected the long type URL by its length, got %.300v", name, err)
+		}
 	}
 }
 

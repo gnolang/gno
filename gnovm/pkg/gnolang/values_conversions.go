@@ -1045,12 +1045,15 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type, isConst bo
 				tv.T = t // after tv.GetString()
 			case Int32Kind:
 				str := tv.GetString()
-				runes := make([]TypedValue, 0, utf8.RuneCountInString(str))
+				n := utf8.RuneCountInString(str)
+				// Charge before Go's make so maxAllocTx bounds the allocation.
+				base := alloc.NewListArray(nil, n)
+				i := 0
 				for _, r := range str {
-					runes = append(runes, typedRune(r))
+					base.List[i] = typedRune(r)
+					i++
 				}
-				runes = runes[:len(runes):len(runes)] // force cap = len
-				tv.V = alloc.NewSliceFromList(runes)
+				tv.V = alloc.NewSlice(base, 0, n, n)
 				tv.T = t // after tv.GetString()
 			default:
 				panic(fmt.Sprintf(
@@ -1513,6 +1516,14 @@ func bigdecToFloat32(bdv BigdecValue) float32 {
 // verified bdv.IsInt().
 func bigdecToBigInt(bdv BigdecValue) *big.Int {
 	if bdv.IsFloat() {
+		// Past ratOverflowBits, the bound a rat is held to, F.Int would
+		// allocate the whole integer: 256 MB at the largest exponent.
+		if bdv.F.MantExp(nil) > ratOverflowBits {
+			if bdv.F.Sign() > 0 {
+				panic("bigint overflows target kind")
+			}
+			panic("bigint underflows target kind")
+		}
 		bi, _ := bdv.F.Int(nil)
 		return bi
 	}
@@ -1526,7 +1537,7 @@ func bigdecToBigInt(bdv BigdecValue) *big.Int {
 // to bigdecErrString for the rat form.
 func bigdecValueErrString(bdv BigdecValue) string {
 	if bdv.IsFloat() {
-		return bdv.F.Text('g', -1)
+		return bigdecFloatString(bdv.F)
 	}
 	if bdv.V == nil {
 		return "0"

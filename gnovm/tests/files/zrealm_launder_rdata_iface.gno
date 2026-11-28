@@ -6,7 +6,7 @@ package launderrh_iface
 // being boxed into `any` and then type-asserted back out?
 
 import (
-	"gno.land/p/demo/tests/launderpkg"
+	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

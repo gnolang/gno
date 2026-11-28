@@ -2,6 +2,7 @@ package components
 
 import (
 	"io"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb/weburl"
 	"github.com/gnolang/gno/gnovm/pkg/doc"
@@ -11,7 +12,8 @@ const OverviewViewType ViewType = "overview-view"
 
 // DocRenderer renders markdown doc strings and source code to HTML.
 // RenderSource applies syntax highlighting based on the file extension in name.
-// Implementations must be safe for concurrent use and HTML-safe by construction.
+// Implementations must be HTML-safe by construction; the overview template
+// calls one from a single goroutine as it writes each symbol.
 type DocRenderer interface {
 	RenderDocumentation(w io.Writer, src []byte) error
 	RenderSource(w io.Writer, name string, src []byte) error
@@ -95,10 +97,20 @@ type ValueGroup struct {
 
 // ImportLink is a dependency edge rendered in the Imports section.
 type ImportLink struct {
-	Path string
-	Kind string // "stdlib" | "package" | "realm" | "external"
-	Link string
+	Path     string
+	Kind     string // "stdlib" | "package" | "realm" | "external"
+	Link     string
+	External bool
 }
+
+// PathSegments is Path cut after each slash, for a template to offer a line
+// break there before any inside a segment.
+func (l ImportLink) PathSegments() []string { return PathSegments(l.Path) }
+
+// PathSegments cuts a package path after each slash. A long path then wraps
+// between segments, so an address stays whole on its line where it fits:
+// two lookalike addresses are compared at a glance only when unbroken.
+func PathSegments(p string) []string { return strings.SplitAfter(p, "/") }
 
 // FileLink is a file entry rendered in the Files section.
 type FileLink struct {
@@ -126,6 +138,9 @@ type OverviewInput struct {
 	Readme      Component
 	Domain      string
 	DocRenderer DocRenderer
+	// DepsURL is the page listing the package's importers, set only when
+	// this deployment can compute them.
+	DepsURL string
 }
 
 // OverviewData is the full payload passed to the overview template.
@@ -144,7 +159,6 @@ type OverviewData struct {
 	Types       []TypeEntry
 	Consts      []ValueGroup
 	Vars        []ValueGroup
-	Imports     []ImportLink
 	Files       []FileLink
 	Subpackages []SubpackageLink
 	Bugs        []string
@@ -153,10 +167,16 @@ type OverviewData struct {
 	// maxOverviewSymbols; the template then shows a "view full source" notice.
 	SymbolsTruncated bool
 
+	// Graph draws the package between what it imports and, when an indexer
+	// can tell, what imports it.
+	Graph DepGraph
+
 	ComponentTOC Component
 }
 
 // OverviewView constructs a new overview View from pre-built data.
 func OverviewView(data OverviewData) *View {
-	return NewTemplateView(OverviewViewType, "renderOverview", data)
+	view := NewTemplateView(OverviewViewType, "renderOverview", data)
+	view.SkipTargetInBody = true // on the content header
+	return view
 }

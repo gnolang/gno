@@ -1,0 +1,111 @@
+# AddPackage type-checks PRODUCTION files only, but PARSES every file.
+#
+# Test files can never execute on chain (runMemPackage demotes MP*All to
+# MP*Prod; importers filter MPFProd), so their type-check verdict has no
+# on-chain meaning. It did have a cost: resolving a test file's stdlib imports
+# went through a test-stdlib overlay read from the node's local filesystem,
+# putting node-local state into a gas-metered consensus computation. That
+# forked topaz-1 at block 301381.
+# See gno.land/adr/pr6025_prod_only_typecheck_at_addpackage.md.
+#
+# The parse of test files is LOAD-BEARING and must not be dropped: vm/qdoc
+# fully parses stored _test.gno files, so an unparseable one would deploy
+# successfully and then break qdoc for that package permanently — the bytes are
+# immutable in state. Implementing this by filtering the mempackage down to
+# production files (rather than by stopping after the production type-check
+# pass) would skip the parse and reintroduce exactly that. `foo` below is the
+# guard against it.
+
+gnoland start
+
+# foo: _test.gno does not PARSE -> still rejected
+! gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/$test1_user_addr/foo -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test -simulate skip test1
+stderr 'foo_test.gno:3:14: expected'
+
+# bar: _test.gno parses but does not TYPE-CHECK -> accepted
+gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/$test1_user_addr/bar -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test -simulate skip test1
+stdout OK!
+
+# baz: a broken PRODUCTION file is still rejected
+! gnokey maketx addpkg -pkgdir $WORK/baz -pkgpath gno.land/r/$test1_user_addr/baz -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test -simulate skip test1
+stderr 'type check failed'
+
+# aaa/bbb: production code cannot borrow declarations from test files. The
+# production pass type-checks exactly the set that runs (GoParseMemPackage puts
+# _filetest.gno in tgofs and xxx_test files in _gofs, and filterTests strips
+# _test.gno from gofs, so the prod set == MPFProd), so a production file
+# referencing a test-only symbol is still undefined.
+! gnokey maketx addpkg -pkgdir $WORK/aaa -pkgpath gno.land/r/$test1_user_addr/aaa -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test -simulate skip test1
+stderr 'aaa.gno:3:27: undefined: helperOnlyInTest'
+
+! gnokey maketx addpkg -pkgdir $WORK/bbb -pkgpath gno.land/r/$test1_user_addr/bbb -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test -simulate skip test1
+stderr 'bbb.gno:3:27: undefined: helperOnlyInFiletest'
+
+# qux: an unparseable _filetest.gno is rejected too
+! gnokey maketx addpkg -pkgdir $WORK/qux -pkgpath gno.land/r/$test1_user_addr/qux -gas-fee 1000000ugnot -gas-wanted 100000000 -chainid=tendermint_test -simulate skip test1
+stderr 'qux_filetest.gno'
+
+-- foo/gnomod.toml --
+module = "foo"
+gno = "0.9"
+-- foo/foo.gno --
+package foo
+
+func Hi() string { return "hi" }
+-- foo/foo_test.gno --
+package foo
+
+func Broken( {{{ not gno at all ]]]
+-- bar/gnomod.toml --
+module = "bar"
+gno = "0.9"
+-- bar/bar.gno --
+package bar
+
+func Hi() string { return "hi" }
+-- bar/bar_test.gno --
+package bar
+
+func TypeError() int { return undefinedSymbol(42) }
+-- baz/gnomod.toml --
+module = "baz"
+gno = "0.9"
+-- baz/baz.gno --
+package baz
+
+func Hi() string { return undefinedInProd(1) }
+-- qux/gnomod.toml --
+module = "qux"
+gno = "0.9"
+-- qux/qux.gno --
+package qux
+
+func Hi() string { return "hi" }
+-- qux/qux_filetest.gno --
+package main
+
+func main( ]]] broken
+-- aaa/gnomod.toml --
+module = "aaa"
+gno = "0.9"
+-- aaa/aaa.gno --
+package aaa
+
+func Hi() string { return helperOnlyInTest() }
+-- aaa/aaa_test.gno --
+package aaa
+
+func helperOnlyInTest() string { return "hi" }
+-- bbb/gnomod.toml --
+module = "bbb"
+gno = "0.9"
+-- bbb/bbb.gno --
+package bbb
+
+func Hi() string { return helperOnlyInFiletest() }
+-- bbb/bbb_filetest.gno --
+package main
+
+func helperOnlyInFiletest() string { return "hi" }
+
+func main() {}

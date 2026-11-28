@@ -55,13 +55,16 @@ gnokey maketx call -pkgpath gno.land/r/myrealm -func SetBaz -args -31337 -gas-fe
 gnokey query params/vm:gno.land/r/myrealm:baz
 stdout 'data: "-31337"'
 
-# It is impossible to call std.SetParamXXX with a param key in the <prefix>:<key> format (e.g. "bank:p:lockTransfer") because it is an invalid key.
-! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetLockTransfer -args ugnot -gas-fee 5000000ugnot -gas-wanted 200000000 -chainid=tendermint_test test1
-stderr 'Data: invalid param key: bank:p:lockTransfer'
-
-# <prefix>.<key> is invalid (e.g., "bank.lockTransfer")
-! gnokey maketx call -pkgpath gno.land/r/myrealm -func SetInvalidString -args ugnot -gas-fee 5000000ugnot -gas-wanted 200000000 -chainid=tendermint_test test1
-stderr 'Data: invalid param key: bank:p:lockTransfer'
+# A realm param name may contain colons, but it stays inside the realm's
+# vm:<realm>: namespace: writing "bank:p:lockTransfer" does not reach the bank
+# module's own lockTransfer param.
+gnokey query params/bank:p:lockTransfer
+stdout 'data: $'
+gnokey maketx call -pkgpath gno.land/r/myrealm -func SetLockTransfer -args ugnot -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
+gnokey query params/vm:gno.land/r/myrealm:bank:p:lockTransfer
+stdout 'data: "ugnot"'
+gnokey query params/bank:p:lockTransfer
+stdout 'data: $'
 
 # <key_name>.<type> (e.g., "bank_lockTransfer") is a valid name.
 gnokey maketx call -pkgpath gno.land/r/myrealm -func SetValidString -args ugnot -gas-fee 300001ugnot -gas-wanted 3_000_000 -chainid=tendermint_test test1
@@ -93,10 +96,6 @@ func SetUint64(newBaz uint64) { params_.SetUint64("baz", newBaz) }
 func SetBytes()               { params_.SetBytes("baz", []byte{255, 255}) }
 
 func SetLockTransfer(cur realm, denom string) {
-	params_.SetString("bank:p:lockTransfer", denom)
-}
-
-func SetInvalidString(cur realm, denom string) {
 	params_.SetString("bank:p:lockTransfer", denom)
 }
 

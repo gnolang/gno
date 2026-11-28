@@ -1,0 +1,141 @@
+# End-to-end governance for r/gnops/valopers, across real transactions.
+#
+# Filetests run one VM session, so they cannot observe a realm reload. That
+# matters here: the authority installed by init.gno is a ContractAuthority
+# whose proposer is an object in realm storage, and the privileged write
+# depends on it surviving persistence. This exercises:
+#
+#   1. Auth() after a reload, in its own query.
+#   2. propose -> vote -> execute rewrites `instructions`, each step in its
+#      own block.
+#   3. propose -> vote -> execute ROTATES the authority (the recovery path;
+#      without it a principal that stops being presentable would freeze
+#      `instructions` with no on-chain recovery).
+#   4. after the rotation the old principal is refused -- and the refusal
+#      is RETIRABLE. updateInstructions returns the authz error rather than
+#      panicking on it, which is what lets ExecuteOrRejectProposal record
+#      the proposal denied and finish it. A panic aborts the transaction
+#      instead, rolling back the Denied write, so the proposal would stay
+#      Accepted and retryable forever -- the exact state that function's
+#      godoc exists to avoid ("potentially leaving the proposal active
+#      forever because it can't be successfully executed").
+
+adduserfrom member 'success myself purchase tray reject demise scene little legend someone lunar hope media goat regular test area smart save flee surround attack rapid smoke'
+stdout 'g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0'
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/sys/validators/v0
+loadpkg gno.land/r/gnops/valopers
+loadpkg gno.land/r/gnops/valopers/proposal
+loadpkg gno.land/r/gov/dao
+loadpkg gno.land/r/gov/dao/impl/v0
+loadpkg gno.land/r/gov/dao/loader/v0 $WORK/loader
+
+gnoland start
+
+# 1. The authority description survives a realm reload, and names both the
+#    principal and the gate (the proposer half is what distinguishes a gated
+#    authority from a wide-open one).
+gnokey query vm/qeval --data 'gno.land/r/gnops/valopers.Auth()'
+stdout 'contract_authority\[contract=gno.land/r/gov/dao,proposer=contract-identity\]'
+
+gnokey query vm/qrender --data 'gno.land/r/gnops/valopers:'
+! stdout 'GOVERNED-BY-VOTE'
+
+# 2. propose (tx 1) / vote (tx 2) / execute (tx 3).
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/propose_instructions.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 30_000_000 -args 0 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey query vm/qrender --data 'gno.land/r/gnops/valopers:'
+stdout 'GOVERNED-BY-VOTE'
+
+# 3. Rotate the authority by proposal. The installed authority stays a
+#    canonical contract-identity ContractAuthority; only the asserted
+#    principal changes.
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/propose_rotation.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 1 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 5000001ugnot -gas-wanted 30_000_000 -args 1 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+gnokey query vm/qeval --data 'gno.land/r/gnops/valopers.Auth()'
+stdout 'contract_authority\[contract=gno.land/r/gnops/authority,proposer=contract-identity\]'
+
+# 4. The old principal is now refused, and the proposal can be retired:
+#    ExecuteOrRejectProposal succeeds as a transaction and records the
+#    refusal, instead of aborting and stranding the proposal.
+gnokey maketx run -gas-fee 6000001ugnot -gas-wanted 60_000_000 -broadcast -chainid=tendermint_test member $WORK/run/propose_after_rotation.gno
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 2 -args YES -broadcast -chainid=tendermint_test member
+stdout OK!
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteOrRejectProposal -gas-fee 5000001ugnot -gas-wanted 30_000_000 -args 2 -broadcast -chainid=tendermint_test member
+stdout OK!
+
+# The write did not land, and the proposal says why.
+gnokey query vm/qrender --data 'gno.land/r/gnops/valopers:'
+! stdout 'SHOULD-NOT-LAND'
+gnokey query vm/qrender --data 'gno.land/r/gov/dao:2'
+stdout 'unauthorized'
+
+-- run/propose_instructions.gno --
+package main
+
+import (
+	"gno.land/r/gnops/valopers/proposal"
+	"gno.land/r/gov/dao"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur),
+		proposal.ProposeNewInstructionsProposalRequest(cross(cur), "GOVERNED-BY-VOTE"))
+}
+
+-- run/propose_rotation.gno --
+package main
+
+import (
+	"gno.land/r/gnops/valopers/proposal"
+	"gno.land/r/gov/dao"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur),
+		proposal.ProposeAuthorityRotationProposalRequest(cross(cur), "gno.land/r/gnops/authority"))
+}
+
+-- run/propose_after_rotation.gno --
+package main
+
+import (
+	"gno.land/r/gnops/valopers/proposal"
+	"gno.land/r/gov/dao"
+)
+
+func main(cur realm) {
+	dao.MustCreateProposal(cross(cur),
+		proposal.ProposeNewInstructionsProposalRequest(cross(cur), "SHOULD-NOT-LAND"))
+}
+
+-- loader/load_govdao.gno --
+package loader
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/gov/dao/impl/v0"
+	"gno.land/r/gov/dao/memberstore/v0"
+)
+
+func init(cur realm) {
+	memberstore.Get(0, cur).SetTier(memberstore.T1)
+	memberstore.Get(0, cur).SetTier(memberstore.T2)
+	memberstore.Get(0, cur).SetTier(memberstore.T3)
+
+	memberstore.Get(0, cur).SetMember(memberstore.T1, address("g1c0j899h88nwyvnzvh5jagpq6fkkyuj76nld6t0"), memberstore.NewMember(3))
+
+	dao.UpdateImpl(cross(cur), dao.NewUpdateRequest(impl.GetInstance(0, cur), []string{"gno.land/r/gov/dao/impl/v0"}))
+}

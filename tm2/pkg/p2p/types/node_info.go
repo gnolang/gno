@@ -88,6 +88,11 @@ func (info NodeInfo) Validate() error {
 		return ErrInvalidVersion
 	}
 
+	// Validate the version set, whose entries an incompatibility error quotes
+	if err := info.VersionSet.Validate(); err != nil {
+		return fmt.Errorf("invalid version set in node info, %w", err)
+	}
+
 	// Validate Channels - ensure max and check for duplicates.
 	if len(info.Channels) > maxNumChannels {
 		return ErrExcessiveChannels

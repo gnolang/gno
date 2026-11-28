@@ -260,7 +260,9 @@ func TestGasProf_dimensionAttribution(t *testing.T) {
 		require.NoError(t, err, "unparseable pprof value %q", tok)
 		return n
 	}
-	flatCum := func(index, fn string) (flat, cum int64) {
+	// lookup reports ok=false when fn is absent: pprof -top hides a function
+	// whose value in the selected dimension is zero.
+	lookup := func(index, fn string) (flat, cum int64, ok bool, out []byte) {
 		out, err := exec.Command(goBin, "tool", "pprof", "-top",
 			"-sample_index="+index, "-nodecount=40", path).CombinedOutput()
 		require.NoError(t, err, "%s", out)
@@ -270,10 +272,16 @@ func TestGasProf_dimensionAttribution(t *testing.T) {
 			}
 			f := strings.Fields(line)
 			require.GreaterOrEqual(t, len(f), 6, "unexpected pprof -top line: %q", line)
-			return parseGas(f[0]), parseGas(f[3])
+			return parseGas(f[0]), parseGas(f[3]), true, out
 		}
-		t.Fatalf("function %q not found in %s -top:\n%s", fn, index, out)
-		return 0, 0
+		return 0, 0, false, out
+	}
+	flatCum := func(index, fn string) (flat, cum int64) {
+		flat, cum, ok, out := lookup(index, fn)
+		if !ok {
+			t.Fatalf("function %q not found in %s -top:\n%s", fn, index, out)
+		}
+		return flat, cum
 	}
 
 	// Assert magnitudes, not mere presence: both functions appear in both
@@ -286,7 +294,15 @@ func TestGasProf_dimensionAttribution(t *testing.T) {
 	require.Greater(t, crunchCPU, allocCPU, "cruncher must dominate the cpu dimension")
 
 	_, allocAllocCum := flatCum("alloc_gas", "allocp.allocator")
-	_, crunchAllocCum := flatCum("alloc_gas", "allocp.cruncher")
+	// cruncher allocates nothing, so pprof may leave it out of the alloc view
+	// entirely; when it does, confirm from the profiler's own tree that its
+	// alloc gas really is zero rather than lost.
+	_, crunchAllocCum, ok, _ := lookup("alloc_gas", "allocp.cruncher")
+	if !ok {
+		crunch := prof.Node("gno.land/r/demo/allocp.cruncher")
+		require.NotNil(t, crunch, "cruncher present in the profile tree")
+		require.Zero(t, crunch.Alloc, "cruncher absent from alloc_gas -top only because it charged no alloc gas")
+	}
 	require.Greater(t, allocAllocCum, crunchAllocCum, "allocator's subtree must dominate the alloc dimension")
 }
 

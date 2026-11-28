@@ -12,27 +12,6 @@ import (
 // ----------------------------------------
 // Signed
 
-func EncodeVarint8(w io.Writer, i int8) (err error) {
-	var buf [2]byte
-	n := binary.PutVarint(buf[:], int64(i))
-	_, err = w.Write(buf[0:n])
-	return
-}
-
-func EncodeVarint16(w io.Writer, i int16) (err error) {
-	var buf [3]byte
-	n := binary.PutVarint(buf[:], int64(i))
-	_, err = w.Write(buf[0:n])
-	return
-}
-
-func EncodeVarint32(w io.Writer, i int32) (err error) {
-	var buf [5]byte
-	n := binary.PutVarint(buf[:], int64(i))
-	_, err = w.Write(buf[0:n])
-	return
-}
-
 func EncodeVarint(w io.Writer, i int64) (err error) {
 	var buf [10]byte
 	n := binary.PutVarint(buf[:], i)
@@ -86,27 +65,6 @@ func PlainVarintSize(i int64) int {
 // Unlike EncodeUint8, writes a single byte.
 func EncodeByte(w io.Writer, b byte) (err error) {
 	_, err = w.Write([]byte{b})
-	return
-}
-
-func EncodeUvarint8(w io.Writer, i uint8) (err error) {
-	var buf [2]byte
-	n := binary.PutUvarint(buf[:], uint64(i))
-	_, err = w.Write(buf[0:n])
-	return
-}
-
-func EncodeUvarint16(w io.Writer, i uint16) (err error) {
-	var buf [3]byte
-	n := binary.PutUvarint(buf[:], uint64(i))
-	_, err = w.Write(buf[0:n])
-	return
-}
-
-func EncodeUvarint32(w io.Writer, i uint32) (err error) {
-	var buf [5]byte
-	n := binary.PutUvarint(buf[:], uint64(i))
-	_, err = w.Write(buf[0:n])
 	return
 }
 
@@ -531,10 +489,6 @@ func reverseBytes(buf []byte) {
 	for i, j := 0, len(buf)-1; i < j; i, j = i+1, j-1 {
 		buf[i], buf[j] = buf[j], buf[i]
 	}
-}
-
-func AppendByteReversed(buf []byte, b byte) []byte {
-	return append(buf, b)
 }
 
 func AppendBoolReversed(buf []byte, b bool) []byte {

@@ -1,0 +1,16 @@
+-- input.md --
+<gno-frame>
+intro
+<!--
+<gno-frame>
+secret
+-->
+</gno-frame>
+after
+-- output.html --
+<section class="gno-frame">
+<p>intro</p>
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+</section>
+<p>after</p>

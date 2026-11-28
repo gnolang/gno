@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
+	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
@@ -370,5 +371,59 @@ func TestStore_SetInitialVersion(t *testing.T) {
 	st2.Set(nil, []byte("k"), []byte("v107"))
 	if id = st2.Commit(); id.Version != 107 {
 		t.Fatalf("post-reload commit at v%d, want 107", id.Version)
+	}
+}
+
+type iteratorCountingDB struct {
+	dbm.DB
+	opens int
+}
+
+func (c *iteratorCountingDB) Iterator(start, end []byte) (dbm.Iterator, error) {
+	c.opens++
+	return c.DB.Iterator(start, end)
+}
+
+func (c *iteratorCountingDB) ReverseIterator(start, end []byte) (dbm.Iterator, error) {
+	c.opens++
+	return c.DB.ReverseIterator(start, end)
+}
+
+// Every state query loads a store view at an explicit height. Loading it must
+// open no iterator: a range scan there costs time linear in the versions kept.
+func TestQueryViewAtHeightOpensNoIterator(t *testing.T) {
+	ctors := map[string]types.CommitStoreConstructor{
+		"StoreConstructor":     StoreConstructor,
+		"FastStoreConstructor": FastStoreConstructor,
+	}
+	for name, ctor := range ctors {
+		t.Run(name, func(t *testing.T) {
+			db := memdb.NewMemDB()
+			opts := types.StoreOptions{}
+			opts.KeepRecent = 100
+			st := ctor(db, opts).(*Store)
+			for _, v := range []string{"v1", "v2", "v3"} {
+				st.Set(nil, []byte("k"), []byte(v))
+				st.Commit()
+			}
+
+			// The query path's view: a fresh immutable store over the same DB,
+			// loaded at the query height (Store.GetImmutable does not go
+			// through this load).
+			cdb := &iteratorCountingDB{DB: db}
+			viewOpts := opts
+			viewOpts.Immutable = true
+			view := ctor(cdb, viewOpts).(*Store)
+			if err := view.LoadVersion(2); err != nil {
+				t.Fatalf("LoadVersion(2): %v", err)
+			}
+
+			if cdb.opens != 0 {
+				t.Fatalf("query view load opened %d iterators, want 0", cdb.opens)
+			}
+			if got := view.Get(nil, []byte("k")); !bytes.Equal(got, []byte("v2")) {
+				t.Fatalf("view at height 2: k = %q, want v2", got)
+			}
+		})
 	}
 }

@@ -1,7 +1,7 @@
 package home
 
 import (
-	"gno.land/p/mason/md"
+	"gno.land/p/mason/md/v0"
 )
 
 const (

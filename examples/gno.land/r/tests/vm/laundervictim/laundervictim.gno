@@ -11,7 +11,7 @@
 // stamp, capturing the value, or exploiting a borrow-rule shift.
 package laundervictim
 
-import "gno.land/p/demo/tests/launderpkg"
+import "gno.land/p/demo/tests/launderpkg/v0"
 
 var (
 	gVal launderpkg.Object

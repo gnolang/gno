@@ -60,3 +60,12 @@ func SaveValidatorsInfo(db dbm.DB, height, lastHeightChanged int64, valSet *type
 func GetBeginBlockLastCommitInfo(block *types.Block, state State, stateDB dbm.DB) abci.LastCommitInfo {
 	return getBeginBlockLastCommitInfo(block, state, stateDB)
 }
+
+const ValidatorsCacheInterval = validatorsCacheInterval
+
+// LoadValidatorsCounting is the private loadValidators method of
+// ValidatorsCache, which also returns the proposer rounds it replayed,
+// exported exclusively and explicitly for testing.
+func (c *ValidatorsCache) LoadValidatorsCounting(db dbm.DB, height int64) (*types.ValidatorSet, int64, error) {
+	return c.loadValidators(db, height)
+}

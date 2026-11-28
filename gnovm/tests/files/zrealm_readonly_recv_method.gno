@@ -16,14 +16,14 @@ package readonlyrecvmethod
 // using /p/-helper methods are unaffected (their PkgID is /r/).
 
 import (
-	"gno.land/p/demo/tests"
+	"gno.land/p/demo/tests/v0"
 )
 
 func main(cur realm) {
-	p := tests.SomeValue3 // *TestRealmObject2 in /p/demo/tests
+	p := tests.SomeValue3 // *TestRealmObject2 in /p/demo/tests/v0
 	p.Modify()            // panics at DidUpdate
 	println("unreachable; Field =", p.Field)
 }
 
 // Error:
-// cannot mutate gno.land/p/demo/tests: package is immutable post-init
+// cannot mutate gno.land/p/demo/tests/v0: package is immutable post-init

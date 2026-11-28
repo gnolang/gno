@@ -41,7 +41,6 @@ testdir
 *.gno.gen.go
 *.gno.gen_test.go
 *.pb.go
-pbbindings.go
 *~
 .#*
 *#

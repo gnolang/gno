@@ -1,0 +1,64 @@
+# Regression: GC must visit the operand stack (m.Values) so the tx alloc cap
+# (MaxAllocTx = 500 MiB) is enforced against composite-literal elements that
+# are live only on the operand stack.
+#
+# A [70]Big literal (Big = [8 MiB]byte => 560 MiB) piles each element onto
+# m.Values until doOpArrayLit builds the array. GarbageCollect
+# (garbage_collector.go) previously never visited m.Values, so after
+# Alloc.Reset()+Recount the tracked bytes collapsed toward ~0 and the cap was
+# re-granted while ~500 MiB was still live — letting the VM build the full
+# 560 MiB and grow the Go heap without bound (OOM -> validator crash ->
+# consensus halt). The unauthenticated qeval query path had the same hole.
+#
+# With the operand stack visited, GC recounts those elements, the cap is
+# enforced, and the deploy is rejected with 'allocation limit exceeded'
+# before the post-VM storage-deposit step is ever reached. The node must
+# survive and keep serving.
+#
+# This case covers the array-literal form. The slice/struct-literal and
+# call-argument forms need a second root — the buffer an op fills while it is
+# still a Go local, which the operand-stack walk cannot see when the elements
+# all alias one value. Those are covered as filetests
+# (gnovm/tests/files/alloc_15_slicelit_alias.gno and alloc_17..alloc_21).
+
+gnoland start
+
+! gnokey maketx addpkg -pkgdir $WORK/hugelit -pkgpath gno.land/r/hugelit -gas-fee 10000000ugnot -gas-wanted 3000000000 -chainid=tendermint_test test1
+stdout 'TX HASH:    '
+stderr 'allocation limit exceeded'
+! stderr 'storage deposit'
+
+# The node survived the rejected message and still accepts a normal deploy.
+gnokey maketx addpkg -pkgdir $WORK/ok -pkgpath gno.land/r/ok -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test test1
+stdout OK!
+
+-- hugelit/gnomod.toml --
+module = "gno.land/r/hugelit"
+gno = "0.9"
+
+-- hugelit/hugelit.gno --
+package hugelit
+
+type Big [8388608]byte
+
+var elems = [70]Big{
+	Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1},
+	Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1},
+	Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1},
+	Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1},
+	Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1},
+	Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1},
+	Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1}, Big{1},
+}
+
+func Lit() int { return len(elems) }
+func Render(_ string) string { return "hugelit" }
+
+-- ok/gnomod.toml --
+module = "gno.land/r/ok"
+gno = "0.9"
+
+-- ok/ok.gno --
+package ok
+
+func Render(_ string) string { return "ok" }

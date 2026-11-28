@@ -8,7 +8,7 @@ package launderrh_comp
 // attacker code touching the field.
 
 import (
-	"gno.land/p/demo/tests/launderpkg"
+	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

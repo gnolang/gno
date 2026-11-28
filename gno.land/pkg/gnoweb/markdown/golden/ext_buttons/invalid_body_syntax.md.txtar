@@ -1,0 +1,4 @@
+-- input.md --
+Inline <gno-button href="/r/test" label="x">body</gno-button> is not supported.
+-- output.html --
+<p>Inline <!-- raw HTML omitted -->body<!-- raw HTML omitted --> is not supported.</p>

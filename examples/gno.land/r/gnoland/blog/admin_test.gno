@@ -3,7 +3,7 @@ package blog
 import (
 	"testing"
 
-	"gno.land/p/demo/blog"
+	"gno.land/p/gnoland/blog/v0"
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
@@ -24,7 +24,7 @@ func clearState(t *testing.T) {
 		Title:  "Gno.land's blog",
 		Prefix: "/r/gnoland/blog:",
 	}
-	adminAddr = address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
+	adminAddr = address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 	inPause = false
 	moderatorList = bptree.NewBPTree32()
 	commenterList = bptree.NewBPTree32()

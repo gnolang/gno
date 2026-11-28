@@ -52,7 +52,11 @@ func dimensionOf(descriptor string) int {
 	case "DepthReadFlat", "DepthSet", "DepthDelete",
 		"ReadFlat", "ReadPerByte", "WriteFlat", "Delete",
 		"IterNextFlat", "ValuePerByte",
-		"AminoEncodePerByte", "AminoDecodePerByte":
+		"AminoEncodePerByte", "AminoDecodePerByte",
+		// bytes the block keeps with the tx, priced at a store write's
+		// per-byte rate: a message's result (gno.land/pkg/sdk/vm/keeper.go)
+		// and an emitted event (gnovm/stdlibs/chain/emit_event.go).
+		"MsgCall result", "EmitEventPerByte":
 		return dimStore
 	default:
 		return dimOther

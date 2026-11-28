@@ -12,3 +12,6 @@ func main() {
 
 // TypeCheckError:
 // main/addressable_3a_err.gno:10:7: invalid operation: cannot take address of S{…}.i (value of type int)
+
+// Error:
+// main/addressable_3a_err.gno:10:6-16: invalid operation: cannot take address of (const-type main.S){i<VPField(0,0,i)>: (const (4 int))}.i (value of type int)

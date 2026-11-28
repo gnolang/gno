@@ -520,9 +520,9 @@ message StaticBlock {
 	repeated string names = 5 [json_name = "Names"];
 	repeated NameSource name_sources = 6 [json_name = "NameSources"];
 	repeated bool heap_items = 7 [json_name = "HeapItems"];
-	repeated string unassignable_names = 8 [json_name = "UnassignableNames"];
 	repeated string consts = 9 [json_name = "Consts"];
 	google.protobuf.Any parent = 11 [json_name = "Parent"];
+	reserved 8;
 	reserved 10;
 }
 
