@@ -876,7 +876,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if creatorAcc == nil {
 		return std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", creator))
 	}
-	if err := gno.ValidateMemPackageAny(msg.Package); err != nil {
+	// Admission rules added since genesis are waived on replay, as in the
+	// type-check below; see gno.ValidateOptions.
+	if err := gno.ValidateMemPackageAnyWith(msg.Package, gno.ValidateOptions{
+		AlreadyOnChain: auth.IsGenesisReplay(ctx),
+	}); err != nil {
 		return errInvalidMemPackage(err)
 	}
 	// Reject packages with no production .gno files (e.g. only _test.gno
@@ -1645,7 +1649,9 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	if callerAcc == nil {
 		return "", std.ErrUnknownAddress(fmt.Sprintf("account %s does not exist, it must receive coins to be created", caller))
 	}
-	if err := gno.ValidateMemPackage(memPkg); err != nil {
+	if err := gno.ValidateMemPackageWith(memPkg, gno.ValidateOptions{
+		AlreadyOnChain: auth.IsGenesisReplay(ctx), // see AddPackage
+	}); err != nil {
 		return "", errInvalidMemPackage(err)
 	}
 

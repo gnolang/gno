@@ -1093,7 +1093,9 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	if mpkgtype != mptype {
 		panic(fmt.Sprintf("unexpected mempackage type: expected %v but got %v", mptype, mpkgtype))
 	}
-	err := ValidateMemPackageAny(mpkg)
+	// Admission rules are the keeper's (see ValidateOptions); here a replay
+	// cannot be told from a live deploy, and refusing one would panic.
+	err := ValidateMemPackageAnyWith(mpkg, ValidateOptions{AlreadyOnChain: true})
 	if err != nil {
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}

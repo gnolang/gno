@@ -241,7 +241,7 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 	// Before the creator binding below, as AddPackage validates the submission
 	// before reaching its own binding: the two halves of one deploy apply the
 	// same rules in the same order, which is the rule this function is built on.
-	if err := validateParkedBlob(memPkg); err != nil {
+	if err := validateParkedBlob(memPkg, auth.IsGenesisReplay(ctx)); err != nil {
 		return ErrInvalidPackage(err.Error())
 	}
 
@@ -702,7 +702,10 @@ func redeployBlockedReason(live, parked *std.MemPackage) string {
 // is unchecked, so a blob whose type no longer matches its path arrives as a
 // panic. This call sits before the machine exists, so nothing else on the path
 // would catch one.
-func validateParkedBlob(memPkg *std.MemPackage) (err error) {
+//
+// replay waives the admission rules added since the blob was parked, as the
+// policy, approver and pkg_hash gates are waived; see gno.ValidateOptions.
+func validateParkedBlob(memPkg *std.MemPackage, replay bool) (err error) {
 	defer doRecoverNoMachine(&err)
-	return gno.ValidateMemPackageAny(memPkg)
+	return gno.ValidateMemPackageAnyWith(memPkg, gno.ValidateOptions{AlreadyOnChain: replay})
 }
