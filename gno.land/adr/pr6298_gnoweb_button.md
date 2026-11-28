@@ -233,6 +233,9 @@ borders match their text (≥ 6:1); filled borders under 3:1 (warning light
   - The block-level `<gno-…>` line escape now puts its backslash after an
     indent of under 4 columns (right before the `<`); from 4 columns, where
     the line may be indented code, it keeps the line-start backslash it had.
+    *(Superseded by PR #6304: the backslash goes right before the `<` at any
+    indent. At column 0 it moved the line out of a list item holding a fence,
+    so the fence's closer then opened a new fence over the realm's chrome.)*
   - **Button and icon differ on purpose.** `<gno-icon />` only gets the
     line-start escape every `<gno-…>` tag gets and stays live mid-line,
     because an icon is an allowlisted glyph that carries no link. A button

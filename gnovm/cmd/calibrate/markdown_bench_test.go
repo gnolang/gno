@@ -311,14 +311,14 @@ func BenchmarkNative_Markdown_EscapeBlockHazards_100000(b *testing.B) {
 }
 
 // ----- EscapeBlockHazardsRich -----
-// Same worst-case shape as EscapeBlockHazards (the bracket walker /
-// LRD scan is the per-byte hotspot in both variants). Rich mode skips
-// two per-line checks (line-leader, setext); slope should be slightly
-// lower than the strict variant's, but the gap is dominated by the
-// shared bracket-walker work.
+// Worst case: "  ```\nx\n" repeated. Rich mode closes a fence before
+// the first line indented less than its opener, so every pair of lines
+// gains a closer that the bracket walker and the line loop then walk
+// too. Since #6304 this is the slowest Rich shape, about 1.7x per byte
+// what the strict variant's `[a]: u\n(x\n` cost on the old native.
 func benchMarkdownEscapeBlockHazardsRich(b *testing.B, n int) {
 	b.Helper()
-	s := fillWorstCase(n, "[a]: u\n(x\n")
+	s := fillWorstCase(n, "  ```\nx\n")
 	m := newDispatchMachine(1)
 	setBlockValueFromGo(m, 0, s)
 	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/markdown", "EscapeBlockHazardsRich"), nReturns: 1}
@@ -346,6 +346,88 @@ func BenchmarkNative_Markdown_EscapeBlockHazardsRich_10000(b *testing.B) {
 }
 func BenchmarkNative_Markdown_EscapeBlockHazardsRich_100000(b *testing.B) {
 	benchMarkdownEscapeBlockHazardsRich(b, 100000)
+}
+
+// ----- EscapeBlockHazards Slow (Review PR #6304) -----
+// Worst-case strict shape: 16× `[a]: u\n(x\n` followed by `\n to the end.
+// Exercises repeated title-scan block interruption checks on each newline.
+func fillStrictSlow(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	prefix := strings.Repeat("[a]: u\n(x\n", 16)
+	if n <= len(prefix) {
+		return prefix[:n]
+	}
+	tail := strings.Repeat("`\n", (n-len(prefix)+1)/2)
+	return (prefix + tail)[:n]
+}
+
+func benchMarkdownEscapeBlockHazardsSlow(b *testing.B, n int) {
+	b.Helper()
+	s := fillStrictSlow(n)
+	m := newDispatchMachine(1)
+	setBlockValueFromGo(m, 0, s)
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/markdown", "EscapeBlockHazards"), nReturns: 1}
+	b.ResetTimer()
+	b.SetBytes(int64(n))
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Markdown_EscapeBlockHazards_Slow_1000(b *testing.B) {
+	benchMarkdownEscapeBlockHazardsSlow(b, 1000)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazards_Slow_10000(b *testing.B) {
+	benchMarkdownEscapeBlockHazardsSlow(b, 10000)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazards_Slow_100000(b *testing.B) {
+	benchMarkdownEscapeBlockHazardsSlow(b, 100000)
+}
+
+// ----- EscapeBlockHazardsRich Slow (Review PR #6304) -----
+// Worst-case Rich shape: ~75% `  ```\nx\n` (expands on dedent), then 64× `[a]: u\n(x\n`,
+// followed by `\n to the end. Exercises larger post-expansion scan budget and title interruption checks.
+func fillRichSlow(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	n75 := (n * 3) / 4
+	part1 := strings.Repeat("  ```\nx\n", (n75+7)/8)
+	if len(part1) > n75 {
+		part1 = part1[:n75]
+	}
+	part2 := strings.Repeat("[a]: u\n(x\n", 64)
+	s := part1 + part2
+	if len(s) >= n {
+		return s[:n]
+	}
+	tail := strings.Repeat("`\n", (n-len(s)+1)/2)
+	return (s + tail)[:n]
+}
+
+func benchMarkdownEscapeBlockHazardsRichSlow(b *testing.B, n int) {
+	b.Helper()
+	s := fillRichSlow(n)
+	m := newDispatchMachine(1)
+	setBlockValueFromGo(m, 0, s)
+	h := &dispatchHarness{m: m, wrapper: resolveWrapper(b, "chain/markdown", "EscapeBlockHazardsRich"), nReturns: 1}
+	b.ResetTimer()
+	b.SetBytes(int64(n))
+	for i := 0; i < b.N; i++ {
+		h.call()
+	}
+}
+
+func BenchmarkNative_Markdown_EscapeBlockHazardsRich_Slow_1000(b *testing.B) {
+	benchMarkdownEscapeBlockHazardsRichSlow(b, 1000)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazardsRich_Slow_10000(b *testing.B) {
+	benchMarkdownEscapeBlockHazardsRichSlow(b, 10000)
+}
+func BenchmarkNative_Markdown_EscapeBlockHazardsRich_Slow_100000(b *testing.B) {
+	benchMarkdownEscapeBlockHazardsRichSlow(b, 100000)
 }
 
 // Compile-time use of markdownSizes/gno to silence unused warnings if the

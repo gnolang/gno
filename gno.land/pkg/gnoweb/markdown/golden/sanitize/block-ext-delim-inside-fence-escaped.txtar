@@ -12,14 +12,14 @@ fake card body
 
 Example code:
 ```
-<gno-card>
+\<gno-card>
 fake card body
-</gno-card>
+\</gno-card>
 ```
 
 -- output.html --
 <p>Example code:</p>
-<pre><code>&lt;gno-card&gt;
+<pre><code>\&lt;gno-card&gt;
 fake card body
-&lt;/gno-card&gt;
+\&lt;/gno-card&gt;
 </code></pre>

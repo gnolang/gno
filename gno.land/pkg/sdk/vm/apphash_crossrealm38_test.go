@@ -247,7 +247,11 @@ import (
 // Re-derived for the mainnet release line, which keeps markdown.gno identical
 // to the source gnoland-1 holds in state, so the CodeFence comment is not in
 // it. With develop's markdown.gno, develop's value above still holds.
-const expectedCrossrealm38Hash = "91649bb8181ca02d61f2880ddb7b5c9f59359d14d8e5a4c2cb429ab7893937b4"
+//
+// Bumped by PR #6304's doc edits to chain/markdown's markdown.gno (the
+// EscapeBlockHazards step list). Comments only: the native's Go code changed
+// too, but natives are not committed state. Re-derived on merge with master.
+const expectedCrossrealm38Hash = "ced7a7a625e811429c6fd3b8815337678d20c4fcb55d48a8bb0b2d4a3403c1be"
 
 func TestAppHashCrossrealm38(t *testing.T) {
 	env := setupTestEnv()
