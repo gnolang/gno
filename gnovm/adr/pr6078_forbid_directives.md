@@ -19,7 +19,7 @@ another. That is fixed at the type-check layer by blanking the field
 (`adr/pr5978_typecheck_strip_file_goversion.md`), but the fix is one consumer
 deep: it makes the tag inert to `go/types`, and leaves it in the stored source.
 
-Two costs remain once the tag is stored:
+Three costs remain once the tag is stored:
 
 - **It misleads whoever reads the source.** A file whose first line is
   `//go:build ignore` reads as excluded while running unconditionally. On a
@@ -46,7 +46,8 @@ Two costs remain once the tag is stored:
 
 ## Decision
 
-Reject build constraints in **user** packages, in `ValidateMemPackageAny`
+Reject build constraints, and every other compiler or tooling directive, in
+**user** packages, in `ValidateMemPackageAny`
 (`gnovm/pkg/gnolang/mempackage.go`), the validation every chain entry point
 already runs: `MsgAddPackage`, `MsgRun`, `MsgEnablePackage` (re-validating the
 parked blob) and genesis-file loading.
@@ -200,9 +201,13 @@ Scope is deliberate:
   version-override vector but keeps the misleading source and the transpiler
   residue, and relies on every future consumer remembering that constraints are
   meaningless here.
-- **Allow a whitelist from the start.** No entry has a use case, and an unused
-  extension point invites one to be added without the argument being made.
-  Loosening later is backward-compatible; see below.
+- **A wider whitelist from the start** (staticcheck's `//lint:ignore`, cgo, or
+  any `//tool:` form). Only `//nolint` has a demonstrated use (see
+  Consequences); an entry without one invites the next to be added without the
+  argument being made. `//lint:ignore` and `//lint:file-ignore` are therefore
+  refused today, like any lowercase `//word:word` without a space, which is
+  `go/ast`'s own classification. Loosening later is backward-compatible; see
+  below.
 - **Reject for stdlibs too.** Would require editing VM fixtures that exist
   precisely to pin constraint inertness, for no security gain — stdlibs are not
   submitted.
