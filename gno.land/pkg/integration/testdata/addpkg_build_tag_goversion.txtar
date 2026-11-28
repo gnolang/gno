@@ -2,10 +2,10 @@
 # type-check GoVersion (go1.18), on any user-facing entry point. See
 # gnovm/adr/pr5978_typecheck_strip_file_goversion.md.
 #
-# Since gnovm/adr/pr6078_forbid_directives.md, any //go:build line is rejected
-# at package validation, before the type-check runs, so every entry point below
-# must fail with the directive error. The pinned GoVersion stays as defense in
-# depth for paths that skip that validation.
+# Since gnovm/adr/pr6078_forbid_directives.md, validation refuses a user
+# package carrying any build constraint before it is type-checked, so every
+# case below is rejected at that earlier gate. The GoVersion pin from #5978
+# stays in place behind it.
 
 ## start a new node
 gnoland start
@@ -14,9 +14,10 @@ gnoland start
 ! gnokey maketx addpkg -pkgdir $WORK/tagged -pkgpath gno.land/r/$test1_user_addr/tagged -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
 
 stderr 'directives are not supported: "//go:build"'
+! stderr 'go1\.22'
 
-## addpkg: a tag above any real toolchain must be rejected deterministically,
-## not with a toolchain-dependent "file requires newer Go version go1.99".
+## addpkg: a tag above any real toolchain gives the same verdict on every
+## toolchain: the directive is refused, never "file requires newer Go version".
 ! gnokey maketx addpkg -pkgdir $WORK/future -pkgpath gno.land/r/$test1_user_addr/future -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1
 
 stderr 'directives are not supported: "//go:build"'
@@ -26,6 +27,7 @@ stderr 'directives are not supported: "//go:build"'
 ! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10000000 -chainid=tendermint_test -simulate skip test1 $WORK/script/script.gno
 
 stderr 'directives are not supported: "//go:build"'
+! stderr 'go1\.22'
 
 -- tagged/gnomod.toml --
 module = "tagged"
