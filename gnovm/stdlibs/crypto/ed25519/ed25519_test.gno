@@ -13,3 +13,39 @@ func TestVerify(t *testing.T) {
 		t.Error("verify failed")
 	}
 }
+
+// TestVerifyRejectsSmallOrderKey covers the realm-facing native. A realm that
+// authenticates a caller by a user-supplied pubkey is forgeable if the native
+// accepts small-order keys: under the identity, R = identity and S = 0 verify
+// for every message.
+func TestVerifyRejectsSmallOrderKey(t *testing.T) {
+	// libsodium's ed25519_is_small_order list; each entry also has a
+	// sign-bit-set spelling, for 14 encodings of the eight small-order points.
+	encodings := []string{
+		"0000000000000000000000000000000000000000000000000000000000000000",
+		"0100000000000000000000000000000000000000000000000000000000000000",
+		"26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05",
+		"c7176a703d4dd84fba3c0b760d10670f2a2053fa2c39ccc64ec7fd7792ac037a",
+		"ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+		"edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+		"eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+	}
+
+	signature := make([]byte, 64)
+	signature[0] = 1 // R = identity, S = 0
+
+	for _, h := range encodings {
+		base, err := hex.DecodeString(h)
+		if err != nil {
+			t.Fatal("bad test vector: " + h)
+		}
+		for _, signBit := range []byte{0, 0x80} {
+			pub := make([]byte, 32)
+			copy(pub, base)
+			pub[31] |= signBit
+			if ed25519.Verify(pub, []byte("hello gno.land"), signature) {
+				t.Error("small-order key verified a forged signature: " + hex.EncodeToString(pub))
+			}
+		}
+	}
+}

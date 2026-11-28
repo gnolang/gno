@@ -1,10 +1,12 @@
 package gnolang
 
 import (
+	"math"
 	"math/big"
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -217,6 +219,43 @@ func TestBoundedSprintException_HeadOnly(t *testing.T) {
 	out := BoundedSprintException(newer, nil, 100)
 	assert.Equal(t, "newer", out)
 	assert.NotContains(t, out, "older", "chain should not be walked")
+}
+
+// sharedSlice returns depth levels of n-slot slices, each slot holding the
+// level below, so its Sprint form renders n^depth ints.
+func sharedSlice(n, depth int) TypedValue {
+	tv := typedInt(1)
+	for range depth {
+		list := make([]TypedValue, n)
+		for i := range list {
+			list[i] = tv
+		}
+		tv = TypedValue{
+			T: &SliceType{Elt: tv.T},
+			V: &SliceValue{Base: &ArrayValue{List: list}, Length: n, Maxcap: n},
+		}
+	}
+	return tv
+}
+
+func TestBoundedSprintTV_SharedChildStopsPastCap(t *testing.T) {
+	m := &Machine{GasMeter: types.NewGasMeter(math.MaxInt64), Alloc: NewAllocator(math.MaxInt64)}
+
+	// A render of exactly the cap comes back whole, one byte more is cut.
+	small := sharedSlice(2, 3)
+	full := small.Sprint(m)
+	assert.Equal(t, full, BoundedSprintTV(small, m, len(full)))
+	assert.Equal(t, truncateForLog(full, len(full)-1), BoundedSprintTV(small, m, len(full)-1))
+
+	// 4^10 ints render to megabytes; the render stops at the buffer that
+	// passes the cap, two here plus the String and Error lookups, rather than
+	// running out of gas and falling back to the structural form.
+	gm := types.NewGasMeter(streamOutputGas(8 * meteredWriterBufSize))
+	m.GasMeter = gm
+	out := BoundedSprintTV(sharedSlice(4, 10), m, BoundedRenderBytes)
+	assert.Len(t, out, BoundedRenderBytes)
+	assert.True(t, strings.HasPrefix(out, "slice[(slice["), "got the structural form: %.40s", out)
+	assert.Less(t, gm.GasConsumed(), streamOutputGas(3*meteredWriterBufSize))
 }
 
 func TestBoundedStacktrace_Empty(t *testing.T) {

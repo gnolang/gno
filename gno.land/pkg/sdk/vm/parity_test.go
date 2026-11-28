@@ -55,6 +55,7 @@ func TestCodecParity_VM(t *testing.T) {
 			Package:    pkg,
 			Send:       std.Coins{{Denom: "ugnot", Amount: 25}},
 			MaxDeposit: std.Coins{{Denom: "ugnot", Amount: 9000}},
+			MaxSend:    std.Coins{{Denom: "ugnot", Amount: 700}},
 		}},
 		// The two inert-flow messages. They arrived with about 400 lines of
 		// hand-written pb3_gen.go and were not covered here, so a wrong field

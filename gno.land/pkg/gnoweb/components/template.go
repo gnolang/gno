@@ -5,12 +5,27 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"net/url"
 	"strings"
 )
 
 //go:embed ui/*.html views/*.html layouts/*.html
 var html embed.FS
+
+// SharedPartialsFS exposes the shared ui/ partials, and only those. Feature
+// packages parse their templates from their own embed and cannot reach this
+// one, so without it they copy the markup: feature/state carried a verbatim
+// mirror of ui/expend_label, pinned by a regression test, for exactly that
+// reason. Narrowed to ui/ so a caller cannot ParseFS views/ and silently
+// redefine renderRealm inside its own set.
+func SharedPartialsFS() fs.FS {
+	sub, err := fs.Sub(html, "ui")
+	if err != nil {
+		panic("components: sub ui: " + err.Error())
+	}
+	return sub
+}
 
 var funcMap = template.FuncMap{}
 
@@ -36,6 +51,7 @@ func registerCommonFuncs(funcs template.FuncMap) {
 	}
 	funcs["FormatRelativeTime"] = FormatRelativeTimeSince
 	funcs["hasPrefix"] = strings.HasPrefix
+	funcs["split"] = strings.Split
 	// add returns the sum of two integers — used by recursive templates that
 	// track depth (e.g. the state explorer tree).
 	funcs["add"] = func(a, b int) int { return a + b }
@@ -51,14 +67,14 @@ func registerCommonFuncs(funcs template.FuncMap) {
 		}
 		return *p
 	}
-	// truncMiddle shortens long opaque strings (e.g. bech32 addresses) for the
-	// sidebar: keeps `keep` runes on each side joined by an ellipsis.
-	funcs["truncMiddle"] = func(s string, keep int) string {
+	funcs["truncMiddle"] = TruncMiddle
+	// splitHalf cuts s in two at its middle rune, so a long opaque string (a
+	// bech32 address) can be offered a single break point between equal
+	// halves. Both halves are plain strings and stay escaped by the template.
+	funcs["splitHalf"] = func(s string) [2]string {
 		r := []rune(s)
-		if keep <= 0 || len(r) <= keep*2+1 {
-			return s
-		}
-		return string(r[:keep]) + "…" + string(r[len(r)-keep:])
+		mid := len(r) / 2
+		return [2]string{string(r[:mid]), string(r[mid:])}
 	}
 	// dict creates a map from key-value pairs for passing multiple values to templates
 	funcs["dict"] = func(kv ...any) (map[string]any, error) {
@@ -89,4 +105,15 @@ func init() {
 	if err != nil {
 		panic("unable to parse embed templates: " + err.Error())
 	}
+}
+
+// TruncMiddle shortens a long opaque string (a bech32 address, a hash): it
+// keeps `keep` runes on each side, joined by an ellipsis, since both ends are
+// what a reader recognizes one by.
+func TruncMiddle(s string, keep int) string {
+	r := []rune(s)
+	if keep <= 0 || len(r) <= keep*2+1 {
+		return s
+	}
+	return string(r[:keep]) + "…" + string(r[len(r)-keep:])
 }

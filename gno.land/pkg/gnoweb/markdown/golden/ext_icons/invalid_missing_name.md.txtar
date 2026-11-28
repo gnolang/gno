@@ -1,0 +1,13 @@
+-- input.md --
+No name: <gno-icon />
+
+Empty name: <gno-icon name="" />
+
+Blank name: <gno-icon name="   " />
+
+Label only: <gno-icon label="Lost" />
+-- output.html --
+<p>No name: <!-- gno-icon: missing name --></p>
+<p>Empty name: <!-- gno-icon: missing name --></p>
+<p>Blank name: <!-- gno-icon: missing name --></p>
+<p>Label only: <!-- gno-icon: missing name --></p>

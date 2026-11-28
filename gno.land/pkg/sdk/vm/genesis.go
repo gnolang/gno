@@ -73,17 +73,9 @@ func ValidateRealmParamKey(key string) error {
 				"write the vm module's own parameter vm:%s rather than a realm's",
 			key, realm, key)
 	}
-	// One colon exactly, which is what a realm produces at runtime: chain/params
-	// pkey panics on a colon in the name and package paths cannot contain one.
-	// Genesis is the only writer that can build more. It matters because this
-	// splits on the first colon to find the realm while realmFromKey
-	// (params_deposit.go) splits on the last, so a second would attribute one
-	// key to two different realms.
-	if strings.Contains(name, ":") {
-		return fmt.Errorf(
-			"invalid realm param key %q: the name %q must not contain a colon",
-			key, name)
-	}
+	// The name may contain colons, as a realm's chain/params writes may: this
+	// and realmFromKey (params_deposit.go) both take the realm path to end at
+	// the first colon, which package paths cannot contain.
 	return nil
 }
 

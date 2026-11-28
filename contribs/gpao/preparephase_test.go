@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -41,8 +42,7 @@ func TestFetchingSourcesDoesNotSpendTheBudget(t *testing.T) {
 	slow := httptest.NewServer(delaying(t, remote, perRequest))
 	t.Cleanup(slow.Close)
 
-	o := newTestOracle(t)
-	o.cfg.remote = slow.URL
+	o := newTestOracleAt(t, slow.URL)
 	o.cfg.verifyBudget = 2 * time.Second
 
 	start := time.Now()
@@ -171,6 +171,43 @@ func counting(t *testing.T, remote string, n *atomic.Int64) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		n.Add(1)
 		proxy.ServeHTTP(w, r)
+	})
+}
+
+// rewriting proxies every request to remote with its body passed through
+// rewrite first: the node answers whatever rewrite turns the request into.
+func rewriting(t *testing.T, remote string, rewrite func(body []byte) []byte) http.Handler {
+	t.Helper()
+	proxy := nodeProxy(t, remote)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		body = rewrite(body)
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		r.ContentLength = int64(len(body))
+		proxy.ServeHTTP(w, r)
+	})
+}
+
+// countingQuery proxies every request to remote and counts the ABCI queries
+// among them whose path starts with pathPrefix.
+func countingQuery(t *testing.T, remote, pathPrefix string, n *atomic.Int64) http.Handler {
+	t.Helper()
+	return countingBody(t, remote, `"path":"`+pathPrefix, n)
+}
+
+// countingBody proxies every request to remote and counts those whose body
+// holds match.
+func countingBody(t *testing.T, remote, match string, n *atomic.Int64) http.Handler {
+	t.Helper()
+	return rewriting(t, remote, func(body []byte) []byte {
+		if bytes.Contains(body, []byte(match)) {
+			n.Add(1)
+		}
+		return body
 	})
 }
 

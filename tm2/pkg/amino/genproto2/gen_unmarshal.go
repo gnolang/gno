@@ -30,6 +30,12 @@ func (ctx *P3Context2) generateUnmarshal(sb *strings.Builder, info *amino.TypeIn
 
 	// Handle struct types.
 	if info.Type.Kind() == reflect.Struct {
+		if info.Recursive {
+			// Count each level of a type that can contain itself, as
+			// decodeReflectBinaryStruct does.
+			sb.WriteString("\tanyDepth, err := amino.NestDepth(anyDepth)\n")
+			sb.WriteString("\tif err != nil {\n\t\treturn err\n\t}\n")
+		}
 		ctx.writeStructUnmarshalBody(sb, info, "goo")
 		sb.WriteString("\treturn nil\n")
 		sb.WriteString("}\n\n")
@@ -148,7 +154,7 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 		}
 		sb.WriteString("\t}\n")
 		// Top-level trailing-bytes check, mirroring UnmarshalReflect (amino.go:1054).
-		sb.WriteString("\tif len(bz) != 0 {\n\t\treturn fmt.Errorf(\"trailing bytes after packed-slice repr: %X\", bz)\n\t}\n")
+		sb.WriteString("\tif len(bz) != 0 {\n\t\treturn fmt.Errorf(\"%d trailing bytes after packed-slice repr\", len(bz))\n\t}\n")
 	} else {
 		// Primitive repr: read field 1 key, then decode value.
 		fmt.Fprintf(sb, "\tvar repr %s\n", ctx.goTypeName(rt))
@@ -175,7 +181,7 @@ func (ctx *P3Context2) writeReprUnmarshal(sb *strings.Builder, rinfo *amino.Type
 		}
 		sb.WriteString("\t}\n")
 		// Top-level trailing-bytes check, mirroring UnmarshalReflect (amino.go:1054).
-		sb.WriteString("\tif len(bz) != 0 {\n\t\treturn fmt.Errorf(\"trailing bytes after primitive repr: %X\", bz)\n\t}\n")
+		sb.WriteString("\tif len(bz) != 0 {\n\t\treturn fmt.Errorf(\"%d trailing bytes after primitive repr\", len(bz))\n\t}\n")
 	}
 	return nil
 }

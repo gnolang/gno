@@ -43,11 +43,9 @@ func TestVerifierResolvesChainOnlyImport(t *testing.T) {
 
 // Same property with a realistic dependency: one that ships tests.
 //
-// vm/qfile lists every stored file, so a dependency rebuilt from it carries its
-// _test.gno and its flattened _filetest.gno. Stamping that MPUserProd -- as the
-// getter did -- makes AddMemPackage reject it ("unexpected file given type
-// MPUserProd"), which surfaces as a rejection of the IMPORTING package for
-// files that are not even its own.
+// vm/qfile lists every stored file, the dependency's _test.gno and flattened
+// _filetest.gno included, and none of them may decide the verdict on the
+// IMPORTING package, whose files they are not.
 func TestVerifierResolvesChainOnlyImportWithTestFiles(t *testing.T) {
 	dep := chainPackage("gno.land/p/test/tested", "package tested\n\nfunc Add(a, b int) int { return a + b }\n")
 	dep.Files = append(dep.Files,
@@ -61,6 +59,46 @@ func TestVerifierResolvesChainOnlyImportWithTestFiles(t *testing.T) {
 	v := newRPCVerifier(t, dep)
 	require.NoError(t, v.verifyPackage(mpkg),
 		"a dependency's own test files are not the importing package's problem")
+}
+
+// A dependency whose module file is the legacy gno.mod carries it to the
+// typecheck, which refuses a dependency with no module file at all.
+func TestVerifierResolvesChainOnlyImportWithLegacyGnoMod(t *testing.T) {
+	const depPath = "gno.land/p/test/legacy"
+	dep := chainPackage(depPath, "package legacy\n\nfunc Add(a, b int) int { return a + b }\n")
+	for _, f := range dep.Files {
+		if f.Name == "gnomod.toml" {
+			f.Name, f.Body = "gno.mod", "module "+depPath+"\n"
+		}
+	}
+	dep.Sort()
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/legacy\"\n\nfunc Use() int { return legacy.Add(1, 2) }\n")
+
+	v := newRPCVerifier(t, dep)
+	require.NoError(t, v.prepare(mpkg))
+	require.NoError(t, v.verifyPackage(mpkg),
+		"a dependency's gno.mod must reach the typecheck")
+}
+
+// A dependency holding tests alone, which AddPackage has refused since #5892
+// but a package stored before it may be, is empty to the validator's
+// typecheck: its importer is rejected, not left pending on a dependency the
+// oracle could not build. The test is an xtest, whose clause does not name the
+// package.
+func TestVerifierRejectsAnImportHoldingOnlyTests(t *testing.T) {
+	const depPath = "gno.land/p/test/onlytests"
+	dep := chainPackage(depPath, "")
+	dep.Files[1] = &std.MemFile{Name: "onlytests_test.gno", Body: "package onlytests_test\n\nconst X = 1\n"}
+	dep.Sort()
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/onlytests\"\n\nfunc Use() int { return onlytests.X }\n")
+
+	v := newRPCVerifier(t, dep)
+	require.NoError(t, v.prepare(mpkg), "the dependency is the chain's, not a reason to wait")
+	err := v.verifyPackage(mpkg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "undefined: onlytests.X")
 }
 
 // A diamond: user imports low and mid, and mid also imports low. So a
@@ -260,9 +298,7 @@ func TestPrepareReportsTheTransportFaultUnderABuildFailure(t *testing.T) {
 	}
 
 	// There is a build failure to outrank, asserted on the walk itself because
-	// prepare returns the fault instead. Without this the test below passes
-	// against a buildChainImports that does nothing: prepare's own LoadImports
-	// reaches low first and sets transportErr before the walk ever runs.
+	// prepare returns the fault instead.
 	buildErr := faulting().buildChainImports(mpkg)
 	require.Error(t, buildErr, "the walk must produce the failure being outranked")
 	assert.Contains(t, buildErr.Error(), "could not prebuild")
@@ -307,6 +343,38 @@ func TestPrepareCachesAnImportTheNodeDoesNotServe(t *testing.T) {
 	require.Error(t, v.verifyPackage(mpkg), "the unresolved import must still be refused")
 	assert.Equal(t, onPrepare, calls,
 		"the typecheck and the preprocess must not reach the node on the budget")
+}
+
+// An import only the candidate's tests name is never asked for. Both stages
+// read production files alone, as the validator does at enable, so fetching it
+// is a round trip that informs nothing.
+func TestVerifierFetchesNoImportOnlyItsTestsName(t *testing.T) {
+	dep := chainPackage("gno.land/p/test/dep", "package dep\n\nfunc Add(a, b int) int { return a + b }\n")
+	testOnly := chainPackage("gno.land/p/test/testonly", "package testonly\n\nfunc Want() int { return 3 }\n")
+	xtestOnly := chainPackage("gno.land/p/test/xtestonly", "package xtestonly\n\nfunc Want() int { return 3 }\n")
+	mpkg := chainPackage("gno.land/p/test/user",
+		"package user\n\nimport \"gno.land/p/test/dep\"\n\nfunc Use() int { return dep.Add(1, 2) }\n")
+	mpkg.Files = append(mpkg.Files,
+		&std.MemFile{Name: "user_test.gno", Body: "package user\n\nimport (\n\t\"testing\"\n\n\t\"gno.land/p/test/testonly\"\n)\n\n" +
+			"func TestUse(t *testing.T) {\n\tif Use() != testonly.Want() {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"},
+		&std.MemFile{Name: "z_test.gno", Body: "package user_test\n\nimport (\n\t\"testing\"\n\n\t\"gno.land/p/test/user\"\n\t\"gno.land/p/test/xtestonly\"\n)\n\n" +
+			"func TestUse(t *testing.T) {\n\tif user.Use() != xtestonly.Want() {\n\t\tt.Fatal(\"bad\")\n\t}\n}\n"},
+	)
+	mpkg.Sort()
+
+	v := newRPCVerifier(t, dep, testOnly, xtestOnly)
+	var asked []string
+	served := v.rpc.qfile
+	v.rpc.qfile = func(fpath string) ([]byte, error) {
+		asked = append(asked, fpath)
+		return served(fpath)
+	}
+
+	require.NoError(t, v.prepare(mpkg))
+	require.NoError(t, v.verifyPackage(mpkg))
+	require.Contains(t, asked, dep.Path, "premise: the production import must have been fetched, or this proves nothing")
+	assert.NotContains(t, asked, testOnly.Path, "a _test.gno import is not the validator's to resolve")
+	assert.NotContains(t, asked, xtestOnly.Path, "nor is an external test's")
 }
 
 // A live dependency vm/qfile missed once is fetched again, before the budget.
@@ -454,13 +522,8 @@ func TestPrepareReportsTheFaultUnderALateBuild(t *testing.T) {
 // A stdlib that will not build in the operator's tree leaves the candidate
 // pending, whether it is imported directly or through a chain dependency.
 //
-// The asymmetry this pins out: buildChainImports used to skip non-userlib
-// paths, and LoadImports is called with abortOnError=false, which recovers the
-// disk getter's panic and prints it -- so prepare returned nil and the
-// typecheck's own panic became the answer. A candidate importing a broken
-// stdlib directly was rejected and marked seen; one importing a /p/ package
-// that imports it stayed pending. One level of indirection decided whether the
-// operator's checkout settled a stranger's bytes, terminally.
+// Both routes must give the same answer: the operator's checkout must never
+// settle a stranger's bytes, whatever level of indirection reaches it.
 func TestPrepareRefusesABrokenStdlibWhereverItIsImported(t *testing.T) {
 	// A tree that will not build, simulated at the seam a corrupt source file
 	// panics through. The real fault was NUL bytes in a stdlib .gno file.

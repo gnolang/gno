@@ -353,8 +353,13 @@ func (cdc *Codec) encodeReflectJSONStruct(w io.Writer, info *TypeInfo, rv reflec
 	writeComma := false
 	for _, field := range info.Fields {
 		finfo := field.TypeInfo
+		fv := rv.Field(field.Index)
+		// amino:"skip_zero" leaves a zero Go value out of JSON too.
+		if field.SkipZero && fv.IsZero() {
+			continue
+		}
 		// Get dereferenced field value and info.
-		frv, _, frvIsNil := maybeDerefValue(rv.Field(field.Index))
+		frv, _, frvIsNil := maybeDerefValue(fv)
 		// If frv is empty and omitempty, skip it.
 		// NOTE: Unlike Amino:binary, we don't skip null fields unless "omitempty".
 		if field.JSONOmitEmpty && isJSONEmpty(frv, field.ZeroValue) {

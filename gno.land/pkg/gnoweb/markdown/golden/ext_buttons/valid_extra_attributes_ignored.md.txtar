@@ -1,0 +1,4 @@
+-- input.md --
+<gno-button href="/r/test" label="Go" onclick="alert(1)" class="evil" style="color:red" id="x" target="_blank" rel="opener" download aria-label="Evil" role="none" tabindex="-1" title="t" />
+-- output.html --
+<p><a href="/r/test" class="gno-button">Go</a></p>

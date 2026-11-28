@@ -1,0 +1,4 @@
+-- input.md --
+<gno-button href="/r/test" label="**not bold** [not](a link) `nor code`" />
+-- output.html --
+<p><a href="/r/test" class="gno-button">**not bold** [not](a link) `nor code`</a></p>

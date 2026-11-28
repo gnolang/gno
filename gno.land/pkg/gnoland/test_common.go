@@ -18,6 +18,7 @@ type testEnv struct {
 	ctx   sdk.Context
 	acck  auth.AccountKeeper
 	bankk bank.BankKeeper
+	prmk  params.ParamsKeeper
 }
 
 func setupTestEnv() testEnv {
@@ -49,5 +50,5 @@ func setupTestEnv() testEnv {
 		},
 	})
 
-	return testEnv{ctx: ctx, acck: acck, bankk: bankk}
+	return testEnv{ctx: ctx, acck: acck, bankk: bankk, prmk: prmk}
 }

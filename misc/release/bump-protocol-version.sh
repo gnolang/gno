@@ -13,9 +13,9 @@
 #
 # This is NOT the release version. `tm2/pkg/version.Version` is compiled in from
 # the git tag and is what halt_min_version compares; see cut-release.sh. The
-# constants here are the protocol version negotiated with peers, and
-# VersionSet.CompatibleWith refuses a peer whose MAJOR differs — so bumping the
-# major partitions the network and is a coordinated upgrade in its own right.
+# constants here are the protocol version, carried in every block header:
+# nodes refuse a block whose version differs, so any bump splits the network
+# (a MAJOR bump also stops peering) and is a coordinated upgrade of its own.
 #
 # Usage:
 #   misc/release/bump-protocol-version.sh <version>
@@ -25,6 +25,11 @@
 #   misc/release/bump-protocol-version.sh v1.0.0
 
 set -euo pipefail
+
+# Regex bracket ranges follow the locale's collation: under en_US.UTF-8 on
+# glibc, [A-Za-z] also matches letters such as é, which the node's version
+# parser refuses. In the C locale the shape checks match the parser.
+export LC_ALL=C
 
 # GNO_REPO_ROOT lets cut-release.sh point this script at a worktree of the
 # commit being tagged rather than the checkout it was invoked from. The commit
@@ -147,15 +152,21 @@ main() {
 		exit 0
 	fi
 
-	# A major bump is a network partition, not a version bump: peers that
-	# disagree on the major are refused by VersionSet.CompatibleWith, so old and
-	# new nodes cannot gossip at all. Say so before it happens.
+	# Any bump splits the network: BlockVersion is in every block header, and
+	# ApplyBlock refuses a header whose version differs from the binary's own,
+	# so nodes on either side reject each other's blocks and a bumped binary
+	# cannot sync older ones. A major bump also stops peering, since
+	# VersionSet.CompatibleWith refuses a peer whose major differs. Say so
+	# before it happens.
+	warn "protocol version ${now} -> ${target} splits the network:"
+	warn "  nodes on either side reject each other's blocks (Block.Header.Version),"
+	warn "  and a bumped binary cannot sync blocks produced before it."
+	warn "  It needs height-gated code first, then a coordinated halt."
 	local now_major="${now%%.*}" target_major="${target%%.*}"
 	if [[ ${now_major} != "${target_major}" ]]; then
-		warn "MAJOR bump ${now_major} -> ${target_major}: nodes on the old major will not"
-		warn "peer with nodes on the new one. This must ride a coordinated halt, and"
-		warn "every validator must switch at the same height. See RELEASING.md."
+		warn "MAJOR bump ${now_major} -> ${target_major}: old and new nodes will not peer either."
 	fi
+	warn "See RELEASING.md, \"Protocol versions\"."
 
 	info "bumping protocol version ${now} -> ${target}"
 	# A failure part-way leaves the tree with the constants disagreeing, which is

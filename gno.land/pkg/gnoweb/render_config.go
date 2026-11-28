@@ -19,6 +19,13 @@ type RenderConfig struct {
 	ChromaDarkStyle *chroma.Style
 	ChromaOptions   []chromahtml.Option
 	GoldmarkOptions []goldmark.Option
+	// IPFSGateway is the gateway origin, such as DefaultIPFSGateway, that
+	// ipfs:// URLs and URLs on the gateways in markdown's
+	// ipfsRewrittenGateways are rewritten to in realm markdown. Empty
+	// disables the rewrite. NewRouter rejects an invalid value;
+	// NewHTMLRenderer, which knows neither the chain domain nor the
+	// canonical origin, ignores a malformed one.
+	IPFSGateway string
 }
 
 // NewDefaultRenderConfig returns a RenderConfig with default styles and options.
@@ -41,6 +48,8 @@ func NewDefaultGoldmarkOptions() []goldmark.Option {
 			extension.TaskList,
 			md.NewGnoExtension(
 				md.WithImageValidator(md.AllowSvgDataImage),
+				// Display math must end at a footnote definition.
+				md.WithPeerBlockParsers(extension.NewFootnoteBlockParser()),
 			),
 		),
 	}

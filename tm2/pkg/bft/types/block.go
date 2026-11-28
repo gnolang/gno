@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -33,6 +34,39 @@ func (b *Block) ValidateBasic() error {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
+	if err := b.validateHeaderBasic(); err != nil {
+		return err
+	}
+	if !bytes.Equal(b.LastCommitHash, b.LastCommit.Hash()) {
+		return fmt.Errorf("wrong Header.LastCommitHash. Expected %v, got %v",
+			b.LastCommit.Hash(),
+			b.LastCommitHash,
+		)
+	}
+	// NOTE: b.Data.Txs may be nil, but b.Data.Hash()
+	// still works fine
+	if !bytes.Equal(b.DataHash, b.Data.Hash()) {
+		return fmt.Errorf(
+			"wrong Header.DataHash. Expected %v, got %v",
+			b.Data.Hash(),
+			b.DataHash,
+		)
+	}
+	return nil
+}
+
+// ValidateHeaderBasic is ValidateBasic without hashing LastCommit or Data.
+func (b *Block) ValidateHeaderBasic() error {
+	if b == nil {
+		return errors.New("nil block")
+	}
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+
+	return b.validateHeaderBasic()
+}
+
+func (b *Block) validateHeaderBasic() error {
 	if len(b.ChainID) > MaxChainIDLen {
 		return fmt.Errorf("ChainID is too long. Max is %d, got %d", MaxChainIDLen, len(b.ChainID))
 	}
@@ -74,30 +108,20 @@ func (b *Block) ValidateBasic() error {
 		return errors.New("nil LastCommit")
 	}
 	if err := b.LastCommit.ValidateBasic(); err != nil {
-		return fmt.Errorf("wrong LastCommit")
+		return fmt.Errorf("wrong LastCommit: %w", err)
 	}
 	if err := ValidateHash(b.LastCommitHash); err != nil {
 		return fmt.Errorf("wrong Header.LastCommitHash: %w", err)
 	}
-	if !bytes.Equal(b.LastCommitHash, b.LastCommit.Hash()) {
-		return fmt.Errorf("wrong Header.LastCommitHash. Expected %v, got %v",
-			b.LastCommit.Hash(),
-			b.LastCommitHash,
-		)
+	// An empty hash over a non-empty body would make Hash compute it from that body.
+	if len(b.LastCommitHash) == 0 && len(b.LastCommit.Precommits) > 0 {
+		return errors.New("empty Header.LastCommitHash over a non-empty LastCommit")
 	}
-
-	// Validate the hash of the transactions.
-	// NOTE: b.Data.Txs may be nil, but b.Data.Hash()
-	// still works fine
 	if err := ValidateHash(b.DataHash); err != nil {
 		return fmt.Errorf("wrong Header.DataHash: %w", err)
 	}
-	if !bytes.Equal(b.DataHash, b.Data.Hash()) {
-		return fmt.Errorf(
-			"wrong Header.DataHash. Expected %v, got %v",
-			b.Data.Hash(),
-			b.DataHash,
-		)
+	if len(b.DataHash) == 0 && len(b.Data.Txs) > 0 {
+		return errors.New("empty Header.DataHash over non-empty Data.Txs")
 	}
 
 	// Basic validation of hashes related to application data.
@@ -439,7 +463,11 @@ func CommitToVoteSet(chainID string, commit *Commit, vals *ValidatorSet) *VoteSe
 		if precommit == nil {
 			continue
 		}
-		added, err := voteSet.AddVote(commit.GetVote(idx))
+		vote := commit.GetVote(idx)
+		// ValidatorAddress is not signed and is redundant with the
+		// precommit's position, so take it from the set, not the wire.
+		vote.ValidatorAddress, _ = vals.GetByIndex(idx)
+		added, err := voteSet.AddVote(vote)
 		if !added || err != nil {
 			panic(fmt.Sprintf("Failed to reconstruct LastCommit: %v", err))
 		}
@@ -566,6 +594,12 @@ func (commit *Commit) ValidateBasic() error {
 	if len(commit.Precommits) == 0 {
 		return errors.New("No precommits in commit")
 	}
+	// A commit has one entry per validator. A nil entry costs a peer 2 wire
+	// bytes, so bound the count before Hash() walks them.
+	if len(commit.Precommits) > MaxVotesCount {
+		return fmt.Errorf("commit has too many precommits: %d, max: %d",
+			len(commit.Precommits), MaxVotesCount)
+	}
 	height, round := commit.Height(), commit.Round()
 
 	// Validate the precommits.
@@ -588,6 +622,11 @@ func (commit *Commit) ValidateBasic() error {
 		if precommit.Round != round {
 			return fmt.Errorf("invalid commit precommit round. Expected %v, got %v",
 				round, precommit.Round)
+		}
+		// CanonicalizePartSetHeader panics on a Total outside the canonical
+		// uint32 range, a check precommits in a Commit never reach.
+		if total := precommit.BlockID.PartsHeader.Total; total < 0 || int64(total) > math.MaxUint32 {
+			return fmt.Errorf("invalid commit precommit PartSetHeader.Total: %d out of canonical uint32 range", total)
 		}
 	}
 	return nil

@@ -252,13 +252,11 @@ func (mem *CListMempool) CheckTxWithInfo(tx types.Tx, cb func(abci.Response), tx
 		// Note it's possible a tx is still in the cache but no longer in the mempool
 		// (eg. after committing a block, txs are removed from mempool but not cache),
 		// so we only record the sender for txs still in the mempool.
-		if e, ok := mem.txsMap.Load(txKey(tx)); ok {
-			memTx := e.(*clist.CElement).Value.(*mempoolTx)
-			memTx.senders.LoadOrStore(txInfo.SenderID, true)
-			// TODO: consider punishing peer for dups,
-			// its non-trivial since invalid txs can become valid,
-			// but they can spam the same tx with little cost to them atm.
-		}
+		//
+		// TODO: consider punishing peer for dups,
+		// its non-trivial since invalid txs can become valid,
+		// but they can spam the same tx with little cost to them atm.
+		mem.recordSender(tx, txInfo.SenderID)
 
 		return ErrTxInCache
 	}
@@ -330,8 +328,8 @@ func (mem *CListMempool) reqResCb(tx []byte, peerID uint16, externalCb func(abci
 	}
 }
 
-// Called from:
-//   - resCbFirstTime (lock not held) if tx is valid
+// Called from resCbFirstTime under mem.mtx: localClient runs the callback
+// inline, and resCbFirstTime's txsMap check-then-add depends on that.
 func (mem *CListMempool) addTx(memTx *mempoolTx) {
 	e := mem.txs.PushBack(memTx)
 	mem.txsMap.Store(txKey(memTx.tx), e)
@@ -354,9 +352,10 @@ func (mem *CListMempool) logTelemetry() {
 	metrics.NumCachedTxs.Record(context.Background(), int64(mem.cache.Len()))
 }
 
-// Called from:
-//   - Update (lock held) if tx was committed
-//   - resCbRecheck (lock not held) if tx was invalidated
+// elem must be the element txsMap names for tx: the key is deleted whatever elem
+// is, so unlinking another element with those bytes drops the listed one's entry.
+//
+// Called from Update, recheckTxs and resCbRecheck, all under mem.mtx.
 func (mem *CListMempool) removeTx(tx types.Tx, elem *clist.CElement, removeFromCache bool) {
 	mem.txs.Remove(elem)
 	elem.DetachPrev()
@@ -371,6 +370,17 @@ func (mem *CListMempool) removeTx(tx types.Tx, elem *clist.CElement, removeFromC
 	mem.logTelemetry()
 }
 
+// recordSender notes peerID as a sender of tx and returns tx's entry, if listed.
+func (mem *CListMempool) recordSender(tx types.Tx, peerID uint16) (*mempoolTx, bool) {
+	e, ok := mem.txsMap.Load(txKey(tx))
+	if !ok {
+		return nil, false
+	}
+	memTx := e.(*clist.CElement).Value.(*mempoolTx)
+	memTx.senders.LoadOrStore(peerID, true)
+	return memTx, true
+}
+
 // callback, which is called after the app checked the tx for the first time.
 //
 // The case where the app checks the tx for the second and subsequent times is
@@ -379,6 +389,18 @@ func (mem *CListMempool) resCbFirstTime(tx []byte, peerID uint16, res abci.Respo
 	switch res := res.(type) {
 	case abci.ResponseCheckTx:
 		if res.Error == nil {
+			// A still-pending tx can fall out of the cache and arrive here twice.
+			// A second entry takes over txsMap and strands the first, and whichever
+			// copy recheck then unlinks takes the other's key.
+			if memTx, ok := mem.recordSender(tx, peerID); ok {
+				mem.logger.Debug("Transaction already in the mempool",
+					"tx", txID(tx),
+					"height", memTx.height,
+					"total", mem.Size(),
+				)
+				return
+			}
+
 			memTx := &mempoolTx{
 				height:    mem.height,
 				gasWanted: res.GasWanted,
@@ -519,7 +541,7 @@ func (mem *CListMempool) ReapMaxTxs(maxVal int) types.Txs {
 	}
 
 	txs := make([]types.Tx, 0, min(mem.txs.Len(), maxVal))
-	for e := mem.txs.Front(); e != nil && len(txs) <= maxVal; e = e.Next() {
+	for e := mem.txs.Front(); e != nil && len(txs) < maxVal; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
 		txs = append(txs, memTx.tx)
 	}

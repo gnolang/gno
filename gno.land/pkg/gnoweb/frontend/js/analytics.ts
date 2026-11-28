@@ -36,11 +36,14 @@ onClick<HTMLButtonElement>(
 	'button[data-controller~="copy"]',
 	(btn) => {
 		const remote = btn.getAttribute("data-copy-remote-value") ?? "";
+		const named = btn.getAttribute("data-copy-kind");
 		let kind = "unknown";
-		if (btn.hasAttribute("data-copy-text-value")) kind = "link";
+		if (named) kind = named;
+		else if (btn.hasAttribute("data-copy-text-value")) kind = "link";
 		else if (remote === "source-code") kind = "source";
 		else if (remote.startsWith("func-")) kind = "func_signature";
 		else if (remote.startsWith("action-function-")) kind = "gnokey_command";
+		else if (remote === "run-cmd") kind = "run_command";
 		fire("copy_action", { kind });
 	},
 	true,
@@ -127,7 +130,7 @@ if (devmodeToggle) {
 // ---- toc_toggle: native <details> toggle event does NOT bubble; attach
 // directly to each accordion present at load time.
 document
-	.querySelectorAll<HTMLDetailsElement>("details.accordion")
+	.querySelectorAll<HTMLDetailsElement>("details.b-accordion")
 	.forEach((d) => {
 		d.addEventListener("toggle", () => {
 			fire("toc_toggle", { open: d.open });
@@ -135,19 +138,22 @@ document
 	});
 
 // ---- qeval_preview: watch the result element for an outcome change.
-// Placeholder text and error class are read from data-* attributes set on the
+// Placeholder texts and error class are read from data-* attributes set on the
 // element by the server (action.html); the controller reads the same source,
-// so analytics never holds an independent copy of these strings.
+// so analytics never holds an independent copy of these strings. The
+// "unavailable" text (rate limit, outage) says nothing about the function, so
+// it is no outcome either.
 const qevalResult = document.querySelector<HTMLElement>(
 	'[data-action-function-target="qeval-result"]',
 );
 if (qevalResult) {
 	const placeholder = qevalResult.dataset.qevalPlaceholder ?? "";
+	const unavailable = qevalResult.dataset.qevalUnavailable ?? "";
 	const errorClass = qevalResult.dataset.qevalErrorClass ?? "u-color-danger";
 	let lastSuccess: boolean | null = null;
 	const observer = new MutationObserver(() => {
 		const text = qevalResult.textContent?.trim() ?? "";
-		if (text === "" || text === placeholder) return;
+		if (text === "" || text === placeholder || text === unavailable) return;
 		const success = !qevalResult.classList.contains(errorClass);
 		if (success !== lastSuccess) {
 			lastSuccess = success;

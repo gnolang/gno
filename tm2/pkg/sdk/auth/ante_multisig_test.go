@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -134,7 +135,10 @@ func TestConsumeMultisignatureVerificationGasShapeMismatch(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			pubkey := multisig.PubKeyMultisigThreshold{K: 1, PubKeys: pkSet}
+			// K matches the set bits, so the threshold is not what refuses
+			// these: each one's shape is.
+			k := uint(tt.sig.BitArray.NumTrueBitsBefore(tt.sig.BitArray.Size()))
+			pubkey := multisig.PubKeyMultisigThreshold{K: k, PubKeys: pkSet}
 			res := DefaultSigVerificationGasConsumer(
 				store.NewInfiniteGasMeter(), amino.MustMarshal(&tt.sig), pubkey, params)
 			require.False(t, res.IsOK())
@@ -300,6 +304,54 @@ func TestAnteHandlerMultisigTotalKeys(t *testing.T) {
 	checkInvalidTx(t, anteHandler, env.ctx, decoded, false, std.InvalidPubKeyError{})
 }
 
+// A threshold key holding no keys of its own counts zero leaves, so
+// TxSigLimit admits any number of signatures carrying one. Simulate skips
+// verifying them, and must skip building their sign bytes too: each build is
+// unmetered and as large as the transaction, so building them all makes one
+// query's cost quadratic in its size.
+func TestAnteHandlerSimulateSkipsSignBytes(t *testing.T) {
+	// Not parallel: MemStats also counts what concurrent tests allocate.
+	env := setupTestEnv()
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+
+	// allocated returns the bytes simulate allocates for n leafless signatures.
+	allocated := func(n int) uint64 {
+		tx := leaflessTx(t, env, n, n+1, std.NewFee(10_000_000, std.NewCoin("atom", 150)))
+		var decoded std.Tx
+		require.NoError(t, amino.Unmarshal(amino.MustMarshal(tx), &decoded))
+
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		_, res, abort := anteHandler(env.ctx, decoded, true)
+		runtime.ReadMemStats(&after)
+		require.False(t, abort, "%v", res.Error)
+		return after.TotalAlloc - before.TotalAlloc
+	}
+
+	small, large := allocated(100), allocated(400)
+	// Four times the signatures in a four times larger transaction: linear
+	// work allocates about four times as much, a build per signature sixteen.
+	require.Less(t, large, 8*small, "100 signatures allocated %d bytes, 400 allocated %d", small, large)
+}
+
+// RequireSigForSimulate reads the whole transaction, so the ante handler asks
+// it once per transaction, never once per signature.
+func TestAnteHandlerAsksRequireSigForSimulateOnce(t *testing.T) {
+	t.Parallel()
+
+	env := setupTestEnv()
+	calls := 0
+	opts := defaultAnteOptions()
+	opts.RequireSigForSimulate = func(std.Tx) bool { calls++; return false }
+	anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, opts)
+
+	tx := leaflessTx(t, env, 5, 1, tu.NewTestFee())
+
+	_, res, abort := anteHandler(env.ctx, tx, true)
+	require.False(t, abort, "%v", res.Error)
+	require.Equal(t, 1, calls)
+}
+
 // The other half of "the signature field is untrusted bytes", and the half a
 // failed amino decode does not cover: a bit array whose ExtraBitsStored runs
 // past its Elems decodes perfectly well, and only then makes Size() claim more
@@ -367,8 +419,9 @@ func TestAnteHandlerMultisigNilNestedConstituent(t *testing.T) {
 	require.LessOrEqual(t, int64(std.CountSubKeys(pub)), DefaultParams().TxSigLimit,
 		"counts inside TxSigLimit, so ValidateSigCount never fires")
 
-	// No bits set and no signatures: the counts line up, so the gas consumer
-	// passes and the key alone is what is left to reject it.
+	// No bits set and no signatures. The nil is refused, as an
+	// InvalidPubKeyError, before anything reads the signature; the threshold
+	// would refuse it too, but as an UnauthorizedError.
 	sig := multisig.Multisignature{
 		BitArray: &bitarray.CompactBitArray{ExtraBitsStored: 2, Elems: []byte{0x00}},
 	}
@@ -386,4 +439,99 @@ func TestAnteHandlerMultisigNilNestedConstituent(t *testing.T) {
 		"the nil constituent survives the wire round-trip")
 
 	checkInvalidTx(t, anteHandler, env.ctx, decoded, false, std.InvalidPubKeyError{})
+}
+
+// leaflessTx returns a transaction from n funded accounts, each keyed by a
+// threshold key with no leaves, signed by nothing. Each key is a 0-of-1 over a
+// threshold key holding no keys, so an empty multisignature has the shape the
+// gas consumer walks: exactly K, that is no, signatures. The inner K counts up
+// from k0, so each key has an address of its own.
+func leaflessTx(t *testing.T, env testEnv, n, k0 int, fee std.Fee) std.Tx {
+	t.Helper()
+
+	addrs := make([]crypto.Address, n)
+	sigs := make([]std.Signature, n)
+	for i := range n {
+		pub := multisig.PubKeyMultisigThreshold{
+			PubKeys: []crypto.PubKey{multisig.PubKeyMultisigThreshold{K: uint(k0 + i)}},
+		}
+		require.Equal(t, 0, std.CountSubKeys(pub))
+		_, acc := newFundedTx(t, env, pub)
+		addrs[i] = acc.GetAddress()
+		sigs[i] = std.Signature{PubKey: pub, Signature: multisig.NewMultisig(1).Marshal()}
+	}
+	return std.Tx{Msgs: []std.Msg{tu.NewTestMsg(addrs...)}, Fee: fee, Signatures: sigs}
+}
+
+// A multisignature must carry exactly its key's K signatures, at every level of
+// a nested key, and in simulate too: the gas consumer applies the rule, and it
+// runs whether or not the signatures are then verified.
+func TestAnteHandlerMultisigTakesExactlyK(t *testing.T) {
+	t.Parallel()
+
+	privs := []crypto.PrivKey{ed25519.GenPrivKey(), ed25519.GenPrivKey(), ed25519.GenPrivKey()}
+	keys := []crypto.PubKey{privs[0].PubKey(), privs[1].PubKey(), privs[2].PubKey()}
+	flat := multisig.PubKeyMultisigThreshold{K: 2, PubKeys: keys}
+	nested := multisig.PubKeyMultisigThreshold{K: 1, PubKeys: []crypto.PubKey{
+		keys[0],
+		multisig.PubKeyMultisigThreshold{K: 1, PubKeys: keys[1:]},
+	}}
+
+	// multisign returns an n-slot multisignature holding sigs at their slots.
+	multisign := func(n int, sigs map[int][]byte) []byte {
+		ms := multisig.NewMultisig(n)
+		for slot, sig := range sigs {
+			require.NoError(t, ms.AddSignature(sig, slot))
+		}
+		return ms.Marshal()
+	}
+	for _, tt := range []struct {
+		name string
+		pub  multisig.PubKeyMultisigThreshold
+		sig  func(sign func(i int) []byte) []byte
+		ok   bool
+	}{
+		{"exactly K", flat, func(sign func(int) []byte) []byte {
+			return multisign(3, map[int][]byte{0: sign(0), 1: sign(1)})
+		}, true},
+		{"more than K", flat, func(sign func(int) []byte) []byte {
+			return multisign(3, map[int][]byte{0: sign(0), 1: sign(1), 2: sign(2)})
+		}, false},
+		{"nested, exactly K", nested, func(sign func(int) []byte) []byte {
+			return multisign(2, map[int][]byte{1: multisign(2, map[int][]byte{0: sign(1)})})
+		}, true},
+		{"nested, more than K inside", nested, func(sign func(int) []byte) []byte {
+			return multisign(2, map[int][]byte{1: multisign(2, map[int][]byte{0: sign(1), 1: sign(2)})})
+		}, false},
+		{"nested, more than K outside", nested, func(sign func(int) []byte) []byte {
+			return multisign(2, map[int][]byte{0: sign(0), 1: multisign(2, map[int][]byte{0: sign(1)})})
+		}, false},
+	} {
+		for _, simulate := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/simulate=%v", tt.name, simulate), func(t *testing.T) {
+				t.Parallel()
+
+				// A fresh account per run: a refused tx has already paid its fee.
+				env := setupTestEnv()
+				anteHandler := NewAnteHandler(env.acck, env.bankk, DefaultSigVerificationGasConsumer, defaultAnteOptions())
+				tx, acc := newFundedTx(t, env, tt.pub)
+				signBytes, err := tx.GetSignBytes(env.ctx.ChainID(), acc.GetAccountNumber(), acc.GetSequence())
+				require.NoError(t, err)
+				sign := func(i int) []byte {
+					sig, err := privs[i].Sign(signBytes)
+					require.NoError(t, err)
+					return sig
+				}
+				tx.Signatures = []std.Signature{{PubKey: tt.pub, Signature: tt.sig(sign)}}
+
+				var decoded std.Tx
+				require.NoError(t, amino.Unmarshal(amino.MustMarshal(tx), &decoded))
+				if tt.ok {
+					checkValidTx(t, anteHandler, env.ctx, decoded, simulate)
+				} else {
+					checkInvalidTx(t, anteHandler, env.ctx, decoded, simulate, std.UnauthorizedError{})
+				}
+			})
+		}
+	}
 }

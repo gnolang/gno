@@ -20,7 +20,7 @@ gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 42_000_000 -chainid=tendermi
 gnokey maketx run -gas-fee 2500001ugnot -gas-wanted 29_000_000 -chainid=tendermint_test test1 $WORK/run/propose_collector1.gno
 stdout '0'
 ## Vote change proposal with unrestricted account test1
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 22_000_000 -args 0 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 26_000_000 -args 0 -args YES -chainid=tendermint_test test1
 stdout 'OK!'
 ## Execute change proposal with unrestricted account test1
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2100001ugnot -gas-wanted 21_000_000 -args 0 -chainid=tendermint_test test1
@@ -43,7 +43,7 @@ stdout '1000350001ugnot'
 gnokey maketx run -gas-fee 2600001ugnot -gas-wanted 30_000_000 -chainid=tendermint_test test1 $WORK/run/propose_collector2.gno
 stdout '1'
 ## Vote change proposal with unrestricted account test1
-gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 19_000_000 -args 1 -args YES -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/gov/dao -func MustVoteOnProposalSimple -gas-fee 1900001ugnot -gas-wanted 23_000_000 -args 1 -args YES -chainid=tendermint_test test1
 stdout 'OK!'
 ## Execute change proposal with unrestricted account test1
 gnokey maketx call -pkgpath gno.land/r/gov/dao -func ExecuteProposal -gas-fee 2100001ugnot -gas-wanted 21_000_000 -args 1 -chainid=tendermint_test test1

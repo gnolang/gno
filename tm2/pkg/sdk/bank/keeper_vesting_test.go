@@ -260,10 +260,10 @@ func TestAnUnlockedDenomReportsAShortfallNotALock(t *testing.T) {
 	require.EqualError(t, err, "vesting locked coins error")
 }
 
-// A schedule can lock more than the account still holds: fees and storage
-// deposits debit through the unrestricted path, which never consults it. The
-// spendable figure is clamped so the refusal reports nothing available rather
-// than a negative amount.
+// A schedule can lock more than the account still holds: fees debit through
+// the unrestricted path, which never consults it. The spendable figure is
+// clamped so the refusal reports nothing available rather than a negative
+// amount.
 func TestSpendingIntoTheLockedPortionReportsZeroNotANegative(t *testing.T) {
 	t.Parallel()
 

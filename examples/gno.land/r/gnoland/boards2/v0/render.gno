@@ -128,12 +128,6 @@ func renderBoardsList(res *mux.ResponseWriter, req *mux.Request) {
 	renderBoardListMenu(res, req)
 	res.Write(md.HorizontalRule())
 
-	if gListedBoardsByID.Size() == 0 {
-		res.Write(md.H3("Currently there are no boards"))
-		res.Write("Be the first to " + md.Link("create a new board", createBoardURI) + "!")
-		return
-	}
-
 	p := newClampedPager(req.RawPath, gListedBoardsByID.Size(), pageSizeDefault)
 
 	render := func(_ string, v any) bool {

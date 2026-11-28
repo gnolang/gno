@@ -30,17 +30,17 @@ func tn_expose_nil(node types.TreeNode) types.TreeNode {
 
 func TraverseBinaryTreeInOrder(node types.BinaryTreeNode) types.TreeNodeIterator {
 	stack := make([]types.TreeNode, 0, 10)
-	var cur types.TreeNode = btn_expose_nil(node)
+	var it types.TreeNode = btn_expose_nil(node)
 	var tn_iterator types.TreeNodeIterator
 	tn_iterator = func() (tn types.TreeNode, next types.TreeNodeIterator) {
-		if len(stack) > 0 || cur != nil {
-			for cur != nil {
-				stack = append(stack, cur)
-				cur = cur.(types.BinaryTreeNode).Left()
+		if len(stack) > 0 || it != nil {
+			for it != nil {
+				stack = append(stack, it)
+				it = it.(types.BinaryTreeNode).Left()
 			}
-			stack, cur = pop(stack)
-			tn = cur
-			cur = cur.(types.BinaryTreeNode).Right()
+			stack, it = pop(stack)
+			tn = it
+			it = it.(types.BinaryTreeNode).Right()
 			return tn, tn_iterator
 		} else {
 			return nil, nil

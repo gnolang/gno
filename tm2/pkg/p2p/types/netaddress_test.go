@@ -1,9 +1,11 @@
 package types
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -101,8 +103,19 @@ func TestNewNetAddressFromString(t *testing.T) {
 				require.NoError(t, err)
 
 				assert.Equal(t, testCase.expected, addr.String())
+				assert.Empty(t, addr.Hostname)
 			})
 		}
+	})
+
+	t.Run("hostname is kept", func(t *testing.T) {
+		t.Parallel()
+
+		addr, err := NewNetAddressFromString("g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@localhost:8080")
+		require.NoError(t, err)
+
+		assert.Equal(t, "localhost", addr.Hostname)
+		assert.NotNil(t, addr.IP)
 	})
 
 	t.Run("invalid net address", func(t *testing.T) {
@@ -153,6 +166,26 @@ func TestNewNetAddressFromString(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestNewNetAddressFromString_EmptyLookup(t *testing.T) {
+	// Not parallel: it swaps the package resolver, which the parallel tests
+	// above resolve "localhost" through.
+	original := lookupIP
+	t.Cleanup(func() { lookupIP = original })
+
+	// net.LookupIP returns no addresses and a nil error for a host the
+	// resolver declines to query
+	lookupIP = func(string) ([]net.IP, error) {
+		return nil, nil
+	}
+
+	addr, err := NewNetAddressFromString(
+		fmt.Sprintf("%s@unresolvable.example:26656", GenerateNodeKey().ID()),
+	)
+
+	assert.Nil(t, addr)
+	assert.ErrorIs(t, err, ErrEmptyLookupResult)
 }
 
 func TestNewNetAddressFromStrings(t *testing.T) {
@@ -280,6 +313,165 @@ func TestNetAddress_Local(t *testing.T) {
 			assert.Equal(t, testCase.isLocal, addr.Local())
 		})
 	}
+}
+
+func TestNewConfiguredNetAddress(t *testing.T) {
+	t.Parallel()
+
+	id := GenerateNodeKey().ID()
+
+	t.Run("valid addresses", func(t *testing.T) {
+		t.Parallel()
+
+		testTable := []struct {
+			name             string
+			addr             string
+			expectIP         bool
+			expectedIP       string
+			expectedHostname string
+		}{
+			{"IP literal", fmt.Sprintf("%s@127.0.0.1:8080", id), true, "127.0.0.1", ""},
+			{"resolvable hostname", fmt.Sprintf("%s@localhost:8080", id), true, "", "localhost"},
+			{"unresolvable hostname", fmt.Sprintf("%s@peer.invalid:8080", id), false, "", "peer.invalid"}, // RFC 6761
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				na, err := NewConfiguredNetAddress(testCase.addr)
+				require.NoError(t, err)
+
+				assert.Equal(t, id, na.ID)
+				assert.Equal(t, uint16(8080), na.Port)
+				assert.Equal(t, testCase.expectedHostname, na.Hostname)
+
+				if !testCase.expectIP {
+					assert.Nil(t, na.IP)
+
+					return
+				}
+
+				require.NotNil(t, na.IP)
+
+				if testCase.expectedIP != "" {
+					assert.True(t, na.IP.Equal(net.ParseIP(testCase.expectedIP)))
+				}
+			})
+		}
+	})
+
+	t.Run("malformed addresses", func(t *testing.T) {
+		t.Parallel()
+
+		testTable := []struct {
+			name string
+			addr string
+		}{
+			{"no ID", "127.0.0.1:8080"},
+			{"bad ID", "deadbeef@127.0.0.1:8080"},
+			{"empty host", fmt.Sprintf("%s@:8080", id)},
+			{"bad port", fmt.Sprintf("%s@localhost:notaport", id)},
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				na, err := NewConfiguredNetAddress(testCase.addr)
+				assert.Error(t, err)
+				assert.Nil(t, na)
+			})
+		}
+	})
+}
+
+func TestNetAddress_DialContext(t *testing.T) {
+	t.Parallel()
+
+	t.Run("dials the hostname, not the stale IP", func(t *testing.T) {
+		t.Parallel()
+
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = ln.Close() })
+
+		addr := &NetAddress{
+			ID:       GenerateNodeKey().ID(),
+			IP:       net.ParseIP("192.0.2.1"), // RFC 5737, never answers
+			Hostname: "localhost",
+			Port:     uint16(ln.Addr().(*net.TCPAddr).Port),
+		}
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		conn, err := addr.DialContext(ctx)
+		require.NoError(t, err)
+
+		_ = conn.Close()
+	})
+
+	t.Run("an address with no IP dials its hostname", func(t *testing.T) {
+		t.Parallel()
+
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = ln.Close() })
+
+		addr := &NetAddress{
+			ID:       GenerateNodeKey().ID(),
+			Hostname: "localhost",
+			Port:     uint16(ln.Addr().(*net.TCPAddr).Port),
+		}
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		conn, err := addr.DialContext(ctx)
+		require.NoError(t, err)
+
+		_ = conn.Close()
+	})
+
+	t.Run("unresolvable hostname", func(t *testing.T) {
+		t.Parallel()
+
+		addr := &NetAddress{
+			ID:       GenerateNodeKey().ID(),
+			IP:       net.ParseIP("127.0.0.1"),
+			Hostname: "peer.invalid", // RFC 6761, never resolves
+			Port:     8080,
+		}
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		_, err := addr.DialContext(ctx)
+
+		var dnsErr *net.DNSError
+		assert.ErrorAs(t, err, &dnsErr)
+	})
+}
+
+func TestNetAddress_UnmarshalAminoRefusesHostname(t *testing.T) {
+	// Not parallel: it swaps the package resolver, as the empty lookup test does
+	original := lookupIP
+	t.Cleanup(func() { lookupIP = original })
+
+	lookedUp := false
+	lookupIP = func(string) ([]net.IP, error) {
+		lookedUp = true
+
+		return []net.IP{net.ParseIP("127.0.0.1")}, nil
+	}
+
+	var addr NetAddress
+
+	err := addr.UnmarshalAmino(fmt.Sprintf("%s@localhost:8080", GenerateNodeKey().ID()))
+
+	assert.ErrorIs(t, err, ErrHostnameNotIP)
+	assert.False(t, lookedUp)
 }
 
 func TestNetAddress_Routable(t *testing.T) {

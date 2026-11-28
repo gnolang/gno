@@ -1,0 +1,16 @@
+-- input.md --
+<gno-button href="/r/test" label="Tip" variant="tip" />
+
+<gno-button href="/r/test" label="Success" variant="success" />
+
+<gno-button href="/r/test" label="Tip outline" variant="tip outline" />
+
+<gno-button href="/r/test" label="Success outline" variant="outline SUCCESS" />
+
+Two kinds: both classes are emitted, the later CSS rule (success) applies <gno-button href="/r/test" label="Both" variant="success tip" />
+-- output.html --
+<p><a href="/r/test" class="gno-button gno-button-tip">Tip</a></p>
+<p><a href="/r/test" class="gno-button gno-button-success">Success</a></p>
+<p><a href="/r/test" class="gno-button gno-button-outline gno-button-tip">Tip outline</a></p>
+<p><a href="/r/test" class="gno-button gno-button-outline gno-button-success">Success outline</a></p>
+<p>Two kinds: both classes are emitted, the later CSS rule (success) applies <a href="/r/test" class="gno-button gno-button-tip gno-button-success">Both</a></p>

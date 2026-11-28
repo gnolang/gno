@@ -7,6 +7,7 @@ import (
 	"golang.org/x/mod/semver"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	sdkparams "github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -48,10 +49,18 @@ type internalWriteCtxKey struct{}
 
 // nodeParamsKeeper implements a minimal ParamfulKeeper for the "node" module.
 // It validates node-level parameters set through governance proposals.
-type nodeParamsKeeper struct{}
+type nodeParamsKeeper struct {
+	// requireFlushPoint, if set, is called when a delivered block writes a
+	// halt param (BaseApp.RequireFlushPoint): the binary started after the
+	// halt reads the halt params from the disk, so a block sync that holds
+	// its writes must write them from the block that scheduled the halt.
+	requireFlushPoint func()
+	// prmk reads valset:current for the valset:proposed dry run.
+	prmk sdkparams.ParamsKeeperI
+}
 
 // WillSetParam validates node parameters before they are written to the params store.
-func (nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
+func (k nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 	switch key {
 	case "p:halt_height":
 		h, ok := value.(int64)
@@ -67,11 +76,13 @@ func (nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		if curHeight := safeBlockHeight(ctx); h > 0 && curHeight > 0 && h <= curHeight {
 			panic(fmt.Sprintf("halt_height %d must be greater than the current block height %d", h, curHeight))
 		}
+		k.haltParamWritten(ctx)
 	case "p:halt_min_version":
 		_, ok := value.(string)
 		if !ok {
 			panic(fmt.Sprintf("halt_min_version must be a string, got %T", value))
 		}
+		k.haltParamWritten(ctx)
 	case "valset:dirty":
 		// Just type-check; the bool value is opaque.
 		// Note: dirty has no ctx-sentinel gate because the realm side
@@ -90,8 +101,34 @@ func (nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		if len(entries) > maxValsetEntries {
 			panic(fmt.Sprintf("valset:proposed too long: %d > %d", len(entries), maxValsetEntries))
 		}
-		if _, err := abci.ParseValidatorUpdates(entries); err != nil {
+		updates, err := abci.ParseValidatorUpdates(entries)
+		if err != nil {
 			panic(fmt.Sprintf("invalid valset:proposed: %v", err))
+		}
+		// A small-order key can never sign (VerifyBytes rejects it); with
+		// enough power it would halt the chain. Removal (power 0) stays
+		// allowed, so one already in the set can still be dropped. Not in
+		// ParseValidatorUpdate: valset:current and EndBlocker parse with it
+		// too, and must still read a set that already holds such a key.
+		// A repeated address passes the dry run, since UpdatesFrom keeps one
+		// entry per address, but once stored it turns off liveValset and so
+		// every later dry run.
+		seen := make(map[string]bool, len(updates))
+		for i, u := range updates {
+			if ed, ok := u.PubKey.(ed25519.PubKeyEd25519); ok && u.Power > 0 && ed.IsSmallOrder() {
+				panic(fmt.Sprintf("invalid valset:proposed: entry %d has a small-order ed25519 pubkey", i))
+			}
+			addr := u.Address.String()
+			if seen[addr] {
+				panic(fmt.Sprintf("invalid valset:proposed: entry %d repeats address %s", i, addr))
+			}
+			seen[addr] = true
+		}
+		// EndBlocker drops a refused proposal whole, with every other valset
+		// write of the block in it; refusing here fails only this tx.
+		currentSet := loadValsetCurrent(ctx, k.prmk)
+		if err := dryRunValsetDiff(currentSet, currentSet.UpdatesFrom(updates)); err != nil {
+			panic(fmt.Sprintf("valset:proposed would fail consensus apply: %v", err))
 		}
 	case "valset:current":
 		// Chain-only key. Use type-assertion idiom (codebase
@@ -124,6 +161,14 @@ func (nodeParamsKeeper) WillSetParam(ctx sdk.Context, key string, value any) {
 		if strings.HasPrefix(key, "valset:") {
 			panic(fmt.Sprintf("unknown valset key: %q", key))
 		}
+	}
+}
+
+// haltParamWritten asks for a flush point after a delivered block that writes
+// a valid halt param (see requireFlushPoint); CheckTx and Simulate write none.
+func (k nodeParamsKeeper) haltParamWritten(ctx sdk.Context) {
+	if k.requireFlushPoint != nil && ctx.Mode() == sdk.RunTxModeDeliver {
+		k.requireFlushPoint()
 	}
 }
 

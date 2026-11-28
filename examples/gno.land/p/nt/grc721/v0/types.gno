@@ -57,7 +57,7 @@ type ExtensionView interface {
 }
 
 type Token struct {
-	id     string // origRealm + "." + symbol + "." + id
+	id     string // raw creation pkgpath + "." + symbol + "." + id
 	name   string
 	symbol string
 	ledger *PrivateLedger

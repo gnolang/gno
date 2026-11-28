@@ -1,0 +1,8 @@
+-- input.md --
+<gno-frame class="x" style="color:red" onclick="alert(1)">
+content
+</gno-frame>
+-- output.html --
+<!-- unexpected/invalid frame tag omitted -->
+<p>content</p>
+<!-- unexpected/invalid frame tag omitted -->

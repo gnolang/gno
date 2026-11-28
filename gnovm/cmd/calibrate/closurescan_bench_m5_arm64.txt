@@ -1,0 +1,239 @@
+# go test -run='^$' -bench='BenchmarkFindFirstClosure|BenchmarkOp(Add_Int$|Eql_Int$|IfCond|SwitchClause)' -benchtime=200ms -count=10 ./gnovm/pkg/gnolang/
+# Dev-box run (Apple M5, darwin/arm64, go1.26.2) behind OpCPUSlopePreprocessClosureScan — informational, like embedwalk_bench_m5_arm64.txt.
+# Machine factor vs op_bench_analysis.txt (table ÷ ns/op(pure)) over the seven flat ops below: 1.94–2.21; 2.1 used (cpu_base_ns = 0.476).
+# Slope = ceil(max over cases of 95% upper bound (t, n=10) of ns/frame ÷ 0.476).
+# Max: depth=1/non-closure-faux/not-found, mean 2.000, upper 2.042 → 4.29 reference-ns → 5.
+goos: darwin
+goarch: arm64
+pkg: github.com/gnolang/gno/gnovm/pkg/gnolang
+cpu: Apple M5
+BenchmarkOpAdd_Int-10                      	 3146156	        76.44 ns/op	         0 alloc-gas/op	        43.30 ns/op(pure)
+BenchmarkOpAdd_Int-10                      	 3393716	        71.47 ns/op	         0 alloc-gas/op	        40.53 ns/op(pure)
+BenchmarkOpAdd_Int-10                      	 3370068	        71.81 ns/op	         0 alloc-gas/op	        40.90 ns/op(pure)
+BenchmarkOpAdd_Int-10                      	 3317442	        72.36 ns/op	         0 alloc-gas/op	        41.80 ns/op(pure)
+BenchmarkOpAdd_Int-10                      	 3347816	        71.46 ns/op	         0 alloc-gas/op	        40.53 ns/op(pure)
+BenchmarkOpAdd_Int-10                      	 3362492	        71.50 ns/op	         0 alloc-gas/op	        40.48 ns/op(pure)
+BenchmarkOpAdd_Int-10                      	 3354684	        71.64 ns/op	         0 alloc-gas/op	        41.10 ns/op(pure)
+BenchmarkOpAdd_Int-10                      	 3361748	        72.28 ns/op	         0 alloc-gas/op	        41.69 ns/op(pure)
+BenchmarkOpAdd_Int-10                      	 3353373	        71.95 ns/op	         0 alloc-gas/op	        41.20 ns/op(pure)
+BenchmarkOpAdd_Int-10                      	 3344036	        72.26 ns/op	         0 alloc-gas/op	        41.73 ns/op(pure)
+BenchmarkOpEql_Int-10                      	 3382198	        70.37 ns/op	         0 alloc-gas/op	        39.51 ns/op(pure)
+BenchmarkOpEql_Int-10                      	 3015079	        71.63 ns/op	         0 alloc-gas/op	        40.58 ns/op(pure)
+BenchmarkOpEql_Int-10                      	 3419964	        70.67 ns/op	         0 alloc-gas/op	        40.22 ns/op(pure)
+BenchmarkOpEql_Int-10                      	 3400329	        71.16 ns/op	         0 alloc-gas/op	        40.66 ns/op(pure)
+BenchmarkOpEql_Int-10                      	 3362894	        71.77 ns/op	         0 alloc-gas/op	        41.19 ns/op(pure)
+BenchmarkOpEql_Int-10                      	 3330289	        71.86 ns/op	         0 alloc-gas/op	        41.92 ns/op(pure)
+BenchmarkOpEql_Int-10                      	 3336220	        72.02 ns/op	         0 alloc-gas/op	        41.82 ns/op(pure)
+BenchmarkOpEql_Int-10                      	 3348582	        71.21 ns/op	         0 alloc-gas/op	        40.19 ns/op(pure)
+BenchmarkOpEql_Int-10                      	 3345301	        70.70 ns/op	         0 alloc-gas/op	        39.80 ns/op(pure)
+BenchmarkOpEql_Int-10                      	 3414880	        71.46 ns/op	         0 alloc-gas/op	        41.41 ns/op(pure)
+BenchmarkOpIfCond_TrueBranch-10            	 3462680	        69.35 ns/op	         0 alloc-gas/op	        38.14 ns/op(pure)
+BenchmarkOpIfCond_TrueBranch-10            	 3453597	        72.46 ns/op	         0 alloc-gas/op	        39.94 ns/op(pure)
+BenchmarkOpIfCond_TrueBranch-10            	 3456613	        69.61 ns/op	         0 alloc-gas/op	        38.50 ns/op(pure)
+BenchmarkOpIfCond_TrueBranch-10            	 3457550	        69.71 ns/op	         0 alloc-gas/op	        38.38 ns/op(pure)
+BenchmarkOpIfCond_TrueBranch-10            	 3467744	        69.64 ns/op	         0 alloc-gas/op	        38.40 ns/op(pure)
+BenchmarkOpIfCond_TrueBranch-10            	 3453538	        69.49 ns/op	         0 alloc-gas/op	        38.44 ns/op(pure)
+BenchmarkOpIfCond_TrueBranch-10            	 3439154	        69.60 ns/op	         0 alloc-gas/op	        38.61 ns/op(pure)
+BenchmarkOpIfCond_TrueBranch-10            	 3464464	        69.11 ns/op	         0 alloc-gas/op	        38.22 ns/op(pure)
+BenchmarkOpIfCond_TrueBranch-10            	 3457160	        69.47 ns/op	         0 alloc-gas/op	        38.26 ns/op(pure)
+BenchmarkOpIfCond_TrueBranch-10            	 3434464	        70.03 ns/op	         0 alloc-gas/op	        39.23 ns/op(pure)
+BenchmarkOpIfCond_FalseBranch-10           	 3448657	        69.12 ns/op	         0 alloc-gas/op	        38.91 ns/op(pure)
+BenchmarkOpIfCond_FalseBranch-10           	 3473002	        72.28 ns/op	         0 alloc-gas/op	        40.77 ns/op(pure)
+BenchmarkOpIfCond_FalseBranch-10           	 3490221	        69.26 ns/op	         0 alloc-gas/op	        38.93 ns/op(pure)
+BenchmarkOpIfCond_FalseBranch-10           	 3440179	        69.67 ns/op	         0 alloc-gas/op	        39.27 ns/op(pure)
+BenchmarkOpIfCond_FalseBranch-10           	 3449152	        69.72 ns/op	         0 alloc-gas/op	        39.53 ns/op(pure)
+BenchmarkOpIfCond_FalseBranch-10           	 3453061	        69.63 ns/op	         0 alloc-gas/op	        39.49 ns/op(pure)
+BenchmarkOpIfCond_FalseBranch-10           	 3485016	        73.30 ns/op	         0 alloc-gas/op	        41.75 ns/op(pure)
+BenchmarkOpIfCond_FalseBranch-10           	 3476203	        69.49 ns/op	         0 alloc-gas/op	        39.14 ns/op(pure)
+BenchmarkOpIfCond_FalseBranch-10           	 3462511	        68.91 ns/op	         0 alloc-gas/op	        38.72 ns/op(pure)
+BenchmarkOpIfCond_FalseBranch-10           	 3474825	        69.57 ns/op	         0 alloc-gas/op	        39.45 ns/op(pure)
+BenchmarkOpSwitchClause_DefaultMatch-10    	 3302318	        73.51 ns/op	         0 alloc-gas/op	        39.96 ns/op(pure)
+BenchmarkOpSwitchClause_DefaultMatch-10    	 3258775	        76.22 ns/op	         0 alloc-gas/op	        41.96 ns/op(pure)
+BenchmarkOpSwitchClause_DefaultMatch-10    	 3247496	        73.26 ns/op	         0 alloc-gas/op	        40.16 ns/op(pure)
+BenchmarkOpSwitchClause_DefaultMatch-10    	 3293816	        73.27 ns/op	         0 alloc-gas/op	        40.46 ns/op(pure)
+BenchmarkOpSwitchClause_DefaultMatch-10    	 3309517	        73.28 ns/op	         0 alloc-gas/op	        40.39 ns/op(pure)
+BenchmarkOpSwitchClause_DefaultMatch-10    	 3254854	        73.33 ns/op	         0 alloc-gas/op	        40.36 ns/op(pure)
+BenchmarkOpSwitchClause_DefaultMatch-10    	 3251787	        73.53 ns/op	         0 alloc-gas/op	        39.86 ns/op(pure)
+BenchmarkOpSwitchClause_DefaultMatch-10    	 3277626	        73.57 ns/op	         0 alloc-gas/op	        40.38 ns/op(pure)
+BenchmarkOpSwitchClause_DefaultMatch-10    	 3259798	        73.88 ns/op	         0 alloc-gas/op	        40.57 ns/op(pure)
+BenchmarkOpSwitchClause_DefaultMatch-10    	 3285795	        73.64 ns/op	         0 alloc-gas/op	        39.47 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Match-10       	 2890029	        83.14 ns/op	         0 alloc-gas/op	        55.07 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Match-10       	 2894454	        87.21 ns/op	         0 alloc-gas/op	        56.96 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Match-10       	 2864040	        83.44 ns/op	         0 alloc-gas/op	        54.57 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Match-10       	 2859109	        83.86 ns/op	         0 alloc-gas/op	        54.61 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Match-10       	 2871141	        83.87 ns/op	         0 alloc-gas/op	        54.13 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Match-10       	 2869681	        83.35 ns/op	         0 alloc-gas/op	        55.02 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Match-10       	 2887326	        83.07 ns/op	         0 alloc-gas/op	        54.85 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Match-10       	 2889848	        83.04 ns/op	         0 alloc-gas/op	        55.06 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Match-10       	 2893147	        83.36 ns/op	         0 alloc-gas/op	        54.69 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Match-10       	 2881723	        83.23 ns/op	         0 alloc-gas/op	        54.73 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Miss-10        	 2561113	        83.06 ns/op	         0 alloc-gas/op	        54.37 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Miss-10        	 2893932	        82.99 ns/op	         0 alloc-gas/op	        54.52 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Miss-10        	 2890119	        83.18 ns/op	         0 alloc-gas/op	        54.46 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Miss-10        	 2891307	        83.05 ns/op	         0 alloc-gas/op	        54.75 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Miss-10        	 2891463	        83.07 ns/op	         0 alloc-gas/op	        54.66 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Miss-10        	 2885287	        83.21 ns/op	         0 alloc-gas/op	        54.87 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Miss-10        	 2890564	        83.05 ns/op	         0 alloc-gas/op	        54.76 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Miss-10        	 2874832	        83.12 ns/op	         0 alloc-gas/op	        54.26 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Miss-10        	 2824908	        82.76 ns/op	         0 alloc-gas/op	        54.18 ns/op(pure)
+BenchmarkOpSwitchClauseCase_Miss-10        	 2885637	        86.46 ns/op	         0 alloc-gas/op	        56.66 ns/op(pure)
+BenchmarkFindFirstClosure/depth=1/closure-only/found-10         	69372522	         3.600 ns/op	         1.800 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/found-10         	66740043	         3.674 ns/op	         1.837 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/found-10         	66348745	         3.663 ns/op	         1.832 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/found-10         	64627611	         3.570 ns/op	         1.785 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/found-10         	74226811	         3.556 ns/op	         1.778 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/found-10         	70628929	         3.493 ns/op	         1.747 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/found-10         	71539478	         3.520 ns/op	         1.760 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/found-10         	70385545	         3.520 ns/op	         1.760 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/found-10         	71162959	         3.483 ns/op	         1.741 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/found-10         	70139547	         3.447 ns/op	         1.723 ns/frame
+BenchmarkFindFirstClosure/depth=1/mixed/found-10                	38363937	         6.032 ns/op	         1.508 ns/frame
+BenchmarkFindFirstClosure/depth=1/mixed/found-10                	41905842	         6.273 ns/op	         1.568 ns/frame
+BenchmarkFindFirstClosure/depth=1/mixed/found-10                	34990946	         6.341 ns/op	         1.585 ns/frame
+BenchmarkFindFirstClosure/depth=1/mixed/found-10                	36320524	         6.173 ns/op	         1.543 ns/frame
+BenchmarkFindFirstClosure/depth=1/mixed/found-10                	36040316	         6.193 ns/op	         1.548 ns/frame
+BenchmarkFindFirstClosure/depth=1/mixed/found-10                	40157006	         6.315 ns/op	         1.579 ns/frame
+BenchmarkFindFirstClosure/depth=1/mixed/found-10                	39189002	         6.287 ns/op	         1.572 ns/frame
+BenchmarkFindFirstClosure/depth=1/mixed/found-10                	35747974	         6.160 ns/op	         1.540 ns/frame
+BenchmarkFindFirstClosure/depth=1/mixed/found-10                	38822130	         6.091 ns/op	         1.523 ns/frame
+BenchmarkFindFirstClosure/depth=1/mixed/found-10                	36527366	         6.153 ns/op	         1.538 ns/frame
+BenchmarkFindFirstClosure/depth=1/non-closure-faux/not-found-10 	64521193	         3.890 ns/op	         1.945 ns/frame
+BenchmarkFindFirstClosure/depth=1/non-closure-faux/not-found-10 	58224162	         3.994 ns/op	         1.997 ns/frame
+BenchmarkFindFirstClosure/depth=1/non-closure-faux/not-found-10 	57050028	         3.951 ns/op	         1.975 ns/frame
+BenchmarkFindFirstClosure/depth=1/non-closure-faux/not-found-10 	63413785	         4.061 ns/op	         2.030 ns/frame
+BenchmarkFindFirstClosure/depth=1/non-closure-faux/not-found-10 	68327401	         4.009 ns/op	         2.004 ns/frame
+BenchmarkFindFirstClosure/depth=1/non-closure-faux/not-found-10 	58840964	         4.208 ns/op	         2.104 ns/frame
+BenchmarkFindFirstClosure/depth=1/non-closure-faux/not-found-10 	67508174	         4.025 ns/op	         2.012 ns/frame
+BenchmarkFindFirstClosure/depth=1/non-closure-faux/not-found-10 	67540622	         4.137 ns/op	         2.069 ns/frame
+BenchmarkFindFirstClosure/depth=1/non-closure-faux/not-found-10 	58023571	         3.912 ns/op	         1.956 ns/frame
+BenchmarkFindFirstClosure/depth=1/non-closure-faux/not-found-10 	57258163	         3.815 ns/op	         1.907 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/cumulative-10    	47689616	         5.221 ns/op	         1.740 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/cumulative-10    	47846889	         5.153 ns/op	         1.718 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/cumulative-10    	47286763	         5.127 ns/op	         1.709 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/cumulative-10    	47414047	         5.140 ns/op	         1.713 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/cumulative-10    	47702649	         5.237 ns/op	         1.746 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/cumulative-10    	47403501	         5.274 ns/op	         1.758 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/cumulative-10    	47974006	         5.364 ns/op	         1.788 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/cumulative-10    	44113592	         5.663 ns/op	         1.888 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/cumulative-10    	47760004	         5.355 ns/op	         1.785 ns/frame
+BenchmarkFindFirstClosure/depth=1/closure-only/cumulative-10    	47595042	         5.275 ns/op	         1.758 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/found-10         	34859653	         7.433 ns/op	         0.8259 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/found-10         	35149384	         7.062 ns/op	         0.7847 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/found-10         	30039738	         7.119 ns/op	         0.7910 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/found-10         	32892297	         7.093 ns/op	         0.7881 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/found-10         	34483168	         8.043 ns/op	         0.8936 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/found-10         	34220733	         8.319 ns/op	         0.9243 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/found-10         	34997962	         8.245 ns/op	         0.9161 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/found-10         	24592998	         8.268 ns/op	         0.9187 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/found-10         	28576816	         7.970 ns/op	         0.8855 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/found-10         	34540658	         8.569 ns/op	         0.9521 ns/frame
+BenchmarkFindFirstClosure/depth=8/mixed/found-10                	 8239824	        27.34 ns/op	         1.093 ns/frame
+BenchmarkFindFirstClosure/depth=8/mixed/found-10                	 9324733	        27.94 ns/op	         1.118 ns/frame
+BenchmarkFindFirstClosure/depth=8/mixed/found-10                	 9457677	        28.28 ns/op	         1.131 ns/frame
+BenchmarkFindFirstClosure/depth=8/mixed/found-10                	 8245556	        30.59 ns/op	         1.224 ns/frame
+BenchmarkFindFirstClosure/depth=8/mixed/found-10                	 9035293	        30.62 ns/op	         1.225 ns/frame
+BenchmarkFindFirstClosure/depth=8/mixed/found-10                	 8064402	        30.29 ns/op	         1.212 ns/frame
+BenchmarkFindFirstClosure/depth=8/mixed/found-10                	 8452228	        28.27 ns/op	         1.131 ns/frame
+BenchmarkFindFirstClosure/depth=8/mixed/found-10                	 8461268	        28.15 ns/op	         1.126 ns/frame
+BenchmarkFindFirstClosure/depth=8/mixed/found-10                	 8285026	        29.16 ns/op	         1.167 ns/frame
+BenchmarkFindFirstClosure/depth=8/mixed/found-10                	 8229664	        27.92 ns/op	         1.117 ns/frame
+BenchmarkFindFirstClosure/depth=8/non-closure-faux/not-found-10 	11675586	        20.03 ns/op	         1.252 ns/frame
+BenchmarkFindFirstClosure/depth=8/non-closure-faux/not-found-10 	11627766	        21.58 ns/op	         1.349 ns/frame
+BenchmarkFindFirstClosure/depth=8/non-closure-faux/not-found-10 	 9994482	        22.28 ns/op	         1.393 ns/frame
+BenchmarkFindFirstClosure/depth=8/non-closure-faux/not-found-10 	10961134	        21.76 ns/op	         1.360 ns/frame
+BenchmarkFindFirstClosure/depth=8/non-closure-faux/not-found-10 	11168829	        21.76 ns/op	         1.360 ns/frame
+BenchmarkFindFirstClosure/depth=8/non-closure-faux/not-found-10 	10625384	        22.12 ns/op	         1.382 ns/frame
+BenchmarkFindFirstClosure/depth=8/non-closure-faux/not-found-10 	 9825645	        27.44 ns/op	         1.715 ns/frame
+BenchmarkFindFirstClosure/depth=8/non-closure-faux/not-found-10 	10554205	        22.06 ns/op	         1.378 ns/frame
+BenchmarkFindFirstClosure/depth=8/non-closure-faux/not-found-10 	11025231	        21.21 ns/op	         1.326 ns/frame
+BenchmarkFindFirstClosure/depth=8/non-closure-faux/not-found-10 	11220916	        20.82 ns/op	         1.301 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/cumulative-10    	 5975958	        37.81 ns/op	         0.8401 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/cumulative-10    	 6474914	        36.77 ns/op	         0.8171 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/cumulative-10    	 6512484	        38.05 ns/op	         0.8456 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/cumulative-10    	 6402688	        39.17 ns/op	         0.8705 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/cumulative-10    	 5872182	        39.65 ns/op	         0.8812 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/cumulative-10    	 6294682	        42.01 ns/op	         0.9336 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/cumulative-10    	 6317769	        38.46 ns/op	         0.8547 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/cumulative-10    	 6341684	        37.30 ns/op	         0.8289 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/cumulative-10    	 6478744	        37.03 ns/op	         0.8228 ns/frame
+BenchmarkFindFirstClosure/depth=8/closure-only/cumulative-10    	 6520771	        37.75 ns/op	         0.8389 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/found-10        	 9057315	        24.90 ns/op	         0.7545 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/found-10        	12646526	        23.58 ns/op	         0.7146 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/found-10        	10889703	        22.65 ns/op	         0.6865 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/found-10        	10748214	        21.42 ns/op	         0.6490 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/found-10        	11644384	        20.78 ns/op	         0.6297 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/found-10        	12408792	        20.64 ns/op	         0.6255 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/found-10        	10553392	        21.42 ns/op	         0.6491 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/found-10        	12188618	        23.85 ns/op	         0.7227 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/found-10        	 9505530	        21.89 ns/op	         0.6634 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/found-10        	11617095	        21.57 ns/op	         0.6536 ns/frame
+BenchmarkFindFirstClosure/depth=32/mixed/found-10               	 2105756	       114.4 ns/op	         1.179 ns/frame
+BenchmarkFindFirstClosure/depth=32/mixed/found-10               	 2058766	       118.9 ns/op	         1.225 ns/frame
+BenchmarkFindFirstClosure/depth=32/mixed/found-10               	 2005759	       113.8 ns/op	         1.173 ns/frame
+BenchmarkFindFirstClosure/depth=32/mixed/found-10               	 2087866	       113.8 ns/op	         1.173 ns/frame
+BenchmarkFindFirstClosure/depth=32/mixed/found-10               	 2043223	       115.6 ns/op	         1.192 ns/frame
+BenchmarkFindFirstClosure/depth=32/mixed/found-10               	 2169979	       119.1 ns/op	         1.227 ns/frame
+BenchmarkFindFirstClosure/depth=32/mixed/found-10               	 2018731	       119.2 ns/op	         1.228 ns/frame
+BenchmarkFindFirstClosure/depth=32/mixed/found-10               	 2063570	       120.8 ns/op	         1.245 ns/frame
+BenchmarkFindFirstClosure/depth=32/mixed/found-10               	 2077737	       120.5 ns/op	         1.243 ns/frame
+BenchmarkFindFirstClosure/depth=32/mixed/found-10               	 1969036	       120.2 ns/op	         1.240 ns/frame
+BenchmarkFindFirstClosure/depth=32/non-closure-faux/not-found-10         	 2713071	        87.16 ns/op	         1.362 ns/frame
+BenchmarkFindFirstClosure/depth=32/non-closure-faux/not-found-10         	 2338188	        89.11 ns/op	         1.392 ns/frame
+BenchmarkFindFirstClosure/depth=32/non-closure-faux/not-found-10         	 2569486	        84.07 ns/op	         1.314 ns/frame
+BenchmarkFindFirstClosure/depth=32/non-closure-faux/not-found-10         	 2757279	        86.10 ns/op	         1.345 ns/frame
+BenchmarkFindFirstClosure/depth=32/non-closure-faux/not-found-10         	 3358226	        77.27 ns/op	         1.207 ns/frame
+BenchmarkFindFirstClosure/depth=32/non-closure-faux/not-found-10         	 2951144	        82.78 ns/op	         1.293 ns/frame
+BenchmarkFindFirstClosure/depth=32/non-closure-faux/not-found-10         	 3038086	        79.45 ns/op	         1.241 ns/frame
+BenchmarkFindFirstClosure/depth=32/non-closure-faux/not-found-10         	 2726186	        80.24 ns/op	         1.254 ns/frame
+BenchmarkFindFirstClosure/depth=32/non-closure-faux/not-found-10         	 3220929	        78.54 ns/op	         1.227 ns/frame
+BenchmarkFindFirstClosure/depth=32/non-closure-faux/not-found-10         	 3030415	        75.86 ns/op	         1.185 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/cumulative-10            	  675880	       364.0 ns/op	         0.6488 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/cumulative-10            	  673612	       362.9 ns/op	         0.6469 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/cumulative-10            	  671907	       370.8 ns/op	         0.6609 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/cumulative-10            	  626522	       365.6 ns/op	         0.6517 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/cumulative-10            	  671492	       363.4 ns/op	         0.6478 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/cumulative-10            	  674385	       363.0 ns/op	         0.6470 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/cumulative-10            	  654240	       364.3 ns/op	         0.6493 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/cumulative-10            	  658112	       385.2 ns/op	         0.6866 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/cumulative-10            	  682544	       362.9 ns/op	         0.6468 ns/frame
+BenchmarkFindFirstClosure/depth=32/closure-only/cumulative-10            	  689224	       363.0 ns/op	         0.6471 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/found-10                	 2442466	        94.81 ns/op	         0.7350 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/found-10                	 2480029	        87.39 ns/op	         0.6774 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/found-10                	 2727414	        89.83 ns/op	         0.6963 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/found-10                	 2508961	        89.41 ns/op	         0.6931 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/found-10                	 2914339	        87.95 ns/op	         0.6818 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/found-10                	 2633376	       108.4 ns/op	         0.8399 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/found-10                	 2778093	        87.77 ns/op	         0.6804 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/found-10                	 2787892	        86.39 ns/op	         0.6697 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/found-10                	 2649740	        93.50 ns/op	         0.7248 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/found-10                	 2392051	        98.10 ns/op	         0.7605 ns/frame
+BenchmarkFindFirstClosure/depth=128/mixed/found-10                       	  569034	       531.8 ns/op	         1.381 ns/frame
+BenchmarkFindFirstClosure/depth=128/mixed/found-10                       	  453486	       475.6 ns/op	         1.235 ns/frame
+BenchmarkFindFirstClosure/depth=128/mixed/found-10                       	  478027	       497.3 ns/op	         1.292 ns/frame
+BenchmarkFindFirstClosure/depth=128/mixed/found-10                       	  542084	       457.1 ns/op	         1.187 ns/frame
+BenchmarkFindFirstClosure/depth=128/mixed/found-10                       	  622816	       468.0 ns/op	         1.216 ns/frame
+BenchmarkFindFirstClosure/depth=128/mixed/found-10                       	  485768	       452.5 ns/op	         1.175 ns/frame
+BenchmarkFindFirstClosure/depth=128/mixed/found-10                       	  510478	       470.3 ns/op	         1.221 ns/frame
+BenchmarkFindFirstClosure/depth=128/mixed/found-10                       	  712094	       407.3 ns/op	         1.058 ns/frame
+BenchmarkFindFirstClosure/depth=128/mixed/found-10                       	  618987	       410.1 ns/op	         1.065 ns/frame
+BenchmarkFindFirstClosure/depth=128/mixed/found-10                       	  680038	       419.3 ns/op	         1.089 ns/frame
+BenchmarkFindFirstClosure/depth=128/non-closure-faux/not-found-10        	  767887	       297.7 ns/op	         1.163 ns/frame
+BenchmarkFindFirstClosure/depth=128/non-closure-faux/not-found-10        	  742105	       293.7 ns/op	         1.147 ns/frame
+BenchmarkFindFirstClosure/depth=128/non-closure-faux/not-found-10        	  843115	       319.2 ns/op	         1.247 ns/frame
+BenchmarkFindFirstClosure/depth=128/non-closure-faux/not-found-10        	  788736	       299.4 ns/op	         1.170 ns/frame
+BenchmarkFindFirstClosure/depth=128/non-closure-faux/not-found-10        	  758893	       292.2 ns/op	         1.141 ns/frame
+BenchmarkFindFirstClosure/depth=128/non-closure-faux/not-found-10        	  890400	       302.0 ns/op	         1.180 ns/frame
+BenchmarkFindFirstClosure/depth=128/non-closure-faux/not-found-10        	  747498	       283.2 ns/op	         1.106 ns/frame
+BenchmarkFindFirstClosure/depth=128/non-closure-faux/not-found-10        	 1000000	       285.3 ns/op	         1.114 ns/frame
+BenchmarkFindFirstClosure/depth=128/non-closure-faux/not-found-10        	  720098	       300.2 ns/op	         1.173 ns/frame
+BenchmarkFindFirstClosure/depth=128/non-closure-faux/not-found-10        	  747343	       472.4 ns/op	         1.845 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/cumulative-10           	   38440	      5683 ns/op	         0.6777 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/cumulative-10           	   42013	      5676 ns/op	         0.6769 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/cumulative-10           	   40905	      5662 ns/op	         0.6753 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/cumulative-10           	   42642	      5648 ns/op	         0.6736 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/cumulative-10           	   42495	      5509 ns/op	         0.6570 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/cumulative-10           	   43816	      5556 ns/op	         0.6626 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/cumulative-10           	   43452	      5722 ns/op	         0.6824 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/cumulative-10           	   41887	      5606 ns/op	         0.6686 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/cumulative-10           	   43332	      5826 ns/op	         0.6948 ns/frame
+BenchmarkFindFirstClosure/depth=128/closure-only/cumulative-10           	   43429	      5524 ns/op	         0.6588 ns/frame

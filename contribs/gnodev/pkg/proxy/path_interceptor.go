@@ -318,7 +318,7 @@ func handleQuery(path string, data []byte, upaths uniqPaths) error {
 	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval", "vm/qeval_json":
 		path, _, _ := strings.Cut(string(data), ":") // Cut arguments out
 		upaths.addPath(path)
-	case "vm/qpkg_json":
+	case "vm/qpkg_json", "vm/qdoc":
 		upaths.addPath(string(data))
 	case "vm/qobject", "vm/qobject_json", "vm/qobject_binary", "vm/qtype_json":
 		// Object/type queries take an ObjectID or type ref, not a package path.

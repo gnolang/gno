@@ -19,8 +19,8 @@ func encodeStructFields(prm any) (res []std.KVPair) {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
 	fields := tinfo.Fields
-	for i, field := range fields {
-		rv := rvPrm.Field(i)
+	for _, field := range fields {
+		rv := rvPrm.Field(field.Index)
 		name := field.JSONName
 		value := amino.MustMarshalJSON(rv.Interface())
 		res = append(res, std.KVPair{Key: []byte(name), Value: value})
@@ -48,8 +48,8 @@ func decodeStructFields(prmPtr any, kvz []std.KVPair) {
 		panic(errors.Wrap(err, "Error reflecting on module param struct"))
 	}
 	fields := tinfo.Fields
-	for i, field := range fields {
-		rv := rvPrm.Field(i)
+	for _, field := range fields {
+		rv := rvPrm.Field(field.Index)
 		name := field.JSONName
 		kv, ok := findKV(kvz, name)
 		if !ok {

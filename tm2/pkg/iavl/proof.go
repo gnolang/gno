@@ -130,37 +130,6 @@ func (pln ProofLeafNode) stringIndented(indent string) string {
 		indent)
 }
 
-func (pln ProofLeafNode) Hash() ([]byte, error) {
-	hasher := sha256.New()
-
-	buf := bufPool.Get().(*bytes.Buffer)
-	buf.Reset()
-	defer bufPool.Put(buf)
-
-	err := encoding.EncodeVarint(buf, 0)
-	if err == nil {
-		err = encoding.EncodeVarint(buf, 1)
-	}
-	if err == nil {
-		err = encoding.EncodeVarint(buf, pln.Version)
-	}
-	if err == nil {
-		err = encoding.EncodeBytes(buf, pln.Key)
-	}
-	if err == nil {
-		err = encoding.EncodeBytes(buf, pln.ValueHash)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to hash ProofLeafNode: %w", err)
-	}
-	_, err = hasher.Write(buf.Bytes())
-	if err != nil {
-		return nil, err
-	}
-
-	return hasher.Sum(nil), nil
-}
-
 //----------------------------------------
 
 // If the key does not exist, returns the path to the next leaf left of key (w/

@@ -3,6 +3,7 @@ package doc
 import (
 	"path/filepath"
 	"testing"
+	"unsafe"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -338,4 +339,45 @@ func TestJSONDocumentation_Imports(t *testing.T) {
 	jdoc, err := d.WriteJSONDocumentation(nil)
 	require.NoError(t, err)
 	require.Equal(t, []string{"gno.land/p/demo/avl", "strings"}, jdoc.Imports)
+}
+
+// TestJSONDocumentation_SharedFieldType checks that the names of one field
+// declaration share one formatted type: the type can be as long as the source,
+// and so can the list of names.
+func TestJSONDocumentation_SharedFieldType(t *testing.T) {
+	mpkg := &std.MemPackage{
+		Name: "foo",
+		Path: "gno.land/p/demo/foo",
+		Files: []*std.MemFile{
+			{Name: "a.gno", Body: "package foo\n\ntype T struct {\n\tA, B, C map[string]map[string]int\n}\n"},
+		},
+	}
+	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
+	require.NoError(t, err)
+	jdoc, err := d.WriteJSONDocumentation(nil)
+	require.NoError(t, err)
+	fields := jdoc.Types[0].Fields
+	require.Len(t, fields, 3)
+	require.Equal(t, "map[string]map[string]int", fields[0].Type)
+	require.Same(t, unsafe.StringData(fields[0].Type), unsafe.StringData(fields[2].Type))
+}
+
+// TestJSONDocumentation_SharedValueDoc checks that the names of one value spec
+// share one rendered trailing comment, which can be as long as the source.
+func TestJSONDocumentation_SharedValueDoc(t *testing.T) {
+	mpkg := &std.MemPackage{
+		Name: "foo",
+		Path: "gno.land/p/demo/foo",
+		Files: []*std.MemFile{
+			{Name: "a.gno", Body: "package foo\n\nvar A, B, C int // shared doc\n"},
+		},
+	}
+	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
+	require.NoError(t, err)
+	jdoc, err := d.WriteJSONDocumentation(nil)
+	require.NoError(t, err)
+	values := jdoc.Values[0].Values
+	require.Len(t, values, 3)
+	require.Contains(t, values[0].Doc, "shared doc")
+	require.Same(t, unsafe.StringData(values[0].Doc), unsafe.StringData(values[2].Doc))
 }

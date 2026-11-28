@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"io"
+	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -160,8 +163,129 @@ func TestRedeployParkedOverLivePrivateRealmIsEnabled(t *testing.T) {
 		"the live blob must be the redeploy, not the original")
 }
 
+// TestSettledPackageIsNotVerified: a package live with nothing pending has
+// nothing to enable, so it is recorded as already active without a verifier
+// being spawned for it. A restart catching up with -start-height over blocks
+// already approved hands the oracle every such package again, and each
+// verification costs a child process plus a fetch of the import closure.
+//
+// The oracle and the child it spawns reach the node through a proxy counting
+// vm/qfile queries: fetching sources sends those and the settled check never
+// does, so one counted is a verification.
+func TestSettledPackageIsNotVerified(t *testing.T) {
+	chain := newInertChain(t)
+	const depPath = "gno.land/p/test/livedep"
+	dep := chainPackage(depPath, "package livedep\n\nfunc Answer() int { return 42 }\n")
+	const appPath = "gno.land/r/test/useslivedep"
+	app := chainPackage(appPath,
+		"package useslivedep\n\nimport \""+depPath+"\"\n\nfunc N(cur realm) int { return livedep.Answer() }\n")
+
+	var qfiles atomic.Int64
+	counted := httptest.NewServer(countingQuery(t, chain.remote, "vm/qfile", &qfiles))
+	t.Cleanup(counted.Close)
+	chain.remote = counted.URL
+
+	first := chain.oracle(t)
+	chain.park(t, dep)
+	first.handleCandidate(t.Context(), candidate{mpkg: dep})
+	chain.park(t, app)
+	qfiles.Store(0)
+	first.handleCandidate(t.Context(), candidate{mpkg: app})
+	firstSt := first.status.get(appPath)
+	require.Equal(t, statusApproved, firstSt.Status,
+		"premise: the first run must enable the package -- recorded reason: %s", firstSt.Reason)
+	require.Positive(t, qfiles.Load(),
+		"premise: verifying the package fetches its import, or the zero below proves nothing")
+
+	// A restart: same bytes, fresh oracle, nothing in seen.
+	replay := chain.oracle(t)
+	qfiles.Store(0)
+	replay.handleCandidate(t.Context(), candidate{mpkg: app})
+
+	st := replay.status.get(appPath)
+	require.Equal(t, statusApproved, st.Status, "recorded reason: %s", st.Reason)
+	assert.Equal(t, "already active on-chain", st.Reason)
+	assert.Contains(t, replay.seen, candidateKey(app),
+		"a settled package is terminal for these bytes")
+	assert.Zero(t, qfiles.Load(),
+		"a settled package has nothing to enable, so no verifier may run for it")
+}
+
+// TestPackageEnabledDuringVerificationIsNotEnabledAgain: the settled check is
+// asked again once verification is done, since the package may have gone live
+// meanwhile, and an enable sent then only pays a fee to be refused. That check
+// waits for the node past the first one's timeout, since giving up on it sends
+// the enable.
+func TestPackageEnabledDuringVerificationIsNotEnabledAgain(t *testing.T) {
+	for name, slow := range map[string]time.Duration{
+		"answered at once":                         0,
+		"answered after the first check's timeout": time.Second,
+	} {
+		t.Run(name, func(t *testing.T) {
+			chain := newInertChain(t)
+			const path = "gno.land/r/test/racing"
+			pkg := chainPackage(path, "package racing\n\nfunc N(cur realm) int { return 1 }\n")
+			chain.park(t, pkg)
+
+			var metaQueries, broadcasts atomic.Int64
+			enabled := make(chan error, 1)
+			proxy := httptest.NewServer(rewriting(t, chain.remote, func(body []byte) []byte {
+				if bytes.Contains(body, []byte(`"broadcast_tx`)) {
+					broadcasts.Add(1)
+				}
+				// The first query is the check before verifying; the package
+				// goes live just before the second one is answered.
+				if bytes.Contains(body, []byte(`"path":"vm/qpkgmeta_json"`)) && metaQueries.Add(1) == 2 {
+					enabled <- chain.enable(pkg)
+					time.Sleep(slow)
+				}
+				return body
+			}))
+			t.Cleanup(proxy.Close)
+			chain.remote = proxy.URL
+
+			o := chain.oracle(t)
+			o.settledTimeout = 200 * time.Millisecond
+			o.handleCandidate(t.Context(), candidate{mpkg: pkg})
+
+			require.Equal(t, int64(2), metaQueries.Load(), "premise: the package is checked before and after verifying")
+			require.NoError(t, <-enabled)
+			st := o.status.get(path)
+			assert.Equal(t, statusApproved, st.Status, "recorded reason: %s", st.Reason)
+			assert.Equal(t, "already active on-chain", st.Reason)
+			assert.Zero(t, broadcasts.Load(), "an enable for a package already live only pays a fee")
+		})
+	}
+}
+
+// TestSettledCheckEndsInTime: the check runs before every verification, so a
+// node that accepts the connection and never answers holds a candidate for the
+// check's own timeout and the prepare budget, never the RPC client's minute.
+// handleCandidate passes the daemon's context, which has no deadline.
+func TestSettledCheckEndsInTime(t *testing.T) {
+	o := newTestOracleAt(t, stalledNode(t))
+	o.settledTimeout = 200 * time.Millisecond
+	o.cfg.prepareBudget = 200 * time.Millisecond
+	const path = "gno.land/r/test/anything"
+	pkg := chainPackage(path, "package anything\n\nfunc N(cur realm) int { return 1 }\n")
+
+	handled := make(chan struct{})
+	go func() {
+		o.handleCandidate(t.Context(), candidate{mpkg: pkg})
+		close(handled)
+	}()
+
+	select {
+	case <-handled:
+		st := o.status.get(path)
+		assert.Equal(t, statusPending, st.Status, "a node that did not answer settles nothing; recorded reason: %s", st.Reason)
+	case <-time.After(5 * time.Second):
+		t.Fatal("handleCandidate outlived the settled check's timeout and the prepare budget")
+	}
+}
+
 // TestPkgMetaSettled covers the three answers vm/qpkgmeta_json can give and
-// the two failure shapes, without a node.
+// the failure shapes, without a node.
 func TestPkgMetaSettled(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -173,9 +297,11 @@ func TestPkgMetaSettled(t *testing.T) {
 		{"inert: not settled", `{"path":"p","status":"inert","pending":true}`, false},
 		{"absent: not settled", `{"path":"p","status":"absent"}`, false},
 		{"garbage: not settled, so the oracle still tries", `{`, false},
+		{"unknown status: not settled", `{"path":"p","status":"frozen"}`, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, pkgMetaSettled([]byte(tc.data)))
+			meta, err := decodePkgMeta([]byte(tc.data))
+			assert.Equal(t, tc.want, err == nil && metaSettled(meta))
 		})
 	}
 }

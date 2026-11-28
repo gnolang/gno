@@ -87,13 +87,13 @@ func TestValidateGenesisRejectsNonRealmParamKeys(t *testing.T) {
 		require.NoError(t, ValidateGenesis(mk("gno.land/r/demo/foo:bar", "x")))
 	})
 
-	t.Run("a second colon is refused", func(t *testing.T) {
+	t.Run("a colon in the name is accepted and attributed to the realm", func(t *testing.T) {
 		t.Parallel()
-		// Only genesis can build this. A realm writing at runtime goes through
-		// sys/params' prmkey, which panics on a colon in the name. It is also
-		// ambiguous: this splits on the first colon, realmFromKey on the last.
-		err := ValidateGenesis(mk("gno.land/r/demo/foo:a:b", "x"))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "must not contain a colon")
+		// A realm can write such a name at runtime too; both this and
+		// realmFromKey take the realm path to end at the first colon.
+		require.NoError(t, ValidateGenesis(mk("gno.land/r/demo/foo:a:b", "x")))
+		rlm, ok := realmFromKey("vm:gno.land/r/demo/foo:a:b")
+		require.True(t, ok)
+		assert.Equal(t, "gno.land/r/demo/foo", rlm)
 	})
 }
