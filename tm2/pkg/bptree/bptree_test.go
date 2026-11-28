@@ -1337,8 +1337,8 @@ func TestNodeSerialization_LeafGoldenBytes(t *testing.T) {
 	}
 
 	data := buf.Bytes()
-	if data[0] != TypeLeaf {
-		t.Fatalf("first byte should be TypeLeaf (0x%02x), got 0x%02x", TypeLeaf, data[0])
+	if data[0] != TypeLeafPrefixed {
+		t.Fatalf("first byte should be TypeLeafPrefixed (0x%02x), got 0x%02x", TypeLeafPrefixed, data[0])
 	}
 	// Round-trip
 	node, err := ReadNode(&NodeKey{Version: 1, Nonce: 1}, data)

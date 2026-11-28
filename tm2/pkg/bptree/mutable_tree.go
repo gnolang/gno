@@ -115,7 +115,9 @@ func (t *MutableTree) Set(key, value []byte) (updated bool, err error) {
 	}
 
 	if t.root == nil {
-		leaf := &LeafNode{miniTree: NewMiniMerkle()}
+		// No NewMiniMerkle pre-fill: RebuildMiniMerkle below writes every
+		// slot, sentinel tail included.
+		leaf := &LeafNode{}
 		leaf.keys[0] = copyKey(key)
 		valueHash := sha256.Sum256(value)
 		leaf.valueHashes[0] = valueHash
@@ -242,6 +244,13 @@ func (t *MutableTree) orphanValueKey(vk []byte) error {
 func (t *MutableTree) Has(key []byte) (bool, error) {
 	if t.root == nil {
 		return false, nil
+	}
+	// Same advisory fast path as Get, under the same trust rule (a clean
+	// working tree IS the committed snapshot at t.version) — an index hit
+	// answers in 1 read instead of a full descent. A miss falls through to
+	// the authoritative walk; the index never proves absence.
+	if t.fastReadable() && t.ndb.fastHas(key, t.version) {
+		return true, nil
 	}
 	return treeHas(t.root, key)
 }
@@ -450,7 +459,17 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 	}
 
 	// For inner nodes, save dirty children first (bottom-up).
+	//
+	// No mini-merkle rebuild happens here. Saving a node does not change its
+	// hash (the NodeKey is not hashed), and every mutating path in
+	// insert.go/remove.go/import.go leaves the node's mini-merkle consistent
+	// with its slot inputs, so an unconditional RebuildMiniMerkle on each
+	// dirty node — numKeys + B-1 hashes for a leaf, B-1 for an inner, on top
+	// of what the write path already paid — recomputed a value it was given.
+	// Only slots whose hash actually moved are re-folded, and
+	// TestMiniMerkleInvariant_RandomMutations pins the invariant this rests on.
 	if inner, ok := node.(*InnerNode); ok {
+		dirtyLo, dirtyHi := -1, -1
 		for i := 0; i < inner.NumChildren(); i++ {
 			child := inner.childNodes[i]
 			if child == nil {
@@ -465,18 +484,25 @@ func (t *MutableTree) saveNode(node Node, version int64) error {
 			// whose saveNode call early-returned, these assignments are
 			// redundant but harmless (same NodeKey, same hash).
 			inner.children[i] = child.GetNodeKey().GetKey()
-			inner.childHashes[i] = child.Hash()
+			h := child.Hash()
+			inner.childHashes[i] = h
+			// Only the mini-merkle slot drives a refold: storing childHashes
+			// is a 32-byte copy not worth gating, but a slot that already
+			// holds h would refold to the same values.
+			if inner.miniTree.GetSlot(i) != h {
+				if dirtyLo < 0 {
+					dirtyLo = i
+				}
+				dirtyHi = i
+			}
 			// Now that children[i]/childHashes[i] are durable, drop the in-memory
 			// child pointer: it reloads on demand via getChild, so the working
 			// tree stays bounded by the cache instead of pinning every saved node.
 			inner.childNodes[i] = nil
 		}
-		inner.RebuildMiniMerkle()
-	}
-
-	// Rebuild leaf mini merkle (may already be done, but ensure correctness).
-	if leaf, ok := node.(*LeafNode); ok {
-		leaf.RebuildMiniMerkle()
+		if dirtyLo >= 0 {
+			inner.miniTree.setSlots(dirtyLo, dirtyHi, inner.childHashes[dirtyLo:dirtyHi+1])
+		}
 	}
 
 	// Assign NodeKey.

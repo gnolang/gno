@@ -1,9 +1,6 @@
 package bptree
 
-import (
-	"bytes"
-	"fmt"
-)
+import "fmt"
 
 // PruneVersionsTo deletes all versions from firstVersion through toVersion
 // (inclusive), removing orphaned nodes via the dual-tree-walk algorithm.
@@ -234,7 +231,10 @@ func sameRecord(a, b Node) bool {
 	if ak == nil || bk == nil {
 		return false
 	}
-	return bytes.Equal(ak.GetKey(), bk.GetKey())
+	// Compare the fields, not GetKey() byte slices: this runs once per node
+	// pair on every prune descent, and the serialized form cost two
+	// allocations per comparison.
+	return *ak == *bk
 }
 
 // walkAndPrune compares two subtrees and deletes records of oldNode's tree
@@ -260,7 +260,7 @@ func (t *MutableTree) walkAndPrune(oldNode, newNode, newRoot Node) error {
 	// Delete the old node itself (it's been replaced or removed in the new version)
 	oldNK := oldNode.GetNodeKey()
 	if oldNK != nil {
-		if err := t.ndb.DeleteNode(oldNK.GetKey()); err != nil {
+		if err := t.ndb.DeleteNodeKey(oldNK); err != nil {
 			return err
 		}
 	}
@@ -271,15 +271,12 @@ func (t *MutableTree) walkAndPrune(oldNode, newNode, newRoot Node) error {
 		return nil // leaf — already deleted above, no children
 	}
 
-	// Build a set of child record refs from the new node (if it's also inner)
-	newChildRefs := make(map[string]bool)
-	if newInner, ok := newNode.(*InnerNode); ok {
-		for i := 0; i < newInner.NumChildren(); i++ {
-			if ref := newInner.children[i]; ref != nil {
-				newChildRefs[string(ref)] = true
-			}
-		}
-	}
+	// The new node's own children array IS the set to test against — at B=32
+	// a linear scan over it beats building anything. The map form this
+	// replaces allocated one hmap plus a string per ref per visited node,
+	// which made walkAndPrune the second-largest source of allocated objects
+	// in a block (18% of them).
+	newInner, _ := newNode.(*InnerNode)
 
 	// For each child in the old inner node:
 	// - If the child's record ref appears in the new node's children → shared
@@ -288,7 +285,7 @@ func (t *MutableTree) walkAndPrune(oldNode, newNode, newRoot Node) error {
 		if oldInner.children[i] == nil {
 			continue // no serialized ref (shouldn't happen for saved nodes)
 		}
-		if newChildRefs[string(oldInner.children[i])] {
+		if newInner != nil && newInner.hasChildRef(oldInner.children[i]) {
 			continue // same record ⇒ shared subtree
 		}
 		child, err := t.ndb.GetNode(oldInner.children[i])
