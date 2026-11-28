@@ -1408,6 +1408,11 @@ func hasRawGoGenerate(body string) bool {
 // every byte <= ' ', control bytes included, and '*'. Unicode spaces are left
 // in place, as it leaves them. Trimming each line fully over-approximates the
 // common prefix, so this may refuse a line go/printer would keep indented.
+//
+// comment is the text after the "/*" opener, so the first line is checked as
+// well: in doc position go/printer's formatDocComment re-emits a multi-line
+// block as "/*\n" + text + "*/", unindented, which puts the first line's text
+// at column 1 of its own line.
 func hasIndentedGoGenerate(comment string) bool {
 	for line := range strings.SplitSeq(comment, "\n") {
 		if isGoGenerateLine(strings.TrimLeftFunc(line, isPrinterPrefixByte)) {
@@ -1474,7 +1479,9 @@ func FindDirectiveComment(body string) (string, bool, error) {
 			if name, ok := directiveName(lit); ok {
 				return name, true, nil
 			}
-			if strings.HasPrefix(lit, "/*") && hasIndentedGoGenerate(lit) {
+			// lit[2:]: the first line is checked after its opener, since
+			// go/printer's doc-comment reformat moves it to a line of its own.
+			if strings.HasPrefix(lit, "/*") && hasIndentedGoGenerate(lit[2:]) {
 				return "//go:generate", true, nil
 			}
 		}

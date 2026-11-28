@@ -114,12 +114,25 @@ strips CR from a raw string and go/printer prints the result, so
 `` `\n\r//go:generate x\n` `` also reaches column 1, and the raw-line check runs
 with every CR removed.
 
-A test builds every byte `<= ' '` (alone, paired, and beside `*`) and Unicode
-spaces into each comment and raw-string shape, formats the file with
+The first line of a block comment is checked too, after its `/*` (a third
+review round found it). In doc position, above a declaration or the package
+clause, `go/printer`'s `formatDocComment` re-emits a multi-line block comment
+that is not all stars as `"/*\n" + text + "*/"` after `go/doc/comment`
+unindents it, so `/* //go:generate x\n\n*/` comes out with the directive on a
+column-1 line of its own.
+
+Two tests pin this. A mirror test builds every byte `<= ' '` (alone, paired,
+and beside `*`) and Unicode spaces into each comment and raw-string shape, in
+declaration, package-doc and function-body position, formats the file with
 `go/format`, and requires the scan to refuse every file whose output has a
-column-1 `//go:generate`. The first version of that test only tried the bytes
-the code already trimmed, which is why it missed the control bytes; a mirror
-test must enumerate the consumer's input space, not the implementation's.
+column-1 `//go:generate`. And because each hand-written mirror so far missed a
+shape (indentation, control bytes, the first line), a seeded random
+differential test in `gnovm/pkg/transpiler` builds files from those pieces in
+six positions and runs every file the rule accepts through the real
+`Transpile`. It hits the first-line case within its 20,000 files when the fix is
+reverted; a one-off run of 2,000,000 files (1.66M accepted and transpiled) over
+nine positions found nothing. A mirror test must enumerate the consumer's input
+space, not the implementation's.
 
 Formatting the file and scanning the output was considered and declined: the
 verdict would then follow `go/printer`'s behaviour in whichever toolchain built

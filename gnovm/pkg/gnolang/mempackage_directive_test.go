@@ -243,18 +243,31 @@ func TestIndentedGoGenerateMirrorsPrinter(t *testing.T) {
 		"/* a\n%[1]s//go:generate echo x\n%[1]s*/",
 		"/*\n%[1]sb\n%[1]s//go:generate echo x\n%[1]s*/",
 		"/*\n%[1]s * //go:generate echo x\n%[1]s */",
+		// The first line, after the opener. In doc position go/printer's
+		// formatDocComment re-emits a multi-line block that is not all stars
+		// as "/*\n" + text + "*/", unindented, so first-line text moves to
+		// column 1 of its own line.
+		"/*%[1]s//go:generate echo x\n\n*/",
+		"/*%[1]s//go:generate echo x\nok\n*/",
+		"/*%[1]s//go:generate echo x\n%[1]sok\n%[1]s*/",
+		"/* a\n\n%[1]s//go:generate echo x\n*/",
 		// go/scanner strips CR from raw strings, and go/printer prints what
 		// is left, so a CR can sit between a newline and the prefix.
 		"var S = `\n%[1]s//go:generate echo x\n`",
 	}
 	for _, shape := range shapes {
 		for _, blank := range blanks {
-			for _, where := range []string{"top", "func"} {
+			for _, where := range []string{"top", "pkgdoc", "func"} {
 				decl := fmt.Sprintf(shape, blank)
 				var src string
-				if where == "top" {
+				switch {
+				case where == "top":
 					src = "package zz\n\n" + decl + "\nvar X = 1\n"
-				} else {
+				case where == "pkgdoc" && strings.HasPrefix(decl, "/*"):
+					src = decl + "\npackage zz\n"
+				case where == "pkgdoc":
+					continue
+				default:
 					src = "package zz\n\nfunc F() {\n\t" + decl + "\n\t_ = 0\n}\n"
 				}
 				out, err := format.Source([]byte(src))

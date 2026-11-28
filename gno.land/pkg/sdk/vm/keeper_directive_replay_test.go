@@ -99,6 +99,17 @@ gno = "0.9"`},
 
 		_, err = env.vmk.Run(ctx.WithValue(auth.GenesisReplayKey{}, true), msg)
 		require.NoError(t, err, "replay must reproduce a run the source chain accepted")
+
+		// And #5978's pin still holds at this entry point on replay
+		// (TCLatestRelaxed mode): the tag must not unlock go1.22 syntax.
+		pinned := NewMsgRun(addr, std.Coins{}, []*std.MemFile{{
+			Name: "script.gno",
+			Body: "//go:build go1.22\n\npackage main\n\nfunc main() {\n\tfor range 10 {\n\t}\n}\n",
+		}})
+		_, err = env.vmk.Run(ctx.WithValue(auth.GenesisReplayKey{}, true), pinned)
+		require.Error(t, err)
+		assert.Equal(t, TypeCheckError{}, tmerrors.Cause(err), "refused by the type-check, not earlier")
+		assert.Contains(t, fmt.Sprintf("%+v", err), "go1.22")
 	})
 
 	t.Run("EnablePackage", func(t *testing.T) {
