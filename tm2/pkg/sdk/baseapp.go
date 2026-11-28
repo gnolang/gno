@@ -476,7 +476,8 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 }
 
 // QueryRunsCode implements abci.CodeExecutionQuerier. It reports whether Query
-// runs code for path: .app/simulate runs a whole transaction, and a custom
+// runs code for path: .app/simulate and .app/profiletx run a whole
+// transaction, and a custom
 // route runs code when its handler implements abci.CodeExecutionQuerier and
 // says so.
 func (app *BaseApp) QueryRunsCode(reqPath string) bool {
@@ -485,14 +486,18 @@ func (app *BaseApp) QueryRunsCode(reqPath string) bool {
 		return false
 	}
 	if path[0] == ".app" {
-		return len(path) >= 2 && path[1] == appQuerySimulate
+		return len(path) >= 2 && (path[1] == appQuerySimulate || path[1] == appQueryProfileTx)
 	}
 	h, ok := app.router.Route(path[0]).(abci.CodeExecutionQuerier)
 	return ok && h.QueryRunsCode(reqPath)
 }
 
-// appQuerySimulate is the .app query that runs a whole transaction.
-const appQuerySimulate = "simulate"
+// appQuerySimulate and appQueryProfileTx are the .app queries that run a
+// whole transaction.
+const (
+	appQuerySimulate  = "simulate"
+	appQueryProfileTx = "profiletx"
+)
 
 func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
 	if len(path) >= 2 {
@@ -513,7 +518,7 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 			}
 
 			return res
-		case "profiletx":
+		case appQueryProfileTx:
 			// Dev-only: run the tx through Simulate with gas profiling and
 			// return a pprof profile. Disabled (unknown request) unless the
 			// application registered a TxProfiler via SetTxProfiler.

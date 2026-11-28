@@ -498,6 +498,8 @@ func TestQueryRunsCode(t *testing.T) {
 		".app/simulate",
 		"/.app/simulate",
 		".app/simulate/x",
+		".app/profiletx",
+		"/.app/profiletx",
 		"code/run",
 	}
 	runsNoCode := []string{
@@ -506,6 +508,7 @@ func TestQueryRunsCode(t *testing.T) {
 		".app",
 		".app/version",
 		".app/simulatex",
+		".app/profiletxx",
 		".app/simulate?x", // handleQueryApp reads "simulate?x", an unknown query
 		"//.app/simulate", // routed to the empty name, which has no handler
 		".store/main/key",

@@ -45,7 +45,7 @@ func dimensionOf(descriptor string) int {
 	case "CPUCycles", "GC", "parsing", "ComputeMapKey", "stream output",
 		// type-check + preprocess gas charged at MsgAddPackage / MsgRun
 		// (gno.land/pkg/sdk/vm/keeper.go) — compute work, same family as parsing.
-		"AddPackagePreprocess", "RunPreprocess":
+		"AddPackagePreprocess", "AddInertPackagePreprocess", "RunPreprocess":
 		return dimCPU
 	case "memory allocation":
 		return dimAlloc
