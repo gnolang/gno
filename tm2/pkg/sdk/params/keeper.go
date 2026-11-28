@@ -70,15 +70,17 @@ var _ ParamsKeeperI = ParamsKeeper{}
 
 // global paramstore Keeper.
 type ParamsKeeper struct {
-	key  store.StoreKey
-	kprs map[string]ParamfulKeeper // Register a prefix for module parameter keys.
+	key   store.StoreKey
+	kprs  map[string]ParamfulKeeper // Register a prefix for module parameter keys.
+	cache *structCache              // the last decode of each struct param, shared by every copy of the keeper
 }
 
 // NewParamsKeeper returns a new ParamsKeeper.
 func NewParamsKeeper(key store.StoreKey) ParamsKeeper {
 	return ParamsKeeper{
-		key:  key,
-		kprs: map[string]ParamfulKeeper{},
+		key:   key,
+		kprs:  map[string]ParamfulKeeper{},
+		cache: newStructCache(),
 	}
 }
 
@@ -219,7 +221,11 @@ func (pk ParamsKeeper) GetStruct(ctx sdk.Context, key string, strctPtr any) {
 	gctx := ctx.GasContext()
 	stor := ctx.Store(pk.key)
 	kvz := getStructFieldsFromStore(gctx, strctPtr, stor, storeKey(key))
+	if pk.cache.fill(key, strctPtr, kvz) {
+		return // the same bytes as the last decode: its values, copied in
+	}
 	decodeStructFields(strctPtr, kvz)
+	pk.cache.remember(key, strctPtr, kvz)
 }
 
 func (pk ParamsKeeper) SetStruct(ctx sdk.Context, key string, strct any) {
