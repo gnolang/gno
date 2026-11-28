@@ -399,3 +399,29 @@ func main() { run() }`))
 	m.RunMain()
 	assert.Less(t, cap(m.Values), 1000, "value stack grew with the nil defers' arguments")
 }
+
+func TestSecondStaticBlockPassAllocatesNoFrames(t *testing.T) {
+	// PredefineFileSet and Preprocess both run initStaticBlocks over the same
+	// file. After the first run every for-init name already carries its
+	// .loopvar suffix, so the second run has nothing to rename: every frame
+	// is empty, and initStaticBlocks1 must not allocate one per function,
+	// loop or block.
+	src := "package main\n\n"
+	for i := range 20 {
+		src += fmt.Sprintf("func f%d(x int) (y int) {\n\tfor i := 0; i < x; i++ {\n\t\tfunc(i int) { y += i }(i)\n\t}\n\treturn\n}\n\n", i)
+	}
+	m := NewMachine("", nil)
+	defer m.Release()
+	fn, err := m.ParseFile("main.gno", src)
+	require.NoError(t, err)
+	fset := &FileSet{Files: []*FileNode{fn}}
+	pn := NewPackageNode("main", "main", fset)
+	initStaticBlocks1(m.Store, pn, fn)
+
+	allocs := testing.AllocsPerRun(10, func() {
+		initStaticBlocks1(m.Store, pn, fn)
+	})
+	// A fixed handful for the walk itself; one or more per function would
+	// mean frames are being allocated.
+	assert.Less(t, allocs, float64(20), "second initStaticBlocks1 pass allocated %v times over 20 functions", allocs)
+}

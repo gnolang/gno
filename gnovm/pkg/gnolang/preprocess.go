@@ -277,9 +277,10 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 // O(N) total, replacing the previous O(N + Σ K_i × M_i) per-loopvar walk.
 func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 	// Fast path for the common case (no for-loop with multi-name DEFINE
-	// init in scope): if the parent frame is empty and `modify` doesn't
-	// add anything, skip the push entirely. `didPush` records whether each
-	// scope actually pushed a frame so pop can match.
+	// init in scope): if the parent frame is empty, skip the push entirely.
+	// `modify` only ever deletes, and a delete from an empty frame is a
+	// no-op. `didPush` records whether each scope actually pushed a frame
+	// so pop can match.
 	var stack []map[Name]bool
 	var didPush []bool
 	top := func() map[Name]bool {
@@ -288,12 +289,15 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 		}
 		return stack[len(stack)-1]
 	}
+	// pushClone pushes a copy of the top frame with modify applied to it.
+	// modify must only delete names; adds go through ownFrame.
 	pushClone := func(modify func(map[Name]bool)) {
 		parent := top()
-		// Fast path: no parent state and no contribution -> skip alloc.
-		// We must NOT skip when parent is non-empty even if modify trims
-		// the result to empty: the empty frame still shadows parent.
-		if modify == nil && len(parent) == 0 {
+		// Fast path: an empty parent clones to an empty frame whatever
+		// modify deletes, so skip the alloc. We must NOT skip when parent
+		// is non-empty even if modify trims the result to empty: the empty
+		// frame still shadows parent.
+		if len(parent) == 0 {
 			didPush = append(didPush, false)
 			return
 		}
