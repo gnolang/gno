@@ -69,10 +69,12 @@ range key/value was treated as a declaration even for `for k = range`,
 where it is an assignment target and must be renamed like any other
 reference (the assign-LHS check already tested `Op == DEFINE`).
 
-The for-init half is a regression from the O(N) rewrite in PR #5642. The
-earlier per-loopvar walk explicitly skipped the loop's own init
-(`if last == bn && ftype == TRANS_FOR_INIT { return n, TRANS_SKIP }`), and
-that exclusion was not carried over.
+The for-init half is a regression from the O(N) rewrite in PR #5642
+(`c98a2cdca`). The earlier per-loopvar walk explicitly skipped the loop's
+own init and range clauses (`if last == bn && (ftype == TRANS_FOR_INIT ||
+ftype == TRANS_RANGE_X || ftype == TRANS_RANGE_KEY || ftype ==
+TRANS_RANGE_VALUE) { return n, TRANS_SKIP }`), and that exclusion was not
+carried over.
 
 ## Decision
 
@@ -103,7 +105,10 @@ existing empty-frame fast path — exactly the pre-#5642 and pre-fix
 behavior. A small `ownFrame()` helper pushes the loop's frame lazily on the
 first add when the fast path had skipped it (the parent was empty, so a
 fresh map is the clone); deletes never need it, since a delete on a shared
-empty frame is a no-op.
+empty frame is a no-op. For the same reason the fast path now also covers
+the `FuncDecl`/`FuncLitExpr` push, whose `modify` only deletes
+params/results/receiver: before, it allocated a map per function on every
+pass even with an empty parent.
 
 References in a clause to an *enclosing* loop's variable are still renamed,
 because those names are in the cloned parent frame throughout:
@@ -172,11 +177,14 @@ on `TRANS_SKIP`). No callback outside the package exists.
   master with a result that differs from Go's, and now give Go's result.
   Each needs a name declared by an enclosing `for` init plus a second
   variable of the same name visible at the inner statement:
-  - a `for i = range` assignment nested in a loop that declares `i`, with
-    an outer `i` (master assigned the outer `i` instead of the loop's);
-  - a for-init whose RHS reads its own name, where that name was shadowed
-    between the two loops by a function parameter, a `:=` or a `var`
-    (master read the enclosing loop variable instead of the shadowing one);
+  - a `for i = range` or `for _, v = range` assignment nested in a loop
+    that declares `i`/`v`, with an outer `i`/`v` (master assigned the outer
+    variable instead of the loop's);
+  - a for-init whose RHS reads its own name, where that name was
+    redeclared between the two loops by any declaration: a function
+    parameter or named result, a `:=`, `var` or `const`, an if-init or
+    switch-init, a type-switch variable, or a range key/value (master read
+    the enclosing loop variable instead of the nearer declaration);
   - a range `X` or type-switch `X` that reads the enclosing loop's variable
     while a same-named local or package-level variable exists
     (master read that other variable instead of the loop's). The
@@ -184,15 +192,34 @@ on `TRANS_SKIP`). No callback outside the package exists.
 
   Because already-deployed code can compute something
   different after this change, it needs a coordinated upgrade rather than a
-  plain node restart. Comparing the AST after `initStaticBlocks1` at master
-  and at this change over the chain's stored packages would show which
-  deployed packages are affected.
+  plain node restart: `VMKeeper.Initialize` re-preprocesses every stored
+  package from source on boot, so upgraded and non-upgraded validators
+  would run the same deployed code differently. Comparing the AST after
+  `initStaticBlocks1` at master and at this change over the chain's stored
+  packages would show which deployed packages are affected; the list above
+  is what testing found, not a proof that nothing else changes.
+- The change also turns some rejected transactions into accepted ones: an
+  `addpkg` (or `maketx run`) that failed on master with `name x.loopvar
+  not declared` / `name x not declared` now succeeds. A node replaying
+  history with the new binary (sync from genesis, or a hardfork that
+  replays transactions) would reach different state, so the switch has to
+  happen at an upgrade height rather than apply retroactively.
+- Not fixed here, both on master and both rejected at preprocess rather
+  than silently wrong: a func literal's param/result *type* inside a loop
+  over the same name (`func() (x [len(x)]int)`, #6506), because the names
+  are masked at the func literal's ENTER before its signature is walked;
+  and a type declared in a loop body that refers to itself under a loop
+  variable's name (`type T struct{ next *T }` in `for T := ...`), because a
+  `TypeDecl` only removes its name at LEAVE.
 - Per-iteration copies of a loop's own variable are unchanged (closures in
   the body still see one value per iteration).
-- No gas change. `initStaticBlocks1` stays O(N) and allocates fewer
-  frames: `ForStmt`, `RangeStmt` and `SwitchStmt` now take the empty-parent
-  fast path (one map per statement before), and the second
-  `initStaticBlocks` pass over a file allocates none at all.
+- No gas change for code whose resolution is unchanged (preprocess gas is
+  charged per name resolution, not per transcribe stage). `initStaticBlocks1`
+  stays O(N) and allocates fewer frames: `ForStmt`, `RangeStmt`,
+  `SwitchStmt`, `FuncDecl` and `FuncLitExpr` now take the empty-parent fast
+  path (one map per node before), and the second `initStaticBlocks` pass
+  over a file allocates no frames (`TestSecondStaticBlockPassAllocatesNoFrames`:
+  3 allocations over 20 functions, 45 before).
 - `transcribe` fires one extra callback per `ForStmt`/`RangeStmt`
   (`TRANS_BLOCK2`), a stage-switch miss in every callback but this one.
 - Regression coverage, each failing before the fix with the quoted error:
@@ -202,8 +229,8 @@ on `TRANS_SKIP`). No callback outside the package exists.
   `Preprocessed:` directives pin the resolution: the clause reads the
   enclosing `x<~VPBlock(2,0)>` / `x.loopvar<VPBlock(2,0)>` while the body
   sees the statement's own name. The shapes that ran with a non-Go result
-  on master are pinned by `loopvar_range_assign_2.gno`,
-  `loopvar_shadow_init_capture_{4,5}.gno`, `loopvar_range_x_shadow_2.gno`
+  on master are pinned by `loopvar_range_assign_{2,3}.gno`,
+  `loopvar_shadow_init_capture_{4,5,6}.gno`, `loopvar_range_x_shadow_2.gno`
   and `loopvar_typeswitch_x_shadow_2.gno`; each prints a different result
   on master. (`loopvar_shadow_init_capture_3.gno`'s `shadowBetween` is the
   same shape as `_5`, but that file fails to preprocess on master because
