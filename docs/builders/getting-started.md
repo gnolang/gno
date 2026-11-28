@@ -195,8 +195,8 @@ package path, and serves gnoweb in the foreground:
 gnodev .
 ```
 
-Open http://localhost:8888, where gnoweb shows your realm. Click into it
-to see the `Render` output ("Count: 0"), browse exported functions and
+Open http://localhost:8888, where the devnet home lists your realm. Click
+it to see the `Render` output ("Count: 0"), browse exported functions and
 source code, and view prefunded account balances. Every key in your
 local `gnokey` keybase is auto-funded at startup, so `alice` already has
 GNOT to spend. No faucet needed.

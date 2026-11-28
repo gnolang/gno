@@ -117,7 +117,9 @@ frontend framework. To learn more, see
 [Exploring Gno.land](../users/explore-with-gnoweb.md).
 
 Start [`gnodev`](./getting-started.md#5-run-a-local-chain) in the `minisocial/`
-folder and open [`127.0.0.1:8888`](http://127.0.0.1:8888). Since a `Render()`
+folder and open
+[`127.0.0.1:8888/r/example/minisocial`](http://127.0.0.1:8888/r/example/minisocial).
+Since a `Render()`
 function is not defined yet, `gnoweb` returns an error. Let's fix that in
 `render.gno`:
 

@@ -121,7 +121,7 @@ func (c *AppConfig) RegisterFlagsWith(fs *flag.FlagSet, defaultCfg AppConfig) {
 		&c.webHome,
 		"web-home",
 		defaultCfg.webHome,
-		"gnoweb: set default home page, use `/` or `:none:` to use default web home redirect",
+		"gnoweb: path to redirect / to; when empty, local mode shows its devnet home and staging the first package; `/` or `:none:` show the chain's home realm",
 	)
 
 	fs.BoolVar(

@@ -36,8 +36,11 @@ GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
 --- READY   ┃ I for commands and help, press `h` took=1.4s
 ```
 
-Open `http://localhost:8888` to browse your realm via the built-in
+Open `http://localhost:8888` to reach the built-in
 [gnoweb](../users/explore-with-gnoweb.md) (change the address with `-web-listener`).
+Its home lists your packages, with links to each realm's page, actions and
+state, and your latest transactions with their gas. Pass `-web-home <path>` to
+land on a realm instead.
 The `devtest` account is preloaded with funds, so no faucet is needed. Press `h`
 at any time for the in-terminal help menu (see [Interactive controls](#interactive-controls)).
 
@@ -177,7 +180,8 @@ TX HASH:    MpJoHvAHfFhKRfLANopZl4N5w59Vi7+IzT86IeT+uCY=
 ten bytes the counter grew by, and `TOTAL TX COST` is the gas fee plus that
 deposit.
 
-Refresh `http://localhost:8888` to see the updated `Render()` output. The
+Refresh `http://localhost:8888/r/dev/counter` to see the updated `Render()`
+output; the home at `http://localhost:8888` lists the call. The
 `devtest` key works out of the box because it's premined (see above); swap it
 for any other key in your keybase.
 
@@ -224,6 +228,7 @@ terminal; it turns off when output is piped or redirected, and in
 | `-validator-key-file <file>` | Validate with the key from a `priv_validator_key.json` (as written by `gnoland secrets init`) instead of a generated one, so the validator address stays the same across reloads and restarts. No double-sign protection: never pass a production key |
 | `-node-rpc-listener <addr>` | Node RPC listen address (default `127.0.0.1:26657`); `gnokey -remote` must match it |
 | `-web-listener <addr>` | gnoweb listen address (default `127.0.0.1:8888`) |
+| `-web-home <path>` | Redirect `/` to a path instead of showing the devnet home; `/` or `:none:` show the chain's home realm |
 | `-no-web` | Run without gnoweb |
 | `-unsafe-api` | Expose the `/reset` and `/reload` HTTP endpoints (on in local, off in staging) |
 | `-interactive` | Force interactive controls when stdout is not a terminal (on by default in local at a terminal, off in staging) |

@@ -9,13 +9,17 @@ import (
 )
 
 // setupGnoWebServer initializes the gnoweb HTTP handler from the gnodev
-// AppConfig, returning a 404 handler when gnoweb is disabled.
-func setupGnoWebServer(logger *slog.Logger, cfg *AppConfig, remoteAddr string) (http.Handler, error) {
+// AppConfig, returning a 404 handler when gnoweb is disabled. A non-nil home
+// is served at /.
+func setupGnoWebServer(logger *slog.Logger, cfg *AppConfig, remoteAddr string, home *devnetHome) (http.Handler, error) {
 	if cfg.noWeb {
 		return http.HandlerFunc(http.NotFound), nil
 	}
 
 	appcfg := gnoWebAppConfig(cfg, remoteAddr)
+	if home != nil {
+		appcfg.Aliases["/"] = gnoweb.AliasTarget{Kind: gnoweb.StaticMarkdown, Render: home.Render}
+	}
 
 	router, err := gnoweb.NewRouter(logger, appcfg)
 	if err != nil {
