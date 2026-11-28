@@ -12,7 +12,7 @@ func newCommandLogger(logger *zap.Logger) *cmdLogger {
 	}
 }
 
-func (c *cmdLogger) Info(msg string, args ...interface{}) {
+func (c *cmdLogger) Info(msg string, args ...any) {
 	if len(args) == 0 {
 		c.logger.Info(msg)
 
@@ -22,7 +22,7 @@ func (c *cmdLogger) Info(msg string, args ...interface{}) {
 	c.logger.Info(msg, zap.Any("args", args))
 }
 
-func (c *cmdLogger) Debug(msg string, args ...interface{}) {
+func (c *cmdLogger) Debug(msg string, args ...any) {
 	if len(args) == 0 {
 		c.logger.Debug(msg)
 
@@ -32,7 +32,7 @@ func (c *cmdLogger) Debug(msg string, args ...interface{}) {
 	c.logger.Debug(msg, zap.Any("args", args))
 }
 
-func (c *cmdLogger) Error(msg string, args ...interface{}) {
+func (c *cmdLogger) Error(msg string, args ...any) {
 	if len(args) == 0 {
 		c.logger.Error(msg)
 

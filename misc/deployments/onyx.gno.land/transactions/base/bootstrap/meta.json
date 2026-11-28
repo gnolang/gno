@@ -1,0 +1,10 @@
+{
+  "reason": "onyx bootstrap MsgRun: seeds the sole GovDAO T1 member (aeddi, operational key) and locks dao.UpdateImpl's AllowedDAOs to r/gov/dao/impl/v0 — mainnet's governance seed, mirrored so the testnet rehearses the same governance. Transfers are open on onyx (genesis bank params), not touched by this tx.",
+  "kind": "MsgRun",
+  "caller_key": "GenesisDeployer",
+  "gas_wanted": 100000000,
+  "gas_fee": "1ugnot",
+  "account_number": "0",
+  "sequence": "0",
+  "body_file": "govdao_prop1_onyx.gno"
+}

@@ -47,7 +47,7 @@ func TestTreeKeyExistsProof(t *testing.T) {
 
 	// insert lots of info and store the bytes
 	allkeys := make([][]byte, 200)
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		key := iavlrand.RandStr(20)
 		value := "value_for_" + key
 		tree.Set([]byte(key), []byte(value))

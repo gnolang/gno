@@ -1,0 +1,48 @@
+# A method declared on an ephemeral MsgRun type with a primitive underlying
+# kind, handed to a realm as an interface and called back there, must run with
+# the ephemeral realm's authority, not the calling realm's. (A struct receiver
+# is already covered by borrow rule #2, since the struct carries the /e/ stamp.)
+
+loadpkg gno.land/r/demo/xvisit $WORK/xvisit
+
+gnoland start
+
+! gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 10_000_000 -chainid=tendermint_test test1 $WORK/script/visit.gno
+stderr 'cannot directly modify readonly tainted object'
+
+gnokey query vm/qeval --data 'gno.land/r/demo/xvisit.Balance()'
+stdout '1000'
+
+-- xvisit/gnomod.toml --
+module = "gno.land/r/demo/xvisit"
+gno = "0.9"
+
+-- xvisit/xvisit.gno --
+package xvisit
+
+type Account struct {
+	Owner   string
+	Balance int
+}
+
+var treasury = &Account{Owner: "system", Balance: 1000}
+
+type Visitor interface{ Visit(*Account) }
+
+func InspectI(v Visitor) { v.Visit(treasury) }
+
+func Balance() int { return treasury.Balance }
+
+-- script/visit.gno --
+package main
+
+import "gno.land/r/demo/xvisit"
+
+type W int
+
+func (W) Visit(a *xvisit.Account) { a.Balance = 2 }
+
+func main() {
+	xvisit.InspectI(W(0))
+	println("after:", xvisit.Balance())
+}

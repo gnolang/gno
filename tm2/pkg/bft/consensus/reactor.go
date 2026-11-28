@@ -1,9 +1,11 @@
 package consensus
 
 import (
+	"encoding/binary"
 	"fmt"
 	"log/slog"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,6 +28,23 @@ const (
 	VoteSetBitsChannel = byte(0x23)
 
 	maxMsgSize = 1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
+
+	// Each channel's RecvMessageCapacity is the largest message a peer sends on
+	// it: the largest bit array or part its messages carry, plus msgFieldsBytes
+	// for every other field, a part's proof, the type URL and amino's framing.
+	// The largest message of each type fits with 543 bytes to spare at least
+	// (TestChannelCapacityFitsLargestMessage). A message past its channel's
+	// capacity stops the connection before it is decoded.
+	msgFieldsBytes = 1024
+
+	// A bit array takes at most one varint per 64 bits on the wire.
+	partsBitArrayBytes = (types.MaxBlockPartsCount + 63) / 64 * binary.MaxVarintLen64
+	votesBitArrayBytes = (types.MaxVotesCount + 63) / 64 * binary.MaxVarintLen64
+
+	maxStateMsgSize       = partsBitArrayBytes + msgFieldsBytes       // NewValidBlockMessage
+	maxDataMsgSize        = types.BlockPartSizeBytes + msgFieldsBytes // BlockPartMessage
+	maxVoteMsgSize        = msgFieldsBytes                            // VoteMessage
+	maxVoteSetBitsMsgSize = votesBitArrayBytes + msgFieldsBytes       // VoteSetBitsMessage
 )
 
 // -----------------------------------------------------------------------------
@@ -127,28 +146,29 @@ func (conR *ConsensusReactor) GetChannels() []*p2p.ChannelDescriptor {
 			ID:                  StateChannel,
 			Priority:            5,
 			SendQueueCapacity:   100,
-			RecvMessageCapacity: maxMsgSize,
+			RecvBufferCapacity:  maxStateMsgSize,
+			RecvMessageCapacity: maxStateMsgSize,
 		},
 		{
 			ID:                  DataChannel, // maybe split between gossiping current block and catchup stuff
 			Priority:            10,          // once we gossip the whole block there's nothing left to send until next height or round
 			SendQueueCapacity:   100,
-			RecvBufferCapacity:  50 * 4096,
-			RecvMessageCapacity: maxMsgSize,
+			RecvBufferCapacity:  maxDataMsgSize,
+			RecvMessageCapacity: maxDataMsgSize,
 		},
 		{
 			ID:                  VoteChannel,
 			Priority:            5,
 			SendQueueCapacity:   100,
-			RecvBufferCapacity:  100 * 100,
-			RecvMessageCapacity: maxMsgSize,
+			RecvBufferCapacity:  maxVoteMsgSize,
+			RecvMessageCapacity: maxVoteMsgSize,
 		},
 		{
 			ID:                  VoteSetBitsChannel,
 			Priority:            1,
 			SendQueueCapacity:   2,
 			RecvBufferCapacity:  1024,
-			RecvMessageCapacity: maxMsgSize,
+			RecvMessageCapacity: maxVoteSetBitsMsgSize,
 		},
 	}
 }
@@ -204,24 +224,26 @@ func (conR *ConsensusReactor) RemovePeer(peer p2p.PeerConn, reason any) {
 // NOTE: blocks on consensus state for proposals, block parts, and votes
 func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []byte) {
 	if !conR.IsRunning() {
-		conR.Logger.Debug("Receive", "src", src, "chId", chID, "bytes", msgBytes)
+		conR.Logger.Debug("Receive", "src", src, "chId", chID, "bytes", len(msgBytes))
 		return
 	}
 
 	msg, err := decodeMsg(msgBytes)
 	if err != nil {
-		conR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
+		conR.Logger.Error("Error decoding message", "src", src, "chId", chID, "err", err, "bytes", len(msgBytes))
 		conR.Switch.StopPeerForError(src, err)
 		return
 	}
 
 	if err = msg.ValidateBasic(); err != nil {
-		conR.Logger.Error("Peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
+		conR.Logger.Error("Peer sent us invalid msg", "peer", src, "type", reflect.TypeOf(msg), "err", err)
 		conR.Switch.StopPeerForError(src, err)
 		return
 	}
 
-	conR.Logger.Debug("Receive", "src", src, "chId", chID, "msg", msg)
+	height, round := msgHeightRound(msg)
+	conR.Logger.Debug("Receive", "src", src, "chId", chID, "type", reflect.TypeOf(msg),
+		"height", height, "round", round, "bytes", len(msgBytes))
 
 	// Get peer states
 	ps, ok := src.Get(types.PeerStateKey).(*PeerState)
@@ -276,7 +298,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 
 	case DataChannel:
 		if conR.FastSync() {
-			conR.Logger.Debug("Ignoring message received during fastSync", "msg", msg)
+			conR.Logger.Debug("Ignoring message received during fastSync", "type", reflect.TypeOf(msg))
 			return
 		}
 		switch msg := msg.(type) {
@@ -294,7 +316,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 
 	case VoteChannel:
 		if conR.FastSync() {
-			conR.Logger.Debug("Ignoring message received during fastSync", "msg", msg)
+			conR.Logger.Debug("Ignoring message received during fastSync", "type", reflect.TypeOf(msg))
 			return
 		}
 		switch msg := msg.(type) {
@@ -316,7 +338,7 @@ func (conR *ConsensusReactor) Receive(chID byte, src p2p.PeerConn, msgBytes []by
 
 	case VoteSetBitsChannel:
 		if conR.FastSync() {
-			conR.Logger.Debug("Ignoring message received during fastSync", "msg", msg)
+			conR.Logger.Debug("Ignoring message received during fastSync", "type", reflect.TypeOf(msg))
 			return
 		}
 		switch msg := msg.(type) {
@@ -487,8 +509,13 @@ OUTER_LOOP:
 			if prs.ProposalBlockParts == nil {
 				blockMeta := conR.conS.blockStore.LoadBlockMeta(prs.Height)
 				if blockMeta == nil {
-					panic(fmt.Sprintf("Failed to load block %d when blockStore is at %d",
-						prs.Height, conR.conS.blockStore.Height()))
+					// A peer announces its own height, so it may name one this node
+					// never stored: any height below InitialHeight on a chain that
+					// started above 1. This routine has no recover.
+					heightLogger.Error("Failed to load block meta for peer block parts",
+						"ourHeight", rs.Height, "blockstoreHeight", conR.conS.blockStore.Height())
+					time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+					continue OUTER_LOOP
 				}
 				ps.InitProposalBlockParts(blockMeta.BlockID.PartsHeader)
 				// continue the loop since prs is a copy and not effected by this initialization
@@ -636,7 +663,11 @@ OUTER_LOOP:
 			// which contains precommit signatures for prs.Height.
 			commit := conR.conS.blockStore.LoadBlockCommit(prs.Height)
 			if commit == nil {
+				// The peer names its own height, so this is nil for every height
+				// below InitialHeight. The sleep is what keeps the loop off the
+				// CPU while the peer sits there.
 				logger.Warn("Failed to load block commit for catchup", "height", prs.Height)
+				time.Sleep(conR.conS.config.PeerGossipSleepDuration)
 				continue OUTER_LOOP
 			}
 			if ps.PickSendVote(commit) {
@@ -864,17 +895,18 @@ func (conR *ConsensusReactor) String() string {
 
 // StringIndented returns an indented string representation of the ConsensusReactor
 func (conR *ConsensusReactor) StringIndented(indent string) string {
-	s := "ConsensusReactor{\n"
-	s += indent + "  " + conR.conS.StringIndented(indent+"  ") + "\n"
+	var s strings.Builder
+	s.WriteString("ConsensusReactor{\n")
+	s.WriteString(indent + "  " + conR.conS.StringIndented(indent+"  ") + "\n")
 	for _, peer := range conR.Switch.Peers().List() {
 		ps, ok := peer.Get(types.PeerStateKey).(*PeerState)
 		if !ok {
 			panic(fmt.Sprintf("Peer %v has no state", peer))
 		}
-		s += indent + "  " + ps.StringIndented(indent+"  ") + "\n"
+		s.WriteString(indent + "  " + ps.StringIndented(indent+"  ") + "\n")
 	}
-	s += indent + "}"
-	return s
+	s.WriteString(indent + "}")
+	return s.String()
 }
 
 // -----------------------------------------------------------------------------
@@ -1345,9 +1377,25 @@ func (ps *PeerState) StringIndented(indent string) string {
 // Messages
 
 // ConsensusMessage is a message that can be sent and received on the ConsensusReactor
+//
+// Only this package's types have assertConsensusMessage, so amino refuses a
+// registered type of any other package before decoding it, and neither its
+// decode error nor its ValidateBasic error, either of which can quote what a
+// peer sent at any length, reaches the log.
 type ConsensusMessage interface {
 	ValidateBasic() error
+	assertConsensusMessage()
 }
+
+func (*NewRoundStepMessage) assertConsensusMessage()  {}
+func (*NewValidBlockMessage) assertConsensusMessage() {}
+func (*ProposalMessage) assertConsensusMessage()      {}
+func (*ProposalPOLMessage) assertConsensusMessage()   {}
+func (*BlockPartMessage) assertConsensusMessage()     {}
+func (*VoteMessage) assertConsensusMessage()          {}
+func (*HasVoteMessage) assertConsensusMessage()       {}
+func (*VoteSetMaj23Message) assertConsensusMessage()  {}
+func (*VoteSetBitsMessage) assertConsensusMessage()   {}
 
 func decodeMsg(bz []byte) (msg ConsensusMessage, err error) {
 	if len(bz) > maxMsgSize {
@@ -1355,6 +1403,32 @@ func decodeMsg(bz []byte) (msg ConsensusMessage, err error) {
 	}
 	err = amino.Unmarshal(bz, &msg)
 	return
+}
+
+// msgHeightRound returns the height and round msg is about, for the log: a
+// ProposalPOLMessage gives its POL round.
+func msgHeightRound(msg ConsensusMessage) (int64, int) {
+	switch m := msg.(type) {
+	case *NewRoundStepMessage:
+		return m.Height, m.Round
+	case *NewValidBlockMessage:
+		return m.Height, m.Round
+	case *ProposalMessage:
+		return m.Proposal.Height, m.Proposal.Round
+	case *ProposalPOLMessage:
+		return m.Height, m.ProposalPOLRound
+	case *BlockPartMessage:
+		return m.Height, m.Round
+	case *VoteMessage:
+		return m.Vote.Height, m.Vote.Round
+	case *HasVoteMessage:
+		return m.Height, m.Round
+	case *VoteSetMaj23Message:
+		return m.Height, m.Round
+	case *VoteSetBitsMessage:
+		return m.Height, m.Round
+	}
+	return 0, 0
 }
 
 // -------------------------------------

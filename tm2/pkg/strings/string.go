@@ -71,12 +71,3 @@ func StringSliceEqual(a, b []string) bool {
 	}
 	return true
 }
-
-// TrimN naively appens "..." to fit within n bytes.
-func TrimN(s string, n int) string {
-	if len(s) <= n {
-		return s
-	} else {
-		return s[:n-3] + "..."
-	}
-}

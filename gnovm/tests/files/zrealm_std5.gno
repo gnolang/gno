@@ -2,7 +2,7 @@
 package std
 
 import (
-	"gno.land/p/demo/tests" // NOTE: not a realm path.
+	"gno.land/p/demo/tests/v0" // NOTE: not a realm path.
 )
 
 func main(cur realm) {

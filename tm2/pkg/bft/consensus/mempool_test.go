@@ -67,9 +67,18 @@ func TestMempoolProgressAfterCreateEmptyBlocksInterval(t *testing.T) {
 		_ = app.Close()
 	}()
 
-	ensureNewEventOnChannel(newBlockCh)   // first block gets committed
-	ensureNoNewEventOnChannel(newBlockCh) // then we dont make a block ...
-	ensureNewEventOnChannel(newBlockCh)   // until the CreateEmptyBlocksInterval has passed
+	ensureNewEventOnChannel(newBlockCh) // first block gets committed
+
+	// ... then we dont make a block for a while. The window has to be strictly
+	// shorter than CreateEmptyBlocksInterval: waiting the full interval here
+	// makes the two race, and under load the empty block lands inside the
+	// window and the assertion fires spuriously.
+	ensureNoNewEvent(
+		newBlockCh,
+		ensureTimeout/4,
+		"We should be stuck waiting, not receiving new event on the channel")
+
+	ensureNewEventOnChannel(newBlockCh) // until the CreateEmptyBlocksInterval has passed
 }
 
 func TestMempoolProgressInHigherRound(t *testing.T) {

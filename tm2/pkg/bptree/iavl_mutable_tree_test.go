@@ -118,8 +118,8 @@ func TestGetRemove(t *testing.T) {
 func TestTraverse(t *testing.T) {
 	tree := setupMutableTree(false)
 
-	for i := 0; i < 6; i++ {
-		tree.Set([]byte(fmt.Sprintf("k%d", i)), []byte(fmt.Sprintf("v%d", i)))
+	for i := range 6 {
+		tree.Set(fmt.Appendf(nil, "k%d", i), fmt.Appendf(nil, "v%d", i))
 	}
 
 	require.Equal(t, int64(6), tree.Size(), "Size of tree unexpected")
@@ -137,10 +137,10 @@ func TestMutableTree_DeleteVersionsTo(t *testing.T) {
 	r := rand.New(rand.NewSource(42))
 
 	// create 10 tree versions, each with 1000 random key/value entries
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		entries := make([]entry, 1000)
 
-		for j := 0; j < 1000; j++ {
+		for j := range 1000 {
 			k := make([]byte, 10)
 			v := make([]byte, 10)
 			r.Read(k)
@@ -430,7 +430,7 @@ func getRandomizedTreeAndMirrorForMutable(t *testing.T) (*MutableTree, map[strin
 	tree := setupMutableTree(false)
 	mirror := make(map[string]string)
 	r := rand.New(rand.NewSource(99))
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		k := fmt.Sprintf("mkey_%03d", r.Intn(200))
 		v := fmt.Sprintf("mval_%d", i)
 		tree.Set([]byte(k), []byte(v))
@@ -442,7 +442,7 @@ func getRandomizedTreeAndMirrorForMutable(t *testing.T) (*MutableTree, map[strin
 func randomizeMutableTreeAndMirror(t *testing.T, tree *MutableTree, mirror map[string]string) {
 	t.Helper()
 	r := rand.New(rand.NewSource(123))
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		k := fmt.Sprintf("mkey_%03d", r.Intn(200))
 		v := fmt.Sprintf("mval2_%d", i)
 		tree.Set([]byte(k), []byte(v))

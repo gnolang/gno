@@ -2,6 +2,8 @@ package components
 
 import (
 	"html/template"
+	"io"
+	"strconv"
 	"strings"
 
 	// for error types
@@ -10,11 +12,51 @@ import (
 
 const HelpViewType ViewType = "help-view"
 
+// MaxHelpFunctions caps the functions $help lists, as maxOverviewSymbols caps
+// the overview's.
+const MaxHelpFunctions = maxOverviewSymbols
+
 // HelpFunction pairs a doc.JSONFunc with its documentation already rendered
 // as an HTML Component, so the template can embed it via `{{ render . }}`.
 type HelpFunction struct {
 	*doc.JSONFunc
 	DocComponent Component
+	// Card is the function's rendered entry in the list, from RenderHelpCard.
+	Card Component
+}
+
+// helpCardData is what the ui/help_function_card template reads.
+type helpCardData struct {
+	Data HelpData
+	Func HelpFunction
+}
+
+// RenderHelpCard writes fn's entry in the $help list, as HelpView lists it.
+func RenderHelpCard(w io.Writer, data HelpData, fn HelpFunction) error {
+	return tmpl.ExecuteTemplate(w, "ui/help_function_card", helpCardData{Data: data, Func: fn})
+}
+
+// RenderHelpTocItem writes fn's line in the $help table of contents, inside the
+// list markup HelpView writes once for all of them.
+func RenderHelpTocItem(w io.Writer, fn HelpFunction) error {
+	return tmpl.ExecuteTemplate(w, "ui/toc_generic", HelpTocData{Icon: helpTocIcon, Items: []HelpTocItem{helpTocItem(fn)}})
+}
+
+// helpTocIcon is the icon of the functions in the $help table of contents.
+const helpTocIcon = "code"
+
+// helpTocItem is fn's line in the $help table of contents.
+func helpTocItem(fn HelpFunction) HelpTocItem {
+	var sig strings.Builder
+	sig.WriteString(fn.Name + "(")
+	for j, param := range fn.Params {
+		if j > 0 {
+			sig.WriteString(", ")
+		}
+		sig.WriteString(param.Name)
+	}
+	sig.WriteString(")")
+	return HelpTocItem{Link: "#func-" + fn.Name, Text: sig.String()}
 }
 
 type HelpData struct {
@@ -32,6 +74,11 @@ type HelpData struct {
 	Doc         Component
 	Domain      string
 	Origin      string // request scheme+host; makes help URLs shareable
+	// Community is set on packages outside the trusted paths, the pages that
+	// show the realm notice.
+	Community bool
+	// Truncated is set when Functions stops short of the package's functions.
+	Truncated bool
 }
 
 type HelpTocData struct {
@@ -42,14 +89,37 @@ type HelpTocData struct {
 type HelpTocItem struct {
 	Link string
 	Text string
+	// Icon replaces the list's icon for this item when set.
+	Icon string
 }
 
+// helpEvalAnchor is the id of the expression evaluator below the functions.
+const helpEvalAnchor = "expression-evaluator"
+
+// Gas is the gas a printed gnokey command asks for and the fee it offers.
+type Gas struct{ Wanted, Fee string }
+
+var (
+	// CallGas is what $help's maketx call commands ask for: room for any
+	// function.
+	CallGas = Gas{Wanted: "1_000_000_000", Fee: "1000000ugnot"}
+	// RunGas is what a $run script asks for. The starter script names a
+	// function rather than calling Render, whose gas is the package's (over
+	// 400 million on some realms), and takes 1 to 9 million on the example
+	// realms; the fee pays for 100 million at the chain's initial price
+	// (1ugnot per 1000 gas), so raising the gas wanted that far needs no new
+	// fee.
+	RunGas = Gas{Wanted: "50_000_000", Fee: "100000ugnot"}
+)
+
 type CommandData struct {
-	FuncName   string
-	PkgPath    string
-	ParamNames []string
-	ChainId    string
-	Remote     string
+	FuncName string
+	PkgPath  string
+	// ArgKeys links each -args slot to its param's inputs: a position on
+	// $help, where names repeat or are missing ("_"), a name in a form.
+	ArgKeys []string
+	ChainId string
+	Remote  string
 }
 
 type helpViewParams struct {
@@ -59,6 +129,9 @@ type helpViewParams struct {
 }
 
 func registerHelpFuncs(funcs template.FuncMap) {
+	funcs["evalAnchor"] = func() string { return helpEvalAnchor }
+	funcs["callGas"] = func() Gas { return CallGas }
+
 	funcs["getSelectedArgValue"] = func(data HelpData, param *doc.JSONField) (string, error) {
 		if data.SelectedArgs == nil {
 			return "", nil
@@ -69,61 +142,59 @@ func registerHelpFuncs(funcs template.FuncMap) {
 
 	funcs["buildHelpURL"] = func(data HelpData, fn HelpFunction) string {
 		pkgPath := strings.TrimPrefix(data.PkgPath, data.Domain)
-		url := data.Origin + pkgPath + "$help&func=" + fn.Name
+		var url strings.Builder
+		url.WriteString(data.Origin + pkgPath + "$help&func=" + fn.Name)
 		if len(fn.Params) > 0 {
-			url += "&"
+			url.WriteString("&")
 			for i, param := range fn.Params {
 				if i > 0 {
-					url += "&"
+					url.WriteString("&")
 				}
-				url += param.Name + "="
+				url.WriteString(param.Name + "=")
 				if val, ok := data.SelectedArgs[param.Name]; ok {
-					url += val
+					url.WriteString(val)
 				}
 			}
 		}
-		return url
+		return url.String()
+	}
+
+	funcs["aiFuncAction"] = func(data HelpData, fn HelpFunction) *AIAction {
+		return NewAIFuncAction(data.Origin, strings.TrimPrefix(data.PkgPath, data.Domain), fn.Name)
 	}
 
 	funcs["buildCommandData"] = func(data HelpData, fn HelpFunction) CommandData {
-		// Extract parameter names
-		paramNames := make([]string, len(fn.Params))
-
-		for i, param := range fn.Params {
-			paramNames[i] = param.Name
+		argKeys := make([]string, len(fn.Params))
+		for i := range fn.Params {
+			argKeys[i] = strconv.Itoa(i)
 		}
 
 		return CommandData{
-			FuncName:   fn.Name,
-			PkgPath:    data.PkgPath,
-			ParamNames: paramNames,
-			ChainId:    data.ChainId,
-			Remote:     data.Remote,
+			FuncName: fn.Name,
+			PkgPath:  data.PkgPath,
+			ArgKeys:  argKeys,
+			ChainId:  data.ChainId,
+			Remote:   data.Remote,
 		}
 	}
 }
 
 func HelpView(data HelpData) *View {
 	tocData := HelpTocData{
-		Icon:  "code",
+		Icon:  helpTocIcon,
 		Items: make([]HelpTocItem, len(data.Functions)),
 	}
 
 	for i, fn := range data.Functions {
-		sig := fn.Name + "("
-		for j, param := range fn.Params {
-			if j > 0 {
-				sig += ", "
-			}
-			sig += param.Name
-		}
-		sig += ")"
-
-		tocData.Items[i] = HelpTocItem{
-			Link: "#func-" + fn.Name,
-			Text: sig,
-		}
+		tocData.Items[i] = helpTocItem(fn)
 	}
+	// The evaluator stays below the functions; the list names it so a long
+	// page does not hide it.
+	tocData.Items = append(tocData.Items, HelpTocItem{
+		Link: "#" + helpEvalAnchor,
+		Text: "Expression evaluator",
+		Icon: "eval",
+	})
 
 	toc := NewTemplateComponent("ui/toc_generic", tocData)
 	content := NewTemplateComponent("ui/help_function", data)

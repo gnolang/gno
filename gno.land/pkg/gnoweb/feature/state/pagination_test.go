@@ -20,19 +20,19 @@ import (
 func buildManyTopLevelDeclsFixture(n int) []byte {
 	var b strings.Builder
 	b.WriteString(`{"names":[`)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if i > 0 {
 			b.WriteString(",")
 		}
 		fmt.Fprintf(&b, `"v%d"`, i)
 	}
 	b.WriteString(`],"values":[`)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if i > 0 {
 			b.WriteString(",")
 		}
 		nbuf := make([]byte, 8)
-		for j := 0; j < 8; j++ {
+		for j := range 8 {
 			nbuf[j] = byte(i >> (8 * j))
 		}
 		fmt.Fprintf(&b,
@@ -344,14 +344,14 @@ func TestTemplateStampsViewModeLiteralPerContainer(t *testing.T) {
 // if either marker is missing. Used by the view-mode test to scope grep
 // to each container's markup.
 func sliceBetween(s, start, end string) string {
-	i := strings.Index(s, start)
-	if i < 0 {
+	_, after, ok := strings.Cut(s, start)
+	if !ok {
 		return ""
 	}
-	rest := s[i+len(start):]
-	j := strings.Index(rest, end)
-	if j < 0 {
+	rest := after
+	before, _, ok := strings.Cut(rest, end)
+	if !ok {
 		return rest
 	}
-	return rest[:j]
+	return before
 }

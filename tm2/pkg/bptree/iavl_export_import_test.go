@@ -19,7 +19,7 @@ func setupExportTree(t *testing.T, size int) *MutableTree {
 	t.Helper()
 	tree := getTestTree(0)
 	r := rand.New(rand.NewSource(42))
-	for i := 0; i < size; i++ {
+	for range size {
 		k := make([]byte, 16)
 		v := make([]byte, 16)
 		r.Read(k)
@@ -65,7 +65,6 @@ func TestExporter_Import(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.size == 0 {
 				// Empty tree can't be exported
@@ -117,7 +116,7 @@ func TestExporter_Close(t *testing.T) {
 	require.NoError(t, err)
 
 	// Read a few nodes
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := exporter.Next()
 		require.NoError(t, err)
 	}
@@ -186,7 +185,7 @@ func TestExporter_DeleteVersionErrors(t *testing.T) {
 func TestExporter_InMemoryValues(t *testing.T) {
 	// Verify that in-memory export resolves actual values, not raw hashes.
 	tree := newMemTree()
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tree.Set(fmt.Appendf(nil, "key%03d", i), fmt.Appendf(nil, "val%03d", i))
 	}
 	_, _, err := tree.SaveVersion()
@@ -218,7 +217,7 @@ func TestExporter_InMemoryValues(t *testing.T) {
 func TestExporter_InMemoryRoundtrip(t *testing.T) {
 	// Export from in-memory tree, import into another, verify hash match.
 	tree1 := newMemTree()
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree1.Set(fmt.Appendf(nil, "k%04d", i), fmt.Appendf(nil, "v%04d", i))
 	}
 	_, _, err := tree1.SaveVersion()
@@ -252,7 +251,7 @@ func TestExporter_InMemoryRoundtrip(t *testing.T) {
 	require.Equal(t, origHash, newHash, "in-memory export/import roundtrip hash must match")
 
 	// Verify all values
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		key := fmt.Appendf(nil, "k%04d", i)
 		expected := fmt.Appendf(nil, "v%04d", i)
 		val, _ := tree2.Get(key)
@@ -355,7 +354,7 @@ func TestIAVLStoreGetSetHasDelete(t *testing.T) {
 
 func TestIAVLIterator(t *testing.T) {
 	tree := getTestTree(0)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		tree.Set(fmt.Appendf(nil, "key%02d", i), fmt.Appendf(nil, "val%02d", i))
 	}
 
@@ -382,7 +381,7 @@ func TestIAVLIterator(t *testing.T) {
 
 func TestIAVLReverseIterator(t *testing.T) {
 	tree := getTestTree(0)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		tree.Set(fmt.Appendf(nil, "key%02d", i), fmt.Appendf(nil, "val%02d", i))
 	}
 
@@ -415,7 +414,7 @@ func TestIAVLDefaultPruning(t *testing.T) {
 	keepEvery := int64(3)
 
 	for i := 1; i <= 15; i++ {
-		tree.Set([]byte(fmt.Sprintf("k%d", i)), []byte(fmt.Sprintf("v%d", i)))
+		tree.Set(fmt.Appendf(nil, "k%d", i), fmt.Appendf(nil, "v%d", i))
 		tree.SaveVersion()
 
 		// Simulate incremental pruning like the store's Commit()
@@ -448,7 +447,7 @@ func TestIAVLNoPrune(t *testing.T) {
 	tree := NewMutableTreeWithDB(db, 0, NewNopLogger())
 
 	for i := 1; i <= 10; i++ {
-		tree.Set([]byte(fmt.Sprintf("k%d", i)), []byte(fmt.Sprintf("v%d", i)))
+		tree.Set(fmt.Appendf(nil, "k%d", i), fmt.Appendf(nil, "v%d", i))
 		tree.SaveVersion()
 		// No pruning — keepEvery=1 means keep everything
 	}

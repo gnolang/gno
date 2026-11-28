@@ -14,7 +14,7 @@ import "reflect"
 func IsTypedNil(o any) bool {
 	rv := reflect.ValueOf(o)
 	switch rv.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Slice:
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.Slice:
 		return rv.IsNil()
 	default:
 		return false

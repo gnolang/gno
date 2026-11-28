@@ -77,8 +77,8 @@ var (
 
 func GetPlayer(cur realm, player string) string {
 	addr := parsePlayer(0, cur, player)
-	v, ok := playerStore.Get(addr.String())
-	if !ok {
+	v := playerStore.Get(addr.String())
+	if v == nil {
 		panic("player not found")
 	}
 	b, err := v.(*Player).MarshalJSON()
@@ -152,8 +152,8 @@ func (g *Game) saveResult() {
 }
 
 func getPlayer(addr address) *Player {
-	praw, ok := playerStore.Get(addr.String())
-	if ok {
+	praw := playerStore.Get(addr.String())
+	if praw != nil {
 		return praw.(*Player)
 	}
 	p := new(Player)
@@ -244,7 +244,7 @@ func Leaderboard(category string) string {
 	var buf bytes.Buffer
 	buf.WriteByte('[')
 	for idx, entry := range leaderboard[cat] {
-		p, _ := playerStore.Get(entry.addr.String())
+		p := playerStore.Get(entry.addr.String())
 		d, err := p.(*Player).MarshalJSON()
 		checkErr(err)
 		buf.Write(d)
@@ -278,8 +278,8 @@ func ListGames(cur realm, filters string) string {
 	// iterate over user2games array if we have one;
 	// if we don't, iterate over games.
 	if ft.u2gAddr != "" {
-		v, ok := user2Games.Get(ft.u2gAddr.String())
-		if !ok {
+		v := user2Games.Get(ft.u2gAddr.String())
+		if v == nil {
 			return "[]"
 		}
 		games := v.([]*Game)

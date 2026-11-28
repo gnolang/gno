@@ -3,8 +3,12 @@ package gnolang
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"math/big"
 	"strconv"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 const (
@@ -66,7 +70,77 @@ func (biv BigintValue) String() string {
 }
 
 func (bdv BigdecValue) String() string {
-	return bdv.V.String()
+	if bdv.F != nil {
+		return bigdecFloatString(bdv.F)
+	}
+	if bdv.V == nil {
+		return "0.0"
+	}
+	s := bdv.V.FloatString(10)
+	// Trim trailing zeros after the decimal point, but keep at least one
+	// decimal digit so bigdec values are visually distinct from integers.
+	if strings.ContainsRune(s, '.') {
+		s = strings.TrimRight(s, "0")
+		// Keep at least one digit after the decimal point.
+		if s[len(s)-1] == '.' {
+			s += "0"
+		}
+	}
+	return s
+}
+
+// bigdecFloatString renders f. Within ratOverflowBits it prints exactly. Past
+// it, exact digits cost time growing faster than |exp|, so it prints six
+// approximate significant digits instead, in a few dozen 64-bit operations
+// whatever the exponent:
+//
+//  1. Write f = mant * 2^exp and guess the decimal exponent e = exp*log10(2).
+//  2. Divide by 10^e as 2^e times 5^e. The 2^e is an exponent shift, and 5^e
+//     comes from repeated squaring. 10^e itself can overflow big.Float's
+//     exponent at the extremes; 5^e cannot.
+//  3. Multiply or divide by 10 until the mantissa lands in [1, 10), since the
+//     guess can be off by one.
+//  4. Print six digits, carrying a round-up to "10" into the exponent.
+func bigdecFloatString(f *big.Float) string {
+	var mant big.Float
+	exp := f.MantExp(&mant) // f = mant * 2^exp, 0.5 <= |mant| < 1
+	if exp >= -ratOverflowBits && exp <= ratOverflowBits {
+		return f.Text('g', -1)
+	}
+	e := (int64(exp) * 1292913986) >> 32 // exp * log10(2), in 32-bit fixed point
+	m := new(big.Float).SetPrec(64).Set(mant.Abs(&mant))
+	m.SetMantExp(m, exp-int(e))
+	p5 := new(big.Float).SetPrec(64).SetInt64(1)
+	b := new(big.Float).SetPrec(64).SetInt64(5)
+	for n := max(e, -e); ; b.Mul(b, b) {
+		if n&1 == 1 {
+			p5.Mul(p5, b)
+		}
+		if n >>= 1; n == 0 {
+			break
+		}
+	}
+	if e > 0 {
+		m.Quo(m, p5)
+	} else {
+		m.Mul(m, p5)
+	}
+	one, ten := big.NewFloat(1), big.NewFloat(10)
+	for ; m.Cmp(ten) >= 0; e++ {
+		m.Quo(m, ten)
+	}
+	for ; m.Cmp(one) < 0; e-- {
+		m.Mul(m, ten)
+	}
+	digits := m.Text('g', 6)
+	if digits == "10" { // m rounded up to the next power of ten
+		digits, e = "1", e+1
+	}
+	sign := ""
+	if f.Sign() < 0 {
+		sign = "-"
+	}
+	return fmt.Sprintf("%s%se%+d", sign, digits, e)
 }
 
 func (dbv DataByteValue) String() string {
@@ -79,15 +153,27 @@ func (dbv DataByteValue) String() string {
 // hint is needed (the debug paths pass no machine, so no gas is charged).
 func protectedStringOf(v protectedWriter, seen *seenValues) string {
 	var b bytes.Buffer
-	mw := newUnmeteredWriter(&b)
-	defer mw.Release()
-	v.WriteProtected(mw, seen)
-	// Flush explicitly (not deferred): b is read below via b.String(), and a
-	// deferred Flush would run only after the return value is evaluated,
-	// dropping the last buffered chunk. Streaming callers that hand the buffer
-	// to a downstream consumer (uversePrint, Fprint) defer Flush instead.
-	mw.Flush()
+	_ = writeProtectedTo(&b, v, seen) // a bytes.Buffer never fails a write
 	return b.String()
+}
+
+// writeProtectedTo streams v's protected form into w. See streamTo.
+func writeProtectedTo(w io.Writer, v protectedWriter, seen *seenValues) error {
+	return streamTo(w, func(mw *meteredWriter) { v.WriteProtected(mw, seen) })
+}
+
+// streamTo runs render on an unmetered writer over w. A write error from w
+// aborts the render (Flush panics *ParentWriteError) and is returned.
+func streamTo(w io.Writer, render func(*meteredWriter)) (err error) {
+	mw := newUnmeteredWriter(w)
+	defer mw.Release()
+	defer recoverParentWriteError(&err)
+	render(mw)
+	// Flush explicitly, not deferred, so w holds the whole render on return.
+	// Streaming callers that hand the buffer to a downstream consumer
+	// (uversePrint, Fprint) defer Flush instead.
+	mw.Flush()
+	return nil
 }
 
 func (av *ArrayValue) String() string {
@@ -134,6 +220,11 @@ func (fv *FuncValue) String() string {
 }
 
 func (bmv *BoundMethodValue) String() string {
+	if bmv.IsLazy() {
+		// Unresolved interface bind: the concrete method is determined at call
+		// time; render from the saved operand type + selector name.
+		return fmt.Sprintf("<%s>.%s(?)(?)", bmv.Receiver.T.String(), bmv.Method)
+	}
 	name := bmv.Func.Name
 	var (
 		recvT   = "?"
@@ -161,8 +252,7 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 }
 
 func (tv TypeValue) String() string {
-	return fmt.Sprintf("typeval{%s}",
-		tv.Type.String())
+	return "typeval{" + BoundedTypeText(tv.Type, maxExprTypeTextBytes) + "}"
 }
 
 func (pv *PackageValue) String() string {
@@ -220,9 +310,11 @@ func (hiv *HeapItemValue) String() string {
 // ----------------------------------------
 // *TypedValue.Sprint
 
-// ImplError returns true if the TypedValue's type implements the error interface.
-func (tv *TypedValue) ImplError() bool {
-	return IsImplementedBy(gErrorType, tv.T)
+// ImplError returns true if the TypedValue's type implements the error
+// interface. gm meters the embedded-field BFS walk (nil = a no-op); see
+// IsErrorType.
+func (tv *TypedValue) ImplError(gm types.GasMeter) bool {
+	return isImplementedBy(gm, gErrorType, tv.T)
 }
 
 // for print() and println().
@@ -251,4 +343,23 @@ func (tv TypedValue) String() string {
 
 func (tv TypedValue) ProtectedString(seen *seenValues) string {
 	return protectedStringOf(tv, seen)
+}
+
+// WriteStringTo writes tv.String() into w without building the whole string. A
+// write error from w stops the render and is returned, so a w with a byte cap
+// bounds both the output and the heap of the render.
+func (tv TypedValue) WriteStringTo(w io.Writer) error {
+	return writeProtectedTo(w, tv, newSeenValues())
+}
+
+// WriteTypeTo writes t.String() without building the whole string.
+func WriteTypeTo(w io.Writer, t Type) error {
+	return streamTo(w, func(mw *meteredWriter) { writeType(mw, t) })
+}
+
+// typeString renders t with writeType, cut at maxTypeTextBytes. The composite
+// Type.String() methods return it, so type text has one printer whether it is
+// built or streamed.
+func typeString(t Type) string {
+	return BoundedTypeText(t, maxTypeTextBytes)
 }

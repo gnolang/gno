@@ -27,8 +27,8 @@ func (ds Datasource) Records(q datasource.Query) datasource.Iterator {
 }
 
 func (ds Datasource) Record(id string) (datasource.Record, error) {
-	v, found := ds.exhibition.items.Get(id)
-	if !found {
+	v := ds.exhibition.items.Get(id)
+	if v == nil {
 		return nil, errors.New("realm submission not found")
 	}
 	return record{v.(*Item)}, nil

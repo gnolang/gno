@@ -19,6 +19,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/proxy"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -236,7 +237,10 @@ func (ds *App) Setup(ctx context.Context, dirs ...string) (err error) {
 		loaderLogger.Info("workspace detected", "root", ws)
 	}
 
-	gnoRoot := gnoenv.RootDir()
+	if ds.cfg.root == "" {
+		ds.cfg.root = gnoenv.RootDir()
+	}
+	gnoRoot := ds.cfg.root
 	var excludeDirs []string
 	if ds.cfg.withoutQuarantinedExamples {
 		excludeDirs = append(excludeDirs, filepath.Join(gnoRoot, "examples", "quarantined"))
@@ -509,6 +513,7 @@ func (ds *App) RunServer(ctx context.Context, term *rawterm.RawTerm) error {
 		Handler:           handlers,
 		Addr:              addr,
 		ReadHeaderTimeout: 60 * time.Second,
+		MaxHeaderBytes:    gnoweb.MaxHeaderBytes,
 	}
 
 	// Serve gnoweb
@@ -613,7 +618,8 @@ func (ds *App) handleKeyPress(ctx context.Context, key rawterm.KeyPress) {
 		// Reset paths
 		ds.pathManager.Reset()
 		ds.devNode.SetPackagePaths(ds.paths...)
-		// Reset the node
+		// Reset the node (drops session-only lazily loaded packages via
+		// NodeConfig.ResetState).
 		if err = ds.devNode.Reset(ctx); err != nil {
 			ds.logger.WithGroup(NodeLogName).Error("unable to reset node state", "err", err)
 		}

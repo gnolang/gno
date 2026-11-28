@@ -32,9 +32,14 @@ func testGoldmarkOutput(t *testing.T, nameIn string, input []byte) (string, []by
 	gnourl, err := weburl.Parse("https://gno.land/r/test")
 	require.NoError(t, err)
 
-	// Create parser context with the test URL
+	// Create parser context with the test URL. Render as a trusted realm, the
+	// policy most fixtures describe. The IPFS gateway is http because the
+	// validator below erases every https image, which would hide a rewritten
+	// image behind the same empty src as a missed one.
 	ctxOpts := parser.WithContext(NewGnoParserContext(GnoContext{
-		GnoURL: gnourl,
+		GnoURL:      gnourl,
+		IPFSGateway: "http://gateway.test",
+		Links:       FollowInternalLinks,
 	}))
 
 	ext := NewGnoExtension(WithImageValidator(func(uri string) bool {
@@ -67,7 +72,10 @@ func TestGnoExtension(t *testing.T) {
 	// The sanitize subdir uses a 3-section txtar layout with `// MARKDOWNFUNC`
 	// directives, exercised by TestSanitizeIntegration (sanitize_integration_test.go).
 	// It does not fit this runner's simple input.md → output.html shape.
-	gold.SkipDirs = []string{"sanitize"}
+	// The ext_emphasis subdir renders through a small-cap emphasis guard
+	// (TestEmphasisGuardGolden); this production-cap runner would emphasize
+	// every span and mismatch its goldens.
+	gold.SkipDirs = []string{"sanitize", "ext_emphasis"}
 	gold.Run(t, testdataDir)
 }
 

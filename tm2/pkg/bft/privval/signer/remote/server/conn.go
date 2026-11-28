@@ -1,6 +1,7 @@
 package server
 
 import (
+	"cmp"
 	"fmt"
 	"net"
 	"time"
@@ -24,27 +25,59 @@ func (rss *RemoteSignerServer) setListener(listener net.Listener) error {
 	return err
 }
 
-func (rss *RemoteSignerServer) setConnection(conn net.Conn) error {
+// clearConnection closes the served connection and wakes the accept loop. Given a conn, it acts only while
+// conn is served, so a handler returning after Stop leaves open what a restarted server serves.
+func (rss *RemoteSignerServer) clearConnection(conn net.Conn) error {
 	rss.lock.Lock()
 	defer rss.lock.Unlock()
 
-	// If the connection is already set, close it.
-	var err error
-	if rss.conn != nil {
-		err = rss.conn.Close()
+	if rss.conn == nil || (conn != nil && rss.conn != conn) {
+		return nil
 	}
 
-	rss.conn = conn
+	err := rss.conn.Close()
+	rss.conn = nil
+	rss.idle.Broadcast()
 
 	return err
 }
 
-// serve accepts incoming client connections and handles them.
+// claimConnection makes conn the served connection, unless another one is served, the server stopped,
+// or listener is not the server's, as for a connection a stopped server accepted.
+func (rss *RemoteSignerServer) claimConnection(listener net.Listener, conn net.Conn) bool {
+	rss.lock.Lock()
+	defer rss.lock.Unlock()
+
+	if rss.conn != nil || !rss.IsRunning() || rss.listener != listener {
+		conn.Close()
+		return false
+	}
+
+	rss.conn = conn
+
+	return true
+}
+
+// waitIdle returns once no connection is served, which Stop also ensures.
+func (rss *RemoteSignerServer) waitIdle() {
+	rss.lock.Lock()
+	defer rss.lock.Unlock()
+
+	for rss.conn != nil {
+		rss.idle.Wait()
+	}
+}
+
+// serve accepts client connections and handles each in its own goroutine, so a stalled handshake holds up no other.
 func (rss *RemoteSignerServer) serve(listener net.Listener) {
 	rss.logger.Info("Start listening",
 		"protocol", listener.Addr().Network(),
 		"address", listener.Addr().String(),
 	)
+
+	// Peers opening connections faster than their handshakes expire can exhaust descriptors,
+	// so a failed Accept waits before the next attempt rather than spin.
+	var acceptDelay time.Duration
 
 	for {
 		// Accept incoming client connections.
@@ -53,39 +86,20 @@ func (rss *RemoteSignerServer) serve(listener net.Listener) {
 			// If the server is still running, log the error and continue accepting connections.
 			if rss.IsRunning() {
 				rss.logger.Error("Failed to accept connection", "error", err)
+				acceptDelay = min(max(2*acceptDelay, 5*time.Millisecond), time.Second)
+				time.Sleep(acceptDelay)
 				continue
 			}
 			break // Else, stop listening.
 		}
+		acceptDelay = 0
 		rss.logger.Debug("Accepted new connection", "remote", conn.RemoteAddr())
 
-		// If the connection is a TCP connection, configure and secure it.
-		tcpConn, ok := conn.(*net.TCPConn)
-		if ok {
-			tcpCfg := r.TCPConnConfig{
-				KeepAlivePeriod:  rss.keepAlivePeriod,
-				HandshakeTimeout: rss.responseTimeout * 2, // Double the response timeout for the handshake (send + receive).
-			}
+		// One connection is served at a time: the next waits here, before its handshake, until the served
+		// one closes, and later ones in the listener's backlog, so a TCP client's handshake times out.
+		rss.waitIdle()
 
-			// Configure and secure the TCP connection then authenticate the client.
-			sconn, err := r.ConfigureTCPConnection(
-				tcpConn,
-				rss.serverPrivKey,
-				rss.authorizedKeys,
-				tcpCfg,
-			)
-			if err != nil {
-				rss.logger.Error("Failed to configure TCP connection", "error", err)
-				conn.Close() // Close the connection if its configuration failed.
-				continue
-			}
-
-			rss.logger.Debug("Configured TCP connection successfully")
-			conn = sconn
-		}
-
-		// Start serving the connection.
-		rss.handleConnection(conn)
+		go rss.handleConnection(listener, conn)
 	}
 
 	rss.logger.Info("Stop listening",
@@ -94,10 +108,42 @@ func (rss *RemoteSignerServer) serve(listener net.Listener) {
 	)
 }
 
-// handleConnection handles the connection with the client.
-func (rss *RemoteSignerServer) handleConnection(conn net.Conn) {
-	rss.setConnection(conn)
-	defer rss.setConnection(nil)
+// handleConnection secures a TCP connection, then serves it unless another connection is served.
+func (rss *RemoteSignerServer) handleConnection(listener net.Listener, conn net.Conn) {
+	// If the connection is a TCP connection, configure and secure it.
+	tcpConn, ok := conn.(*net.TCPConn)
+	if ok {
+		// The handshake keeps a deadline even with no response timeout, so a peer that never
+		// completes it cannot hold its goroutine and descriptor for good.
+		timeout := cmp.Or(rss.responseTimeout, DefaultResponseTimeout)
+
+		tcpCfg := r.TCPConnConfig{
+			KeepAlivePeriod:  rss.keepAlivePeriod,
+			HandshakeTimeout: timeout * 2, // Double the response timeout for the handshake (send + receive).
+		}
+
+		// Configure and secure the TCP connection then authenticate the client.
+		sconn, err := r.ConfigureTCPConnection(
+			tcpConn,
+			rss.serverPrivKey,
+			rss.authorizedKeys,
+			tcpCfg,
+		)
+		if err != nil {
+			rss.logger.Error("Failed to configure TCP connection", "error", err)
+			conn.Close() // Close the connection if its configuration failed.
+			return
+		}
+
+		rss.logger.Debug("Configured TCP connection successfully")
+		conn = sconn
+	}
+
+	// Handshakes that run while no connection is served race here: the first is served, the others closed.
+	if !rss.claimConnection(listener, conn) {
+		return
+	}
+	defer rss.clearConnection(conn)
 
 	// Serve will run until the connection is closed or an error occurs while receiving
 	// a request from or sending a response to the client.

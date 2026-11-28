@@ -140,7 +140,6 @@ func TestResolveDocumentable(t *testing.T) {
 	}
 
 	for _, tc := range tt {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// Wd prefix mean test relative to local directory -
 			// mock change local dir by setting the fpAbs variable (see doc.go) to match
@@ -219,7 +218,6 @@ func TestDocument(t *testing.T) {
 
 	buf := &bytes.Buffer{}
 	for _, tc := range tt {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Reset()
 			err := tc.d.WriteDocumentation(buf, tc.opts)
@@ -273,7 +271,6 @@ func Test_parseArgParts(t *testing.T) {
 		{"errTooManyArgs", []string{"io", "Writer", "Write"}, nil},
 	}
 	for _, tc := range tt {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			p, ok := parseArgs(tc.args)
 			if ok {

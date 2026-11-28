@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/moul/md"
-	"gno.land/p/moul/mdtable"
-	"gno.land/p/nt/bptree/v0/pager"
+	"gno.land/p/moul/md/v0"
+	"gno.land/p/moul/mdtable/v0"
+	"gno.land/p/nt/bptree/pager/v0"
 	"gno.land/p/nt/mux/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
@@ -37,14 +37,14 @@ func (t *Treasury) RenderLanding(path string) string {
 // RenderBanker renders the details of a specific banker.
 func (t *Treasury) RenderBanker(bankerID string, path string) string {
 	// Get the banker associated to this ID.
-	br, ok := t.bankers.Get(bankerID)
-	if !ok {
-		return md.Paragraph("Banker not found: " + bankerID)
+	br := t.bankers.Get(bankerID)
+	if br == nil {
+		return md.Paragraph("Banker not found: " + md.EscapeText(bankerID))
 	}
 	banker := br.(*bankerRecord).banker
 
 	// Render banker title.
-	out := md.H2(bankerID + " Banker")
+	out := md.H2(md.EscapeText(bankerID) + " Banker")
 
 	// Render address section.
 	out += md.H3("Address")
@@ -114,20 +114,20 @@ func (t *Treasury) RenderBanker(bankerID string, path string) string {
 // RenderBankerHistory renders the payment history of a specific banker.
 func (t *Treasury) RenderBankerHistory(bankerID string, path string) string {
 	// Get the banker record corresponding to this ID if it exists.
-	br, ok := t.bankers.Get(bankerID)
-	if !ok {
-		return md.Paragraph("Banker not found: " + bankerID)
+	br := t.bankers.Get(bankerID)
+	if br == nil {
+		return md.Paragraph("Banker not found: " + md.EscapeText(bankerID))
 	}
 	history := br.(*bankerRecord).history
 
 	// Render banker history title.
-	out := md.H2(bankerID + " Banker History")
+	out := md.H2(md.EscapeText(bankerID) + " Banker History")
 
 	// Get the current page of tokens based on the request path.
 	p := pager.NewPager(history.Tree(), DefaultHistoryPageSize, true)
 	page, err := p.GetPageByPath(path)
 	if err != nil {
-		return md.Paragraph("Error retrieving page: " + err.Error())
+		return md.Paragraph("Error retrieving page: " + md.EscapeText(err.Error()))
 	}
 
 	// Render full history section.

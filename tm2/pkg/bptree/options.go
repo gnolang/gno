@@ -30,10 +30,11 @@ func FlushThresholdOption(ft int) Option {
 }
 
 // FastIndexOption enables the optional latest-version fast index: a flat
-// user-key → version‖value map that accelerates committed point Gets of present
-// keys (1 read instead of a full tree descent + value read). It is an
-// unauthenticated read accelerator — not part of the Merkle root — so it can be
-// toggled per-node without affecting the app hash. Default off.
+// user-key → version‖value map that accelerates point Gets of present keys
+// against committed state (1 read instead of a full tree descent + value
+// read) — on committed snapshots and on the clean working tree alike. It is
+// an unauthenticated read accelerator — not part of the Merkle root — so it
+// can be toggled per-node without affecting the app hash. Default off.
 func FastIndexOption(b bool) Option {
 	return func(o *Options) { o.FastIndex = b }
 }

@@ -3,10 +3,10 @@ package config
 import (
 	"strconv"
 
-	"gno.land/p/moul/md"
-	"gno.land/p/moul/realmpath"
-	"gno.land/p/moul/txlink"
-	p "gno.land/p/nt/avl/v0/pager"
+	"gno.land/p/moul/md/v0"
+	"gno.land/p/moul/realmpath/v0"
+	"gno.land/p/moul/txlink/v0"
+	p "gno.land/p/nt/avl/pager/v0"
 	"gno.land/p/nt/ufmt/v0"
 )
 
@@ -51,8 +51,8 @@ func Render(path string) (out string) {
 }
 
 func renderConfPage(id string) (out string) {
-	raw, ok := configs.Get(id)
-	if !ok {
+	raw := configs.Get(id)
+	if raw == nil {
 		out += md.H1("404")
 		out += "That config does not exist :/"
 		return out

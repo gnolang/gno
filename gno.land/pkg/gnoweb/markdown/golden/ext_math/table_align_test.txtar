@@ -1,0 +1,26 @@
+-- input.md --
+Cell alignment: aligned pairs (the empty third cell keeps its alignment), cases and an array spec.
+
+$$
+\begin{aligned} a &= 1 & &= 2 \end{aligned}
+$$
+
+$$
+\begin{cases} x & y \end{cases}
+$$
+
+$$
+\begin{array}{lcr} a & b & c \end{array}
+$$
+
+-- output.html --
+<p>Cell alignment: aligned pairs (the empty third cell keeps its alignment), cases and an array spec.</p>
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtable class="math-aligned" columnalign="center" displaystyle="true" rowalign="center"><mtr><mtd columnalign="right"><mi>a</mi></mtd><mtd columnalign="left"><mo>=</mo><mn>1</mn></mtd><mtd columnalign="right"></mtd><mtd columnalign="left"><mo>=</mo><mn>2</mn></mtd></mtr></mtable></mrow><annotation encoding="application/x-tex">
+\begin{aligned} a &amp;= 1 &amp; &amp;= 2 \end{aligned}
+</annotation></semantics></math>
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo fence="true" stretchy="true">{</mo><mtable columnalign="center" rowalign="center"><mtr><mtd columnalign="left"><mi>x</mi></mtd><mtd columnalign="left"><mi>y</mi></mtd></mtr></mtable><mo></mo></mrow><annotation encoding="application/x-tex">
+\begin{cases} x &amp; y \end{cases}
+</annotation></semantics></math>
+<math class="math-displaystyle" display="block" displaystyle="true" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mtable columnalign="left center right" columnlines="none none" rowalign="center"><mtr><mtd columnalign="left"><mi>a</mi></mtd><mtd columnalign="center"><mi>b</mi></mtd><mtd columnalign="right"><mi>c</mi></mtd></mtr></mtable></mrow><annotation encoding="application/x-tex">
+\begin{array}{lcr} a &amp; b &amp; c \end{array}
+</annotation></semantics></math>

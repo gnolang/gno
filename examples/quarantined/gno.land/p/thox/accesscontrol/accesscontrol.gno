@@ -122,8 +122,8 @@ func (rs *Roles) GrantRole(_ int, rlm realm, name string, account address) error
 	r.Holders.Set(account.String(), struct{}{})
 
 	// Add in UserToRoles
-	roles, found := rs.UserToRoles.Get(account.String())
-	if !found {
+	roles := rs.UserToRoles.Get(account.String())
+	if roles == nil {
 		roles = []*Role{}
 	}
 	roles = append(roles.([]*Role), r)
@@ -159,8 +159,8 @@ func (rs *Roles) RevokeRole(_ int, rlm realm, name string, account address) erro
 	r.Holders.Remove(account.String())
 
 	// Remove in UserToRoles
-	roles, found := rs.UserToRoles.Get(account.String())
-	if found {
+	roles := rs.UserToRoles.Get(account.String())
+	if roles != nil {
 		updatedRoles := []*Role{}
 		for _, role := range roles.([]*Role) {
 			if role != r {

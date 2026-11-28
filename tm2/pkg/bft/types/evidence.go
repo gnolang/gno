@@ -15,38 +15,6 @@ const (
 	MaxEvidenceBytes int64 = 484
 )
 
-// EvidenceInvalidError wraps a piece of evidence and the error denoting how or why it is invalid.
-type EvidenceInvalidError struct {
-	Evidence   Evidence
-	ErrorValue error
-}
-
-// NewErrEvidenceInvalid returns a new EvidenceInvalid with the given err.
-func NewErrEvidenceInvalid(ev Evidence, err error) *EvidenceInvalidError {
-	return &EvidenceInvalidError{ev, err}
-}
-
-// Error returns a string representation of the error.
-func (err *EvidenceInvalidError) Error() string {
-	return fmt.Sprintf("Invalid evidence: %v. Evidence: %v", err.ErrorValue, err.Evidence)
-}
-
-// EvidenceOverflowError is for when there is too much evidence in a block.
-type EvidenceOverflowError struct {
-	MaxNum int64
-	GotNum int64
-}
-
-// NewErrEvidenceOverflow returns a new EvidenceOverflowError where got > max.
-func NewErrEvidenceOverflow(maxVal, got int64) *EvidenceOverflowError {
-	return &EvidenceOverflowError{maxVal, got}
-}
-
-// Error returns a string representation of the error.
-func (err *EvidenceOverflowError) Error() string {
-	return fmt.Sprintf("Too much evidence: Max %d, got %d", err.MaxNum, err.GotNum)
-}
-
 //-------------------------------------------
 
 // Evidence represents any provable malicious activity by a validator
@@ -58,21 +26,6 @@ type Evidence interface {
 
 	ValidateBasic() error
 	String() string
-}
-
-const (
-	MaxEvidenceBytesDenominator = 10
-)
-
-// MaxEvidencePerBlock returns the maximum number of evidences
-// allowed in the block and their maximum total size (limited to 1/10th
-// of the maximum block size).
-// TODO: change to a constant, or to a fraction of the validator set size.
-// See https://github.com/tendermint/tendermint/issues/2590
-func MaxEvidencePerBlock(blockMaxBytes int64) (int64, int64) {
-	maxBytes := blockMaxBytes / MaxEvidenceBytesDenominator
-	maxNum := maxBytes / MaxEvidenceBytes
-	return maxNum, maxBytes
 }
 
 //-------------------------------------------
@@ -186,13 +139,6 @@ type MockRandomGoodEvidence struct {
 
 var _ Evidence = &MockRandomGoodEvidence{}
 
-// UNSTABLE
-func NewMockRandomGoodEvidence(height int64, address crypto.Address, randBytes []byte) MockRandomGoodEvidence {
-	return MockRandomGoodEvidence{
-		MockGoodEvidence{height, address}, randBytes,
-	}
-}
-
 func (e MockRandomGoodEvidence) AssertABCIEvidence() {}
 
 func (e MockRandomGoodEvidence) Hash() []byte {
@@ -265,14 +211,6 @@ func (evl EvidenceList) Hash() []byte {
 		evidenceBzs[i] = evl[i].Bytes()
 	}
 	return merkle.SimpleHashFromByteSlices(evidenceBzs)
-}
-
-func (evl EvidenceList) String() string {
-	s := ""
-	for _, e := range evl {
-		s += fmt.Sprintf("%s\t\t", e)
-	}
-	return s
 }
 
 // Has returns true if the evidence is in the EvidenceList.

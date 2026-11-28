@@ -22,7 +22,7 @@ func (f *FastPrefixFormatter) Key(bz []byte) []byte {
 	return key
 }
 
-func (f *FastPrefixFormatter) Scan(key []byte, a interface{}) {
+func (f *FastPrefixFormatter) Scan(key []byte, a any) {
 	scan(a, key[1:])
 }
 

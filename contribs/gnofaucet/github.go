@@ -239,7 +239,7 @@ func parseRepos() map[string][]string {
 	}
 
 	out := make(map[string][]string)
-	for _, fullRepo := range strings.Split(reposRaw, " ") {
+	for fullRepo := range strings.SplitSeq(reposRaw, " ") {
 		orgAndName := strings.Split(fullRepo, "/")
 		if len(orgAndName) != 2 {
 			panic("repository format must be OWNER/REPONAME")

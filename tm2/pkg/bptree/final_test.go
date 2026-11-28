@@ -15,7 +15,7 @@ func TestConcurrent_LazyLoadFromDB(t *testing.T) {
 	// have multiple goroutines do concurrent Gets.
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		tree.Set(fmt.Appendf(nil, "clz%04d", i), fmt.Appendf(nil, "val%04d", i))
 	}
 	tree.SaveVersion()
@@ -29,11 +29,11 @@ func TestConcurrent_LazyLoadFromDB(t *testing.T) {
 	// Concurrent reads — exercises the getChild mutex
 	var wg sync.WaitGroup
 	errs := make(chan error, 20)
-	for g := 0; g < 10; g++ {
+	for g := range 10 {
 		wg.Add(1)
 		go func(gid int) {
 			defer wg.Done()
-			for i := 0; i < 200; i++ {
+			for i := range 200 {
 				key := fmt.Appendf(nil, "clz%04d", i)
 				has, err := imm.Has(key)
 				if err != nil {
@@ -58,7 +58,7 @@ func TestGetChild_ErrorsOnDBError(t *testing.T) {
 	// Create a tree, save it, then corrupt the DB so getChild fails
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tree.Set(fmt.Appendf(nil, "panic%03d", i), []byte("v"))
 	}
 	tree.SaveVersion()

@@ -1,11 +1,12 @@
 package gnolang
 
 import (
+	"math"
 	"math/big"
 	"strings"
 	"testing"
 
-	"github.com/cockroachdb/apd/v3"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -70,21 +71,19 @@ func TestBoundedSprintTV_BigInt_Huge(t *testing.T) {
 }
 
 func TestBoundedSprintTV_BigDec_Small(t *testing.T) {
-	bd := apd.New(123, -2) // 1.23
+	// 123/100 = 1.23
+	bd := new(big.Rat).SetFrac(big.NewInt(123), big.NewInt(100))
 	tv := TypedValue{T: UntypedBigdecType, V: BigdecValue{V: bd}}
 	out := BoundedSprintTV(tv, nil, 100)
 	assert.Contains(t, out, "1.23")
 }
 
 func TestBoundedSprintTV_BigDec_Huge(t *testing.T) {
-	// Coefficient = 1 << (1<<20) ≈ 300K decimal digits. Models the
-	// runtime case where apd's unlimited-precision Add lets a user
-	// grow the coefficient over many gas-metered steps before
-	// triggering a panic that carries the value through bounded
-	// rendering.
-	bd := new(apd.Decimal)
-	bd.Coeff.Lsh(apd.NewBigInt(1), 1<<20)
-	bd.Exponent = 0
+	// Numerator = 1 << (1<<20) ≈ 300K decimal digits. Models the
+	// runtime case where a user accumulates a huge rational numerator
+	// triggering a panic that carries the value through bounded rendering.
+	num := new(big.Int).Lsh(big.NewInt(1), 1<<20)
+	bd := new(big.Rat).SetFrac(num, big.NewInt(1))
 	tv := TypedValue{T: UntypedBigdecType, V: BigdecValue{V: bd}}
 	out := BoundedSprintTV(tv, nil, 1024)
 	// Should hit the BitLen pre-check: BitLen() ≈ 1M > 1024*3.
@@ -145,7 +144,7 @@ func TestBoundedSprintTV_NestedComposite_DepthCap(t *testing.T) {
 		{T: IntType}, // value 0
 	}}
 	cur := innermost
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		outer := &StructValue{Fields: []TypedValue{{V: cur}}}
 		cur = outer
 	}
@@ -157,7 +156,7 @@ func TestBoundedSprintTV_NestedComposite_DepthCap(t *testing.T) {
 
 func TestBoundedSprintTV_Map(t *testing.T) {
 	mv := &MapValue{List: &MapList{}}
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		key := TypedValue{T: StringType, V: StringValue("k")}
 		val := TypedValue{T: IntType}
 		val.SetInt(int64(i))
@@ -220,6 +219,43 @@ func TestBoundedSprintException_HeadOnly(t *testing.T) {
 	out := BoundedSprintException(newer, nil, 100)
 	assert.Equal(t, "newer", out)
 	assert.NotContains(t, out, "older", "chain should not be walked")
+}
+
+// sharedSlice returns depth levels of n-slot slices, each slot holding the
+// level below, so its Sprint form renders n^depth ints.
+func sharedSlice(n, depth int) TypedValue {
+	tv := typedInt(1)
+	for range depth {
+		list := make([]TypedValue, n)
+		for i := range list {
+			list[i] = tv
+		}
+		tv = TypedValue{
+			T: &SliceType{Elt: tv.T},
+			V: &SliceValue{Base: &ArrayValue{List: list}, Length: n, Maxcap: n},
+		}
+	}
+	return tv
+}
+
+func TestBoundedSprintTV_SharedChildStopsPastCap(t *testing.T) {
+	m := &Machine{GasMeter: types.NewGasMeter(math.MaxInt64), Alloc: NewAllocator(math.MaxInt64)}
+
+	// A render of exactly the cap comes back whole, one byte more is cut.
+	small := sharedSlice(2, 3)
+	full := small.Sprint(m)
+	assert.Equal(t, full, BoundedSprintTV(small, m, len(full)))
+	assert.Equal(t, truncateForLog(full, len(full)-1), BoundedSprintTV(small, m, len(full)-1))
+
+	// 4^10 ints render to megabytes; the render stops at the buffer that
+	// passes the cap, two here plus the String and Error lookups, rather than
+	// running out of gas and falling back to the structural form.
+	gm := types.NewGasMeter(streamOutputGas(8 * meteredWriterBufSize))
+	m.GasMeter = gm
+	out := BoundedSprintTV(sharedSlice(4, 10), m, BoundedRenderBytes)
+	assert.Len(t, out, BoundedRenderBytes)
+	assert.True(t, strings.HasPrefix(out, "slice[(slice["), "got the structural form: %.40s", out)
+	assert.Less(t, gm.GasConsumed(), streamOutputGas(3*meteredWriterBufSize))
 }
 
 func TestBoundedStacktrace_Empty(t *testing.T) {

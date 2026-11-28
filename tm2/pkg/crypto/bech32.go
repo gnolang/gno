@@ -43,6 +43,11 @@ func PubKeyFromBech32(bech32str string) (pubKey PubKey, err error) {
 	}
 }
 
+// maxErrPrefixLen bounds the bech32 prefix an error names. A bech32 string can
+// come from a peer, and its prefix has no length limit, so a longer one is
+// given by its length.
+const maxErrPrefixLen = 256
+
 // GetFromBech32 decodes a bytestring from a Bech32 encoded string.
 func GetFromBech32(bech32str, prefix string) ([]byte, error) {
 	if len(bech32str) == 0 {
@@ -55,6 +60,9 @@ func GetFromBech32(bech32str, prefix string) ([]byte, error) {
 	}
 
 	if hrp != prefix {
+		if len(hrp) > maxErrPrefixLen {
+			return nil, fmt.Errorf("invalid Bech32 prefix; expected %s, got a %d-byte prefix", prefix, len(hrp))
+		}
 		return nil, fmt.Errorf("invalid Bech32 prefix; expected %s, got %s", prefix, hrp)
 	}
 

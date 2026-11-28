@@ -1,0 +1,17 @@
+-- input.md --
+Price $5 each. [Buy](/r/demo/shop$help&func=Buy)
+
+[Send $10](/r/demo/bank$help&func=Send) or pay $x$.
+
+Pay $5 at <https://example.com/pay$now>.
+
+Pay $3 with [call](/r/demo/f(a)$help).
+
+Brackets in math still close: $[a](b) + c$.
+
+-- output.html --
+<p>Price $5 each. <a href="/r/demo/shop$help&amp;func=Buy">Buy<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span><span class="link-tx tooltip" data-tooltip-target="info" data-tooltip="Transaction link" title="Transaction link"><svg class="c-icon"><use href="#ico-tx-link"></use></svg></span></a></p>
+<p><a href="/r/demo/bank$help&amp;func=Send">Send $10<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span><span class="link-tx tooltip" data-tooltip-target="info" data-tooltip="Transaction link" title="Transaction link"><svg class="c-icon"><use href="#ico-tx-link"></use></svg></span></a> or pay <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x</annotation></semantics></math>.</p>
+<p>Pay $5 at <a href="https://example.com/pay$now" rel="noopener nofollow ugc">https://example.com/pay$now<span class="link-external tooltip" data-tooltip-target="info" data-tooltip="External link" title="External link"><svg class="c-icon"><use href="#ico-external-link"></use></svg></span></a>.</p>
+<p>Pay $3 with <a href="/r/demo/f(a)$help">call</a>.</p>
+<p>Brackets in math still close: <math class="math-textstyle" display="inline" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><mo form="prefix" stretchy="false">[</mo><mi>a</mi><mo form="postfix" stretchy="false">]</mo><mo form="prefix" stretchy="false">(</mo><mi>b</mi><mo form="postfix" stretchy="false">)</mo><mo>+</mo><mi>c</mi></mrow><annotation encoding="application/x-tex">[a](b) + c</annotation></semantics></math>.</p>

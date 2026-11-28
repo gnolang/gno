@@ -32,11 +32,13 @@ type Txs []Tx
 // Hash returns the Merkle root hash of the transaction hashes.
 // i.e. the leaves of the tree are the hashes of the txs.
 func (txs Txs) Hash() []byte {
-	// These allocations will be removed once Txs is switched to [][]byte,
-	// ref #2603. This is because golang does not allow type casting slices without unsafe
+	// Go does not convert []Tx to [][]byte without unsafe, ref #2603, so txBzs
+	// is built here; its entries share one array that each tx hash is copied into.
+	hashes := make([]byte, len(txs)*tmhash.Size)
 	txBzs := make([][]byte, len(txs))
 	for i := range txs {
-		txBzs[i] = txs[i].Hash()
+		txBzs[i] = hashes[i*tmhash.Size : (i+1)*tmhash.Size : (i+1)*tmhash.Size]
+		copy(txBzs[i], txs[i].Hash())
 	}
 	return merkle.SimpleHashFromByteSlices(txBzs)
 }

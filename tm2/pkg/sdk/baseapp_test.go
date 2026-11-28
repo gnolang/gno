@@ -7,6 +7,9 @@ import (
 	"log/slog"
 	"os"
 	"reflect"
+	"slices"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -478,6 +481,46 @@ func newTestHandler(proc func(Context, Msg) Result) Handler {
 	}
 }
 
+// codeQueryHandler is a handler whose query "code/run" runs code.
+type codeQueryHandler struct{ testHandler }
+
+func (codeQueryHandler) QueryRunsCode(path string) bool { return path == "code/run" }
+
+func TestQueryRunsCode(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t, func(bapp *BaseApp) {
+		bapp.Router().AddRoute("code", codeQueryHandler{})
+		bapp.Router().AddRoute("plain", testHandler{})
+	})
+
+	runsCode := []string{
+		".app/simulate",
+		"/.app/simulate",
+		".app/simulate/x",
+		"code/run",
+	}
+	runsNoCode := []string{
+		"",
+		"/",
+		".app",
+		".app/version",
+		".app/simulatex",
+		".app/simulate?x", // handleQueryApp reads "simulate?x", an unknown query
+		"//.app/simulate", // routed to the empty name, which has no handler
+		".store/main/key",
+		"code/other",
+		"plain/run", // its handler does not implement abci.CodeExecutionQuerier
+		"none/run",
+	}
+	for _, path := range runsCode {
+		assert.True(t, app.QueryRunsCode(path), "path %q", path)
+	}
+	for _, path := range runsNoCode {
+		assert.False(t, app.QueryRunsCode(path), "path %q", path)
+	}
+}
+
 type msgCounterHandler struct {
 	t          *testing.T
 	capKey     store.StoreKey
@@ -568,7 +611,7 @@ func TestCheckTx(t *testing.T) {
 	nTxs := int64(5)
 	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
 
-	for i := int64(0); i < nTxs; i++ {
+	for i := range nTxs {
 		tx := newTxCounter(i, 0)
 		txBytes, err := amino.Marshal(tx)
 		require.NoError(t, err)
@@ -617,6 +660,69 @@ func TestCheckTxMalformedTypeURL(t *testing.T) {
 
 	res := app.CheckTx(abci.RequestCheckTx{Tx: mutated})
 	require.False(t, res.IsOK(), "expected a decode error, got OK")
+}
+
+// TestRunTxRejectsNonCanonicalEncoding: runTx must reject, in CheckTx and
+// DeliverTx alike, bytes that decode to a tx but are not its canonical
+// encoding. The encoding classes are covered in amino; one is enough here.
+func TestRunTxRejectsNonCanonicalEncoding(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
+
+	canonical, err := amino.Marshal(newTxCounter(0, 0))
+	require.NoError(t, err)
+	require.True(t, app.CheckTx(abci.RequestCheckTx{Tx: canonical}).IsOK())
+
+	// The first tag as a two-byte varint: the same tx under another hash.
+	require.Less(t, canonical[0], byte(0x80))
+	padded := slices.Concat([]byte{canonical[0] | 0x80, 0x00}, canonical[1:])
+	var decoded std.Tx
+	require.NoError(t, amino.Unmarshal(padded, &decoded))
+	reencoded, err := amino.Marshal(decoded)
+	require.NoError(t, err)
+	require.Equal(t, canonical, reencoded)
+
+	for _, res := range []abci.ResponseBase{
+		app.CheckTx(abci.RequestCheckTx{Tx: padded}).ResponseBase,
+		app.DeliverTx(abci.RequestDeliverTx{Tx: padded}).ResponseBase,
+	} {
+		require.False(t, res.IsOK())
+		assert.Equal(t, std.TxDecodeError{}, res.Error)
+		assert.Contains(t, res.Log, "non-canonical encoding")
+		assert.NotContains(t, res.Log, "Stack Trace")
+	}
+
+	// Undecodable bytes: Log carries the reason, without a stack trace, which
+	// every result in a block of garbage txs would otherwise store.
+	res := app.DeliverTx(abci.RequestDeliverTx{Tx: []byte{0xff}})
+	assert.Equal(t, std.TxDecodeError{}, res.Error)
+	assert.NotEmpty(t, res.Log)
+	assert.NotContains(t, res.Log, "Stack Trace")
+}
+
+// TestRunTxRejectsNilMsg: an empty Any is the canonical encoding of a nil
+// message, so UnmarshalCanonical passes it; it must fail as a bad request,
+// not as a recovered nil-pointer panic.
+func TestRunTxRejectsNilMsg(t *testing.T) {
+	t.Parallel()
+
+	app := setupBaseApp(t)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	canonical, err := amino.Marshal(newTxCounter(0, 0))
+	require.NoError(t, err)
+	for name, bz := range map[string][]byte{
+		"only a nil message":            {0x0a, 0x00},
+		"nil message before a real one": slices.Concat([]byte{0x0a, 0x00}, canonical),
+	} {
+		res := app.CheckTx(abci.RequestCheckTx{Tx: bz})
+		require.False(t, res.IsOK(), name)
+		assert.Equal(t, std.UnknownRequestError{}, res.Error, name)
+		assert.NotContains(t, res.Log, "recovered", name)
+	}
 }
 
 // Test that successive DeliverTx can see each others' effects
@@ -690,6 +796,126 @@ func TestGasUsedBetweenSimulateAndDeliver(t *testing.T) {
 	require.True(t, deliverRes.IsOK(), fmt.Sprintf("%v", deliverRes))
 
 	require.Equal(t, simulateRes.GasUsed, deliverRes.GasUsed) // gas used should be the same from simulate and deliver
+}
+
+// TestGasUsedBetweenSimulateAndDeliverAfterCommit is a regression test for
+// DepthEstimator forwarding in immutStore: after a Commit, Simulate must
+// charge the same gas as DeliverTx.
+func TestGasUsedBetweenSimulateAndDeliverAfterCommit(t *testing.T) {
+	t.Parallel()
+
+	anteKey := []byte("ante-key")
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
+
+	deliverKey := []byte("deliver-key")
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	// Commit a block so getLastBlockHeader returns height >= 1, ensuring
+	// Simulate uses MultiImmutableCacheWrapWithVersion (the bug path).
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	// Begin block 2, then simulate and deliver the same tx.
+	header2 := &bft.Header{ChainID: "test-chain", Height: 2}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header2})
+
+	tx := newTxCounter(0, 0)
+	txBytes, err := amino.Marshal(tx)
+	require.Nil(t, err)
+
+	simulateRes := app.Simulate(txBytes)
+	require.True(t, simulateRes.IsOK(), fmt.Sprintf("%v", simulateRes))
+	require.Greater(t, simulateRes.GasUsed, int64(0))
+
+	deliverRes := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, deliverRes.IsOK(), fmt.Sprintf("%v", deliverRes))
+
+	require.Equal(t, simulateRes.GasUsed, deliverRes.GasUsed)
+}
+
+// TestSimulateConcurrentWithCommit verifies that concurrent Simulate calls do
+// not panic or data-race with Commit(). Run with -race.
+//
+// Note: a "version not found" error is acceptable — it means the committer pruned
+// the version between the time Simulate read lastBlockHeader and the time it called
+// MultiImmutableCacheWrapWithVersion. That is valid TOCTOU behaviour under pruning,
+// not a snapshot isolation bug. The invariant tested here is:
+//   - Simulate never panics
+//   - When Simulate can load the requested version, the result is OK
+func TestSimulateConcurrentWithCommit(t *testing.T) {
+	t.Parallel()
+
+	anteKey := []byte("ante-key")
+	anteOpt := func(bapp *BaseApp) { bapp.SetAnteHandler(anteHandlerTxTest(t, mainKey, anteKey)) }
+	deliverKey := []byte("deliver-key")
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newMsgCounterHandler(t, mainKey, deliverKey))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	// Commit an initial block so Simulate takes the immutable-snapshot path.
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	tx := newTxCounter(0, 0)
+	txBytes, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	const (
+		numBlocks     = 10
+		numSimulators = 8
+	)
+
+	var (
+		wg      sync.WaitGroup
+		startMu sync.Mutex
+	)
+	startMu.Lock() // held until all goroutines are spawned
+
+	// Simulator goroutines: fire Simulate repeatedly, all starting at the same
+	// time to maximise overlap with the committer goroutine below.
+	for range numSimulators {
+		wg.Go(func() {
+			startMu.Lock() // wait for the starting gun
+			startMu.Unlock()
+			for range numBlocks {
+				res := app.Simulate(txBytes)
+				// A store-load error is acceptable under pruning: the committer
+				// may advance past lastBlockHeader between the header read and
+				// MultiImmutableCacheWrapWithVersion. Skip those; only assert
+				// correctness when the load actually succeeded.
+				if res.Error != nil {
+					continue
+				}
+				require.True(t, res.IsOK(), "Simulate must succeed when version loads: %v", res)
+			}
+		})
+	}
+
+	// Committer goroutine: advance the chain while simulators are running.
+	wg.Go(func() {
+		startMu.Lock()
+		startMu.Unlock()
+		for i := range numBlocks {
+			height := int64(i + 2)
+			app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: height}})
+			app.EndBlock(abci.RequestEndBlock{})
+			app.Commit()
+		}
+	})
+
+	startMu.Unlock() // fire
+	wg.Wait()
 }
 
 // One call to DeliverTx should process all the messages, in order.
@@ -820,6 +1046,83 @@ func TestSimulateTx(t *testing.T) {
 	}
 }
 
+// TestSimulateConcurrentNoPanic verifies that Simulate can run concurrently
+// with BeginBlock/DeliverTx/Commit without panicking or data races.
+// Run with -race to detect any unsafe concurrent access.
+func TestSimulateConcurrentNoPanic(t *testing.T) {
+	t.Parallel()
+
+	gasConsumed := int64(5)
+
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			newCtx = ctx.WithGasMeter(store.NewGasMeter(gasConsumed))
+			return
+		})
+	}
+
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			ctx.GasMeter().ConsumeGas(gasConsumed, "test")
+			return Result{GasUsed: ctx.GasMeter().GasConsumed()}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	tx := newTxCounter(0, 0)
+	txBytes, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	// Run a first block so that committed state exists for Simulate.
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	// Spawn goroutines that continuously simulate while the main goroutine
+	// runs block production cycles. The race detector will flag any unsafe
+	// concurrent access to shared BaseApp state.
+	done := make(chan struct{})
+	var didPanic atomic.Bool
+	var wg sync.WaitGroup
+
+	for range 4 {
+		wg.Go(func() {
+			defer func() {
+				if r := recover(); r != nil {
+					didPanic.Store(true)
+				}
+			}()
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					result := app.Simulate(txBytes)
+					// Simulate may fail if called mid-Commit (height mismatch),
+					// but it must never panic or race.
+					_ = result
+				}
+			}
+		})
+	}
+
+	// Run several block cycles concurrently with the simulate goroutines.
+	for i := int64(2); i <= 10; i++ {
+		header := &bft.Header{ChainID: "test-chain", Height: i}
+		app.BeginBlock(abci.RequestBeginBlock{Header: header})
+		app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+		app.EndBlock(abci.RequestEndBlock{})
+		app.Commit()
+	}
+	close(done)
+	wg.Wait()
+
+	require.False(t, didPanic.Load(), "at least one goroutine panicked")
+}
+
 func TestRunInvalidTransaction(t *testing.T) {
 	t.Parallel()
 
@@ -894,6 +1197,56 @@ func TestRunInvalidTransaction(t *testing.T) {
 		_, ok := res.Error.(std.TxDecodeError)
 		require.True(t, ok)
 	}
+}
+
+// A signature does not cover invalid UTF-8 bytes in a string, so a tx holding
+// one is refused as undecodable before the ante handler can charge for it.
+// U+FFFD itself is valid UTF-8 and still goes through.
+func TestRunTxRefusesInvalidUTF8(t *testing.T) {
+	t.Parallel()
+
+	anteCalls := 0
+	anteOpt := func(bapp *BaseApp) {
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			anteCalls++
+			return ctx, Result{}, false
+		})
+	}
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result { return Result{} }))
+	}
+	app := setupBaseApp(t, anteOpt, routerOpt)
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+	app.BeginBlock(abci.RequestBeginBlock{Header: &bft.Header{ChainID: "test-chain", Height: 1}})
+
+	txBytes := func(memo string) []byte {
+		bz, err := amino.Marshal(std.Tx{Msgs: []Msg{msgCounter{}}, Memo: memo})
+		require.NoError(t, err)
+		return bz
+	}
+
+	bad := txBytes("a\xffb")
+	for name, res := range map[string]abci.ResponseBase{
+		"CheckTx":   app.CheckTx(abci.RequestCheckTx{Tx: bad}).ResponseBase,
+		"DeliverTx": app.DeliverTx(abci.RequestDeliverTx{Tx: bad}).ResponseBase,
+	} {
+		_, ok := res.Error.(std.TxDecodeError)
+		require.True(t, ok, "%s: %v", name, res.Error)
+		require.Contains(t, res.Log, "invalid UTF-8 in memo", name)
+	}
+	require.Zero(t, anteCalls)
+
+	// ValidateBasic runs first, so the walk renders only what it accepted.
+	refused, err := amino.Marshal(std.Tx{Msgs: []Msg{msgCounter{Counter: -1}}, Memo: "a\xffb"})
+	require.NoError(t, err)
+	res := app.CheckTx(abci.RequestCheckTx{Tx: refused})
+	_, ok := res.Error.(std.InvalidSequenceError)
+	require.True(t, ok, "%v", res.Error)
+
+	good := txBytes("a\uFFFDb")
+	require.True(t, app.CheckTx(abci.RequestCheckTx{Tx: good}).IsOK())
+	require.True(t, app.DeliverTx(abci.RequestDeliverTx{Tx: good}).IsOK())
+	require.Equal(t, 2, anteCalls)
 }
 
 // Test that transactions exceeding gas limits fail
@@ -1503,4 +1856,41 @@ func TestBeginBlock_NoStatelessContiguityGuard(t *testing.T) {
 			Header: &bft.Header{ChainID: "test-chain", Height: initialHeight + 10},
 		})
 	})
+}
+
+// TestInitChainCheckStateIsolation: after InitChain, checkState must READ
+// genesis state written by the initChainer (e.g. the first CheckTx verifies
+// the genesis gas price), but writes into checkState — what a pre-block-1
+// CheckTx does via the ante: fee deduction, sequence bump — must NOT be
+// visible to the block-1 deliver state. When the two states shared one
+// store, a tx that passed CheckTx before block 1 bumped its signer's
+// sequence in the shared store and then failed signature verification when
+// delivered in block 1.
+func TestInitChainCheckStateIsolation(t *testing.T) {
+	t.Parallel()
+
+	db := memdb.NewMemDB()
+	app := newBaseApp(t.Name(), db)
+	genKey, genVal := []byte("genesis-key"), []byte("genesis-value")
+	app.SetInitChainer(func(ctx Context, req abci.RequestInitChain) abci.ResponseInitChain {
+		ctx.Store(mainKey).Set(nil, genKey, genVal)
+		return abci.ResponseInitChain{}
+	})
+	require.NoError(t, app.LoadLatestVersion())
+	app.InitChain(abci.RequestInitChain{ChainID: "test-chain"})
+
+	// CheckTx state must see genesis writes.
+	checkStore := app.checkState.ctx.Store(mainKey)
+	require.Equal(t, genVal, checkStore.Get(nil, genKey),
+		"check state must read genesis state before block 1")
+
+	// A CheckTx-side write must stay isolated from the deliver state.
+	seqKey := []byte("sequence-bump")
+	checkStore.Set(nil, seqKey, []byte{1})
+
+	deliverStore := app.deliverState.ctx.Store(mainKey)
+	require.Equal(t, genVal, deliverStore.Get(nil, genKey),
+		"deliver state must see genesis state")
+	require.Nil(t, deliverStore.Get(nil, seqKey),
+		"CheckTx writes must not leak into the block-1 deliver state")
 }

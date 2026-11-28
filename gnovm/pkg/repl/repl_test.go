@@ -229,11 +229,47 @@ var fixtures = []struct {
 			},
 		},
 	},
+	{
+		Name: "Panic at the prompt does not leak",
+		CodeSteps: []step{
+			{
+				Line:   `a := ""`,
+				Result: "",
+			},
+			{
+				Line:  "b := a[0]",
+				Error: "runtime error: index out of range [0] with length 0",
+			},
+			{
+				Line:   `func k() int { defer println("d"); return 4 }`,
+				Result: "",
+			},
+			{
+				Line:   "println(k())",
+				Result: "d\n4",
+			},
+			{
+				Line:   "z := 0",
+				Result: "",
+			},
+			{
+				Line:  "d := 1/z",
+				Error: "runtime error: division by zero",
+			},
+			{
+				Line:   "x := recover()",
+				Result: "",
+			},
+			{
+				Line:   "println(x)",
+				Result: "undefined",
+			},
+		},
+	},
 }
 
 func TestRepl(t *testing.T) {
 	for _, fix := range fixtures {
-		fix := fix
 		t.Run(fix.Name, func(t *testing.T) {
 			outbuf := new(bytes.Buffer)
 			errbuf := new(bytes.Buffer)

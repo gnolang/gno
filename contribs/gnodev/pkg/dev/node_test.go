@@ -3,6 +3,8 @@ package dev
 import (
 	"context"
 	"encoding/json"
+	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +21,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/packages/pkgdownload"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	tm2events "github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -69,8 +72,7 @@ func resolvePaths(l *packages.Loader, paths []string) []*packages.Package {
 
 // TestNewNode_NoPackages tests the NewDevNode method with no package.
 func TestNewNode_NoPackages(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	logger := log.NewTestingLogger(t)
 
@@ -89,8 +91,7 @@ func TestNewNode_NoPackages(t *testing.T) {
 
 // TestNewNode_WithPackage tests the NewDevNode with a single package.
 func TestNewNode_WithLoader(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	pkg := std.MemPackage{
 		Name: "foobar",
@@ -312,6 +313,23 @@ func Render(_ string) string { return str }
 	require.Equal(t, render, "foo")
 
 	assert.Equal(t, mock.EvtNull, emitter.NextEvent().Type())
+}
+
+// Start writes the P2P port it bound back into the config, so a reset that
+// reused it would fail once another process took the port.
+func TestNodeResetAfterP2PPortTaken(t *testing.T) {
+	node, emitter := newTestingDevNode(t)
+
+	laddr := node.Node.Config().P2P.ListenAddress
+	require.NoError(t, node.Node.Stop())
+
+	// Another process takes the port the stopped node released.
+	squatter, err := net.Listen("tcp", strings.TrimPrefix(laddr, "tcp://"))
+	require.NoError(t, err)
+	defer squatter.Close()
+
+	require.NoError(t, node.Reset(context.Background()))
+	assert.Equal(t, events.EvtReset, emitter.NextEvent().Type())
 }
 
 func TestTxGasFailure(t *testing.T) {
@@ -584,7 +602,7 @@ func Render(_ string) string {
 
 	// Times list should be identical from the original list
 	require.Len(t, timesList2, len(timesList1))
-	for i := 0; i < len(timesList1); i++ {
+	for i := range timesList1 {
 		t1nsec, t2nsec := timesList1[i].UnixNano(), timesList2[i].UnixNano()
 		assert.Equal(t, t1nsec, t2nsec,
 			"comparing times1[%d](%d) == times2[%d](%d)", i, t1nsec, i, t2nsec)
@@ -791,11 +809,6 @@ func newTestingDevNode(t *testing.T, pkgs ...*std.MemPackage) (*Node, *mock.Serv
 	return newTestingDevNodeWithConfigAndHolder(t, cfg, holder, paths...)
 }
 
-func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig, pkgpaths ...string) (*Node, *mock.ServerEmitter) {
-	t.Helper()
-	return newTestingDevNodeWithConfigAndHolder(t, cfg, nil, pkgpaths...)
-}
-
 func newTestingDevNodeWithConfigAndHolder(t *testing.T, cfg *NodeConfig, holder *nodeHolder, pkgpaths ...string) (*Node, *mock.ServerEmitter) {
 	t.Helper()
 
@@ -824,6 +837,61 @@ func newTestingDevNodeWithConfigAndHolder(t *testing.T, cfg *NodeConfig, holder 
 	})
 
 	return node, emitter
+}
+
+// Reset must invoke NodeConfig.ResetState so every reset entry point (Ctrl+R
+// and the /reset endpoint) drops session-only state through the same hook;
+// gnodev wires it to loader.ResetTracked.
+func TestNode_Reset_InvokesResetState(t *testing.T) {
+	t.Parallel()
+
+	pkg := &std.MemPackage{
+		Name: "foo",
+		Path: "gno.land/r/dev/foo",
+		Files: []*std.MemFile{
+			{Name: "foo.gno", Body: "package foo\nfunc Render(_ string) string { return \"foo\" }\n"},
+		},
+	}
+
+	cfg, holder := newTestingNodeConfig(t, pkg)
+	var resets int
+	cfg.ResetState = func() { resets++ }
+
+	node, _ := newTestingDevNodeWithConfigAndHolder(t, cfg, holder, pkg.Path)
+
+	// The boot reset inside NewDevNode already fired the hook once.
+	require.Positive(t, resets)
+
+	before := resets
+	require.NoError(t, node.Reset(context.Background()))
+	assert.Equal(t, before+1, resets, "Reset must invoke ResetState exactly once")
+}
+
+// A configured ValidatorKey must be the node's sole validator, and must
+// survive node rebuilds instead of being replaced by a generated key.
+func TestNode_ValidatorKey(t *testing.T) {
+	t.Parallel()
+
+	valKey := ed25519.GenPrivKey()
+
+	cfg, holder := newTestingNodeConfig(t)
+	cfg.ValidatorKey = valKey
+
+	node, _ := newTestingDevNodeWithConfigAndHolder(t, cfg, holder)
+
+	requireValidator := func() {
+		t.Helper()
+
+		res, err := node.Client().Validators(context.Background(), nil)
+		require.NoError(t, err)
+		require.Len(t, res.Validators, 1)
+		require.Equal(t, valKey.PubKey(), res.Validators[0].PubKey)
+	}
+
+	requireValidator()
+
+	require.NoError(t, node.Reload(context.Background()))
+	requireValidator()
 }
 
 func newInMemorySigner(t *testing.T, chainid string) *gnoclient.SignerFromKeybase {

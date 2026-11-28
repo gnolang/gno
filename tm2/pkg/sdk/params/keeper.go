@@ -316,12 +316,12 @@ func (pk ParamsKeeper) set(ctx sdk.Context, key string, value any) int {
 
 func parsePrefix(key string) (prefix, rawKey string) {
 	// Look for the first colon.
-	colonIndex := strings.Index(key, ":")
+	before, after, ok := strings.Cut(key, ":")
 
-	if colonIndex != -1 {
+	if ok {
 		// colon found: the key has a module prefix.
-		prefix = key[:colonIndex]
-		rawKey = key[colonIndex+1:]
+		prefix = before
+		rawKey = after
 
 		return
 	}

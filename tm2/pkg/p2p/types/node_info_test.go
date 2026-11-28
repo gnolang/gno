@@ -2,6 +2,7 @@ package types
 
 import (
 	"net"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -83,6 +84,17 @@ func TestNodeInfo_Validate(t *testing.T) {
 				assert.ErrorIs(t, info.Validate(), ErrInvalidVersion)
 			})
 		}
+	})
+
+	t.Run("invalid version set", func(t *testing.T) {
+		t.Parallel()
+
+		info := &NodeInfo{
+			NetAddress: generateNetAddress(),
+			VersionSet: versionset.VersionSet{{Name: "bft", Version: strings.Repeat("x", 257)}},
+		}
+
+		assert.EqualError(t, info.Validate(), "invalid version set in node info, version set entry 0 is longer than 256 bytes")
 	})
 
 	t.Run("invalid moniker", func(t *testing.T) {

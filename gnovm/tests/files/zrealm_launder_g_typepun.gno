@@ -23,7 +23,7 @@ package launderg
 // This blocks the conversion before any method dispatch can happen.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/laundervictim"
 )
 

@@ -67,7 +67,7 @@ func newDispatchMachine(nParams int) *gno.Machine {
 // setBlockValueFromGo populates Block.Values[idx] with a TV built from a
 // reflect.Value of the desired Go type. The wrapper's reflect-based
 // Gno2GnoValue conversion will read the result.
-func setBlockValueFromGo(m *gno.Machine, idx int, v interface{}) {
+func setBlockValueFromGo(m *gno.Machine, idx int, v any) {
 	m.Blocks[0].Values[idx] = gno.Go2GnoValue(m.Alloc, m.Store, reflect.ValueOf(v))
 }
 
@@ -136,7 +136,7 @@ func BenchmarkNative_Ed25519_Verify_16384(b *testing.B) { benchEd25519Verify(b, 
 
 // ----- math.Float{32,64}{bits,frombits} -----
 
-func benchMathFlat(b *testing.B, fn gno.Name, paramVal interface{}) {
+func benchMathFlat(b *testing.B, fn gno.Name, paramVal any) {
 	b.Helper()
 	m := newDispatchMachine(1)
 	setBlockValueFromGo(m, 0, paramVal)

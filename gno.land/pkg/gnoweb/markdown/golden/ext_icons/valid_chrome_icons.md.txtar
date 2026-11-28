@@ -1,0 +1,10 @@
+-- input.md --
+Chrome: <gno-icon name="search" /> <gno-icon name="info" />
+
+Clip path dropped: <gno-icon name="folder" />
+
+Brand excluded: <gno-icon name="github" /> <gno-icon name="twitter" />
+-- output.html --
+<p>Chrome: <svg class="gno-icon" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><path d="M12.8224 13.0005L9.4137 9.53585M9.4137 9.53585C10.3363 8.59814 10.8546 7.32632 10.8546 6.00019C10.8546 4.67406 10.3363 3.40224 9.4137 2.46452C8.49112 1.5268 7.23983 1 5.9351 1C4.63038 1 3.37909 1.5268 2.45651 2.46452C1.53393 3.40224 1.01562 4.67406 1.01562 6.00019C1.01563 7.32632 1.53393 8.59814 2.45651 9.53585C3.37909 10.4736 4.63038 11.0004 5.9351 11.0004C7.23983 11.0004 8.49112 10.4736 9.4137 9.53585Z" stroke="currentColor" fill="transparent" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> <svg class="gno-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M12 6C12.8284 6 13.5 5.32843 13.5 4.5C13.5 3.67157 12.8284 3 12 3C11.1716 3 10.5 3.67157 10.5 4.5C10.5 5.32843 11.1716 6 12 6ZM9 10H11V18H9V20H15V18H13V8H9V10Z"/></svg></p>
+<p>Clip path dropped: <svg class="gno-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><g><path d="M13 14C13.5304 14 14.0391 13.7893 14.4142 13.4142C14.7893 13.0391 15 12.5304 15 12V9C15 8.46957 14.7893 7.96086 14.4142 7.58579C14.0391 7.21071 13.5304 7 13 7H3C2.46957 7 1.96086 7.21071 1.58579 7.58579C1.21071 7.96086 1 8.46957 1 9V12C1 12.5304 1.21071 13.0391 1.58579 13.4142C1.96086 13.7893 2.46957 14 3 14H13ZM1 6.764V4C1 3.46957 1.21071 2.96086 1.58579 2.58579C1.96086 2.21071 2.46957 2 3 2H6.586C6.98359 2.00017 7.36486 2.15819 7.646 2.43933L9.06067 3.85333C9.154 3.94733 9.28133 4 9.414 4H13C13.5304 4 14.0391 4.21071 14.4142 4.58579C14.7893 4.96086 15 5.46957 15 6V6.764C14.4506 6.27109 13.7381 5.99895 13 6H3C2.26186 5.99895 1.54945 6.27109 1 6.764Z" fill="currentColor"/></g></svg></p>
+<p>Brand excluded: <!-- gno-icon: unknown name "github" --> <!-- gno-icon: unknown name "twitter" --></p>

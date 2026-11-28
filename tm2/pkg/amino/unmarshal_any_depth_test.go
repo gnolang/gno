@@ -40,7 +40,7 @@ func TestUnmarshalAny2Depth_PropagatesDepth(t *testing.T) {
 		"amino.depthtest",
 		"",
 	).WithTypes(pkg.Type{
-		Type: reflect.TypeOf(depthTestHolder{}),
+		Type: reflect.TypeFor[depthTestHolder](),
 		Name: "Holder",
 	}))
 
@@ -81,7 +81,7 @@ func TestUnmarshalAny2Depth_ZeroDepthSucceeds(t *testing.T) {
 		"amino.depthtest",
 		"",
 	).WithTypes(pkg.Type{
-		Type: reflect.TypeOf(depthTestHolder{}),
+		Type: reflect.TypeFor[depthTestHolder](),
 		Name: "Holder",
 	}))
 

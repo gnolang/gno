@@ -41,6 +41,11 @@ type NodeConfig struct {
 	// (called once from Reset before any watcher event).
 	Reload func() ([]*packages.Package, error)
 
+	// ResetState, if set, is invoked at the start of Reset before Reload,
+	// so every reset entry point (Ctrl+R, /reset) returns the package set
+	// to its initial state. gnodev wires it to loader.ResetTracked.
+	ResetState func()
+
 	// DefaultCreator specifies the default address used for creating packages and transactions.
 	DefaultCreator crypto.Address
 
@@ -79,6 +84,10 @@ type NodeConfig struct {
 
 	// ChainDomain specifies the domain name associated with the blockchain network.
 	ChainDomain string
+
+	// ValidatorKey is the key the node signs blocks with, registered as the sole
+	// genesis validator. If nil, a random key is generated on every node (re)build.
+	ValidatorKey crypto.PrivKey
 }
 
 func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
@@ -86,6 +95,10 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 	tmc.Consensus.WALDisabled = true
 	tmc.Consensus.CreateEmptyBlocks = false
+	// The dev node is in-memory and single-validator, so it never peers. Disable
+	// peer exchange to avoid persisting an address book under rootdir, which fails
+	// when rootdir is read-only (e.g. `go tool gnodev` against the module cache).
+	tmc.P2P.PeerExchange = false
 
 	defaultDeployer := crypto.MustAddressFromString(integration.DefaultAccount_Address)
 	balances := []gnoland.Balance{
@@ -109,12 +122,28 @@ func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 	}
 }
 
+// devGenState returns the base genesis state for a dev node: the production
+// defaults plus this node's configured dev balances.
+//
+// run_submitters is left empty, which means the MsgRun allowlist is off and any
+// account may run code — what gnodev wants, since it exists to run arbitrary
+// local code against local packages.
+func (n *Node) devGenState() gnoland.GnoGenesisState {
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = n.config.BalancesList
+	return genesis
+}
+
 // Node is not thread safe
 type Node struct {
 	*node.Node
 	muNode sync.RWMutex
 
-	config       *NodeConfig
+	config *NodeConfig
+	// p2pListenAddr is the P2P address as configured, before Start writes
+	// the port it bound into config.TMConfig.
+	p2pListenAddr string
+
 	emitter      emitter.Emitter
 	client       client.Client
 	logger       *slog.Logger
@@ -145,6 +174,7 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig, pkgpaths ...string) (*Node
 
 	devnode := &Node{
 		config:            cfg,
+		p2pListenAddr:     cfg.TMConfig.P2P.ListenAddress,
 		emitter:           cfg.Emitter,
 		logger:            cfg.Logger,
 		startTime:         startTime,
@@ -225,16 +255,7 @@ func (n *Node) HasPackageLoaded(path string) bool {
 	return false
 }
 
-// GetBlockTransactions returns the transactions contained
-// within the specified block, if any.
-func (n *Node) GetBlockTransactions(ctx context.Context, blockNum uint64) ([]gnoland.TxWithMetadata, error) {
-	n.muNode.RLock()
-	defer n.muNode.RUnlock()
-
-	return n.getBlockTransactions(ctx, blockNum)
-}
-
-// GetBlockTransactions returns the transactions contained
+// getBlockTransactions returns the transactions contained
 // within the specified block, if any.
 func (n *Node) getBlockTransactions(ctx context.Context, blockNum uint64) ([]gnoland.TxWithMetadata, error) {
 	int64BlockNum := int64(blockNum)
@@ -289,16 +310,6 @@ func (n *Node) getBlockTransactions(ctx context.Context, blockNum uint64) ([]gno
 	return slices.Clip(metaTxs), nil
 }
 
-// GetBlockTransactions returns the transactions contained
-// within the specified block, if any.
-// GetLatestBlockNumber returns the latest block height from the chain.
-func (n *Node) GetLatestBlockNumber() (uint64, error) {
-	n.muNode.RLock()
-	defer n.muNode.RUnlock()
-
-	return n.getLatestBlockNumber(), nil
-}
-
 func (n *Node) getLatestBlockNumber() uint64 {
 	return uint64(n.Node.BlockStore().Height())
 }
@@ -312,6 +323,12 @@ func (n *Node) Reset(ctx context.Context) error {
 	// Reset starting time
 	startTime := time.Now()
 
+	// Drop any session-only state (e.g. lazily loaded packages) so the reload
+	// below rebuilds genesis from the initial package set.
+	if n.config.ResetState != nil {
+		n.config.ResetState()
+	}
+
 	// Generate a new genesis state based on the current packages
 	pkgs, err := n.config.Reload()
 	if err != nil {
@@ -323,8 +340,7 @@ func (n *Node) Reset(ctx context.Context) error {
 	pkgsTxs = append(pkgsTxs, n.bootstrapTxs(pkgs)...)
 	txs := append(pkgsTxs, n.initialState...)
 
-	genesis := gnoland.DefaultGenState()
-	genesis.Balances = n.config.BalancesList
+	genesis := n.devGenState()
 	genesis.Txs = txs
 
 	// Reset the node with the new genesis state.
@@ -359,36 +375,6 @@ func (n *Node) Reload(ctx context.Context) error {
 	defer n.muNode.Unlock()
 
 	return n.rebuildNodeFromState(ctx)
-}
-
-// SendTransaction executes a broadcast commit send
-// of the specified transaction to the chain
-func (n *Node) SendTransaction(tx *std.Tx) error {
-	n.muNode.RLock()
-	defer n.muNode.RUnlock()
-
-	aminoTx, err := amino.Marshal(tx)
-	if err != nil {
-		return fmt.Errorf("unable to marshal transaction to amino binary, %w", err)
-	}
-
-	// we use BroadcastTxCommit to ensure to have one block with the given tx
-	res, err := n.client.BroadcastTxCommit(context.Background(), aminoTx)
-	if err != nil {
-		return fmt.Errorf("unable to broadcast transaction commit: %w", err)
-	}
-
-	if res.CheckTx.Error != nil {
-		n.logger.Error("check tx error trace", "log", res.CheckTx.Log)
-		return fmt.Errorf("check transaction error: %w", res.CheckTx.Error)
-	}
-
-	if res.DeliverTx.Error != nil {
-		n.logger.Error("deliver tx error trace", "log", res.CheckTx.Log)
-		return fmt.Errorf("deliver transaction error: %w", res.DeliverTx.Error)
-	}
-
-	return nil
 }
 
 func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.TxWithMetadata, error) {
@@ -517,8 +503,7 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 			return fmt.Errorf("reload packages: %w", err)
 		}
 
-		genesis := gnoland.DefaultGenState()
-		genesis.Balances = n.config.BalancesList
+		genesis := n.devGenState()
 		genesis.Txs = append(n.generateTxs(DefaultFee, pkgs), n.bootstrapTxs(pkgs)...)
 		return n.rebuildNode(ctx, genesis)
 	}
@@ -535,8 +520,7 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	}
 
 	// Create genesis with loaded pkgs + previous state
-	genesis := gnoland.DefaultGenState()
-	genesis.Balances = n.config.BalancesList
+	genesis := n.devGenState()
 
 	// Generate txs
 	pkgsTxs := n.generateTxs(DefaultFee, pkgs)
@@ -604,8 +588,10 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 		return fmt.Errorf("unable to stop the node: %w", err)
 	}
 
-	// Setup node config
-	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, n.config.ChainDomain, genesis)
+	// Setup node config. Ask for the configured P2P address again, not the
+	// port the previous node bound, which another process may hold by now.
+	n.config.TMConfig.P2P.ListenAddress = n.p2pListenAddr
+	nodeConfig := newNodeConfig(n.config, genesis)
 	nodeConfig.GenesisTxResultHandler = n.genesisTxResultHandler
 	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).
 	nodeConfig.CacheStdlibLoad = true
@@ -695,10 +681,13 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	n.logger.LogAttrs(context.Background(), slog.LevelError, "unable to deliver tx", attrs...)
 }
 
-func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
-	// Create Mocked Identity
+func newNodeConfig(cfg *NodeConfig, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
+	// Create Mocked Identity, from the provided key if any
 	pv := bft.NewMockPV()
-	genesis := gnoland.NewDefaultGenesisConfig(chainid, chaindomain)
+	if cfg.ValidatorKey != nil {
+		pv = bft.NewMockPVWithPrivKey(cfg.ValidatorKey)
+	}
+	genesis := gnoland.NewDefaultGenesisConfig(cfg.ChainID, cfg.ChainDomain)
 	genesis.AppState = appstate
 
 	// Add self as validator
@@ -712,11 +701,10 @@ func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnol
 		},
 	}
 
-	cfg := &gnoland.InMemoryNodeConfig{
+	return &gnoland.InMemoryNodeConfig{
 		PrivValidator: pv,
-		TMConfig:      tmc,
+		TMConfig:      cfg.TMConfig,
 		Genesis:       genesis,
 		VMOutput:      os.Stdout,
 	}
-	return cfg
 }

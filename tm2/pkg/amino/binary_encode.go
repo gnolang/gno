@@ -46,7 +46,7 @@ CONTRACT: rv is valid.
 func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Value,
 	fopts FieldOptions, bare bool, options uint64,
 ) (err error) {
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		// Whether to encode nil pointers as 0x00 or not at all depend on the
 		// context, so pointers should be handled first by the caller.
 		panic("not allowed to be called with a reflect.Ptr")
@@ -386,7 +386,7 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 		for i := range rv.Len() {
 			erv := rv.Index(i)
 			// If pointer, get dereferenced element value (or zero).
-			if ert.Kind() == reflect.Ptr {
+			if ert.Kind() == reflect.Pointer {
 				if erv.IsNil() {
 					erv = reflect.New(ert.Elem()).Elem()
 				} else {
@@ -401,7 +401,7 @@ func (cdc *Codec) encodeReflectBinaryList(w io.Writer, info *TypeInfo, rv reflec
 		}
 	} else { // typ3 == Typ3ByteLength
 		// NOTE: ert is for the element value, while einfo.Type is dereferenced.
-		ertIsPointer := ert.Kind() == reflect.Ptr
+		ertIsPointer := ert.Kind() == reflect.Pointer
 		ertIsStruct := einfo.Type.Kind() == reflect.Struct
 		writeImplicit := isListType(einfo.Type) &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
@@ -523,6 +523,11 @@ func (cdc *Codec) encodeReflectBinaryStruct(w io.Writer, info *TypeInfo, rv refl
 		finfo := field.TypeInfo
 		// Get dereferenced field value and info.
 		frv := rv.Field(field.Index)
+		if field.SkipZero && frv.IsZero() {
+			// amino:"skip_zero" judges the Go value, before any repr
+			// conversion below could turn a zero value into bytes.
+			continue
+		}
 		dfrv, frvIsPtr, _ := maybeDerefValue(frv)
 		if !field.WriteEmpty && isNonstructDefaultValue(frv) {
 			// Do not encode default value fields

@@ -21,7 +21,7 @@ const benchTreeSize = 100_000
 func buildBenchTree(b *testing.B) (*MutableTree, *ImmutableTree) {
 	b.Helper()
 	tree := NewMutableTreeWithDB(memdb.NewMemDB(), 200_000, NewNopLogger())
-	for i := 0; i < benchTreeSize; i++ {
+	for i := range benchTreeSize {
 		if _, err := tree.Set(i2b(i), i2b(i)); err != nil {
 			b.Fatal(err)
 		}
@@ -100,7 +100,7 @@ func BenchmarkBlockCommit(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		for j := 0; j < keysPerBlock; j++ {
+		for range keysPerBlock {
 			k := i2b(rng.Intn(benchTreeSize))
 			if _, err := tree.Set(k, k); err != nil {
 				b.Fatal(err)

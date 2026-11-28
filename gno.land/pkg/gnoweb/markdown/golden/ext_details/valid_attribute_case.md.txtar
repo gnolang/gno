@@ -1,0 +1,11 @@
+-- input.md --
+<gno-details SUMMARY="A" Open>
+body
+</gno-details>
+-- output.html --
+<details class="gno-details" open>
+<summary><svg><use href="#ico-arrow"></use></svg><span>A</span></summary>
+<div>
+<p>body</p>
+</div>
+</details>

@@ -21,7 +21,7 @@ import (
 // from `mask` set (LSB = index 0).
 func mustBitArray(size int, mask uint64) *bitarray.BitArray {
 	ba := bitarray.NewBitArray(size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		if mask&(1<<uint(i)) != 0 {
 			ba.SetIndex(i, true)
 		}
@@ -139,7 +139,6 @@ func TestCodecParity_Consensus(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		c := c
 		t.Run(fmt.Sprintf("%d/%s", i, c.name), func(t *testing.T) {
 			t.Parallel()
 			aminotest.AssertCodecParity(t, cdc, c.v)

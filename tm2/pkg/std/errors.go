@@ -32,11 +32,15 @@ type (
 	NoSignaturesError       struct{ abciError }
 	GasOverflowError        struct{ abciError }
 	RestrictedTransferError struct{ abciError }
+	QueryTimeoutError       struct{ abciError }
 
 	SessionExpiredError    struct{ abciError }
 	SessionNotFoundError   struct{ abciError }
 	SessionLimitError      struct{ abciError }
 	SessionNotAllowedError struct{ abciError }
+
+	InvalidVestingScheduleError struct{ abciError }
+	VestingLockedCoinsError     struct{ abciError }
 )
 
 func (e InternalError) Error() string           { return "internal error" }
@@ -58,6 +62,7 @@ func (e TooManySignaturesError) Error() string  { return "too many signatures er
 func (e NoSignaturesError) Error() string       { return "no signatures error" }
 func (e GasOverflowError) Error() string        { return "gas overflow error" }
 func (e RestrictedTransferError) Error() string { return "restricted token transfer error" }
+func (e QueryTimeoutError) Error() string       { return "query timeout" }
 func (e SessionExpiredError) Error() string     { return "session expired error" }
 func (e SessionNotFoundError) Error() string    { return "session not found error" }
 func (e SessionLimitError) Error() string       { return "session limit error" }
@@ -117,6 +122,13 @@ func ErrOutOfGas(msg string) error {
 	return errors.Wrap(OutOfGasError{}, msg)
 }
 
+// ErrQueryTimeout reports a query the node stopped at its wall-clock timeout.
+// The work is not wrong, it ran longer than the node allows, so the same
+// request stops again: retrying does not help.
+func ErrQueryTimeout(msg string) error {
+	return errors.Wrap(QueryTimeoutError{}, msg)
+}
+
 func ErrMemoTooLarge(msg string) error {
 	return errors.Wrap(MemoTooLargeError{}, msg)
 }
@@ -151,4 +163,17 @@ func ErrSessionLimit(msg string) error {
 
 func ErrSessionNotAllowed(msg string) error {
 	return errors.Wrap(SessionNotAllowedError{}, msg)
+}
+
+// Vesting errors.
+
+func (e InvalidVestingScheduleError) Error() string { return "invalid vesting schedule error" }
+func (e VestingLockedCoinsError) Error() string     { return "vesting locked coins error" }
+
+func ErrInvalidVestingSchedule(msg string) error {
+	return errors.Wrap(InvalidVestingScheduleError{}, msg)
+}
+
+func ErrVestingLockedCoins(msg string) error {
+	return errors.Wrap(VestingLockedCoinsError{}, msg)
 }

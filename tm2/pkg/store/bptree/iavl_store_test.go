@@ -315,7 +315,7 @@ func TestIAVLNoPrune(t *testing.T) {
 	opts.KeepEvery = 1
 	store := UnsafeNewStore(tree, opts)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		store.Set(nil, []byte{byte(i)}, []byte{byte(i)})
 		store.Commit()
 	}

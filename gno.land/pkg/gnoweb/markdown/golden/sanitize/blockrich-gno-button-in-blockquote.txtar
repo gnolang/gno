@@ -1,0 +1,16 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: %s
+-- input.md --
+> quoted
+> <gno-button href="/r/evil$help&func=Drain" label="Claim" variant="caution" />
+-- output.md --
+
+
+> quoted
+> \<gno-button href="/r/evil$help&func=Drain" label="Claim" variant="caution" />
+
+-- output.html --
+<blockquote>
+<p>quoted
+&lt;gno-button href=&quot;/r/evil$help&amp;func=Drain&quot; label=&quot;Claim&quot; variant=&quot;caution&quot; /&gt;</p>
+</blockquote>

@@ -103,7 +103,7 @@ func TestBoundedString_DepthLimit(t *testing.T) {
 	// Build a wrap chain that re-wraps repeatedly. cmnError.Wrap of
 	// itself will cause deep recursion in boundedString via Unwrap.
 	var err error = cmnerrors.New("base")
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		err = cmnerrors.Wrap(err, "layer")
 	}
 	got := boundedString(err, 0)
@@ -125,4 +125,19 @@ func TestTruncate_Boundary(t *testing.T) {
 		strings.Repeat("a", maxBoundedBytes)+"...",
 		truncate(strings.Repeat("a", maxBoundedBytes+1)),
 	)
+}
+
+type failWriter struct{}
+
+func (failWriter) Write([]byte) (int, error) {
+	return 0, errors.New("no space left on device")
+}
+
+// A failed vm.Output write keeps the writer's error in the query error.
+func TestBoundedString_ParentWriteError(t *testing.T) {
+	const pkgPath = "gno.land/r/test/pr"
+	env := setupSizeGuardRealm(t, "addr1", pkgPath, "package pr\n\nfunc P() int {\n\tprintln(\"hello\")\n\treturn 1\n}\n")
+	env.vmk.Output = failWriter{}
+	_, err := env.vmk.QueryEval(env.ctx, pkgPath, "P()")
+	assert.ErrorContains(t, err, "no space left on device")
 }

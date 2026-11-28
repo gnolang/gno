@@ -26,8 +26,8 @@ func TestZeroValue(t *testing.T) {
 	if tree.Has("x") {
 		t.Error("Expected Has to return false on zero-value tree")
 	}
-	if _, ok := tree.Get("x"); ok {
-		t.Error("Expected Get to return false on zero-value tree")
+	if v := tree.Get("x"); v != nil {
+		t.Errorf("Expected Get to return nil on zero-value tree, got %v", v)
 	}
 	if _, ok := tree.Remove("x"); ok {
 		t.Error("Expected Remove to return false on zero-value tree")
@@ -40,8 +40,8 @@ func TestZeroValue(t *testing.T) {
 	if tree.Size() != 1 {
 		t.Errorf("Expected size 1, got %d", tree.Size())
 	}
-	if v, ok := tree.Get("a"); !ok || v != 1 {
-		t.Errorf("Expected Get(a) = (1, true), got (%v, %v)", v, ok)
+	if v := tree.Get("a"); v != 1 {
+		t.Errorf("Expected Get(a) = 1, got %v", v)
 	}
 }
 
@@ -54,14 +54,12 @@ func TestSetAndGet(t *testing.T) {
 		t.Errorf("Expected size 2, got %d", tree.Size())
 	}
 
-	v, ok := tree.Get("key1")
-	if !ok || v != "value1" {
-		t.Errorf("Expected (value1, true), got (%v, %v)", v, ok)
+	if v := tree.Get("key1"); v != "value1" {
+		t.Errorf("Expected value1, got %v", v)
 	}
 
-	_, ok = tree.Get("missing")
-	if ok {
-		t.Error("Expected Get to return false for missing key")
+	if v := tree.Get("missing"); v != nil {
+		t.Errorf("Expected Get to return nil for missing key, got %v", v)
 	}
 }
 
@@ -76,7 +74,7 @@ func TestSetUpdate(t *testing.T) {
 	if tree.Size() != 1 {
 		t.Errorf("Expected size 1 after update, got %d", tree.Size())
 	}
-	if v, _ := tree.Get("k"); v != "v2" {
+	if v := tree.Get("k"); v != "v2" {
 		t.Errorf("Expected v2, got %v", v)
 	}
 }
@@ -127,25 +125,23 @@ func TestRemoveLastKey(t *testing.T) {
 	if tree.Size() != 1 {
 		t.Errorf("Expected size 1, got %d", tree.Size())
 	}
-	if v, ok := tree.Get("b"); !ok || v != 2 {
-		t.Errorf("Expected (2, true), got (%v, %v)", v, ok)
+	if v := tree.Get("b"); v != 2 {
+		t.Errorf("Expected 2, got %v", v)
 	}
 }
 
 func TestNilValue(t *testing.T) {
 	tree := NewBPTreeN(4)
 	tree.Set("k", nil)
+	// Has distinguishes a nil-valued entry from a missing key (Get returns
+	// nil for both cases, by design).
 	if !tree.Has("k") {
 		t.Error("Expected Has(k) = true for nil-valued entry")
 	}
-	v, ok := tree.Get("k")
-	if !ok {
-		t.Error("Expected key to exist")
-	}
-	if v != nil {
+	if v := tree.Get("k"); v != nil {
 		t.Errorf("Expected nil value, got %v", v)
 	}
-	v, ok = tree.Remove("k")
+	v, ok := tree.Remove("k")
 	if !ok {
 		t.Error("Expected remove to succeed")
 	}
@@ -163,8 +159,8 @@ func TestEmptyStringKey(t *testing.T) {
 	if !tree.Has("") {
 		t.Error("Expected Has('') = true for empty string key")
 	}
-	if v, ok := tree.Get(""); !ok || v != "empty" {
-		t.Errorf("Expected (empty, true), got (%v, %v)", v, ok)
+	if v := tree.Get(""); v != "empty" {
+		t.Errorf("Expected empty, got %v", v)
 	}
 	if tree.Size() != 3 {
 		t.Errorf("Expected size 3, got %d", tree.Size())
@@ -183,15 +179,11 @@ func TestEmptyStringKey(t *testing.T) {
 	}
 }
 
-func TestGetMissingReturnsNilFalse(t *testing.T) {
+func TestGetMissingReturnsNil(t *testing.T) {
 	tree := NewBPTreeN(4)
 	tree.Set("a", 1)
-	v, ok := tree.Get("missing")
-	if v != nil {
+	if v := tree.Get("missing"); v != nil {
 		t.Errorf("Expected nil value for missing key, got %v", v)
-	}
-	if ok {
-		t.Error("Expected false for missing key")
 	}
 }
 
@@ -962,11 +954,10 @@ func TestValueIndirection(t *testing.T) {
 
 	// Nil value through *any.
 	tree.Set("nil", nil)
-	v, ok := tree.Get("nil")
-	if !ok {
+	if !tree.Has("nil") {
 		t.Error("Expected key 'nil' to exist")
 	}
-	if v != nil {
+	if v := tree.Get("nil"); v != nil {
 		t.Errorf("Expected nil value, got %v", v)
 	}
 
@@ -975,24 +966,24 @@ func TestValueIndirection(t *testing.T) {
 	tree.Set("str", "hello")
 	tree.Set("slice", []byte{1, 2, 3})
 
-	if v, _ := tree.Get("int"); v != 42 {
+	if v := tree.Get("int"); v != 42 {
 		t.Errorf("Expected 42, got %v", v)
 	}
-	if v, _ := tree.Get("str"); v != "hello" {
+	if v := tree.Get("str"); v != "hello" {
 		t.Errorf("Expected hello, got %v", v)
 	}
-	if v, _ := tree.Get("slice"); len(v.([]byte)) != 3 {
+	if v := tree.Get("slice"); len(v.([]byte)) != 3 {
 		t.Errorf("Expected 3-byte slice, got %v", v)
 	}
 
 	// Update value in place (should reuse the *any pointer).
 	tree.Set("int", 99)
-	if v, _ := tree.Get("int"); v != 99 {
+	if v := tree.Get("int"); v != 99 {
 		t.Errorf("Expected 99 after update, got %v", v)
 	}
 
 	// Remove nil value.
-	v, ok = tree.Remove("nil")
+	v, ok := tree.Remove("nil")
 	if !ok || v != nil {
 		t.Errorf("Remove nil: got (%v, %v), want (nil, true)", v, ok)
 	}
@@ -1017,8 +1008,8 @@ func TestValueIndirection(t *testing.T) {
 
 	// Verify large values round-trip correctly.
 	for i := 0; i < 10; i++ {
-		v, ok := tree.Get(intToKey(i))
-		if !ok {
+		v := tree.Get(intToKey(i))
+		if v == nil {
 			t.Errorf("Missing key %s", intToKey(i))
 			continue
 		}
@@ -1397,13 +1388,11 @@ func TestPortedTreeHas(t *testing.T) {
 func TestPortedTreeGet(t *testing.T) {
 	tree := NewBPTree32()
 	tree.Set("key1", "value1")
-	value, exists := tree.Get("key1")
-	if !exists || value != "value1" {
-		t.Error("Expected Get to return value1 and true")
+	if value := tree.Get("key1"); value != "value1" {
+		t.Error("Expected Get to return value1")
 	}
-	_, exists = tree.Get("key2")
-	if exists {
-		t.Error("Expected Get to return false for non-existent key")
+	if value := tree.Get("key2"); value != nil {
+		t.Error("Expected Get to return nil for non-existent key")
 	}
 }
 
@@ -1929,13 +1918,13 @@ func TestValueMutationIndependence(t *testing.T) {
 	tree.Set("k", orig)
 
 	// Get the value and mutate it.
-	v, _ := tree.Get("k")
+	v := tree.Get("k")
 	got := v.([]int)
 	got[0] = 999
 
 	// The tree's stored value should also be affected (since slices are reference types
 	// and *any holds the same interface). This is the expected Go behavior — not a copy.
-	v2, _ := tree.Get("k")
+	v2 := tree.Get("k")
 	got2 := v2.([]int)
 	if got2[0] != 999 {
 		t.Errorf("Expected slice mutation to be visible (reference semantics), got %v", got2)
@@ -1943,7 +1932,7 @@ func TestValueMutationIndependence(t *testing.T) {
 
 	// But replacing the value via Set should not affect previous Get results.
 	tree.Set("k", []int{10, 20, 30})
-	v3, _ := tree.Get("k")
+	v3 := tree.Get("k")
 	got3 := v3.([]int)
 	if got3[0] != 10 {
 		t.Errorf("Expected new value after Set, got %v", got3)
@@ -2110,8 +2099,8 @@ func TestEmptyStringSeparator(t *testing.T) {
 	verifyInvariants(t, tree)
 
 	// Verify all keys accessible.
-	if v, ok := tree.Get(""); !ok || v != "empty" {
-		t.Errorf("Get('')=(%v,%v), want (empty,true)", v, ok)
+	if v := tree.Get(""); v != "empty" {
+		t.Errorf("Get('')=%v, want empty", v)
 	}
 	for _, k := range []string{"a", "b", "c", "d"} {
 		if !tree.Has(k) {
@@ -2182,8 +2171,8 @@ func TestPointerIndependenceAfterSplit(t *testing.T) {
 	tree.Set("e", "val_e") // triggers split
 
 	// Get values from both halves of the split.
-	vLeft, _ := tree.Get("a")
-	vRight, _ := tree.Get("d")
+	vLeft := tree.Get("a")
+	vRight := tree.Get("d")
 
 	if vLeft != "val_a" {
 		t.Errorf("left value: got %v, want val_a", vLeft)
@@ -2194,8 +2183,8 @@ func TestPointerIndependenceAfterSplit(t *testing.T) {
 
 	// Update a value in the left half — should not affect right half.
 	tree.Set("a", "new_a")
-	vLeft2, _ := tree.Get("a")
-	vRight2, _ := tree.Get("d")
+	vLeft2 := tree.Get("a")
+	vRight2 := tree.Get("d")
 	if vLeft2 != "new_a" {
 		t.Errorf("updated left: got %v, want new_a", vLeft2)
 	}
@@ -2205,8 +2194,8 @@ func TestPointerIndependenceAfterSplit(t *testing.T) {
 
 	// Update a value in the right half — should not affect left half.
 	tree.Set("d", "new_d")
-	vLeft3, _ := tree.Get("a")
-	vRight3, _ := tree.Get("d")
+	vLeft3 := tree.Get("a")
+	vRight3 := tree.Get("d")
 	if vLeft3 != "new_a" {
 		t.Errorf("left should be unchanged: got %v, want new_a", vLeft3)
 	}
@@ -2329,10 +2318,12 @@ func TestAVLCrossValidation(t *testing.T) {
 				t.Fatalf("op %d: Remove(%q) value avl=%v bpt=%v", i, key, aVal, bVal)
 			}
 		case 2: // Get
-			aVal, aOk := at.Get(key)
-			bVal, bOk := bt.Get(key)
+			aVal := at.Get(key)
+			aOk := at.Has(key)
+			bVal := bt.Get(key)
+			bOk := bt.Has(key)
 			if aOk != bOk {
-				t.Fatalf("op %d: Get(%q) avl=%v bpt=%v", i, key, aOk, bOk)
+				t.Fatalf("op %d: exists avl=%v bpt=%v", i, aOk, bOk)
 			}
 			if aOk && aVal != bVal {
 				t.Fatalf("op %d: Get(%q) value avl=%v bpt=%v", i, key, aVal, bVal)

@@ -372,7 +372,7 @@ func (a *SimpleAddress) UnmarshalAmino(repr string) error {
 	if len(repr) != 40 {
 		return fmt.Errorf("invalid SimpleAddress length: %d", len(repr))
 	}
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		var b byte
 		if _, err := fmt.Sscanf(repr[i*2:i*2+2], "%02x", &b); err != nil {
 			return err
@@ -583,8 +583,7 @@ var StructTypes = []any{
 	(*AminoMarshalerInt5)(nil),
 	(*AminoMarshalerStruct6)(nil),
 	(*AminoMarshalerStruct7)(nil),
-	// GnoVM-inspired condensed types (no genproto pbbindings,
-	// but tested by genproto2 via PBMessager2).
+	// GnoVM-inspired condensed types, tested by genproto2 via PBMessager2.
 	(*FuzzStructInfo)(nil),
 	(*FuzzBlock)(nil),
 	(*FuzzDeepNest)(nil),
@@ -592,6 +591,11 @@ var StructTypes = []any{
 	(*FuzzUnsafeFloat)(nil),
 	(*FuzzFixedInt)(nil),
 	(*FuzzContainsAminoMarshaler)(nil),
+	// amino:"skip_zero" types.
+	(*FuzzSkipZero)(nil),
+	(*SkipZeroInterface)(nil),
+	(*SkipZeroHolder)(nil),
+	(*SkipZeroElems)(nil),
 	// AminoMarshaler list element types (slice/array of AminoMarshaler with
 	// various repr kinds). Exercises gen_marshal/gen_unmarshal/gen_size fixes.
 	(*ContainerWithAminoLists)(nil),

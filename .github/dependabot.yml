@@ -5,8 +5,7 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-    labels:
-      - "dependencies"
+    labels: []
     groups:
       actions:
         patterns:
@@ -20,8 +19,7 @@ updates:
     target-branch: "master"
     schedule:
       interval: weekly
-    labels:
-      - "dependencies"
+    labels: []
     groups:
       golang-x:
         patterns:

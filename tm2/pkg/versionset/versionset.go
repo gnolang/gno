@@ -50,22 +50,47 @@ func (pvs VersionSet) Get(name string) (pv VersionInfo, ok bool) {
 	return
 }
 
+const (
+	// maxVersionSetLen bounds the entries of a VersionSet. A node's set names a
+	// handful of protocol components.
+	maxVersionSetLen = 16
+
+	// maxVersionInfoLen bounds an entry's name and its version, in bytes.
+	maxVersionInfoLen = 256
+)
+
+// Validate returns an error if pvs holds more than maxVersionSetLen entries,
+// or an entry whose name or version is longer than maxVersionInfoLen bytes.
+// The error names no entry, since pvs can come from a peer.
+func (pvs VersionSet) Validate() error {
+	if len(pvs) > maxVersionSetLen {
+		return fmt.Errorf("version set has %d entries, more than %d", len(pvs), maxVersionSetLen)
+	}
+
+	for i, pv := range pvs {
+		if len(pv.Name) > maxVersionInfoLen || len(pv.Version) > maxVersionInfoLen {
+			return fmt.Errorf("version set entry %d is longer than %d bytes", i, maxVersionInfoLen)
+		}
+	}
+
+	return nil
+}
+
 // Returns an error if not compatible.
 // Otherwise, returns the set of compatible interfaces.
 // Only the Major and Minor versions are returned; Patch, Prerelease, and Build
 // portions of Semver2.0 are discarded in the resulting intersection
-// VersionSet.
-// TODO: test
+// VersionSet. Where both sides carry an entry, the lower of the two
+// major.minors is the negotiated one. The error quotes entries of both sets,
+// so a set from a peer must pass Validate first, as NodeInfo.Validate does.
 func (pvs VersionSet) CompatibleWith(other VersionSet) (res VersionSet, err error) {
 	var errs []string
 	type pvpair [2]*VersionInfo
 	name2Pair := map[string]*pvpair{}
 	for _, pv := range pvs {
-		pv := pv
 		name2Pair[pv.Name] = &pvpair{&pv, nil}
 	}
 	for _, pv := range other {
-		pv := pv
 		item, ok := name2Pair[pv.Name]
 		if ok {
 			item[1] = &pv
@@ -91,11 +116,16 @@ func (pvs VersionSet) CompatibleWith(other VersionSet) (res VersionSet, err erro
 			pv1mm := semver.MajorMinor(pv1.Version)
 			pv2mm := semver.MajorMinor(pv2.Version)
 			if semver.Major(pv1mm) == semver.Major(pv2mm) {
-				if semver.Compare(semver.Major(pv1mm), semver.Major(pv2mm)) > 0 {
-					res = append(res, VersionInfo{Name: pv1.Name, Version: pv2mm, Optional: pv1.Optional && pv2.Optional})
-				} else {
-					res = append(res, VersionInfo{Name: pv1.Name, Version: pv1mm, Optional: pv1.Optional && pv2.Optional})
+				// Compatibility is decided on the major above; the negotiated
+				// version is the lower minor, since neither side can be assumed
+				// to speak the other's additions. Comparing the majors here
+				// instead — as this did — asks a question the branch has
+				// already answered, so the result was always our own minor.
+				negotiated := pv1mm
+				if semver.Compare(pv1mm, pv2mm) > 0 {
+					negotiated = pv2mm
 				}
+				res = append(res, VersionInfo{Name: pv1.Name, Version: negotiated, Optional: pv1.Optional && pv2.Optional})
 			} else {
 				errs = append(errs, fmt.Sprintf("VersionInfos not compatible: %v vs %v", pv1, pv2))
 			}

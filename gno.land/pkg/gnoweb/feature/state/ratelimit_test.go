@@ -20,7 +20,7 @@ func TestRateLimitAllowsBurst(t *testing.T) {
 		Burst:     100,
 		NowFunc:   func() time.Time { return now },
 	})
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		if !l.Allow("1.2.3.4") {
 			t.Fatalf("request %d: expected allowed, got rejected", i+1)
 		}
@@ -34,7 +34,7 @@ func TestRateLimitRejectsOverLimit(t *testing.T) {
 		Burst:     100,
 		NowFunc:   func() time.Time { return now },
 	})
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		if !l.Allow("1.2.3.4") {
 			t.Fatalf("warmup %d: unexpected reject", i+1)
 		}
@@ -51,7 +51,7 @@ func TestRateLimitRefillsOverTime(t *testing.T) {
 		Burst:     100,
 		NowFunc:   func() time.Time { return current },
 	})
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		if !l.Allow("1.2.3.4") {
 			t.Fatalf("warmup %d: unexpected reject", i+1)
 		}
@@ -60,7 +60,7 @@ func TestRateLimitRefillsOverTime(t *testing.T) {
 		t.Fatal("expected reject immediately after burst")
 	}
 	current = current.Add(60 * time.Second)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		if !l.Allow("1.2.3.4") {
 			t.Fatalf("after refill, request %d: unexpected reject", i+1)
 		}
@@ -183,5 +183,35 @@ func TestRateLimitDisabledWhenPerMinuteZero(t *testing.T) {
 	l := NewIPLimiter(RateLimitConfig{PerMinute: 0})
 	if l != nil {
 		t.Fatalf("expected nil limiter when PerMinute <= 0, got %v", l)
+	}
+}
+
+// AllowRequest must apply the limiter's own trusted-proxy list: behind a
+// proxy every request shares its RemoteAddr, so without it all clients
+// drain one bucket.
+func TestAllowRequestBucketsByRealIPBehindTrustedProxy(t *testing.T) {
+	now := time.Unix(0, 0)
+	l := newTestLimiter(RateLimitConfig{
+		PerMinute:      1,
+		Burst:          1,
+		NowFunc:        func() time.Time { return now },
+		TrustedProxies: mustCIDRs(t, "10.0.0.0/8"),
+	})
+
+	req := func(realIP string) *http.Request {
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.RemoteAddr = "10.0.0.1:5555"
+		r.Header.Set("X-Real-IP", realIP)
+		return r
+	}
+
+	if !l.AllowRequest(req("1.1.1.1")) {
+		t.Fatal("first client: rejected, want allowed")
+	}
+	if !l.AllowRequest(req("2.2.2.2")) {
+		t.Fatal("second client behind the same proxy: rejected — it shared the first client's bucket")
+	}
+	if l.AllowRequest(req("1.1.1.1")) {
+		t.Fatal("first client again: allowed, want its own bucket drained")
 	}
 }

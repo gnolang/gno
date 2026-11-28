@@ -1,0 +1,36 @@
+-- input.md --
+<gno-details summary="L1">
+<gno-details summary="L2">
+<gno-details summary="L3">
+<gno-details summary="L4">
+<gno-details summary="L5">
+body
+</gno-details>
+</gno-details>
+</gno-details>
+</gno-details>
+</gno-details>
+-- output.html --
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>L1</span></summary>
+<div>
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>L2</span></summary>
+<div>
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>L3</span></summary>
+<div>
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>L4</span></summary>
+<div>
+<!-- unexpected/invalid details tag omitted -->
+<p>body</p>
+<!-- unexpected/invalid details tag omitted -->
+</div>
+</details>
+</div>
+</details>
+</div>
+</details>
+</div>
+</details>

@@ -1,4 +1,4 @@
-package mapdelete
+package map_delete
 
 import "testing"
 

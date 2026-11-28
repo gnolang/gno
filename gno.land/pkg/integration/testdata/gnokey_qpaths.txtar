@@ -1,17 +1,18 @@
 # aaa namespace
-loadpkg gno.land/r/aaa/bbb/ccc $WORK
-loadpkg gno.land/r/aaa/ccc/ddd $WORK
-loadpkg gno.land/r/aaa $WORK
+loadpkg gno.land/r/aaa/bbb/ccc $WORK/ccc
+loadpkg gno.land/r/aaa/ccc/ddd $WORK/ddd
+loadpkg gno.land/r/aaa $WORK/aaa
 
 # bbb namespace
-loadpkg gno.land/r/bbb/ccc $WORK
-loadpkg gno.land/p/bbb/ccc/ppp $WORK
-loadpkg gno.land/r/bbb/aaa $WORK
-loadpkg gno.land/r/bbb0 $WORK
+loadpkg gno.land/r/bbb/ccc $WORK/ccc
+loadpkg gno.land/p/bbb/ccc/ppp $WORK/ppp
+loadpkg gno.land/r/bbb/aaa $WORK/aaa
+loadpkg gno.land/r/bbb0 $WORK/bbb0
 
-# foo-bar namespace (hyphenated)
-loadpkg gno.land/r/foo-bar/baz $WORK
-loadpkg gno.land/p/foo-bar/pkg $WORK
+# foo-bar namespace (hyphenated; hyphens are allowed in intermediate path
+# elements, only the last element must match the package name)
+loadpkg gno.land/r/foo-bar/baz $WORK/baz
+loadpkg gno.land/p/foo-bar/pkg $WORK/pkg
 
 gnoland start
 
@@ -50,9 +51,11 @@ gnokey query vm/qpaths?limit=5 --data "_"
 cmp stdout stdlibs-qpaths.stdout.golden
 cmp stderr empty_file
 
+
 gnokey query vm/qpaths --data "_/encoding"
 cmp stdout stdlibs-encoding-qpaths.stdout.golden
 cmp stderr empty_file
+
 
 gnokey query vm/qpaths?limit=5 --data ""
 cmp stdout empty-qpaths.stdout.golden
@@ -67,10 +70,41 @@ gnokey query vm/qpaths --data "@foo-bar/baz"
 cmp stdout foo-bar-name-subpath-qpaths.stdout.golden
 cmp stderr empty_file
 
--- main.gno --
-package main
+-- aaa/aaa.gno --
+package aaa
 
-func main() { println("A") }
+func Hello() { println("AAA") }
+
+-- ccc/ccc.gno --
+package ccc
+
+func Hello() { println("CCC") }
+
+-- ddd/ddd.gno --
+package ddd
+
+func Hello() { println("DDD") }
+
+-- ppp/ppp.gno --
+package ppp
+
+func Hello() { println("PPP") }
+
+-- bbb0/bbb0.gno --
+package bbb0
+
+func Hello() { println("BBB0") }
+
+-- baz/baz.gno --
+package baz
+
+func Hello() { println("BAZ") }
+
+-- pkg/pkg.gno --
+package pkg
+
+func Hello() { println("PKG") }
+
 -- aaa-qpaths.stdout.golden --
 height: 0
 data: gno.land/r/aaa

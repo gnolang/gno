@@ -1,0 +1,27 @@
+-- input.md --
+<gno-frame>
+<gno-details summary="Unclosed">
+before
+<gno-columns>
+## a
+x
+</gno-columns>
+after
+</gno-frame>
+-- output.html --
+<section class="gno-frame">
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>Unclosed</span></summary>
+<div>
+<p>before</p>
+</div>
+</details>
+<div class="gno-columns">
+<!-- Column 0 -->
+<div class="gno-column">
+<h2>a</h2>
+<p>x</p>
+</div>
+</div> <!-- </gno-columns> -->
+<p>after</p>
+</section>

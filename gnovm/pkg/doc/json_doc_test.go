@@ -3,8 +3,10 @@ package doc
 import (
 	"path/filepath"
 	"testing"
+	"unsafe"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,6 +32,8 @@ func TestJSONDocumentation(t *testing.T) {
 						Type: "",
 					},
 				},
+				File: "hello.gno",
+				Line: 67,
 			},
 			{
 				Signature: "var (\n\tpvString  = \"private string\" // A private var\n\tPubString = \"public string\"\n)",
@@ -47,6 +51,8 @@ func TestJSONDocumentation(t *testing.T) {
 						Type: "",
 					},
 				},
+				File: "hello.gno",
+				Line: 62,
 			},
 			{
 				Signature: "var counter int = 42",
@@ -59,6 +65,8 @@ func TestJSONDocumentation(t *testing.T) {
 						Type: "int",
 					},
 				},
+				File: "hello.gno",
+				Line: 59,
 			},
 			{
 				Signature: "var myStructInst = myStruct{a: 1000}",
@@ -71,6 +79,8 @@ func TestJSONDocumentation(t *testing.T) {
 						Type: "",
 					},
 				},
+				File: "hello.gno",
+				Line: 15,
 			},
 			{
 				Signature: "var sl = []int{1, 2, 3, 4, 5}",
@@ -83,6 +93,8 @@ func TestJSONDocumentation(t *testing.T) {
 						Type: "",
 					},
 				},
+				File: "hello.gno",
+				Line: 5,
 			},
 			{
 				Signature: "const myStructConst *myStruct = &myStruct{a: 1000}",
@@ -95,6 +107,8 @@ func TestJSONDocumentation(t *testing.T) {
 						Type: "*myStruct",
 					},
 				},
+				File: "hello.gno",
+				Line: 21,
 			},
 			{
 				Signature: "var myStructPtr *myStruct",
@@ -107,6 +121,8 @@ func TestJSONDocumentation(t *testing.T) {
 						Type: "*myStruct",
 					},
 				},
+				File: "hello.gno",
+				Line: 18,
 			},
 		},
 		Funcs: []*JSONFunc{
@@ -121,6 +137,8 @@ func TestJSONDocumentation(t *testing.T) {
 				Results: []*JSONField{
 					{Name: "res", Type: "string"},
 				},
+				File: "hello.gno",
+				Line: 69,
 			},
 			{
 				Type:      "",
@@ -131,6 +149,8 @@ func TestJSONDocumentation(t *testing.T) {
 				Results: []*JSONField{
 					{Name: "", Type: "int"},
 				},
+				File: "hello.gno",
+				Line: 70,
 			},
 			{
 				Type:      "",
@@ -144,6 +164,8 @@ func TestJSONDocumentation(t *testing.T) {
 				Results: []*JSONField{
 					{Name: "", Type: "int"},
 				},
+				File: "hello.gno",
+				Line: 71,
 			},
 			{
 				Type:      "",
@@ -152,6 +174,8 @@ func TestJSONDocumentation(t *testing.T) {
 				Doc:       "Panic is a func for testing\n",
 				Params:    []*JSONField{},
 				Results:   []*JSONField{},
+				File:      "hello.gno",
+				Line:      48,
 			},
 			{
 				Type:      "",
@@ -162,6 +186,8 @@ func TestJSONDocumentation(t *testing.T) {
 				Results: []*JSONField{
 					{Name: "", Type: "func(string) string"},
 				},
+				File: "hello.gno",
+				Line: 7,
 			},
 			{
 				Type:      "",
@@ -174,6 +200,8 @@ func TestJSONDocumentation(t *testing.T) {
 				Results: []*JSONField{
 					{Name: "", Type: "string"},
 				},
+				File: "hello.gno",
+				Line: 72,
 			},
 			{
 				Type:      "myStruct",
@@ -184,6 +212,8 @@ func TestJSONDocumentation(t *testing.T) {
 				Results: []*JSONField{
 					{Name: "", Type: "string"},
 				},
+				File: "hello.gno",
+				Line: 24,
 			},
 		},
 		Types: []*JSONType{
@@ -193,24 +223,32 @@ func TestJSONDocumentation(t *testing.T) {
 				Doc:   "Test type aliases\n",
 				Alias: true,
 				Kind:  "ident",
+				File:  "hello.gno",
+				Line:  27,
 			},
 			{
 				Name: "myArrayType",
 				Type: "[5]int",
 				Doc:  "Test array type\n",
 				Kind: "array",
+				File: "hello.gno",
+				Line: 30,
 			},
 			{
 				Name: "myChanType",
 				Type: "chan int",
 				Doc:  "Test chan type\n",
 				Kind: "chan",
+				File: "hello.gno",
+				Line: 39,
 			},
 			{
 				Name: "myFuncType",
 				Type: "func(int) string",
 				Doc:  "Test func type\n",
 				Kind: "func",
+				File: "hello.gno",
+				Line: 42,
 			},
 			{
 				Name: "myInterface",
@@ -234,24 +272,32 @@ func TestJSONDocumentation(t *testing.T) {
 						},
 					},
 				},
+				File: "hello.gno",
+				Line: 53,
 			},
 			{
 				Name: "myMapType",
 				Type: "map[string]int",
 				Doc:  "Test map type\n",
 				Kind: "map",
+				File: "hello.gno",
+				Line: 36,
 			},
 			{
 				Name: "myPointerType",
 				Type: "*myStruct",
 				Doc:  "Test pointer type\n",
 				Kind: "pointer",
+				File: "hello.gno",
+				Line: 45,
 			},
 			{
 				Name: "mySliceType",
 				Type: "[]int",
 				Doc:  "Test slice type\n",
 				Kind: "slice",
+				File: "hello.gno",
+				Line: 33,
 			},
 			{
 				Name: "myStruct",
@@ -261,6 +307,8 @@ func TestJSONDocumentation(t *testing.T) {
 				Fields: []*JSONField{
 					{Name: "a", Type: "int", Doc: "// a is a field\n// a comment\n"},
 				},
+				File: "hello.gno",
+				Line: 10,
 			},
 		},
 	}
@@ -274,4 +322,62 @@ func TestJSONDocumentation(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, expected.JSON(), jdoc.JSON())
+}
+
+func TestJSONDocumentation_Imports(t *testing.T) {
+	mpkg := &std.MemPackage{
+		Name: "foo",
+		Path: "gno.land/p/demo/foo",
+		Files: []*std.MemFile{
+			{Name: "a.gno", Body: "package foo\nimport (\n\t\"strings\"\n\t\"gno.land/p/demo/avl\"\n)\n"},
+			{Name: "b.gno", Body: "package foo\nimport \"strings\"\n"},      // duplicate import path
+			{Name: "a_test.gno", Body: "package foo\nimport \"testing\"\n"}, // test-only, excluded
+		},
+	}
+	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
+	require.NoError(t, err)
+	jdoc, err := d.WriteJSONDocumentation(nil)
+	require.NoError(t, err)
+	require.Equal(t, []string{"gno.land/p/demo/avl", "strings"}, jdoc.Imports)
+}
+
+// TestJSONDocumentation_SharedFieldType checks that the names of one field
+// declaration share one formatted type: the type can be as long as the source,
+// and so can the list of names.
+func TestJSONDocumentation_SharedFieldType(t *testing.T) {
+	mpkg := &std.MemPackage{
+		Name: "foo",
+		Path: "gno.land/p/demo/foo",
+		Files: []*std.MemFile{
+			{Name: "a.gno", Body: "package foo\n\ntype T struct {\n\tA, B, C map[string]map[string]int\n}\n"},
+		},
+	}
+	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
+	require.NoError(t, err)
+	jdoc, err := d.WriteJSONDocumentation(nil)
+	require.NoError(t, err)
+	fields := jdoc.Types[0].Fields
+	require.Len(t, fields, 3)
+	require.Equal(t, "map[string]map[string]int", fields[0].Type)
+	require.Same(t, unsafe.StringData(fields[0].Type), unsafe.StringData(fields[2].Type))
+}
+
+// TestJSONDocumentation_SharedValueDoc checks that the names of one value spec
+// share one rendered trailing comment, which can be as long as the source.
+func TestJSONDocumentation_SharedValueDoc(t *testing.T) {
+	mpkg := &std.MemPackage{
+		Name: "foo",
+		Path: "gno.land/p/demo/foo",
+		Files: []*std.MemFile{
+			{Name: "a.gno", Body: "package foo\n\nvar A, B, C int // shared doc\n"},
+		},
+	}
+	d, err := NewDocumentableFromMemPkg(mpkg, true, "", "")
+	require.NoError(t, err)
+	jdoc, err := d.WriteJSONDocumentation(nil)
+	require.NoError(t, err)
+	values := jdoc.Values[0].Values
+	require.Len(t, values, 3)
+	require.Contains(t, values[0].Doc, "shared doc")
+	require.Same(t, unsafe.StringData(values[0].Doc), unsafe.StringData(values[2].Doc))
 }

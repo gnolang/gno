@@ -29,6 +29,7 @@ func NewForkCmd(io commands.IO) *commands.Command {
 Subcommands:
   generate     Assemble a new-chain genesis.json from a source chain's state + tx history.
   test         Run an in-memory InitChain replay against a genesis.json (fast smoke-test).
+  inspect      Print a provenance report (counts per Source + reasons) for a genesis.json.
   valoper-seed Build a deterministic .jsonl of valopers.Register migration txs from a CSV.
   addpkg       Build a .jsonl of MsgAddPackage migration txs from local package dirs.
 
@@ -44,6 +45,7 @@ Source modes (auto-detected from --source):
 	cmd.AddSubCommands(
 		newGenerateCmd(io),
 		newTestCmd(io),
+		newInspectCmd(io),
 		newValoperSeedCmd(io),
 		newAddpkgCmd(io),
 	)

@@ -45,8 +45,6 @@ func verifySetTestTableCommon(t *testing.T, testTable []testSetCase) {
 	t.Helper()
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -680,6 +678,16 @@ func TestConfig_Set_RPC(t *testing.T) {
 			},
 		},
 		{
+			"rpc idle timeout updated",
+			[]string{
+				"rpc.idle_timeout",
+				(time.Second * 620).String(),
+			},
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, value, loadedCfg.RPC.IdleTimeout.String())
+			},
+		},
+		{
 			"max body bytes updated",
 			[]string{
 				"rpc.max_body_bytes",
@@ -690,6 +698,16 @@ func TestConfig_Set_RPC(t *testing.T) {
 			},
 		},
 		{
+			"max batch requests updated",
+			[]string{
+				"rpc.max_batch_requests",
+				"10",
+			},
+			func(loadedCfg *config.Config, value string) {
+				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.RPC.MaxBatchRequests))
+			},
+		},
+		{
 			"max header bytes updated",
 			[]string{
 				"rpc.max_header_bytes",
@@ -697,6 +715,19 @@ func TestConfig_Set_RPC(t *testing.T) {
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, value, fmt.Sprintf("%d", loadedCfg.RPC.MaxHeaderBytes))
+			},
+		},
+		{
+			"allow code execution updated",
+			[]string{
+				"rpc.allow_code_execution",
+				"false",
+			},
+			func(loadedCfg *config.Config, value string) {
+				boolVal, err := strconv.ParseBool(value)
+				require.NoError(t, err)
+
+				assert.Equal(t, boolVal, loadedCfg.RPC.AllowCodeExecution)
 			},
 		},
 		{
@@ -831,6 +862,27 @@ func TestConfig_Set_Application(t *testing.T) {
 			},
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, types.PruneStrategy(value), loadedCfg.Application.PruneStrategy)
+			},
+		},
+		{
+			"query max gas updated",
+			[]string{"application.query_max_gas", "123456"},
+			func(loadedCfg *config.Config, _ string) {
+				assert.Equal(t, int64(123456), loadedCfg.Application.QueryMaxGas)
+			},
+		},
+		{
+			"query max alloc updated",
+			[]string{"application.query_max_alloc", "654321"},
+			func(loadedCfg *config.Config, _ string) {
+				assert.Equal(t, int64(654321), loadedCfg.Application.QueryMaxAlloc)
+			},
+		},
+		{
+			"query timeout updated",
+			[]string{"application.query_timeout", "1.5s"},
+			func(loadedCfg *config.Config, _ string) {
+				assert.Equal(t, 1500*time.Millisecond, loadedCfg.Application.QueryTimeout)
 			},
 		},
 	}

@@ -50,7 +50,6 @@ func TestStdlibProto_PartSetHeader(t *testing.T) {
 		{Total: 1000, Hash: []byte("0123456789abcdef")},
 	}
 	for i, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			amBz, err := cdc.Marshal(&c)
@@ -85,7 +84,6 @@ func TestStdlibProto_BlockID(t *testing.T) {
 		},
 	}
 	for i, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			amBz, err := cdc.Marshal(&c)
@@ -137,7 +135,6 @@ func TestStdlibProto_Vote(t *testing.T) {
 		{ValidatorAddress: bytesOf20(0xff)},
 	}
 	for i, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			amBz, err := cdc.Marshal(&c)
@@ -179,7 +176,6 @@ func TestStdlibProto_Proposal(t *testing.T) {
 		{Type: types.ProposalType, Height: 1, Round: -1, POLRound: -1}, // negatives everywhere
 	}
 	for i, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			amBz, err := cdc.Marshal(&c)
@@ -225,7 +221,6 @@ func TestStdlibProto_CanonicalProposal(t *testing.T) {
 		},
 	}
 	for i, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			amBz, err := cdc.Marshal(&c)
@@ -279,7 +274,6 @@ func TestStdlibProto_CanonicalVote(t *testing.T) {
 		},
 	}
 	for i, c := range cases {
-		c := c
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 			amBz, err := cdc.Marshal(&c)

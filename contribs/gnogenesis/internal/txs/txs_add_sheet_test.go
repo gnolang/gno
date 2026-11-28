@@ -26,7 +26,7 @@ func generateDummyTxs(t *testing.T, count int) []gnoland.TxWithMetadata {
 
 	txs := make([]gnoland.TxWithMetadata, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		txs[i] = gnoland.TxWithMetadata{
 			Tx: std.Tx{
 				Msgs: []std.Msg{

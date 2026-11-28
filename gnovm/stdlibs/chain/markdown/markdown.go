@@ -3,6 +3,7 @@
 package markdown
 
 import (
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -154,6 +155,8 @@ func needsPercentEncode(s string, i int) bool {
 	switch c {
 	case '"', '\'', '(', ')', '<', '>', '\\', '`', '{', '|', '}', '^':
 		return true
+	case '&':
+		return startsEntityReference(s, i)
 	case '%':
 		// Bare % (not followed by two hex digits) gets encoded.
 		if i+2 >= len(s) || !isHex(s[i+1]) || !isHex(s[i+2]) {
@@ -161,6 +164,88 @@ func needsPercentEncode(s string, i int) bool {
 		}
 	}
 	return false
+}
+
+// skipEscapeBefore returns i advanced past a `\` that escapes want.
+// UnescapePunctuations runs BEFORE the reference resolvers, so `&\#x6a;`
+// and `&#x6a\;` both reach a resolver as `&#x6a;`; matching the reference
+// shape literally would let the escape hide it from us and reveal it to
+// the renderer. Only ASCII punctuation is escapable, which is why the
+// byte is checked: in `&\name;` the `\n` survives unescaping, so no
+// reference forms and the `&` stays bare.
+func skipEscapeBefore(s string, i int, want byte) int {
+	if i+1 < len(s) && s[i] == '\\' && s[i+1] == want {
+		return i + 1
+	}
+	return i
+}
+
+// endsReference reports whether the `;` closing a reference sits at i,
+// allowing for the `\;` form.
+func endsReference(s string, i int) bool {
+	i = skipEscapeBefore(s, i, ';')
+	return i < len(s) && s[i] == ';'
+}
+
+func startsEntityReference(s string, i int) bool {
+	i = skipEscapeBefore(s, i+1, '#')
+	if i >= len(s) {
+		return false
+	}
+	if s[i] == '#' {
+		i++
+		if i < len(s) && (s[i] == 'x' || s[i] == 'X') {
+			i++
+			start := i
+			for i < len(s) && isHex(s[i]) {
+				i++
+			}
+			return i > start && endsReference(s, i)
+		}
+		start := i
+		for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			i++
+		}
+		return i > start && endsReference(s, i)
+	}
+	if !isASCIIAlpha(s[i]) {
+		return false
+	}
+	for i++; i < len(s) && isASCIIAlphaNumeric(s[i]); i++ {
+	}
+	return endsReference(s, i)
+}
+
+func percentEncodeEntityReferences(s string) string {
+	first := -1
+	for i := 0; i < len(s); i++ {
+		if s[i] == '&' && startsEntityReference(s, i) {
+			first = i
+			break
+		}
+	}
+	if first < 0 {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s) + 2)
+	b.WriteString(s[:first])
+	for i := first; i < len(s); i++ {
+		if s[i] == '&' && startsEntityReference(s, i) {
+			b.WriteString("%26")
+		} else {
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
+}
+
+func isASCIIAlpha(c byte) bool {
+	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+func isASCIIAlphaNumeric(c byte) bool {
+	return isASCIIAlpha(c) || c >= '0' && c <= '9'
 }
 
 func isHex(c byte) bool {
@@ -207,10 +292,12 @@ func inBitmap(c byte, lo, hi uint64) bool {
 
 // ---------- CodeFence ----------
 
+// maxCodeFenceMinCount bounds the fence minCount alone can ask for: the fence
+// is built in Go before gas or the VM allocation limit sees its length.
+const maxCodeFenceMinCount = 1024
+
 func CodeFence(content string, minCount int) string {
-	if minCount < 1 {
-		minCount = 1
-	}
+	minCount = min(max(minCount, 1), maxCodeFenceMinCount)
 	longest, cur := 0, 0
 	for i := 0; i < len(content); i++ {
 		if content[i] == '`' {
@@ -222,10 +309,7 @@ func CodeFence(content string, minCount int) string {
 			cur = 0
 		}
 	}
-	n := longest + 1
-	if n < minCount {
-		n = minCount
-	}
+	n := max(longest+1, minCount)
 	out := make([]byte, n)
 	for i := range out {
 		out[i] = '`'
@@ -296,6 +380,16 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 	// internal breaks.
 	s = foldUnicodeSeparators(s)
 
+	// <gno-button /> is an inline tag: it renders wherever its `<` sits
+	// (after a list or quote marker, NBSP, mid-line…), so every occurrence
+	// is escaped, fenced lines included, since the fence tracker can see
+	// fenced code where goldmark does not (a fence line inside an HTML
+	// block or a list item). This runs before the bracket walker, which
+	// must see the backslash: added after it, the backslash would break a
+	// pointy link destination `[a](<gno-button x>)` the walker kept as a
+	// link, and `[a]` would then bind to a realm reference definition.
+	s = escapeGnoButtonTags(s)
+
 	// Pass 1+2: bracket walker. Finds inline link / image / LRD / fence
 	// spans on the whole input, then escapes any unescaped `[` / `]`
 	// outside those spans, and deletes LRD spans entirely. Subsumes the
@@ -336,18 +430,24 @@ func escapeBlockHazardsImpl(s string, mode blockHazardsMode) string {
 			continue
 		}
 
-		// Extension delimiter lines: prefix with backslash so the line's
-		// opening `<` becomes a CM §2.4 inline escape. A leading space
-		// would be ineffective because gnoweb's extension parsers call
-		// util.TrimLeftSpace before tag matching (see ext_columns.go,
-		// ext_alert.go etc.) — the space gets stripped and the parser
-		// sees the bare tag. Backslash survives util.TrimLeftSpace
-		// (which only strips ASCII whitespace and form-feed) and
-		// goldmark's Type-7 HTML block detection (which requires the
-		// first non-whitespace char to be `<`, not `\`).
+		// Extension delimiter lines: a backslash before the `<` makes it a
+		// CM §2.4 inline escape, so neither a gno-* block parser nor the
+		// Type-7 HTML block detection sees a tag (a leading space would not
+		// do: the parsers call util.TrimLeftSpace). From 4 columns of indent
+		// the line may be indented code, so the backslash keeps its old
+		// place at line start, ahead of the indent. A backslash shows either
+		// way: after the indent it would be literal code text, and at line
+		// start it precedes a space, which it cannot escape, so the line
+		// renders as `\` plus the indent and the tag (dropped as raw HTML).
 		if isExtDelimiter(line) {
+			trimmed := strings.TrimLeft(line, " \t")
+			lead := line[:len(line)-len(trimmed)]
+			if indentColumns(lead) >= 4 {
+				lead, trimmed = "", line
+			}
+			out.WriteString(lead)
 			out.WriteByte('\\')
-			out.WriteString(line)
+			out.WriteString(trimmed)
 			if writeNL {
 				out.WriteByte('\n')
 			}
@@ -474,6 +574,55 @@ func isExtDelimiter(line string) bool {
 		rest = rest[1:]
 	}
 	return hasCaseInsensitivePrefix(rest, "gno-")
+}
+
+// indentColumns returns the width of a run of spaces and tabs, a tab
+// advancing to the next multiple of 4 (CM §2.2).
+func indentColumns(lead string) int {
+	cols := 0
+	for i := 0; i < len(lead); i++ {
+		if lead[i] == '\t' {
+			cols += 4 - cols%4
+		} else {
+			cols++
+		}
+	}
+	return cols
+}
+
+// gnoButtonTag is matched case-insensitively, as gnoweb matches it.
+const gnoButtonTag = "<gno-button"
+
+// escapeGnoButtonTags backslash-escapes the `<` of every `<gno-button` in
+// line that is not already escaped, so escaping stays idempotent. It does not
+// try to spare code spans: whether a backtick opens one depends on goldmark's
+// inline precedence (raw HTML, comments, link destinations and titles, spans
+// across lines), which a line scan cannot model, and a guess that leaves a
+// tag live is a bypass. Inside a real code span the backslash shows.
+func escapeGnoButtonTags(line string) string {
+	if strings.IndexByte(line, '<') < 0 {
+		return line
+	}
+	var out []byte
+	last := 0
+	for i := 0; i < len(line); i++ {
+		switch line[i] {
+		case '\\':
+			i++ // the next byte is escaped
+		case '<':
+			if hasCaseInsensitivePrefix(line[i:], gnoButtonTag) {
+				if out == nil {
+					out = make([]byte, 0, len(line)+8)
+				}
+				out = append(append(out, line[last:i]...), '\\')
+				last = i
+			}
+		}
+	}
+	if out == nil {
+		return line
+	}
+	return string(append(out, line[last:]...))
 }
 
 // isHTMLBlockType1to5Opener reports whether line opens a CommonMark
@@ -672,7 +821,7 @@ func escapeLineLeader(line string, escapeLeader, escapePipe bool) (string, byte,
 		// treat the line as a fence open while goldmark treats subsequent
 		// lines as paragraph content where line-leader / extension /
 		// HTML-block defenses normally apply. Without the check, an
-		// attacker can write "```a`b" to make the sanitizer believe a
+		// caller can write "```a`b" to make the sanitizer believe a
 		// fence opened and skip defenses on `<gno-…>`, `<!--`, `===`,
 		// `#`, `|---|`, etc. on the following lines, while goldmark
 		// happily opens those blocks. Tilde fences are NOT subject to
@@ -749,10 +898,8 @@ func isCloseFence(line string, fenceChar byte, fenceLen int) bool {
 // Byte-level (not rune-level) — required for UTF-8 lead-byte fast paths.
 func containsAnyByte(s string, bs ...byte) bool {
 	for i := 0; i < len(s); i++ {
-		for _, b := range bs {
-			if s[i] == b {
-				return true
-			}
+		if slices.Contains(bs, s[i]) {
+			return true
 		}
 	}
 	return false
@@ -764,9 +911,9 @@ func containsAnyByte(s string, bs ...byte) bool {
 //   Pass 1: find spans for inline links [text](url), images ![alt](src),
 //     LRD definitions [label]: url [title], and fenced code regions. Multi-
 //     line and backslash-aware.
-//   Pass 2: rewrite bytes — preserve link/image/fence spans verbatim, delete
-//     LRD spans, escape any unescaped `[` / `]` outside spans (with
-//     backslash-parity tracking).
+//   Pass 2: rewrite bytes — encode entity references in link/image URLs,
+//     preserve fence spans, delete LRD spans, and escape any unescaped `[` / `]`
+//     outside spans (with backslash-parity tracking).
 //
 // Closes three previously-documented residuals:
 //   1. Shortcut-ref `[label]` collision with realm-emitted LRDs (both
@@ -777,14 +924,15 @@ func containsAnyByte(s string, bs ...byte) bool {
 type spanKind byte
 
 const (
-	spanLink  spanKind = iota // [text](url) or ![alt](src) — preserve
+	spanLink  spanKind = iota // [text](url) or ![alt](src) — encode entity refs in destination
 	spanLRD                   // [label]: url ["title"] — delete entirely
 	spanFence                 // fenced code block — preserve (opaque)
 )
 
 type bracketSpan struct {
-	start, end int // [start, end) half-open byte indices
-	kind       spanKind
+	start, end       int // [start, end) half-open byte indices
+	urlStart, urlEnd int // destination bounds for spanLink
+	kind             spanKind
 }
 
 // findBracketSpans is pass 1 of the bracket walker. Returns sorted,
@@ -796,7 +944,7 @@ func findBracketSpans(s string) []bracketSpan {
 	// nextClose is the byte index of the next `]` at or after i, or
 	// len(s) if no `]` remains. Maintained lazily — we only need to
 	// recompute it when i catches up. Used to short-circuit
-	// scanLinkText on adversarial input like `[[[[…` with no closer,
+	// scanLinkText on pathological input like `[[[[…` with no closer,
 	// where every `[` would otherwise force a fresh forward walk to
 	// the next blank line or EOF (O(n²) total). With this check,
 	// each `[` either has a `]` ahead and we run the real scan, or
@@ -810,8 +958,9 @@ func findBracketSpans(s string) []bracketSpan {
 	// every `[` could otherwise force a depth-balanced walk across most
 	// of the input. 8×len(s) leaves plenty of headroom for legitimate
 	// content (real links are short and rare relative to input size)
-	// while capping adversarial work at O(n).
+	// while capping worst-case work at O(n).
 	scanBudget := 8 * len(s)
+	interruptAt := -1
 	for i < len(s) {
 		// Advance nextClose past i if needed.
 		if nextClose < i {
@@ -841,7 +990,7 @@ func findBracketSpans(s string) []bracketSpan {
 					// walker treats subsequent lines as fence interior
 					// (skipping LRD strip + bracket escape) while
 					// goldmark treats them as paragraph — letting an
-					// attacker smuggle a ref-link definition past the
+					// caller smuggle a ref-link definition past the
 					// walker.
 					if fenceChar == '`' && hasBacktickBeforeNewline(s, k) {
 						i = k
@@ -881,7 +1030,7 @@ func findBracketSpans(s string) []bracketSpan {
 			if nextClose >= len(s) {
 				// No `]` remains anywhere ahead; scanLinkText will fail.
 				// Skip the scan to keep the walker linear-time even on
-				// adversarial unclosed-bracket input.
+				// pathological unclosed-bracket input.
 				i++
 				atLineStart = false
 				continue
@@ -895,9 +1044,9 @@ func findBracketSpans(s string) []bracketSpan {
 			// textEnd points at the closing `]`. Next byte determines what kind.
 			if textEnd+1 < len(s) && s[textEnd+1] == '(' && c != '!' || // [text](url) — link
 				textEnd+1 < len(s) && s[textEnd+1] == '(' && c == '!' { // ![alt](src) — image
-				end, ok := scanLinkURL(s, textEnd+2, &scanBudget)
+				end, urlStart, urlEnd, ok := scanLinkURL(s, textEnd+2, &scanBudget)
 				if ok {
-					spans = append(spans, bracketSpan{start: start, end: end, kind: spanLink})
+					spans = append(spans, bracketSpan{start: start, end: end, urlStart: urlStart, urlEnd: urlEnd, kind: spanLink})
 					i = end
 					atLineStart = false
 					continue
@@ -905,7 +1054,7 @@ func findBracketSpans(s string) []bracketSpan {
 			}
 			// LRD candidate: [label]: url …  (only when `!` not prefixing AND only if line starts at line-start position)
 			if c == '[' && atLineStartAt(s, start) {
-				if end, ok := scanLRDTail(s, textEnd+1, &scanBudget); ok {
+				if end, ok := scanLRDTail(s, textEnd+1, &scanBudget, &interruptAt); ok {
 					spans = append(spans, bracketSpan{start: start, end: end, kind: spanLRD})
 					i = end
 					atLineStart = (end > 0 && s[end-1] == '\n')
@@ -996,7 +1145,7 @@ func findFenceClose(s string, from int, fenceChar byte, fenceLen int) int {
 // true on success. `budget` is a shared work counter — each byte
 // inspected decrements it, and the scan aborts (returns false) when
 // it hits zero. This caps total pass-1 scan work at O(budget) across
-// all calls, defending against adversarial inputs like
+// all calls, bounding pathological inputs like
 // `[[[[…]]]]` where every `[` would otherwise force a fresh
 // depth-balanced walk across most of the input (O(n²)).
 func scanLinkText(s string, i int, budget *int) (int, bool) {
@@ -1034,28 +1183,44 @@ func scanLinkText(s string, i int, budget *int) (int, bool) {
 	return 0, false
 }
 
+// skipSpace returns the index past the spaces, tabs and up to maxNL newlines
+// (any number when negative) from s[i], each byte costing one budget step so
+// no run is walked for free; ok is false once the budget runs out.
+func skipSpace(s string, i, maxNL int, budget *int) (int, bool) {
+	for ; i < len(s); i++ {
+		if s[i] == '\n' {
+			if maxNL == 0 {
+				break
+			}
+			maxNL--
+		} else if s[i] != ' ' && s[i] != '\t' {
+			break
+		}
+		if *budget <= 0 {
+			return i, false
+		}
+		*budget--
+	}
+	return i, true
+}
+
 // scanLinkURL scans `(url ["title"])` body starting AFTER the opening `(`.
-// Returns the byte index AFTER the closing `)` and true on success.
-// Shares the pass-1 scan budget with scanLinkText so an attacker can't
+// Returns the span end and destination bounds on success.
+// Shares the pass-1 scan budget with scanLinkText so a caller can't
 // chain `[a]([a]([a](…` (which would otherwise let scanLinkURL walk to
 // EOF on every `[`, O(n²)).
-func scanLinkURL(s string, i int, budget *int) (int, bool) {
+func scanLinkURL(s string, i int, budget *int) (end, urlStart, urlEnd int, ok bool) {
 	// Consume optional leading whitespace
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-		i++
-	}
-	if i < len(s) && s[i] == '\n' {
-		i++
-		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-			i++
-		}
+	if i, ok = skipSpace(s, i, 1, budget); !ok {
+		return 0, 0, 0, false
 	}
 	// URL body — angle-bracket form or plain
 	if i < len(s) && s[i] == '<' {
 		i++
+		urlStart = i
 		for i < len(s) {
 			if *budget <= 0 {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			*budget--
 			c := s[i]
@@ -1064,23 +1229,25 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 				continue
 			}
 			if c == '>' {
+				urlEnd = i
 				i++
 				break
 			}
 			if c == '<' {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			i++
 		}
 	} else {
 		// Plain URL with balanced parens
+		urlStart = i
 		urlDepth := 1
 		for i < len(s) {
 			if *budget <= 0 {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			*budget--
 			c := s[i]
@@ -1093,7 +1260,7 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 			} else if c == ')' {
 				urlDepth--
 				if urlDepth == 0 {
-					return i + 1, true
+					return i + 1, urlStart, i, true
 				}
 			} else if c == ' ' || c == '\t' || c == '\n' {
 				// Whitespace after URL — title or close may follow
@@ -1101,13 +1268,19 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 			}
 			i++
 		}
+		urlEnd = i
 	}
-	// Skip whitespace before title or close
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n') {
-		if s[i] == '\n' && i+1 < len(s) && s[i+1] == '\n' {
-			return 0, false
+	// Skip whitespace before title or close; two consecutive newlines here fail the scan.
+	for {
+		if i, ok = skipSpace(s, i, 1, budget); !ok {
+			return 0, 0, 0, false
 		}
-		i++
+		if i == len(s) || s[i] != '\n' {
+			break
+		}
+		if s[i-1] == '\n' {
+			return 0, 0, 0, false
+		}
 	}
 	// Optional title
 	if i < len(s) && (s[i] == '"' || s[i] == '\'' || s[i] == '(') {
@@ -1118,7 +1291,7 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 		i++
 		for i < len(s) {
 			if *budget <= 0 {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			*budget--
 			c := s[i]
@@ -1131,29 +1304,31 @@ func scanLinkURL(s string, i int, budget *int) (int, bool) {
 				break
 			}
 			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
-				return 0, false
+				return 0, 0, 0, false
 			}
 			i++
 		}
 		// Whitespace before close
-		for i < len(s) && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n') {
-			i++
+		if i, ok = skipSpace(s, i, -1, budget); !ok {
+			return 0, 0, 0, false
 		}
 	}
 	if i < len(s) && s[i] == ')' {
-		return i + 1, true
+		return i + 1, urlStart, urlEnd, true
 	}
-	return 0, false
+	return 0, 0, 0, false
 }
 
 // scanLRDTail scans the `: url [title]` portion of an LRD definition.
 // `i` is the byte index right after the closing `]` of the label.
 // Returns the byte index of the LRD region's end (after the URL or after
 // the title, including a trailing newline if present) and true on success.
-// Shares the pass-1 scan budget so an attacker can't chain
+// Shares the pass-1 scan budget so a caller can't chain
 // `[a]: u\n(x\n[b]: u\n(x\n…` (paren-title with no `)` anywhere — every
 // LRD candidate would otherwise let the title scan walk to EOF, O(n²)).
-func scanLRDTail(s string, i int, budget *int) (int, bool) {
+// `interruptAt` holds the line start of the last block interrupt found in
+// `s`, or -1, so a later candidate stops there without walking it again.
+func scanLRDTail(s string, i int, budget, interruptAt *int) (int, bool) {
 	// Need ':' immediately
 	if i >= len(s) || s[i] != ':' {
 		return 0, false
@@ -1161,14 +1336,9 @@ func scanLRDTail(s string, i int, budget *int) (int, bool) {
 	i++
 	// Need ≥1 space or tab, OR a newline (LRD URL can be on the next line)
 	wsStart := i
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-		i++
-	}
-	if i < len(s) && s[i] == '\n' {
-		i++
-		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-			i++
-		}
+	i, ok := skipSpace(s, i, 1, budget)
+	if !ok {
+		return 0, false
 	}
 	if i == wsStart {
 		// `:` not followed by whitespace at all — not a valid LRD
@@ -1221,18 +1391,9 @@ func scanLRDTail(s string, i int, budget *int) (int, bool) {
 	end := i
 	// Optional title: same line OR next line
 	titleStart := i
-	// Skip whitespace (incl. one newline)
-	sawNL := false
-	for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-		i++
-	}
-	if i < len(s) && s[i] == '\n' {
-		sawNL = true
-		i++
-		for i < len(s) && (s[i] == ' ' || s[i] == '\t') {
-			i++
-		}
-	}
+	// Skip whitespace (incl. one newline). Out of budget, i stops on whitespace
+	// and the title is dropped, as when the title scan below runs out.
+	i, _ = skipSpace(s, i, 1, budget)
 	if i < len(s) && (s[i] == '"' || s[i] == '\'' || s[i] == '(') {
 		closeQ := s[i]
 		if closeQ == '(' {
@@ -1258,7 +1419,8 @@ func scanLRDTail(s string, i int, budget *int) (int, bool) {
 			if c == '\n' && i+1 < len(s) && s[i+1] == '\n' {
 				break
 			}
-			if c == '\n' && isBlockInterrupt(s, i+1) {
+			if c == '\n' && (i+1 == *interruptAt || isBlockInterruptFn(s, i+1)) {
+				*interruptAt = i + 1
 				break
 			}
 			i++
@@ -1269,18 +1431,20 @@ func scanLRDTail(s string, i int, budget *int) (int, bool) {
 			// Title not closed cleanly — drop it from the span, keep URL
 			i = titleStart
 			end = titleStart
-			_ = sawNL
 		}
 	}
-	// Consume trailing newline so the next line starts fresh
-	for end < len(s) && (s[end] == ' ' || s[end] == '\t') {
-		end++
-	}
+	// Consume trailing newline so the next line starts fresh. Out of budget,
+	// the span ends on the whitespace where the skip stopped.
+	end, _ = skipSpace(s, end, 0, budget)
 	if end < len(s) && s[end] == '\n' {
 		end++
 	}
 	return end, true
 }
+
+// isBlockInterruptFn is isBlockInterrupt; only tests replace it, to count
+// the bytes it walks.
+var isBlockInterruptFn = isBlockInterrupt
 
 // isBlockInterrupt reports whether the line beginning at byte index
 // `lineStart` opens a CommonMark block-level construct that interrupts
@@ -1374,9 +1538,9 @@ func isBlockInterrupt(s string, lineStart int) bool {
 	return false
 }
 
-// rewriteWithSpans is pass 2 of the bracket walker. It walks bytes, leaves
-// link/image/fence spans verbatim, deletes LRD spans, and prepends `\` to
-// any unescaped `[` / `]` outside any span.
+// rewriteWithSpans is pass 2 of the bracket walker. It walks bytes, encodes
+// entity references in link/image destinations, leaves fence spans verbatim,
+// deletes LRD spans, and prepends `\` to unescaped `[` / `]` outside spans.
 func rewriteWithSpans(s string, spans []bracketSpan) string {
 	if len(spans) == 0 && !strings.ContainsAny(s, "[]") {
 		return s
@@ -1397,8 +1561,13 @@ func rewriteWithSpans(s string, spans []bracketSpan) string {
 				trailingBackslashes = 0
 				continue
 			}
-			// Preserve verbatim
-			b.WriteString(s[sp.start:sp.end])
+			if sp.kind == spanLink {
+				b.WriteString(s[sp.start:sp.urlStart])
+				b.WriteString(percentEncodeEntityReferences(s[sp.urlStart:sp.urlEnd]))
+				b.WriteString(s[sp.urlEnd:sp.end])
+			} else {
+				b.WriteString(s[sp.start:sp.end])
+			}
 			i = sp.end
 			trailingBackslashes = 0
 			continue

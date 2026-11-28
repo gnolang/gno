@@ -15,7 +15,7 @@ package laundero
 // short-circuit to "allow", and this write would silently succeed.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/laundervictim"
 )
 

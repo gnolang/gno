@@ -41,7 +41,7 @@ func init() {
 	// Tell amino's dispatch layer that SingleByteZero has native Binary2
 	// methods, so MarshalAny takes the fast path through marshalAnyBinary2
 	// (and, via the return-then-PrependBytes fallback, MarshalAnyBinary2).
-	amino.RegisterGenproto2Type(reflect.TypeOf((*SingleByteZero)(nil)).Elem())
+	amino.RegisterGenproto2Type(reflect.TypeFor[SingleByteZero]())
 }
 
 // TestMarshalAny_SingleByteZeroElision asserts that when a concrete type's

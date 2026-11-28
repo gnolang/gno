@@ -18,7 +18,7 @@ func TestPrune_BasicPrune(t *testing.T) {
 	tree := newPruneTree(t)
 
 	// V1: 50 keys
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tree.Set(fmt.Appendf(nil, "p%03d", i), []byte("v1"))
 	}
 	tree.SaveVersion()
@@ -30,7 +30,7 @@ func TestPrune_BasicPrune(t *testing.T) {
 	tree.SaveVersion()
 
 	// V3: update some
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		tree.Set(fmt.Appendf(nil, "p%03d", i), []byte("v3"))
 	}
 	tree.SaveVersion()
@@ -62,7 +62,7 @@ func TestPrune_BasicPrune(t *testing.T) {
 func TestPrune_PruneAndContinue(t *testing.T) {
 	tree := newPruneTree(t)
 
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		tree.Set(fmt.Appendf(nil, "c%03d", i), []byte("v"))
 	}
 	tree.SaveVersion()
@@ -104,7 +104,7 @@ func TestPrune_CannotPruneLatest(t *testing.T) {
 
 func TestPrune_VersionReaders(t *testing.T) {
 	tree := newPruneTree(t)
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		tree.Set(fmt.Appendf(nil, "vr%03d", i), []byte("v"))
 	}
 	tree.SaveVersion()
@@ -137,7 +137,7 @@ func TestPrune_VersionReaders(t *testing.T) {
 // pruning to delete nodes mid-iteration.
 func TestPrune_IteratorBlocksPrune(t *testing.T) {
 	tree := newPruneTree(t)
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		tree.Set(fmt.Appendf(nil, "ir%03d", i), []byte("v"))
 	}
 	tree.SaveVersion()
@@ -173,7 +173,7 @@ func TestPrune_IteratorBlocksPrune(t *testing.T) {
 // NewIteratorWithNDB entry point used by the store wrapper.
 func TestPrune_StoreIteratorBlocksPrune(t *testing.T) {
 	tree := newPruneTree(t)
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		tree.Set(fmt.Appendf(nil, "si%03d", i), []byte("v"))
 	}
 	tree.SaveVersion()
@@ -202,13 +202,13 @@ func TestPrune_PreservesLatestState(t *testing.T) {
 	tree := newPruneTree(t)
 
 	// V1
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree.Set(fmt.Appendf(nil, "ps%04d", i), fmt.Appendf(nil, "val%04d", i))
 	}
 	tree.SaveVersion()
 
 	// V2: remove some, update some, add some
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		tree.Remove(fmt.Appendf(nil, "ps%04d", i))
 	}
 	for i := 20; i < 40; i++ {
@@ -253,8 +253,8 @@ func TestPrune_MultiplePrunes(t *testing.T) {
 	tree := newPruneTree(t)
 
 	// Create 5 versions
-	for v := 0; v < 5; v++ {
-		for i := 0; i < 20; i++ {
+	for v := range 5 {
+		for i := range 20 {
 			tree.Set(fmt.Appendf(nil, "mp%03d", i), fmt.Appendf(nil, "v%d", v))
 		}
 		tree.SaveVersion()
@@ -288,13 +288,13 @@ func TestPrune_AfterSplitsAndMerges(t *testing.T) {
 	tree := newPruneTree(t)
 
 	// V1: sequential inserts causing splits
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		tree.Set(fmt.Appendf(nil, "sm%04d", i), []byte("v1"))
 	}
 	tree.SaveVersion()
 
 	// V2: remove many, causing merges
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree.Remove(fmt.Appendf(nil, "sm%04d", i))
 	}
 	tree.SaveVersion()
@@ -330,7 +330,7 @@ func TestPrune_IncrementalPreservesAll(t *testing.T) {
 	// Create 5 versions with different mutations
 	hashes := make([][]byte, 6) // hashes[1..5]
 	for v := 1; v <= 5; v++ {
-		for i := 0; i < 20; i++ {
+		for i := range 20 {
 			tree.Set(
 				fmt.Appendf(nil, "ip%03d", i+(v-1)*5),
 				fmt.Appendf(nil, "v%d_%d", v, i),
@@ -367,13 +367,13 @@ func TestPrune_DBNodeCountDecreases(t *testing.T) {
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 
 	// V1: 200 keys
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		tree.Set(fmt.Appendf(nil, "nc%04d", i), []byte("v1"))
 	}
 	tree.SaveVersion()
 
 	// V2: update 100 keys (creates ~100 new leaf nodes)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree.Set(fmt.Appendf(nil, "nc%04d", i), []byte("v2"))
 	}
 	tree.SaveVersion()
@@ -422,13 +422,13 @@ func TestPrune_ValueCountDecreases(t *testing.T) {
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 
 	// V1: 100 unique keys
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree.Set(fmt.Appendf(nil, "vc%05d", i), fmt.Appendf(nil, "val1_%05d", i))
 	}
 	tree.SaveVersion()
 
 	// V2: update 50 keys with new values
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tree.Set(fmt.Appendf(nil, "vc%05d", i), fmt.Appendf(nil, "val2_%05d", i))
 	}
 	tree.SaveVersion()
@@ -454,14 +454,14 @@ func TestPrune_ValueCountBounded(t *testing.T) {
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 
 	// Initial: 100 keys
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree.Set(fmt.Appendf(nil, "vb%05d", i), fmt.Appendf(nil, "v0_k%d", i))
 	}
 	tree.SaveVersion()
 
 	// 20 iterations: overwrite all 100 keys, save, prune oldest
 	for iter := 1; iter <= 20; iter++ {
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			tree.Set(fmt.Appendf(nil, "vb%05d", i), fmt.Appendf(nil, "v%d_k%d", iter, i))
 		}
 		tree.SaveVersion()
@@ -746,12 +746,12 @@ func TestPrune_DisjointKeysPreservesValues(t *testing.T) {
 	db := memdb.NewMemDB()
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tree.Set(fmt.Appendf(nil, "dj_a%05d", i), []byte("va"))
 	}
 	tree.SaveVersion()
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tree.Set(fmt.Appendf(nil, "dj_b%05d", i), []byte("vb"))
 	}
 	tree.SaveVersion()
@@ -789,7 +789,7 @@ func TestExportImport_ValueKeysCorrect(t *testing.T) {
 	db1 := memdb.NewMemDB()
 	tree1 := NewMutableTreeWithDB(db1, 1000, NewNopLogger())
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		tree1.Set(fmt.Appendf(nil, "ei%05d", i), fmt.Appendf(nil, "val%05d", i))
 	}
 	tree1.SaveVersion()
@@ -816,7 +816,7 @@ func TestExportImport_ValueKeysCorrect(t *testing.T) {
 	imp.Commit()
 
 	// Verify values readable
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		val, _ := tree2.Get(fmt.Appendf(nil, "ei%05d", i))
 		expected := fmt.Appendf(nil, "val%05d", i)
 		if string(val) != string(expected) {
@@ -825,7 +825,7 @@ func TestExportImport_ValueKeysCorrect(t *testing.T) {
 	}
 
 	// Overwrite 30 keys, save V2, prune V1
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		tree2.Set(fmt.Appendf(nil, "ei%05d", i), fmt.Appendf(nil, "new%05d", i))
 	}
 	tree2.SaveVersion()
@@ -907,19 +907,19 @@ func TestPrune_ValueIntegrityAfterOverwrite(t *testing.T) {
 	tree := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 
 	// V1: 50 keys
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tree.Set(fmt.Appendf(nil, "vi%03d", i), fmt.Appendf(nil, "val_v1_%03d", i))
 	}
 	tree.SaveVersion()
 
 	// V2: overwrite 30
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		tree.Set(fmt.Appendf(nil, "vi%03d", i), fmt.Appendf(nil, "val_v2_%03d", i))
 	}
 	tree.SaveVersion()
 
 	// V3: overwrite 10
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		tree.Set(fmt.Appendf(nil, "vi%03d", i), fmt.Appendf(nil, "val_v3_%03d", i))
 	}
 	tree.SaveVersion()
@@ -928,7 +928,7 @@ func TestPrune_ValueIntegrityAfterOverwrite(t *testing.T) {
 	tree.DeleteVersionsTo(2)
 
 	// Verify every key returns correct value
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		key := fmt.Appendf(nil, "vi%03d", i)
 		val, err := tree.Get(key)
 		if err != nil {
@@ -951,7 +951,7 @@ func TestPrune_ValueIntegrityAfterOverwrite(t *testing.T) {
 	// Reload from DB and verify again
 	tree2 := NewMutableTreeWithDB(db, 1000, NewNopLogger())
 	tree2.LoadVersion(3)
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		key := fmt.Appendf(nil, "vi%03d", i)
 		val, _ := tree2.Get(key)
 		var expected []byte
@@ -982,7 +982,7 @@ func TestPrune_SeparatorKeyRouting(t *testing.T) {
 
 	// V1: Insert enough keys to create a height-2 tree (~1100 keys).
 	// With B=32, this gives ~34 leaves under a single root inner node.
-	for i := 0; i < 1100; i++ {
+	for i := range 1100 {
 		tree.Set(fmt.Appendf(nil, "sk%06d", i), fmt.Appendf(nil, "v1_%06d", i))
 	}
 	hash1, _, err := tree.SaveVersion()
@@ -1000,7 +1000,7 @@ func TestPrune_SeparatorKeyRouting(t *testing.T) {
 		tree.Set(fmt.Appendf(nil, "sk%06d", i), fmt.Appendf(nil, "v2_%06d", i))
 	}
 	// Also update some V1 keys to create cross-version orphans
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		tree.Set(fmt.Appendf(nil, "sk%06d", i), fmt.Appendf(nil, "v2_upd_%06d", i))
 	}
 	hash2, _, err := tree.SaveVersion()
@@ -1009,7 +1009,7 @@ func TestPrune_SeparatorKeyRouting(t *testing.T) {
 	}
 
 	// V3: More mutations to ensure V2 isn't the latest when pruning V1
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		tree.Set(fmt.Appendf(nil, "sk%06d", i), fmt.Appendf(nil, "v3_%06d", i))
 	}
 	hash3, _, err := tree.SaveVersion()
@@ -1028,7 +1028,7 @@ func TestPrune_SeparatorKeyRouting(t *testing.T) {
 	if !bytes.Equal(hash2, tree2.WorkingHash()) {
 		t.Fatalf("V2 hash changed after pruning V1")
 	}
-	for i := 0; i < 1600; i++ {
+	for i := range 1600 {
 		key := fmt.Appendf(nil, "sk%06d", i)
 		val, _ := tree2.Get(key)
 		if val == nil {
@@ -1047,7 +1047,7 @@ func TestPrune_SeparatorKeyRouting(t *testing.T) {
 	if !bytes.Equal(hash3, tree3.WorkingHash()) {
 		t.Fatalf("V3 hash changed after pruning V2")
 	}
-	for i := 0; i < 1600; i++ {
+	for i := range 1600 {
 		key := fmt.Appendf(nil, "sk%06d", i)
 		val, _ := tree3.Get(key)
 		if val == nil {
@@ -1070,7 +1070,7 @@ func TestPrune_InnerNodeSplit(t *testing.T) {
 
 	// V1: Insert enough keys to create a height-1 tree (root inner node
 	// with ~30+ leaf children). With fan-out 32, ~1100 keys fills the root.
-	for i := 0; i < 1100; i++ {
+	for i := range 1100 {
 		tree.Set(fmt.Appendf(nil, "split%05d", i), []byte("v1"))
 	}
 	hash1, v1, err := tree.SaveVersion()
@@ -1119,7 +1119,7 @@ func TestPrune_InnerNodeSplit(t *testing.T) {
 	}
 
 	// Verify all keys are accessible
-	for i := 0; i < 1400; i++ {
+	for i := range 1400 {
 		key := fmt.Appendf(nil, "split%05d", i)
 		val, _ := tree2.Get(key)
 		if val == nil {
@@ -1128,7 +1128,7 @@ func TestPrune_InnerNodeSplit(t *testing.T) {
 	}
 
 	// Continue: V3 with more mutations, then prune V2
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		tree.Set(fmt.Appendf(nil, "split%05d", i), []byte("v3"))
 	}
 	hash3, _, err := tree.SaveVersion()
@@ -1155,7 +1155,7 @@ func TestPrune_SustainedInsertPrune(t *testing.T) {
 	tree := newPruneTree(t)
 
 	// Bootstrap: insert initial keys so the tree has some structure
-	for i := 0; i < 500; i++ {
+	for i := range 500 {
 		tree.Set(fmt.Appendf(nil, "sus%06d", i), []byte("init"))
 	}
 	_, v, err := tree.SaveVersion()
@@ -1165,8 +1165,8 @@ func TestPrune_SustainedInsertPrune(t *testing.T) {
 	nextKey := 500
 
 	// 20 iterations: insert 200 random keys, save, prune oldest, verify
-	for iter := 0; iter < 20; iter++ {
-		for i := 0; i < 200; i++ {
+	for iter := range 20 {
+		for range 200 {
 			tree.Set(fmt.Appendf(nil, "sus%06d", nextKey), fmt.Appendf(nil, "iter%d", iter))
 			nextKey++
 		}

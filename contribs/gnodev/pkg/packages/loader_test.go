@@ -627,7 +627,7 @@ func TestPackage_KindZeroValue(t *testing.T) {
 }
 
 // TestLoader_LoadRealExamplesRealm exercises loading a real realm from
-// $GNOROOT/examples. boards2/v1 imports chain, chain/runtime, p-tree, etc.
+// $GNOROOT/examples. boards2/v0 imports chain, chain/runtime, p-tree, etc.
 // — the kind of graph that triggers stripStdlibs + MPUserProd code paths
 // that trivial single-package tests miss. Skips cleanly if the realm path
 // doesn't exist (e.g., running outside the monorepo).
@@ -637,14 +637,14 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 		// Fall back to gnoenv discovery. Test target is a stable example.
 		gnoroot = filepath.Join("..", "..", "..", "..")
 	}
-	realmDir := filepath.Join(gnoroot, "examples", "gno.land", "r", "gnoland", "boards2", "v1")
+	realmDir := filepath.Join(gnoroot, "examples", "gno.land", "r", "gnoland", "boards2", "v0")
 	if _, err := os.Stat(realmDir); err != nil {
 		t.Skipf("examples realm not available: %v", err)
 	}
 	absRealm, err := filepath.Abs(realmDir)
 	require.NoError(t, err)
 
-	// Set up a workspace at the realm dir (boards2/v1 has its own gnomod.toml).
+	// Set up a workspace at the realm dir (boards2/v0 has its own gnomod.toml).
 	t.Chdir(absRealm)
 
 	l := New(Config{
@@ -654,18 +654,18 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 		Logger:    testLogger(),
 	})
 	pkgs, err := l.LoadWorkspace()
-	require.NoError(t, err, "boards2/v1 should load without errors")
+	require.NoError(t, err, "boards2/v0 should load without errors")
 	require.NotEmpty(t, pkgs, "should resolve at least one package")
 
 	// Verify it loaded the realm itself.
 	paths := pathsOf(pkgs)
-	assert.Contains(t, paths, "gno.land/r/gnoland/boards2/v1")
+	assert.Contains(t, paths, "gno.land/r/gnoland/boards2/v0")
 
 	// ToMemPackage uses MPUserProd, which strips _test.gno files. Realms
-	// like boards2/v1 have test files that import not-yet-deployed packages;
+	// like boards2/v0 have test files that import not-yet-deployed packages;
 	// shipping them would fail chain-side type checks at deploy time.
 	for _, p := range pkgs {
-		if p.ImportPath == "gno.land/r/gnoland/boards2/v1" {
+		if p.ImportPath == "gno.land/r/gnoland/boards2/v0" {
 			mp, err := p.ToMemPackage()
 			require.NoError(t, err, "ToMemPackage must succeed on real realm")
 			assert.NotEmpty(t, mp.Name, "MemPackage must have a Name")
@@ -676,7 +676,7 @@ func TestLoader_LoadRealExamplesRealm(t *testing.T) {
 			return
 		}
 	}
-	t.Fatalf("boards2/v1 not found in loaded packages: %v", paths)
+	t.Fatalf("boards2/v0 not found in loaded packages: %v", paths)
 }
 
 // TestLoader_Reload_ExamplesDepsFromDisk: a workspace package importing an
@@ -901,4 +901,82 @@ func TestLoader_LookupFS_NoFetcherCall(t *testing.T) {
 	assert.False(t, l.LookupFS("gno.land/r/never/exists"))
 
 	assert.Zero(t, rec.calls.Load(), "LookupFS must never invoke the fetcher")
+}
+
+// ResetTracked must drop paths that grew the tracked set through a lazy
+// Resolve (browsed during a session) while keeping the paths seeded at setup
+// via Track. Ctrl+R relies on this so a reset returns to the initial package
+// set instead of redeploying everything browsed since boot.
+func TestLoader_ResetTracked_DropsLazilyResolved(t *testing.T) {
+	extra := t.TempDir()
+	writePkg(t, filepath.Join(extra, "seed"), "gno.land/p/ext/seed", "package seed\n")
+	writePkg(t, filepath.Join(extra, "browsed"), "gno.land/p/ext/browsed", "package browsed\n")
+
+	l := New(Config{ExtraRoots: []string{extra}, Logger: testLogger()})
+
+	// Seed one path explicitly, as -paths / txs-file deps do at setup.
+	l.Track("gno.land/p/ext/seed")
+
+	// A lazy proxy resolve grows the tracked set with a browsed path.
+	_, err := l.Resolve("gno.land/p/ext/browsed")
+	require.NoError(t, err)
+
+	l.mu.RLock()
+	_, browsedTracked := l.tracked["gno.land/p/ext/browsed"]
+	l.mu.RUnlock()
+	require.True(t, browsedTracked, "a lazy Resolve should grow the tracked set")
+
+	l.ResetTracked()
+
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	_, seedKept := l.tracked["gno.land/p/ext/seed"]
+	_, browsedKept := l.tracked["gno.land/p/ext/browsed"]
+	assert.True(t, seedKept, "a path seeded via Track must survive ResetTracked")
+	assert.False(t, browsedKept, "a lazily-resolved path must be dropped by ResetTracked")
+}
+
+// ResetTracked must also evict a browsed remote package from the index, not
+// just tracked. Otherwise the next browse hits Resolve's index fast path and
+// returns without re-adding the path to tracked, so a tracked-driven Reload
+// (the only deploy path for remote packages) never redeploys it — the user
+// sees it missing while actively viewing it. Eviction forces a re-fetch that
+// re-enters tracked.
+func TestLoader_ResetTracked_EvictsBrowsedRemoteFromIndex(t *testing.T) {
+	mp := &std.MemPackage{
+		Path:  "gno.land/r/demo/boards",
+		Name:  "boards",
+		Files: []*std.MemFile{{Name: "boards.gno", Body: "package boards\n"}},
+	}
+	fetch := &recordingFetcher{inner: pkgdownload.NewInMemoryFetcher(mp)}
+	l := New(Config{Fetcher: fetch, Logger: testLogger()})
+
+	// First browse: RPC slow path adds the package to index + tracked.
+	_, err := l.Resolve("gno.land/r/demo/boards")
+	require.NoError(t, err)
+	require.Equal(t, int32(1), fetch.calls.Load())
+	l.mu.RLock()
+	_, inIndex := l.index["gno.land/r/demo/boards"]
+	_, inTracked := l.tracked["gno.land/r/demo/boards"]
+	l.mu.RUnlock()
+	require.True(t, inIndex && inTracked, "first browse should cache in index and tracked")
+
+	l.ResetTracked()
+
+	l.mu.RLock()
+	_, stillIndex := l.index["gno.land/r/demo/boards"]
+	_, stillTracked := l.tracked["gno.land/r/demo/boards"]
+	l.mu.RUnlock()
+	assert.False(t, stillTracked, "reset must drop the browsed remote from tracked")
+	assert.False(t, stillIndex, "reset must evict the browsed remote from the index")
+
+	// Second browse re-fetches (index missed) and re-enters tracked, so the
+	// next Reload redeploys it.
+	_, err = l.Resolve("gno.land/r/demo/boards")
+	require.NoError(t, err)
+	assert.Equal(t, int32(2), fetch.calls.Load(), "re-browse after reset must re-fetch, not hit a stale index")
+	l.mu.RLock()
+	_, reTracked := l.tracked["gno.land/r/demo/boards"]
+	l.mu.RUnlock()
+	assert.True(t, reTracked, "re-browse must re-enter tracked so Reload redeploys it")
 }

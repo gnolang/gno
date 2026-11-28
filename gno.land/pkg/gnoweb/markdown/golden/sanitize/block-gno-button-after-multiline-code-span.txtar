@@ -1,0 +1,13 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s
+-- input.md --
+`a
+b` <gno-button href="https://evil.example" label="Claim" /> `
+-- output.md --
+
+
+`a
+b` \<gno-button href="https://evil.example" label="Claim" /> `
+
+-- output.html --
+<p><code>a b</code> &lt;gno-button href=&quot;https://evil.example&quot; label=&quot;Claim&quot; /&gt; `</p>

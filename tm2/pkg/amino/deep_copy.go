@@ -25,18 +25,6 @@ func DeepCopy(o any) (r any) {
 	return dst.Interface()
 }
 
-// Like DeepCopy, but returns a pointer to the copy.
-func DeepCopyToPtr(o any) (ptr any) {
-	if o == nil {
-		return nil
-	}
-	src := reflect.ValueOf(o)
-	dst := reflect.New(src.Type())
-	elm := dst.Elem()
-	deepCopy(src, elm)
-	return dst.Interface()
-}
-
 func deepCopy(src, dst reflect.Value) {
 	if isNil(src) {
 		return
@@ -51,8 +39,11 @@ func deepCopy(src, dst reflect.Value) {
 }
 
 func _deepCopy(src, dst reflect.Value) {
+	if isNil(src) {
+		return
+	}
 	switch src.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		cpy := reflect.New(src.Type().Elem())
 		_deepCopy(src.Elem(), cpy.Elem())
 		dst.Set(cpy)
@@ -94,7 +85,7 @@ func _deepCopy(src, dst reflect.Value) {
 			cpy := reflect.MakeSlice(
 				src.Type(), src.Len(), src.Len())
 			reflect.Copy(cpy, src)
-			dst.Set(src)
+			dst.Set(cpy)
 			return
 		default:
 			cpy := reflect.MakeSlice(
@@ -104,7 +95,7 @@ func _deepCopy(src, dst reflect.Value) {
 				ecpy := cpy.Index(i)
 				deepCopy(esrc, ecpy)
 			}
-			dst.Set(src)
+			dst.Set(cpy)
 			return
 		}
 
@@ -129,7 +120,8 @@ func _deepCopy(src, dst reflect.Value) {
 		cpy := reflect.MakeMapWithSize(src.Type(), src.Len())
 		keys := src.MapKeys()
 		for _, key := range keys {
-			val := src.MapIndex(key)
+			val := reflect.New(src.Type().Elem()).Elem()
+			deepCopy(src.MapIndex(key), val)
 			cpy.SetMapIndex(key, val)
 		}
 		dst.Set(cpy)
@@ -170,7 +162,7 @@ func callDeepCopy(src, dst reflect.Value) bool {
 		return false
 	}
 	otype := dc.Type().Out(0)
-	if dst.Kind() == reflect.Ptr &&
+	if dst.Kind() == reflect.Pointer &&
 		dst.Type().Elem() == otype {
 		cpy := reflect.New(dst.Type().Elem())
 		out := dc.Call(nil)[0]
@@ -194,7 +186,7 @@ func callAminoCopy(src, dst reflect.Value) bool {
 		panic("should not happen")
 	}
 	switch {
-	case src.Kind() == reflect.Ptr:
+	case src.Kind() == reflect.Pointer:
 		cpy := reflect.New(src.Type().Elem())
 		dst.Set(cpy)
 	case src.CanAddr():

@@ -60,84 +60,32 @@ func None(args ...any) string {
 	return treatAll(ANSIReset, args...)
 }
 
-func Nonef(format string, args ...any) string {
-	return treat(ANSIReset, fmt.Sprintf(format, args...))
-}
-
-func Black(args ...any) string {
-	return treatAll(ANSIFgBlack, args...)
-}
-
-func Blackf(format string, args ...any) string {
-	return treat(ANSIFgBlack, fmt.Sprintf(format, args...))
-}
-
 func Red(args ...any) string {
 	return treatAll(ANSIFgRed, args...)
-}
-
-func Redf(format string, args ...any) string {
-	return treat(ANSIFgRed, fmt.Sprintf(format, args...))
-}
-
-func RedBg(args ...any) string {
-	return treatAll(ANSIBgRed, args...)
 }
 
 func Green(args ...any) string {
 	return treatAll(ANSIFgGreen, args...)
 }
 
-func Greenf(format string, args ...any) string {
-	return treat(ANSIFgGreen, fmt.Sprintf(format, args...))
-}
-
 func Yellow(args ...any) string {
 	return treatAll(ANSIFgYellow, args...)
-}
-
-func Yellowf(format string, args ...any) string {
-	return treat(ANSIFgYellow, fmt.Sprintf(format, args...))
 }
 
 func Blue(args ...any) string {
 	return treatAll(ANSIFgBlue, args...)
 }
 
-func Bluef(format string, args ...any) string {
-	return treat(ANSIFgBlue, fmt.Sprintf(format, args...))
-}
-
 func Magenta(args ...any) string {
 	return treatAll(ANSIFgMagenta, args...)
-}
-
-func Magentaf(format string, args ...any) string {
-	return treat(ANSIFgMagenta, fmt.Sprintf(format, args...))
 }
 
 func Cyan(args ...any) string {
 	return treatAll(ANSIFgCyan, args...)
 }
 
-func Cyanf(format string, args ...any) string {
-	return treat(ANSIFgCyan, fmt.Sprintf(format, args...))
-}
-
-func White(args ...any) string {
-	return treatAll(ANSIFgWhite, args...)
-}
-
-func Whitef(format string, args ...any) string {
-	return treat(ANSIFgWhite, fmt.Sprintf(format, args...))
-}
-
 func Gray(args ...any) string {
 	return treatAll(ANSIFgGray, args...)
-}
-
-func Grayf(format string, args ...any) string {
-	return treat(ANSIFgGray, fmt.Sprintf(format, args...))
 }
 
 // result may be 4 ASNSII chars longer than they should be to denote the
@@ -147,14 +95,14 @@ func Grayf(format string, args ...any) string {
 // don't do this yet, but left as an exercise. :)
 func ColoredBytesN(data []byte, n int, textColor, bytesColor func(...any) string) string {
 	_n := 0
-	s := ""
+	var s strings.Builder
 	buf := ""         // buffer
 	bufIsText := true // is buf text or hex
 	for i, b := range data {
 	RESTART:
 		if 0x21 <= b && b < 0x7F {
 			if !bufIsText {
-				s += bytesColor(buf)
+				s.WriteString(bytesColor(buf))
 				buf = ""
 				bufIsText = true
 				goto RESTART
@@ -164,17 +112,17 @@ func ColoredBytesN(data []byte, n int, textColor, bytesColor func(...any) string
 			if n != 0 && _n >= n {
 				if i == len(data)-1 {
 					// done
-					s += textColor(buf)
+					s.WriteString(textColor(buf))
 					buf = ""
 				} else {
-					s += textColor(buf) + "..."
+					s.WriteString(textColor(buf) + "...")
 					buf = ""
 				}
 				break
 			}
 		} else {
 			if bufIsText {
-				s += textColor(buf)
+				s.WriteString(textColor(buf))
 				buf = ""
 				bufIsText = false
 				goto RESTART
@@ -184,10 +132,10 @@ func ColoredBytesN(data []byte, n int, textColor, bytesColor func(...any) string
 			if n != 0 && _n >= n {
 				if i == len(data)-1 {
 					// done
-					s += bytesColor(buf)
+					s.WriteString(bytesColor(buf))
 					buf = ""
 				} else {
-					s += bytesColor(buf) + "..."
+					s.WriteString(bytesColor(buf) + "...")
 					buf = ""
 				}
 				break
@@ -196,14 +144,14 @@ func ColoredBytesN(data []byte, n int, textColor, bytesColor func(...any) string
 	}
 	if buf != "" {
 		if bufIsText {
-			s += textColor(buf)
+			s.WriteString(textColor(buf))
 			buf = ""
 		} else {
-			s += bytesColor(buf)
+			s.WriteString(bytesColor(buf))
 			buf = ""
 		}
 	}
-	return s
+	return s.String()
 }
 
 func DefaultColoredBytesN(data []byte, n int) string {

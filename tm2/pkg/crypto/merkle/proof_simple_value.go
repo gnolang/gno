@@ -37,18 +37,6 @@ func NewSimpleValueOp(key []byte, proof *SimpleProof) SimpleValueOp {
 	}
 }
 
-func SimpleValueOpDecoder(pop ProofOp) (ProofOperator, error) {
-	if pop.Type != ProofOpSimpleValue {
-		return nil, errors.New("unexpected ProofOp.Type; got %v, want %v", pop.Type, ProofOpSimpleValue)
-	}
-	var op SimpleValueOp // a bit strange as we'll discard this, but it works.
-	err := cdc.UnmarshalSized(pop.Data, &op)
-	if err != nil {
-		return nil, errors.Wrap(err, "decoding ProofOp.Data into SimpleValueOp")
-	}
-	return NewSimpleValueOp(pop.Key, op.Proof), nil
-}
-
 func (op SimpleValueOp) ProofOp() ProofOp {
 	bz := cdc.MustMarshalSized(op)
 	return ProofOp{
@@ -81,9 +69,12 @@ func (op SimpleValueOp) Run(args [][]byte) ([][]byte, error) {
 		return nil, errors.New("leaf hash mismatch: want %X got %X", op.Proof.LeafHash, kvhash)
 	}
 
-	return [][]byte{
-		op.Proof.ComputeRootHash(),
-	}, nil
+	rootHash, err := op.Proof.ComputeRootHash()
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot compute root hash")
+	}
+
+	return [][]byte{rootHash}, nil
 }
 
 func (op SimpleValueOp) GetKey() []byte {

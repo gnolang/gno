@@ -3,6 +3,7 @@ package amino
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
@@ -10,9 +11,21 @@ import (
 const bdOptionByte = 0x01
 
 // maxAnyDepth is the maximum nesting depth for interface/Any decoding.
-// Each interface field traversal increments depth; exceeding this limit
+// Each interface field traversal increments depth, as does each level of a
+// struct that can contain itself (StructInfo.Recursive); exceeding this limit
 // returns an error instead of risking stack overflow from malicious input.
 const maxAnyDepth = 64
+
+// NestDepth counts one level of a struct that can contain itself and returns
+// the new depth, or an error once it passes maxAnyDepth. Generated decoders
+// call it on entry for such types, as decodeReflectBinaryStruct does.
+func NestDepth(anyDepth int) (int, error) {
+	anyDepth++
+	if anyDepth > maxAnyDepth {
+		return anyDepth, fmt.Errorf("exceeded max nesting depth %d", maxAnyDepth)
+	}
+	return anyDepth, nil
+}
 
 // ----------------------------------------
 // cdc.decodeReflectBinary
@@ -36,7 +49,7 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 	if !rv.CanAddr() {
 		panic("rv not addressable")
 	}
-	if info.Type.Kind() == reflect.Interface && rv.Kind() == reflect.Ptr {
+	if info.Type.Kind() == reflect.Interface && rv.Kind() == reflect.Pointer {
 		panic("should not happen")
 	}
 	if printLog {
@@ -435,13 +448,26 @@ func (cdc *Codec) decodeReflectBinaryInterface(bz []byte, iinfo *TypeInfo, rv re
 	return
 }
 
+// maxErrTypeURLLen bounds the type URL a binary decode error quotes. A binary
+// decoder reads the type URL off the wire, where it can be as long as the
+// message, so a longer one is given by its length.
+const maxErrTypeURLLen = 256
+
+// errTypeURL renders typeURL for a binary decode error.
+func errTypeURL(typeURL string) string {
+	if len(typeURL) > maxErrTypeURLLen {
+		return fmt.Sprintf("(length %d)", len(typeURL))
+	}
+	return strconv.Quote(typeURL)
+}
+
 // Returns the number of bytes read from value.
 // CONTRACT: rv.CanAddr() is true.
 // CONTRACT: rv.Kind() == reflect.Interface.
 func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflect.Value, fopts FieldOptions, anyDepth int) (n int, err error) {
 	// Invalid typeURL value is invalid.
 	if !IsASCIIText(typeURL) {
-		err = fmt.Errorf("invalid type_url string bytes %X", typeURL)
+		err = fmt.Errorf("invalid type_url string bytes %s", errTypeURL(typeURL))
 		return
 	}
 
@@ -450,21 +476,26 @@ func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflec
 	var cinfo *TypeInfo
 	cinfo, err = cdc.getTypeInfoFromTypeURLRLock(typeURL, fopts)
 	if err != nil {
+		err = fmt.Errorf("unrecognized type_url %s", errTypeURL(typeURL))
 		return
 	}
 
 	// Construct the concrete type value.
 	crv, irvSet := constructConcreteType(cinfo)
 
+	// Verify that the concrete type is assignable to the target interface
+	// before decoding into it, as the genproto2 path does: a type the
+	// interface refuses is not worth decoding, and its decode error, which
+	// its UnmarshalAmino can make quote what was sent, would reach the caller.
+	if !irvSet.Type().AssignableTo(rv.Type()) {
+		err = fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
+		return
+	}
+
 	// Special case when value is default empty value.
 	// NOTE: For compatibility with other languages,
 	// nil-pointer interface values are forbidden.
 	if len(value) == 0 {
-		// Verify that the decoded concrete type is assignable to the target interface.
-		if !irvSet.Type().AssignableTo(rv.Type()) {
-			err = fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
-			return
-		}
 		rv.Set(irvSet)
 		return
 	}
@@ -513,12 +544,6 @@ func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflec
 	// prefixed, due to the type of field 2, so bareValue is false.
 	_n, err := cdc.decodeReflectBinary(value, cinfo, crv, fopts, bareValue, 0, anyDepth)
 	if slide(&value, &n, _n) && err != nil {
-		// Verify that the decoded concrete type is assignable to the target interface.
-		// This prevents panics when a registered type doesn't implement the target interface.
-		if !irvSet.Type().AssignableTo(rv.Type()) {
-			err = fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
-			return
-		}
 		rv.Set(irvSet) // Helps with debugging
 		return
 	}
@@ -532,12 +557,6 @@ func (cdc *Codec) decodeReflectBinaryAny(typeURL string, value []byte, rv reflec
 	// We need to set here, for when !PointerPreferred and the type
 	// is say, an array of bytes (e.g. [32]byte), then we must call
 	// rv.Set() *after* the value was acquired.
-	// Verify that the decoded concrete type is assignable to the target interface.
-	// This prevents panics when a registered type doesn't implement the target interface.
-	if !irvSet.Type().AssignableTo(rv.Type()) {
-		err = fmt.Errorf("decoded type %v is not assignable to interface %v", irvSet.Type(), rv.Type())
-		return
-	}
 	// NOTE: rv.Set() should succeed because it was validated
 	// already during Register[Interface/Concrete].
 	rv.Set(irvSet)
@@ -617,7 +636,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 	// Amino2 will probably migrate to use the List typ3.
 	newoptions := uint64(0)
 	// Special case for list of (repr) bytes: decode from "bytes".
-	if ert.Kind() == reflect.Ptr && ert.Elem().Kind() == reflect.Uint8 {
+	if ert.Kind() == reflect.Pointer && ert.Elem().Kind() == reflect.Uint8 {
 		newoptions |= bdOptionByte
 	}
 	typ3 := einfo.GetTyp3(fopts)
@@ -639,7 +658,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 		}
 	} else {
 		// NOTE: ert is for the element value, while einfo.Type is dereferenced.
-		isErtStructPointer := ert.Kind() == reflect.Ptr && einfo.Type.Kind() == reflect.Struct
+		isErtStructPointer := ert.Kind() == reflect.Pointer && einfo.Type.Kind() == reflect.Struct
 		writeImplicit := isListType(einfo.Type) &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
 			einfo.Elem.ReprType.GetTyp3(fopts) != Typ3ByteLength
@@ -723,7 +742,7 @@ func (cdc *Codec) decodeReflectBinaryArray(bz []byte, info *TypeInfo, rv reflect
 				}
 				// Ensure that there are no more bytes left.
 				if len(ibz) > 0 {
-					err = fmt.Errorf("unexpected trailing bytes after implicit list struct's Value field: %X", ibz)
+					err = fmt.Errorf("%d unexpected trailing bytes after implicit list struct's Value field", len(ibz))
 					return
 				}
 			} else {
@@ -853,7 +872,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 		}
 	} else {
 		// NOTE: ert is for the element value, while einfo.Type is dereferenced.
-		isErtStructPointer := ert.Kind() == reflect.Ptr && einfo.Type.Kind() == reflect.Struct
+		isErtStructPointer := ert.Kind() == reflect.Pointer && einfo.Type.Kind() == reflect.Struct
 		writeImplicit := isListType(einfo.Type) &&
 			einfo.Elem.ReprType.Type.Kind() != reflect.Uint8 &&
 			einfo.Elem.ReprType.GetTyp3(fopts) != Typ3ByteLength
@@ -938,7 +957,7 @@ func (cdc *Codec) decodeReflectBinarySlice(bz []byte, info *TypeInfo, rv reflect
 				}
 				// Ensure that there are no more bytes left.
 				if len(ibz) > 0 {
-					err = fmt.Errorf("unexpected trailing bytes after implicit list struct's Value field: %X", ibz)
+					err = fmt.Errorf("%d unexpected trailing bytes after implicit list struct's Value field", len(ibz))
 					return
 				}
 			} else {
@@ -972,6 +991,11 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 		}()
 	}
 	_n := 0 //nolint: ineffassign
+	if info.Recursive {
+		if anyDepth, err = NestDepth(anyDepth); err != nil {
+			return
+		}
+	}
 
 	// NOTE: The "Struct" typ3 doesn't get read here.
 	// It's already implied, either by struct-key or list-element-type-byte.
@@ -1004,6 +1028,9 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 				return
 			}
 			if field.BinFieldNum < fnum {
+				// Absent: reset it, as for any other absent field, rather
+				// than keep what a reused rv held (genproto2 resets too).
+				frv.Set(defaultValue(frv.Type()))
 				continue
 			}
 			// This is a list that was encoded unpacked, e.g.
@@ -1032,8 +1059,8 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 					return
 				}
 				if fnum <= lastFieldNum {
-					err = fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v\nbytes:%X",
-						fnum, lastFieldNum, bz)
+					err = fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v",
+						fnum, lastFieldNum)
 					return
 				}
 				lastFieldNum = fnum
@@ -1059,8 +1086,8 @@ func (cdc *Codec) decodeReflectBinaryStruct(bz []byte, info *TypeInfo, rv reflec
 
 			// Validate fnum and typ.
 			if fnum <= lastFieldNum {
-				err = fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v\nbytes:%X",
-					fnum, lastFieldNum, bz)
+				err = fmt.Errorf("encountered fieldNum: %v, but we have already seen fnum: %v",
+					fnum, lastFieldNum)
 				return
 			}
 			lastFieldNum = fnum

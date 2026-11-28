@@ -1,0 +1,15 @@
+-- input.md --
+> <gno-details summary="Summary">
+> body
+> 	</gno-details>
+> after
+-- output.html --
+<blockquote>
+<details class="gno-details">
+<summary><svg><use href="#ico-arrow"></use></svg><span>Summary</span></summary>
+<div>
+<p>body</p>
+</div>
+</details>
+<p>after</p>
+</blockquote>

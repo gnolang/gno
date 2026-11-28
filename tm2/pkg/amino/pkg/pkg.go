@@ -147,7 +147,7 @@ func (pkg *Package) WithTypes(objs ...any) *Package {
 
 		// Two special cases.
 		// One: a string which follows a type declaration is a name.
-		if objType == reflect.TypeOf("string") {
+		if objType == reflect.TypeFor[string]() {
 			if lastType == nil {
 				panic("Type names (specified via a string argument to WithTypes()) must come *after* the prototype object")
 			} else {
@@ -157,10 +157,10 @@ func (pkg *Package) WithTypes(objs ...any) *Package {
 			}
 		}
 		// Two: pkg.Type{} can be specified directly
-		if objType.Kind() == reflect.Ptr && objType.Elem() == reflect.TypeOf(Type{}) {
+		if objType.Kind() == reflect.Pointer && objType.Elem() == reflect.TypeFor[Type]() {
 			panic("Use pkg.Type{}, not *pkg.Type{}")
 		}
-		if objType == reflect.TypeOf(Type{}) {
+		if objType == reflect.TypeFor[Type]() {
 			objType = obj.(Type).Type
 			name = obj.(Type).Name
 			if name != capitalize(name) {
@@ -172,9 +172,9 @@ func (pkg *Package) WithTypes(objs ...any) *Package {
 
 		// Init deref and ptr types.
 		objDerefType := objType
-		if objDerefType.Kind() == reflect.Ptr {
+		if objDerefType.Kind() == reflect.Pointer {
 			objDerefType = objType.Elem()
-			if objDerefType.Kind() == reflect.Ptr {
+			if objDerefType.Kind() == reflect.Pointer {
 				panic("unexpected nested pointers")
 			}
 			pointerPreferred = true
@@ -228,7 +228,7 @@ func (pkg *Package) WithP3SchemaFile(file string) *Package {
 
 // Parse the Go code in filename and scan the AST looking for struct doc comments.
 // Find the Type in pkg.Types and set its Comment and FieldComments, which are
-// used by genproto.GenerateProto3MessagePartial to set the Comment in the P3Doc
+// used by genproto2.GenerateProto3MessagePartial to set the Comment in the P3Doc
 // and related P3Field objects.
 func (pkg *Package) WithComments(filename string) *Package {
 	fset := token.NewFileSet()
@@ -291,7 +291,7 @@ func (pkg *Package) getTypeByName(name string) *Type {
 
 // Result cannot be modified.
 func (pkg *Package) GetType(rt reflect.Type) (t Type, ok bool) {
-	if rt.Kind() == reflect.Ptr {
+	if rt.Kind() == reflect.Pointer {
 		panic("unexpected pointer type")
 	}
 	for _, t := range pkg.Types {
@@ -323,7 +323,7 @@ func (pkg *Package) HasFullName(fullname string) (exists bool) {
 // panics of rt was not registered.
 func (pkg *Package) FullNameForType(rt reflect.Type) string {
 	drt := rt
-	if rt.Kind() == reflect.Ptr {
+	if rt.Kind() == reflect.Pointer {
 		drt = rt.Elem()
 	}
 	t, ok := pkg.GetType(drt)

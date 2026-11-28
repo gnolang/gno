@@ -24,7 +24,7 @@ func generateDummyTxs(t *testing.T, count int) []std.Tx {
 
 	txs := make([]std.Tx, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		txs[i] = std.Tx{
 			Msgs: []std.Msg{
 				bank.MsgSend{
@@ -100,14 +100,14 @@ func TestMigrate_Txs(t *testing.T) {
 
 		// Generate the initial sheet files
 		files := make([]*os.File, 0, chunks)
-		for i := 0; i < chunks; i++ {
+		for i := range chunks {
 			f, err := os.Create(getSheetPath(inputDir, i))
 			require.NoError(t, err)
 
 			files = append(files, f)
 		}
 
-		for i := 0; i < chunks; i++ {
+		for i := range chunks {
 			var (
 				start = i * chunkSize
 				end   = start + chunkSize
@@ -142,7 +142,7 @@ func TestMigrate_Txs(t *testing.T) {
 		require.NoError(t, cmdErr)
 
 		metadataTxs := make([]gnoland.TxWithMetadata, 0, len(txs))
-		for i := 0; i < chunks; i++ {
+		for i := range chunks {
 			readTxs, err := gnoland.ReadGenesisTxs(context.Background(), getSheetPath(outputDir, i))
 			require.NoError(t, err)
 

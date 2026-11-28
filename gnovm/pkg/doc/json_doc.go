@@ -17,9 +17,10 @@ import (
 // as JSON with printable string fields
 type JSONDocumentation struct {
 	PackagePath string   `json:"package_path"`
-	PackageLine string   `json:"package_line"` // package io // import "io"
-	PackageDoc  string   `json:"package_doc"`  // markdown of top-level package documentation
-	Bugs        []string `json:"bugs"`         // From comments with "BUG(who): Details"
+	PackageLine string   `json:"package_line"`      // package io // import "io"
+	PackageDoc  string   `json:"package_doc"`       // markdown of top-level package documentation
+	Imports     []string `json:"imports,omitempty"` // sorted, deduplicated non-test import paths
+	Bugs        []string `json:"bugs"`              // From comments with "BUG(who): Details"
 
 	// These match each of the sections in a pkg.go.dev package documentation
 	Values []*JSONValueDecl `json:"values"` // constants and variables declared
@@ -32,6 +33,8 @@ type JSONValueDecl struct {
 	Const     bool         `json:"const"`
 	Values    []*JSONValue `json:"values"`
 	Doc       string       `json:"doc"` // markdown
+	File      string       `json:"file,omitempty"`
+	Line      int          `json:"line,omitempty"`
 }
 
 type JSONValue struct {
@@ -54,6 +57,8 @@ type JSONFunc struct {
 	Doc       string       `json:"doc"` // markdown
 	Params    []*JSONField `json:"params"`
 	Results   []*JSONField `json:"results"`
+	File      string       `json:"file,omitempty"`
+	Line      int          `json:"line,omitempty"`
 }
 
 const (
@@ -82,6 +87,8 @@ type JSONType struct {
 	// TODO: Use omitzero when upgraded to Go 1.24
 	InterElems []*JSONInterfaceElement `json:"inter_elems,omitempty"` // interface methods or embedded types (Kind == "interface") (struct methods are in JSONDocumentation.Funcs)
 	Fields     []*JSONField            `json:"fields,omitempty"`      // struct fields (Kind == "struct")
+	File       string                  `json:"file,omitempty"`
+	Line       int                     `json:"line,omitempty"`
 }
 
 // NewDocumentableFromMemPkg gets the pkgData from mpkg and returns a Documentable
@@ -116,6 +123,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 		PackagePath: d.pkgData.dir.dir,
 		PackageLine: fmt.Sprintf("package %s // import %q", pkg.Name, pkg.ImportPath),
 		PackageDoc:  string(pkg.Markdown(pkg.Doc)),
+		Imports:     d.pkgData.imports(),
 		Values:      []*JSONValueDecl{},
 		Funcs:       []*JSONFunc{},
 		Types:       []*JSONType{},
@@ -128,25 +136,32 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 	}
 
 	for _, value := range pkg.Consts {
+		vfile, vline := d.pkgData.extractPosition(value.Decl)
 		jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
 			Signature: mustFormatNode(d.pkgData.fset, value.Decl, opt.Source, file),
 			Const:     true,
 			Values:    d.extractValueSpecs(pkg, value.Decl.Specs),
 			Doc:       string(pkg.Markdown(value.Doc)),
+			File:      vfile,
+			Line:      vline,
 		})
 	}
 
 	for _, value := range pkg.Vars {
+		vfile, vline := d.pkgData.extractPosition(value.Decl)
 		jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
 			Signature: mustFormatNode(d.pkgData.fset, value.Decl, opt.Source, file),
 			Const:     false,
 			Values:    d.extractValueSpecs(pkg, value.Decl.Specs),
 			Doc:       string(pkg.Markdown(value.Doc)),
+			File:      vfile,
+			Line:      vline,
 		})
 	}
 
 	for _, fun := range pkg.Funcs {
 		params := d.extractJSONFields(fun.Decl.Type.Params)
+		ffile, fline := d.pkgData.extractPosition(fun.Decl)
 		jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 			Name:      fun.Name,
 			Crossing:  isCrossing(params),
@@ -154,6 +169,8 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 			Doc:       string(pkg.Markdown(fun.Doc)),
 			Params:    params,
 			Results:   d.extractJSONFields(fun.Decl.Type.Results),
+			File:      ffile,
+			Line:      fline,
 		})
 	}
 
@@ -241,6 +258,7 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 			kind = identKind
 		}
 
+		tfile, tline := d.pkgData.extractPosition(typeSpec)
 		jsonDoc.Types = append(jsonDoc.Types, &JSONType{
 			Name:       typ.Name,
 			Type:       mustFormatNode(d.pkgData.fset, typeExpr, false, file),
@@ -249,29 +267,38 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 			Kind:       kind,
 			InterElems: interElems,
 			Fields:     fields,
+			File:       tfile,
+			Line:       tline,
 		})
 
 		// values of this type
 		for _, c := range typ.Consts {
+			vfile, vline := d.pkgData.extractPosition(c.Decl)
 			jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
 				Signature: mustFormatNode(d.pkgData.fset, c.Decl, opt.Source, file),
 				Const:     true,
 				Values:    d.extractValueSpecs(pkg, c.Decl.Specs),
 				Doc:       string(pkg.Markdown(c.Doc)),
+				File:      vfile,
+				Line:      vline,
 			})
 		}
 		for _, v := range typ.Vars {
+			vfile, vline := d.pkgData.extractPosition(v.Decl)
 			jsonDoc.Values = append(jsonDoc.Values, &JSONValueDecl{
 				Signature: mustFormatNode(d.pkgData.fset, v.Decl, opt.Source, file),
 				Const:     false,
 				Values:    d.extractValueSpecs(pkg, v.Decl.Specs),
 				Doc:       string(pkg.Markdown(v.Doc)),
+				File:      vfile,
+				Line:      vline,
 			})
 		}
 
 		// constructors for this type
 		for _, fun := range typ.Funcs {
 			params := d.extractJSONFields(fun.Decl.Type.Params)
+			ffile, fline := d.pkgData.extractPosition(fun.Decl)
 			jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 				Name:      fun.Name,
 				Crossing:  isCrossing(params),
@@ -279,11 +306,14 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 				Doc:       string(pkg.Markdown(fun.Doc)),
 				Params:    params,
 				Results:   d.extractJSONFields(fun.Decl.Type.Results),
+				File:      ffile,
+				Line:      fline,
 			})
 		}
 
 		for _, meth := range typ.Methods {
 			params := d.extractJSONFields(meth.Decl.Type.Params)
+			mfile, mline := d.pkgData.extractPosition(meth.Decl)
 			jsonDoc.Funcs = append(jsonDoc.Funcs, &JSONFunc{
 				Type:      typ.Name,
 				Name:      meth.Name,
@@ -292,6 +322,8 @@ func (d *Documentable) WriteJSONDocumentation(opt *WriteDocumentationOptions) (*
 				Doc:       string(pkg.Markdown(meth.Doc)),
 				Params:    params,
 				Results:   d.extractJSONFields(meth.Decl.Type.Results),
+				File:      mfile,
+				Line:      mline,
 			})
 		}
 	}
@@ -317,24 +349,18 @@ func (d *Documentable) extractJSONFields(fieldList *ast.FieldList) []*JSONField 
 				}
 			}
 
+			// Formatted once per field and shared by its names: the type can be
+			// as long as the source, and so can the list of names.
+			typ := mustFormatNode(d.pkgData.fset, field.Type, false, nil)
+			doc := commentBuf.String()
 			if len(field.Names) == 0 {
 				// if there are no names, then the field is unnamed, but still has a type
-				f := &JSONField{
-					Name: "",
-					Type: mustFormatNode(d.pkgData.fset, field.Type, false, nil),
-					Doc:  commentBuf.String(),
-				}
-				results = append(results, f)
+				results = append(results, &JSONField{Name: "", Type: typ, Doc: doc})
 			} else {
 				// fields can be of the format: (a, b int, c string)
 				// so we need to iterate over the names
 				for _, name := range field.Names {
-					f := &JSONField{
-						Name: name.Name,
-						Type: mustFormatNode(d.pkgData.fset, field.Type, false, nil),
-						Doc:  commentBuf.String(),
-					}
-					results = append(results, f)
+					results = append(results, &JSONField{Name: name.Name, Type: typ, Doc: doc})
 				}
 			}
 		}
@@ -360,15 +386,12 @@ func (d *Documentable) extractValueSpecs(pkg *doc.Package, specs []ast.Spec) []*
 			}
 		}
 
+		// Rendered once and shared by the spec's names, as in extractJSONFields.
+		doc := string(pkg.Markdown(commentBuf.String()))
 		// Const declaration can be of the form: const a, b, c = 1, 2, 3
 		// so we need to iterate over the names
 		for _, name := range constSpec.Names {
-			jsonValue := &JSONValue{
-				Name: name.Name,
-				Type: typeString,
-				Doc:  string(pkg.Markdown(commentBuf.String())),
-			}
-			values = append(values, jsonValue)
+			values = append(values, &JSONValue{Name: name.Name, Type: typeString, Doc: doc})
 		}
 	}
 	return values

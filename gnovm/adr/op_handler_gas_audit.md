@@ -114,7 +114,7 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 | Op handler | Cost-varying parameters | Pessimistic input | Why pessimistic |
 |---|---|---|---|
 | doOpPrecall | Function type (FuncValue/BoundMethod/TypeValue); IsWithCross; IsCrossing; NumArgs | FuncValue with IsWithCross+IsCrossing requiring realm creation | NewConcreteRealm allocation + Assign |
-| doOpEnterCrossing | Frame stack depth | Deep call stack with realm boundary check | **O(n²)**: PeekCallFrame(i) internally iterates backwards through ALL frames each time. Code has TODO: "O(n²), optimize." |
+| doOpEnterCrossing | Frame stack depth | Deep call stack with realm boundary check | **O(n)** since the single-cursor rewrite; was O(n²) when PeekCallFrame(i) restarted from the top each iteration. Charged linearly via OpCPUSlopeEnterCrossing. |
 | doOpCall | Number of captures; block size (NumNames); return count; param count; native vs Gno; variadic expansion | Gno function with many captures + params + returns + heap-defined results | Captures copy O(n); NewBlock O(NumNames); defaultTypedValue per result O(results); popCopyArgs variadic O(nvar) slice alloc; Store lookups for GetSource/GetType/GetParent |
 | doOpCallNativeBody | None (delegates to native) | Any native call | Cost depends on native implementation |
 | doOpCallDeferNativeBody | None | Any deferred native | Pop + call |
@@ -122,6 +122,7 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 | doOpReturnAfterCopy | Number of return values; heap-defined results; realm | Many named results heap-defined + realm crossing | Per-result Copy + realm finalization |
 | doOpReturnFromBlock | Number of return values; fillValueTV complexity | Many named returns with RefValues/HeapItemValues | O(results) fillValueTV may deref recursively; store lookups |
 | doOpReturnToBlock | Number of return values | Many named returns | O(results) AssignToBlock + Copy |
+| doOpReturnConvert | Number of results; how many differ by name | Many results that all differ by name | O(results) walk with a Copy per conversion; each conversion is charged in convertValue |
 | doOpReturnCallDefers | Number of defers; capture count; variadic args; native vs Gno | Many defers with many captures + variadic params | Per-defer: PushFrameCall + NewBlock O(NumNames) + captures copy O(n) + popCopyArgs O(nvar) |
 | doOpDefer | Argument count; variadic expansion; BoundMethod receiver; captures | Variadic with many args + receiver + captures | MustPeekCallFrame O(frames); popCopyArgs O(nvar) slice alloc + element copy |
 | doOpPanic2 | Frame depth; exception chain depth | Deep call stack with nested exceptions | PopUntilLastCallFrame O(n frames); if unhandled: makeUnhandledPanicError O(numExceptions × Sprint cost) |
@@ -160,7 +161,7 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 | Item | Original claim | Correction |
 |---|---|---|
 | doOpRef | "Heap capture count; HeapCaptures iteration O(n)" | HeapCaptures iteration is in doOpFuncLit, NOT doOpRef. doOpRef is O(1) |
-| doOpEnterCrossing | "O(n) frame loop" | Actually **O(n²)** because PeekCallFrame(i) scans backwards each time |
+| doOpEnterCrossing | "O(n) frame loop" | Was **O(n²)** because PeekCallFrame(i) scanned backwards each time; since rewritten to a single cursor pass, so O(n) again |
 | doOpShr BigInt | "Shift behavior similar to Shl" | BigInt right shift has **no maxBigintShift limit** unlike left shift (capped at 10000) |
 | doOpStructLit keyed | "Searches by field index O(el)" | Uses pre-computed fnx.Path.Index for O(1) direct array access |
 | Comparison ops | "lessAssign helper" | No shared helper — 4 separate functions: isLss, isLeq, isGtr, isGeq |
@@ -168,7 +169,7 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 
 ## Benchmark gap analysis
 
-### Status: 350 benchmarks in bench_ops_test.go
+### Status: 414 benchmarks in bench_ops_test.go
 
 ### Covered
 
@@ -182,7 +183,7 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 8. doOpTypeAssert2 interface — BenchmarkOpTypeAssert2_Interface_{Hit,Miss}
 9. doOpFuncLit with captures — BenchmarkOpFuncLit_Captures_{0,1,10,100,1000}
 10. doOpCall — BenchmarkOpCall_{0-100}Params_{0-100}Captures + BenchmarkOpCall_Method
-11. doOpReturn — BenchmarkOpReturn + ReturnAfterCopy + ReturnFromBlock + ReturnToBlock
+11. doOpReturn — BenchmarkOpReturn + ReturnAfterCopy + ReturnFromBlock + ReturnToBlock + ReturnConvert
 12. doOpDefer — BenchmarkOpDefer_{1,10,100}Args
 13. doOpExec OpForLoop — BenchmarkOpForLoop_HeapCopy_{0,1,10,100,1000}
 14. doOpExec OpRangeIter — BenchmarkOpRangeIter_{1,10,100,1000}
@@ -214,9 +215,8 @@ Note: All compound assigns pass nil,nil,nil to DidUpdate — the expensive refer
 1. **doOpSliceLit2 sparse** — maxVal amplification attack vector
 2. **doOpSelector VPBlock** — block depth traversal
 3. **doOpReturnCallDefers** with many captures per defer
-4. **doOpEnterCrossing** — O(n²) frame scan
-5. **BenchmarkOpShl_BigInt** — shift values near maxBigintShift=10000
-6. **BenchmarkOpShr_BigInt** — very large shifts (no limit!)
+4. **BenchmarkOpShl_BigInt** — shift values near maxBigintShift=10000
+5. **BenchmarkOpShr_BigInt** — very large shifts (no limit!)
 
 ---
 

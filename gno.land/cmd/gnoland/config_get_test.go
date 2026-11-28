@@ -46,8 +46,6 @@ func verifyGetTestTableCommon(t *testing.T, testTable []testGetCase) {
 	t.Helper()
 
 	for _, testCase := range testTable {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -778,6 +776,14 @@ func TestConfig_Get_RPC(t *testing.T) {
 			false,
 		},
 		{
+			"rpc idle timeout",
+			"rpc.idle_timeout",
+			func(loadedCfg *config.Config, value []byte) {
+				assert.Equal(t, loadedCfg.RPC.IdleTimeout, unmarshalJSONCommon[time.Duration](t, value))
+			},
+			false,
+		},
+		{
 			"max body bytes",
 			"rpc.max_body_bytes",
 			func(loadedCfg *config.Config, value []byte) {
@@ -786,10 +792,26 @@ func TestConfig_Get_RPC(t *testing.T) {
 			false,
 		},
 		{
+			"max batch requests",
+			"rpc.max_batch_requests",
+			func(loadedCfg *config.Config, value []byte) {
+				assert.Equal(t, loadedCfg.RPC.MaxBatchRequests, unmarshalJSONCommon[int](t, value))
+			},
+			false,
+		},
+		{
 			"max header bytes",
 			"rpc.max_header_bytes",
 			func(loadedCfg *config.Config, value []byte) {
 				assert.Equal(t, loadedCfg.RPC.MaxHeaderBytes, unmarshalJSONCommon[int](t, value))
+			},
+			false,
+		},
+		{
+			"allow code execution",
+			"rpc.allow_code_execution",
+			func(loadedCfg *config.Config, value []byte) {
+				assert.Equal(t, loadedCfg.RPC.AllowCodeExecution, unmarshalJSONCommon[bool](t, value))
 			},
 			false,
 		},

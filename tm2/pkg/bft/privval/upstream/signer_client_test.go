@@ -69,7 +69,7 @@ func (f *fakePrivvalSigner) serve(t *testing.T, ctx context.Context) {
 				return
 			}
 
-			var resp interface{}
+			var resp any
 			switch m := inner.(type) {
 			case *upstreampb.PingRequest:
 				resp = &upstreampb.PingResponse{}

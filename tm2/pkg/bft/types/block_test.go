@@ -5,6 +5,8 @@ import (
 	// number generator here and we can run the tests a bit faster
 	"crypto/rand"
 	"math"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +26,7 @@ func TestBlockValidateBasic(t *testing.T) {
 	t.Parallel()
 
 	require.Error(t, (*Block)(nil).ValidateBasic())
+	require.Error(t, (*Block)(nil).ValidateHeaderBasic())
 
 	txs := []Tx{Tx("foo"), Tx("bar")}
 	lastID := makeBlockIDRandom()
@@ -33,38 +36,45 @@ func TestBlockValidateBasic(t *testing.T) {
 	commit, err := MakeCommit(lastID, h-1, 1, voteSet, vals)
 	require.NoError(t, err)
 
+	// headerErr is what ValidateHeaderBasic returns, which compares no hash
+	// against the body.
 	testCases := []struct {
 		testName      string
 		malleateBlock func(*Block)
 		expErr        bool
+		headerErr     bool
 	}{
-		{"Make Block", func(blk *Block) {}, false},
-		{"Make Block w/ proposer Addr", func(blk *Block) { blk.ProposerAddress = valSet.GetProposer().Address }, false},
-		{"Negative Height", func(blk *Block) { blk.Height = -1 }, true},
-		{"Increase NumTxs", func(blk *Block) { blk.NumTxs++ }, true},
+		{"Make Block", func(blk *Block) {}, false, false},
+		{"Make Block w/ proposer Addr", func(blk *Block) { blk.ProposerAddress = valSet.GetProposer().Address }, false, false},
+		{"Negative Height", func(blk *Block) { blk.Height = -1 }, true, true},
+		{"Increase NumTxs", func(blk *Block) { blk.NumTxs++ }, true, true},
 		{"Remove 1/2 the commits", func(blk *Block) {
 			blk.LastCommit.Precommits = commit.Precommits[:commit.Size()/2]
 			blk.LastCommit.hash = nil // clear hash or change wont be noticed
-		}, true},
-		{"Remove LastCommitHash", func(blk *Block) { blk.LastCommitHash = []byte("something else") }, true},
+		}, true, false},
+		{"Remove LastCommitHash", func(blk *Block) { blk.LastCommitHash = []byte("something else") }, true, true},
+		{"Empty LastCommitHash", func(blk *Block) { blk.LastCommitHash = nil }, true, true},
 		{"Tampered Data", func(blk *Block) {
 			blk.Data.Txs[0] = Tx("something else")
 			blk.Data.hash = nil // clear hash or change wont be noticed
-		}, true},
+		}, true, false},
 		{"Tampered DataHash", func(blk *Block) {
 			blk.DataHash = random.RandBytes(len(blk.DataHash))
-		}, true},
+		}, true, false},
+		{"Empty DataHash", func(blk *Block) { blk.DataHash = nil }, true, true},
 	}
 	for i, tc := range testCases {
-		tc := tc
-		i := i
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
-			block := MakeBlock(h, txs, commit)
+			// Each case gets its own txs and commit, which some cases change.
+			lastCommit := NewCommit(commit.BlockID, append([]*CommitSig(nil), commit.Precommits...))
+			block := MakeBlock(h, append([]Tx(nil), txs...), lastCommit)
 			block.Header.LastBlockID = lastID
 			block.ProposerAddress = valSet.GetProposer().Address
 			tc.malleateBlock(block)
+			err := block.ValidateHeaderBasic()
+			assert.Equal(t, tc.headerErr, err != nil, "#%d header: %v", i, err)
 			err = block.ValidateBasic()
 			assert.Equal(t, tc.expErr, err != nil, "#%d: %v", i, err)
 		})
@@ -320,7 +330,6 @@ func TestCommitValidateBasic(t *testing.T) {
 		{"Incorrect round", func(com *Commit) { com.Precommits[0].Round = 100 }, true},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -331,6 +340,106 @@ func TestCommitValidateBasic(t *testing.T) {
 	}
 }
 
+func TestCommitValidateBasicPartSetHeaderTotal(t *testing.T) {
+	t.Parallel()
+
+	// CanonicalizePartSetHeader panics on a Total outside the canonical
+	// uint32 range, so ValidateBasic must refuse the commit instead.
+	maxInt64 := int64(math.MaxInt64)
+	maxUint32 := int64(math.MaxUint32)
+
+	type testCase struct {
+		name      string
+		total     int
+		expectErr bool
+	}
+	testCases := []testCase{
+		{"Negative total", -1, true},
+		{"Max int total", int(maxInt64), true},
+	}
+	if strconv.IntSize == 64 {
+		// Total is a platform int: values above uint32 exist, and the
+		// canonicalization panic is reachable, only where int is 64 bits.
+		testCases = append(testCases,
+			testCase{"Largest canonical total", int(maxUint32), false},
+			testCase{"Smallest out-of-range total", int(maxUint32 + 1), true},
+		)
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			com := randCommit()
+			com.Precommits[0].BlockID.PartsHeader.Total = tc.total
+			assert.Equal(t, tc.expectErr, com.ValidateBasic() != nil, "Validate Basic had an unexpected result")
+		})
+	}
+}
+
+func TestCommitValidateBasicPrecommitsCount(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		size      int
+		expectErr bool
+	}{
+		{"At MaxVotesCount", MaxVotesCount, false},
+		{"Above MaxVotesCount", MaxVotesCount + 1, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Nil precommits pass the per-entry checks; only the cap rejects.
+			com := randCommit()
+			com.Precommits = append(com.Precommits, make([]*CommitSig, tc.size-len(com.Precommits))...)
+			err := com.ValidateBasic()
+			if tc.expectErr {
+				require.ErrorContains(t, err, "too many precommits")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestBlockValidateBasicRejectsOversizedLastCommit(t *testing.T) {
+	t.Parallel()
+
+	// An otherwise valid block with all-nil precommits past the cap, decoded
+	// as a peer would send it.
+	commit := NewCommit(makeBlockIDRandom(), make([]*CommitSig, MaxVotesCount+1))
+	block := MakeBlock(int64(3), []Tx{Tx("foo"), Tx("bar")}, commit)
+	block.Header.LastBlockID = makeBlockIDRandom()
+	block.ProposerAddress = crypto.AddressFromPreimage([]byte("proposer_address"))
+
+	wire, err := amino.MarshalSized(block)
+	require.NoError(t, err)
+	var dec Block
+	require.NoError(t, amino.UnmarshalSized(wire, &dec))
+	require.Len(t, dec.LastCommit.Precommits, MaxVotesCount+1)
+
+	require.ErrorContains(t, dec.ValidateBasic(), "too many precommits")
+	require.Nil(t, dec.LastCommit.hash, "LastCommit was hashed before the count check")
+}
+
+func TestVerifyCommitRejectsOutOfRangePartsHeaderTotal(t *testing.T) {
+	t.Parallel()
+
+	lastID := makeBlockIDRandom()
+	h := int64(3)
+	voteSet, valSet, vals := randVoteSet(h-1, 1, PrecommitType, 10, 1)
+	commit, err := MakeCommit(lastID, h-1, 1, voteSet, vals)
+	require.NoError(t, err)
+
+	// The panic fires while the sign bytes are built, before the signature is
+	// checked, so the crafted commit needs no valid signature.
+	maxInt64 := int64(math.MaxInt64)
+	commit.Precommits[0].BlockID.PartsHeader.Total = int(maxInt64)
+	err = valSet.VerifyCommit(voteSet.ChainID(), commit.BlockID, h-1, commit)
+	require.Error(t, err)
+}
+
 func TestHeaderByteSize(t *testing.T) {
 	t.Parallel()
 
@@ -338,9 +447,9 @@ func TestHeaderByteSize(t *testing.T) {
 	// characters.
 	// Each supplementary character takes 4 bytes.
 	// http://www.i18nguy.com/unicode/supplementary-test.html
-	maxChainID := ""
+	var maxChainID strings.Builder
 	for range MaxChainIDLen {
-		maxChainID += "𠜎"
+		maxChainID.WriteString("𠜎")
 	}
 
 	// time is varint encoded so need to pick the max.
@@ -349,7 +458,7 @@ func TestHeaderByteSize(t *testing.T) {
 
 	h := Header{
 		Version:            typesver.BlockVersion,
-		ChainID:            maxChainID,
+		ChainID:            maxChainID.String(),
 		Height:             math.MaxInt64,
 		Time:               timestamp,
 		NumTxs:             math.MaxInt64,
@@ -509,7 +618,6 @@ func TestSignedHeaderValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 
@@ -553,7 +661,6 @@ func TestBlockIDValidateBasic(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
 			t.Parallel()
 

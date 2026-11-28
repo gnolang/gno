@@ -1,0 +1,6 @@
+-- input.md --
+<gno-frame/>
+after
+-- output.html --
+<!-- unexpected/invalid frame tag omitted -->
+<p>after</p>

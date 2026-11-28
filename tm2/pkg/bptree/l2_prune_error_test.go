@@ -41,7 +41,7 @@ func TestPrune_ErrorLeavesNoPartialDeletes(t *testing.T) {
 	tree := NewMutableTreeWithDB(fdb, 0, NewNopLogger()) // no cache: loads hit the DB
 
 	// v1: enough keys for a multi-node tree; v2/v3: small changes.
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		tree.Set(fmt.Appendf(nil, "pe%04d", i), fmt.Appendf(nil, "v1_%04d", i))
 	}
 	if _, _, err := tree.SaveVersion(); err != nil {
@@ -88,7 +88,7 @@ func TestPrune_ErrorLeavesNoPartialDeletes(t *testing.T) {
 	if !bytes.Equal(imm.Hash(), v1Hash) {
 		t.Fatalf("v1 hash changed after failed prune")
 	}
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		v, err := imm.Get(fmt.Appendf(nil, "pe%04d", i))
 		if err != nil || !bytes.Equal(v, fmt.Appendf(nil, "v1_%04d", i)) {
 			t.Fatalf("v1 key %d unreadable after failed prune: %v", i, err)
@@ -111,7 +111,7 @@ func TestPrune_ErrorLeavesNoPartialDeletes(t *testing.T) {
 // staged writes.
 func TestPrune_RequiresCleanSession(t *testing.T) {
 	tree := newPruneTree(t)
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		tree.Set(fmt.Appendf(nil, "cs%03d", i), []byte("v"))
 	}
 	if _, _, err := tree.SaveVersion(); err != nil {

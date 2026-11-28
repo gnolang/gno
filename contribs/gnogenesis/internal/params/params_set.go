@@ -74,6 +74,30 @@ func execParamsSet(cfg *paramsCfg, io commands.IO, args []string) error {
 		return fmt.Errorf("unable to set params %q: %w", key, err)
 	}
 
+	// Validate before writing, so a bad value is a CLI error here rather than a
+	// panic when the node boots.
+	//
+	// updateParamsField parses the value into the field's type but consults
+	// neither Validate nor WillSetParam, so nothing else on this path judges
+	// whether it makes sense -- and all of these params are consensus state.
+	//
+	// Only the module the key names, and only after the legacy defaulting the
+	// node applies. Validating all three would refuse to edit a genesis the node
+	// boots fine: one still being filled in, or an older export missing a field
+	// ApplyLegacyDefaults supplies at boot.
+	var verr error
+	switch {
+	case strings.HasPrefix(key, "vm."):
+		verr = appstate.VM.Params.ApplyLegacyDefaults().Validate()
+	case strings.HasPrefix(key, "auth."):
+		verr = appstate.Auth.Params.Validate()
+	case strings.HasPrefix(key, "bank."):
+		verr = appstate.Bank.Params.Validate()
+	}
+	if verr != nil {
+		return fmt.Errorf("invalid params after setting %q: %w", key, verr)
+	}
+
 	// Override AppState with the updated one
 	genesis.AppState = appstate
 
@@ -119,6 +143,15 @@ func saveStringToValue(vals []string, dstValue reflect.Value) error {
 		return fmt.Errorf("no value(s) to set")
 	}
 
+	// Kind, not concrete type, for the string case: vm.CodeSubmissionPolicy is a
+	// named string type, so `case string:` misses it and the switch fell through
+	// to "unsupported type". That made code_submission_policy unsettable while
+	// the three address lists it governs set fine.
+	if dstValue.Kind() == reflect.String {
+		dstValue.SetString(vals[0])
+		return nil
+	}
+
 	switch dstValue.Interface().(type) {
 	case string:
 		dstValue.Set(reflect.ValueOf(vals[0]))
@@ -147,7 +180,7 @@ func saveStringToValue(vals []string, dstValue reflect.Value) error {
 				continue
 			}
 
-			for _, ss := range strings.Split(val, ",") {
+			for ss := range strings.SplitSeq(val, ",") {
 				addr, err := crypto.AddressFromBech32(ss)
 				if err != nil {
 					return fmt.Errorf("unable to parse address %q: %w", ss, err)
