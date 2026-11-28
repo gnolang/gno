@@ -423,15 +423,15 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		// A line indented less than its fence's opener gets a closer at the
 		// opener's column before it, so it parses outside the fence whether
 		// or not the fence sits in a list item.
-		{"fence-in-list-form-injection", "- a\n  ```\n<gno-form path=\"x\">\n```\n", "- a\n  ```\n  ```\n\\<gno-form path=\"x\">\n```\n```\n"},
-		{"fence-in-list-blank-line", "- a\n\n  ```\n<gno-form path=\"x\">\n```\n", "- a\n\n  ```\n  ```\n\\<gno-form path=\"x\">\n```\n```\n"},
-		{"fence-in-list-lazy-continuation", "- a\nb\n  ```\n<gno-columns>\n```\n", "- a\nb\n  ```\n  ```\n\\<gno-columns>\n```\n```\n"},
+		{"fence-in-list-form-injection", "- a\n  ```\n<gno-form path=\"x\">\n```\n", "- a\n  ```\n  ```\n\\<gno-form path=\"x\">\n\\`\\`\\`\n"},
+		{"fence-in-list-blank-line", "- a\n\n  ```\n<gno-form path=\"x\">\n```\n", "- a\n\n  ```\n  ```\n\\<gno-form path=\"x\">\n\\`\\`\\`\n"},
+		{"fence-in-list-lazy-continuation", "- a\nb\n  ```\n<gno-columns>\n```\n", "- a\nb\n  ```\n  ```\n\\<gno-columns>\n\\`\\`\\`\n"},
 		{"fence-in-list-dedented-closer", "- a\n  ```\n```\n<gno-columns>\n", "- a\n  ```\n  ```\n\\<gno-columns>\n"},
 		{"fence-in-list-autoclose-at-opener-indent", "- a\n  ```\n  code\n", "- a\n  ```\n  code\n  ```\n"},
-		{"fence-in-list-lrd-stripped", "- a\n  ```\n[home]: https://evil.example\n```\n", "- a\n  ```\n  ```\n```\n```\n"},
+		{"fence-in-list-lrd-stripped", "- a\n  ```\n[home]: https://evil.example\n```\n", "- a\n  ```\n  ```\n\\`\\`\\`\n"},
 		// The walker deletes the first definition; the fence must still end
 		// where it ended before the deletion, so the second stays code.
-		{"fence-in-list-lrd-then-closer", "- a\n  ```\n[x]: https://x.example\n```\n[home]: https://evil.example\n", "- a\n  ```\n  ```\n```\n\\[home]: https://evil.example\n```\n"},
+		{"fence-in-list-lrd-then-closer", "- a\n  ```\n[x]: https://x.example\n```\n[home]: https://evil.example\n", "- a\n  ```\n  ```\n\\`\\`\\`\n"},
 		// Lines shaped like list markers that goldmark does not open a list
 		// for: the fence is document-level, so only a written closer ends it.
 		{"fence-after-thematic-break", "para\n* * *\n  ```\n  x\ntext\n", "para\n* * *\n  ```\n  x\n  ```\ntext\n"},
@@ -445,7 +445,7 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"link-text-across-fence", "[a\n```\n](u)\n", "\\[a\n```\n](u)\n```\n"},
 		{"lrd-text-after-destination", "[a]: u ```\n```\n- y\n  ```\n~~~\n", "\\[a\\]: u ```\n```\n- y\n  ```\n~~~\n~~~\n"},
 		{"html-close-tag-with-space-over-fence", "</ div>\n```\n\nfoo", "\\</ div>\n```\n\nfoo\n```\n"},
-		{"fenced-alert-in-list", "- x\n    ```\n  ```\n  > [!WARNING] x\n", "- x\n    ```\n  ```\n  > \\[!WARNING] x\n  ```\n"},
+		{"fenced-alert-in-list", "- x\n    ```\n  ```\n  > [!WARNING] x\n", "- x\n    ```\n  \\`\\`\\`\n  > \\[!WARNING\\] x\n"},
 		{"fenced-alert-tab-indent-quote", "\t````\n````\n> [!WARNING] x\n", "\t````\n````\n> \\[!WARNING] x\n````\n"},
 		{"fenced-alert-tab-closer-quote", "```\n\t```\n> [!WARNING] x\n", "```\n\t```\n> \\[!WARNING] x\n```\n"},
 		// sanitize.BlockRich escapes a leading setext line before this
@@ -453,10 +453,18 @@ func TestEscapeBlockHazardsRich(t *testing.T) {
 		{"leading-setext-after-deleted-lrd", "[a]: u\n===", "\\==="},
 		{"leading-setext-after-deleted-indented-lrd", " []: x\n   =", "   \\="},
 		{"leading-thematic-break-kept", "---\n", "---\n"},
-		{"fenced-lrd-escaped", "- a\n    ```\n  ```\n  [home]: https://evil.example\n", "- a\n    ```\n  ```\n  \\[home]: https://evil.example\n  ```\n"},
+		{"fenced-lrd-escaped", "- a\n    ```\n  ```\n  [home]: https://evil.example\n", "- a\n    ```\n  \\`\\`\\`\n"},
+		// A closer is escaped where a list item and the document disagree on
+		// whether it opens a fence; ordinary fences after indented code stay.
+		{"dedent-closer-not-reopened", " ```\ncode\n```\n\nprose after\n", " ```\n ```\ncode\n\\`\\`\\`\n\nprose after\n"},
+		{"deep-fence-in-item-closer-escaped", "- a\n\n     ```\n  ```\n  see [home]\n", "- a\n\n     ```\n  \\`\\`\\`\n  see \\[home\\]\n"},
+		{"deep-fence-in-ordered-item-closer-escaped", "1. a\n\n    ```\n   ```\n   see [home]\n", "1. a\n\n    ```\n   \\`\\`\\`\n   see \\[home\\]\n"},
+		{"tab-fence-in-item-closer-escaped", "- a\n\n\t```\n  ```\n  see [home]\n", "- a\n\n\t```\n  \\`\\`\\`\n  see \\[home\\]\n"},
+		{"deep-fence-then-column-0-keeps-fence", "    ```\ntext\n  ```\n  x\n  ```\n", "    ```\ntext\n  ```\n  x\n  ```\n"},
+		{"deep-fence-closed-deep-keeps-fence", "- a\n\n    ```\n    ```\n  ```\n  x\n  ```\n", "- a\n\n    ```\n    ```\n  ```\n  x\n  ```\n"},
 		{"html-block-over-fence", "<div>\n```\n\n<gno-form path=\"x\">\n", "\\<div>\n```\n\n\\<gno-form path=\"x\">\n```\n"},
 		{"repro-bypass-fence-tilde", " ~~~\n~~~\n<gno-columns>\n", " ~~~\n ~~~\n\\<gno-columns>\n"},
-		{"repro-bypass-fence-backtick", " ```\nx\n```\n<gno-columns>\n", " ```\n ```\nx\n```\n\\<gno-columns>\n```\n"},
+		{"repro-bypass-fence-backtick", " ```\nx\n```\n<gno-columns>\n", " ```\n ```\nx\n\\`\\`\\`\n\\<gno-columns>\n"},
 		{"repro-fence-indented-columns", "- item\n\n  ```\n    <gno-columns>\n  ```\n", "- item\n\n  ```\n    \\<gno-columns>\n  ```\n"},
 		{"ext-delimiter-indented-button", "  <gno-button href=\"/r/x\" label=\"x\" />\n", "  \\<gno-button href=\"/r/x\" label=\"x\" />\n"},
 		{"gno-button-in-blockquote", "> <gno-button />\n", "> \\<gno-button />\n"},
@@ -694,7 +702,9 @@ func TestScanLRDTailChargesWhitespace(t *testing.T) {
 		{":  u\n", 4, 5, true},
 		{":  u\n", 3, 0, false},
 		{":  u  \n", 9, 7, true},
-		{":  u  \n", 8, 5, true},
+		// Out of budget in the trailing whitespace: the rest of the line was
+		// never checked, so the definition is refused.
+		{":  u  \n", 8, 0, false},
 		{": u\n\n\"t\"\n", 100, 4, true},
 	}
 	for _, c := range cases {
@@ -714,5 +724,20 @@ func TestLinkWhitespaceRunCharged(t *testing.T) {
 	in := strings.Repeat("[a](", 632) + strings.Repeat(" ", 100_000) + "!\n[t](u)"
 	if got := EscapeBlockHazards(in); !strings.HasSuffix(got, `\[t\](u)`) {
 		t.Errorf("trailing link kept: %q", got[len(got)-12:])
+	}
+}
+
+// A definition whose scan runs out of budget in its trailing text keeps
+// its line: deleting it unchecked left a fence run behind at a column the
+// fence trackers never saw, which put the realm's footer in a code block.
+func TestLRDOutOfBudgetKeepsLine(t *testing.T) {
+	const target = "[a]: u ```\n```\n- y\n  ```\n~~~\n"
+	for k := 8; k <= 10; k++ {
+		for tail := 0; tail <= 1500; tail++ {
+			in := strings.Repeat("[a]: u\n(x\n", k) + strings.Repeat("`\n", tail) + "\n" + target + "\n\n"
+			if out := EscapeBlockHazardsRich(in); !strings.Contains(out, "u ```") {
+				t.Fatalf("k=%d tail=%d: definition line deleted", k, tail)
+			}
+		}
 	}
 }

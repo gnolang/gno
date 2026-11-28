@@ -1009,6 +1009,18 @@ func escapeLeadingSetext(s string) string {
 // readings, so later passes need not know which one applies. A closer
 // indented less than its opener moves to the opener's column instead:
 // left where it is, it would end a list item and open a new fence.
+//
+// Two more fence lines are read differently with and without a list
+// item, and are escaped so that neither reading opens a fence there:
+//
+//   - The first closer for a fence this function closed at a dedent.
+//     Both readings now see the fence closed, so that closer would open
+//     a new one and turn the rest of the input into code.
+//   - A closer at 2-3 spaces after a fence line indented 4 or more
+//     columns, with no line at column 0-1 between them. That fence line
+//     is indented code at document level but can open a fence in a list
+//     item, which the closer then ends; at document level the closer
+//     would instead open a fence that runs over what follows.
 func closeFencesAtDedent(s string) string {
 	if !strings.Contains(s, "```") && !strings.Contains(s, "~~~") {
 		return s
@@ -1021,6 +1033,15 @@ func closeFencesAtDedent(s string) string {
 		fenceLen  int
 		fenceOpen string   // the opener's indent and fence run
 		bt, tl    = -1, -1 // next "```" and "~~~" found so far
+
+		// orphan: closer shape of a fence closed at a dedent.
+		orphanChar byte
+		orphanLen  int
+		// deep: a fence-shaped line indented 4+ columns, at deepEnd.
+		// deepScan is how far s was checked for a column 0-1 line.
+		deepChar         byte
+		deepLen, deepEnd int
+		deepScan         int
 	)
 	for ls, next := 0, 0; ls < len(s); ls = next {
 		if !inFence || len(fenceOpen) == fenceLen {
@@ -1056,6 +1077,46 @@ func closeFencesAtDedent(s string) string {
 			}
 			out.WriteString(fenceOpen)
 			out.WriteByte('\n')
+			orphanChar, orphanLen = fenceChar, fenceLen
+		}
+		if deepChar != 0 && deepScan < ls {
+			if endsListItem(s, max(deepScan, deepEnd), ls) {
+				deepChar = 0
+			}
+			deepScan = ls
+		}
+		cols, fc, fl, closer := fenceLineShape(line)
+		if fl == 0 {
+			continue
+		}
+		escape := false
+		if cols >= 4 {
+			switch {
+			case deepChar == 0:
+				deepChar, deepLen, deepEnd = fc, fl, next
+				deepScan = next
+			case closer && fc == deepChar && fl >= deepLen:
+				deepChar = 0 // closes the fence a list item would open
+			}
+			continue
+		}
+		if closer && orphanChar != 0 && fc == orphanChar && fl >= orphanLen {
+			escape = true
+		}
+		if closer && cols >= 2 && deepChar != 0 && fc == deepChar && fl >= deepLen {
+			escape = true
+		}
+		orphanChar, deepChar = 0, 0
+		if escape {
+			out.WriteString(s[copied:ls])
+			i := len(line) - len(strings.TrimLeft(line, " "))
+			out.WriteString(line[:i])
+			for ; i < len(line) && line[i] == fc; i++ {
+				out.WriteByte('\\')
+				out.WriteByte(fc)
+			}
+			copied = ls + i
+			continue
 		}
 		if fc, fl, indent, ok := parseFenceOpener(line); ok {
 			inFence, fenceChar, fenceLen = true, fc, fl
@@ -1067,6 +1128,53 @@ func closeFencesAtDedent(s string) string {
 	}
 	out.WriteString(s[copied:])
 	return out.String()
+}
+
+// fenceLineShape reads line as a fence line: its indent in columns (a
+// tab advancing to the next multiple of 4), the fence character and run
+// length, and whether it is shaped like a closer (nothing but whitespace
+// after the run). fl is 0 when the line holds no fence run of 3 or more,
+// or is a backtick run whose info string has a backtick (CM §4.5).
+func fenceLineShape(line string) (cols int, fc byte, fl int, closer bool) {
+	i := 0
+	for ; i < len(line); i++ {
+		if line[i] == ' ' {
+			cols++
+		} else if line[i] == '\t' {
+			cols += 4 - cols%4
+		} else {
+			break
+		}
+	}
+	if i == len(line) || line[i] != '`' && line[i] != '~' {
+		return cols, 0, 0, false
+	}
+	fc = line[i]
+	j := i
+	for j < len(line) && line[j] == fc {
+		j++
+	}
+	if j-i < 3 || fc == '`' && hasBacktickBeforeNewline(line, j) {
+		return cols, 0, 0, false
+	}
+	return cols, fc, j - i, strings.Trim(line[j:], " \t") == ""
+}
+
+// endsListItem reports whether s[from:to] holds a non-blank line that
+// starts at column 0 or 1, before any list item's content: such a line
+// ends every list item open above it (a fence in an item takes no lazy
+// continuation lines). from must be a line start.
+func endsListItem(s string, from, to int) bool {
+	for ls := from; ls < to; ls = nextLineStart(s, ls, to) {
+		i := ls
+		if i < to && s[i] == ' ' {
+			i++
+		}
+		if i < to && s[i] != ' ' && s[i] != '\t' && s[i] != '\n' {
+			return true
+		}
+	}
+	return false
 }
 
 // escapeLineLeader escapes a single line-leading block marker by
@@ -1709,10 +1817,11 @@ func scanLRDTail(s string, i int, budget, interruptAt *int) (int, bool) {
 	// Consume trailing newline so the next line starts fresh. Out of budget,
 	// the span ends on the whitespace where the skip stopped.
 	end, ok = skipSpace(s, end, 0, budget)
-	if ok && end < len(s) && s[end] != '\n' {
+	if !ok || end < len(s) && s[end] != '\n' {
 		// CM §4.7: only whitespace may follow a definition on its line.
 		// Deleting up to the text would also leave that text, a fence
-		// say, at a column the fence trackers never saw it at.
+		// say, at a column the fence trackers never saw it at. Out of
+		// budget the text was never checked, so keep the line.
 		return 0, false
 	}
 	if end < len(s) && s[end] == '\n' {

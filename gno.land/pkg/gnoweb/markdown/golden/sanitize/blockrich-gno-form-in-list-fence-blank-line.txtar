@@ -14,8 +14,7 @@
   ```
   ```
 \<gno-form path="x">
-```
-```
+\`\`\`
 
 -- output.html --
 <ul>
@@ -24,6 +23,6 @@
 <pre><code></code></pre>
 </li>
 </ul>
-<p>&lt;gno-form path=&quot;x&quot;&gt;</p>
-<pre><code></code></pre>
+<p>&lt;gno-form path=&quot;x&quot;&gt;
+```</p>
 <p>REALM AFTER</p>
