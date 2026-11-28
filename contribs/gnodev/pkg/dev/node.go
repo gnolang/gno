@@ -706,5 +706,8 @@ func newNodeConfig(cfg *NodeConfig, appstate gnoland.GnoGenesisState) *gnoland.I
 		TMConfig:      cfg.TMConfig,
 		Genesis:       genesis,
 		VMOutput:      os.Stdout,
+		// gnodev is a local dev node: always expose the .app/profiletx gas
+		// profiler query. It has zero cost unless a client queries it.
+		EnableGasProfiler: true,
 	}
 }

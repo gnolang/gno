@@ -2,6 +2,8 @@
 package gnoland
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gasprof"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -51,6 +54,11 @@ type AppOptions struct {
 	QueryMaxGas                int64         // optional, 0 keeps vm.DefaultQueryMaxGas
 	QueryMaxAlloc              int64         // optional, 0 keeps vm.DefaultQueryMaxAlloc
 	QueryTimeout               time.Duration // optional, 0 derives it from the query gas budget
+	// EnableGasProfiler registers the dev-only .app/profiletx ABCI query, which
+	// runs a tx through Simulate with gas profiling and returns a pprof profile.
+	// Off by default; intended for local dev nodes, never validators.
+	// See gnovm/pkg/gasprof.
+	EnableGasProfiler bool
 }
 
 // TestAppOptions provides a "ready" default [AppOptions] for use with
@@ -274,6 +282,41 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			vmk.CommitGnoTransactionStore(ctx)
 		}
 	})
+
+	// Dev-only: the .app/profiletx query runs a tx through Simulate (no commit)
+	// with gas profiling on and returns a pprof profile. WithGasProfile marks
+	// the ctx; the beginTxHook wraps the tx meter and the tx machines drive the
+	// call-tree cursor. The tx executes under its declared GasWanted (as it
+	// would on-chain), so a failed/out-of-gas tx yields a PARTIAL profile — the
+	// status log says so; use .app/simulate for the plain pass/fail result.
+	// Off unless explicitly enabled.
+	if cfg.EnableGasProfiler {
+		baseApp.SetTxProfiler(func(txBytes []byte) ([]byte, string, error) {
+			var prof *gasprof.Profiler
+			result := baseApp.Simulate(txBytes, func(ctx sdk.Context) sdk.Context {
+				var c sdk.Context
+				c, prof = vm.WithGasProfile(ctx)
+				return c
+			})
+			if prof == nil || prof.Empty() {
+				// The tx never entered execution (decode/ante rejection): no
+				// profile to return, so surface the reason.
+				if result.Error != nil {
+					return nil, "", errors.New(result.Error.Error())
+				}
+				return nil, "", errors.New("gas profiler recorded nothing")
+			}
+			var buf bytes.Buffer
+			if err := prof.WritePprof(&buf); err != nil {
+				return nil, "", err
+			}
+			log := "ok"
+			if result.Error != nil {
+				log = "partial profile: tx did not complete: " + result.Error.Error()
+			}
+			return buf.Bytes(), log, nil
+		})
+	}
 
 	// Set EndBlocker
 	baseApp.SetEndBlocker(

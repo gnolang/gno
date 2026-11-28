@@ -93,7 +93,7 @@ func execMakeRejectPkg(cfg *MakeRejectPkgCfg, args []string, io commands.IO) err
 		Memo:       cfg.RootCfg.Memo,
 	}
 
-	if cfg.RootCfg.Broadcast {
+	if cfg.RootCfg.ShouldSign() {
 		cfg.RootCfg.RootCfg.OnTxSuccess = PrintTxSuccess
 		return client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 	}

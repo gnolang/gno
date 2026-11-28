@@ -507,6 +507,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 			lockTransfer := fs.Bool("lock-transfer", false, "lock transfer ugnot")
 			noParallel := fs.Bool("no-parallel", false, "don't run this node in parallel with other testing nodes")
 			maxGas := fs.Int64("max-gas", 0, "override block max gas (0 = use default)")
+			gasProfiler := fs.Bool("gas-profiler", false, "expose the dev-only .app/profiletx gas-profiler query")
 			if err := fs.Parse(cmdargs); err != nil {
 				ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 			}
@@ -602,6 +603,7 @@ func gnolandCmd(t *testing.T, nodesManager *NodesManager, gnoRootDir string) fun
 				RootDir:      gnoRootDir,
 				TMConfig:     cfg.TMConfig,
 				Genesis:      NewMarshalableGenesisDoc(cfg.Genesis),
+				GasProfiler:  *gasProfiler,
 			})
 
 			nodesManager.Set(sid, &tNodeProcess{NodeProcess: nodep, cfg: cfg})

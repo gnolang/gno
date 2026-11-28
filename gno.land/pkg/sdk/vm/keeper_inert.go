@@ -351,6 +351,7 @@ func (vm *VMKeeper) EnablePackage(ctx sdk.Context, msg MsgEnablePackage) (err er
 		Alloc:              gnostore.GetAllocator(),
 		Context:            msgCtx,
 		GasMeter:           ctx.GasMeter(),
+		GasProfiler:        getGasProfiler(ctx),
 		BoundedPanicRender: true,
 	})
 	defer m2.Release()

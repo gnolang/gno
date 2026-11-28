@@ -138,7 +138,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		Memo:       cfg.RootCfg.Memo,
 	}
 
-	if cfg.RootCfg.Broadcast {
+	if cfg.RootCfg.ShouldSign() {
 		cfg.RootCfg.RootCfg.OnTxSuccess = PrintTxSuccess
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {

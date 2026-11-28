@@ -49,6 +49,7 @@ type BaseApp struct {
 
 	beginTxHook BeginTxHook // BaseApp-specific hook run before running transaction messages.
 	endTxHook   EndTxHook   // BaseApp-specific hook run after running transaction messages.
+	txProfiler  TxProfiler  // optional dev-only handler for the .app/profiletx query; nil disables it.
 
 	// --------------------
 	// Volatile state
@@ -475,7 +476,8 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 }
 
 // QueryRunsCode implements abci.CodeExecutionQuerier. It reports whether Query
-// runs code for path: .app/simulate runs a whole transaction, and a custom
+// runs code for path: .app/simulate and .app/profiletx run a whole
+// transaction, and a custom
 // route runs code when its handler implements abci.CodeExecutionQuerier and
 // says so.
 func (app *BaseApp) QueryRunsCode(reqPath string) bool {
@@ -484,14 +486,18 @@ func (app *BaseApp) QueryRunsCode(reqPath string) bool {
 		return false
 	}
 	if path[0] == ".app" {
-		return len(path) >= 2 && path[1] == appQuerySimulate
+		return len(path) >= 2 && (path[1] == appQuerySimulate || path[1] == appQueryProfileTx)
 	}
 	h, ok := app.router.Route(path[0]).(abci.CodeExecutionQuerier)
 	return ok && h.QueryRunsCode(reqPath)
 }
 
-// appQuerySimulate is the .app query that runs a whole transaction.
-const appQuerySimulate = "simulate"
+// appQuerySimulate and appQueryProfileTx are the .app queries that run a
+// whole transaction.
+const (
+	appQuerySimulate  = "simulate"
+	appQueryProfileTx = "profiletx"
+)
 
 func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
 	if len(path) >= 2 {
@@ -511,6 +517,26 @@ func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abc
 				res.Value = bytes
 			}
 
+			return res
+		case appQueryProfileTx:
+			// Dev-only: run the tx through Simulate with gas profiling and
+			// return a pprof profile. Disabled (unknown request) unless the
+			// application registered a TxProfiler via SetTxProfiler.
+			if app.txProfiler == nil {
+				const msg = "tx gas profiling is not enabled on this node"
+				res.Error = ABCIError(std.ErrUnknownRequest(msg))
+				res.Log = msg // descriptive text for clients (Error stringifies generically)
+				return res
+			}
+			res.Height = req.Height
+			profile, log, err := app.txProfiler(req.Data)
+			if err != nil {
+				res.Error = ABCIError(std.ErrInternal(err.Error()))
+				res.Log = err.Error() // descriptive text (Error stringifies generically)
+				return res
+			}
+			res.Value = profile
+			res.Log = log
 			return res
 		case "version":
 			res.Height = req.Height

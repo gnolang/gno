@@ -313,7 +313,11 @@ func handleTx(bz []byte, upaths uniqPaths) error {
 // handleQuery processes the query and returns relevant paths.
 func handleQuery(path string, data []byte, upaths uniqPaths) error {
 	switch path {
-	case ".app/simulate":
+	case ".app/simulate", ".app/profiletx":
+		// Both carry amino-encoded tx bytes and execute the tx, so both must
+		// trigger the same lazy package load. Without .app/profiletx here, the
+		// first -gasprofile of an unloaded package fails and yields a profile
+		// holding only (ante) and (root).
 		return handleTx(data, upaths)
 	case "vm/qrender", "vm/qfile", "vm/qfuncs", "vm/qeval", "vm/qeval_json":
 		path, _, _ := strings.Cut(string(data), ":") // Cut arguments out

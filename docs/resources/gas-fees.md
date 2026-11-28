@@ -188,6 +188,10 @@ To minimize what a transaction costs:
    than having the realm compute it on every call.
 5. **Test locally first**: use `gnodev` to measure and tune gas before deploying
    to a network.
+6. **Profile where the gas goes**: don't guess — profile. `gno test -gasprofile`
+   produces a pprof breakdown of gas per function (cpu, alloc, and storage), so
+   you can see exactly which calls dominate. See
+   [Gas profiling](./gno-testing.md#gas-profiling).
 
 ## Common Errors
 

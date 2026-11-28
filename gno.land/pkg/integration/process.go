@@ -36,6 +36,7 @@ type ProcessNodeConfig struct {
 	RootDir      string                 `json:"rootdir"`
 	Genesis      *MarshalableGenesisDoc `json:"genesis"`
 	TMConfig     *tmcfg.Config          `json:"tm"`
+	GasProfiler  bool                   `json:"gas_profiler"` // expose the dev-only .app/profiletx query
 }
 
 type ProcessConfig struct {
@@ -87,6 +88,7 @@ func RunNode(ctx context.Context, pcfg *ProcessNodeConfig, stdout, stderr io.Wri
 	// Setup node configuration
 	nodecfg.DB = db
 	nodecfg.TMConfig = pcfg.TMConfig
+	nodecfg.EnableGasProfiler = pcfg.GasProfiler
 	// Each (re)start must bind a fresh OS-assigned port. node.Start mutates
 	// these addresses from ":0" to the concrete resolved port; the harness
 	// keeps the same config across `gnoland restart`, so without this reset a
