@@ -309,44 +309,26 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		if converter.switchDepth > maxSwitchDepth {
 			panic(errMaxDepth)
 		}
-		cellEnd := func(t Token) bool {
-			if t.Kind&tokReserved > 0 && t.Value == "&" {
-				return true
-			}
-			if t.Value == "\\" || t.Value == "cr" {
-				return true
-			}
-			return false
+		// Answer a \color with no {argument} before the scan to the cell end
+		// below, which a run of them would repeat once per command.
+		if name == "color" && colorArgMissing(b) {
+			return NewMMLNode("merror", name).SetAttr("title", fmt.Sprintf("%s expects an argument", name))
 		}
 		// The switch applies up to the end of the cell or row it is in. The
 		// cells of a group after it ({...}, an environment, a \left...\right
 		// pair) belong to that group.
-		var i int
-		for i = b.idx; i < len(b.Expr); i++ {
-			t := b.Expr[i]
-			if opensGroup(t) {
-				i += t.MatchOffset
-				continue
-			}
-			if cellEnd(t) {
-				break
-			}
-		}
-		switchExpressions, _ := b.GetNextN(min(i, len(b.Expr)) - b.idx)
+		switchExpressions, _ := b.GetNextN(b.cellEnd() - b.idx)
 
 		n := NewMMLNode("mstyle")
 		if name == "color" {
 			// A colour model, as in \color[RGB]{255,0,0}, gives a value
 			// that is not a theme colour: the content keeps the text colour.
 			switchExpressions.GetOptions()
-			expr, err := switchExpressions.GetNextExpr()
-			if err == nil {
-				setColor(n, expr.Expr)
-				converter.ParseTex(switchExpressions, withVariant(context, sw), n)
-				return n
-			}
-			b.Unget()
-			return NewMMLNode("merror", name).SetAttr("title", fmt.Sprintf("%s expects an argument", name))
+			// colorArgMissing has already checked the {argument} is there.
+			expr, _ := switchExpressions.GetNextExpr()
+			setColor(n, expr.Expr)
+			converter.ParseTex(switchExpressions, withVariant(context, sw), n)
+			return n
 		}
 		if size, ok := sizeSwitches[name]; ok {
 			converter.parseSized(switchExpressions, withVariant(context, sw), n, size)
@@ -384,6 +366,10 @@ func (converter *MathMLConverter) ProcessCommand(context parseContext, tok Token
 		n = NewMMLNode("merror", `\`+name).SetAttr("title", "unknown command")
 		n.Tok = tok
 		return n
+	}
+	if n == nil {
+		// \class{a}{} has nothing to draw.
+		return nil
 	}
 	n.Tok = tok
 	n.set_variants_from_context(context)
@@ -585,4 +571,28 @@ func (converter *MathMLConverter) newCommand(b *TokenBuffer) (errNode *MMLNode) 
 	}
 
 	return
+}
+
+// isCellEnd reports whether t ends a table cell or row: an & or a line break.
+func isCellEnd(t Token) bool {
+	if t.Kind&tokReserved > 0 && t.Value == "&" {
+		return true
+	}
+	return t.Value == "\\" || t.Value == "cr"
+}
+
+// colorArgMissing reports whether a \color at b's position has no {argument}
+// in its cell, after an optional [model] that closes there.
+func colorArgMissing(b *TokenBuffer) bool {
+	next := func(i int) int {
+		for i < len(b.Expr) && b.Expr[i].Kind&(tokComment|tokWhitespace) > 0 {
+			i++
+		}
+		return i
+	}
+	i := next(b.idx)
+	if i < len(b.Expr) && b.matched(i, "[") && i+b.Expr[i].MatchOffset < b.cellEnd() {
+		i = next(i + b.Expr[i].MatchOffset + 1)
+	}
+	return i >= len(b.Expr) || !b.matched(i, "{")
 }

@@ -106,6 +106,9 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 		var n *MMLNode
 		if tok.Kind&tokCommand > 0 {
 			n = converter.ProcessCommand(context&^ctxRoot, tok, b)
+			if n == nil {
+				return nil
+			}
 		} else {
 			n = NewMMLNode("mo")
 			n.Text = tok.Value
@@ -223,6 +226,10 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 			} else {
 				child.Text = tok.Value
 			}
+			if child == nil {
+				// A \left or \big whose delimiter is a command drawing nothing.
+				break
+			}
 			child.SetAttr("form", "prefix")
 			if tok.Kind&tokFence > 0 {
 				child.SetTrue("fence")
@@ -247,6 +254,9 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 				child = converter.ProcessCommand(context&^ctxRoot, tok, b)
 			} else {
 				child.Text = tok.Value
+			}
+			if child == nil {
+				break
 			}
 			child.SetAttr("form", "postfix")
 			if tok.Kind&tokNullDelim > 0 {
@@ -286,6 +296,14 @@ func (converter *MathMLConverter) ParseTex(b *TokenBuffer, context parseContext,
 			child = NewMMLNode("mo", tok.Value)
 		}
 		if child == nil {
+			if promotedProperties != 0 {
+				// A command that draws nothing still fills a pending script, as
+				// {} does, so the next atom stays out of it.
+				empty := NewMMLNode("mrow")
+				empty.Properties |= promotedProperties
+				promotedProperties = 0
+				siblings = append(siblings, empty)
+			}
 			continue
 		}
 		child.Tok = tok
