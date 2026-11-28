@@ -54,13 +54,16 @@ Xeon @ 2.1 GHz dev box, not the reference 8168) gave these results:
 other allocations and realm loads. In that layout the walk is DRAM-bound
 pointer chasing, the regime `gcVisitGasTable` is calibrated for. Pricing
 entries like the contiguous `gcStackScanSlopeGas` would undercharge that
-worst case by more than 10x.
+worst case by more than 10x. The cost of this choice is overcharging, which
+is fail-safe: on a scattered heap an entry is charged about 1.6-3x its
+measured cost, and on a contiguous heap much more. Recalibrating against
+the reference 8168 machine is a possible follow-up.
 
 ## Alternatives considered
 
 1. **Count only fully-unboxed entries** (the PR's first version). Rejected:
    a shared `Object` value bypasses it, and it walks the list twice
-   (about 55% slower on a 1M-entry map).
+   (about 55% slower on a 1M-entry map, by one dev-box benchmark).
 2. **Charge entries at a separate per-entry slope** (like
    `gcStackScanSlopeGas`). Rejected: it fits a contiguous scan, not a linked
    list. It would need a new constant calibrated on reference hardware.
@@ -77,6 +80,10 @@ worst case by more than 10x.
 - **Goldens:** no gas golden in the repo changes. The `sdk/vm` gas tests,
   integration txtars and gnovm filetests pass unchanged, because none of
   them runs GC over a large map.
+- **Calibration benchmark:** `BenchmarkGCVisit` (`bench_gc_test.go`)
+  builds a graph in which about 5% of objects are small maps. It now
+  reports about 12% more visits for the same work, so its ns/visit figure
+  drops. Keep this in mind when recalibrating `gcVisitGasTable`.
 - **Follow-up, out of scope:** `ArrayValue`, `StructValue` and `Block`
   traversals still skip `V == nil` slots for free. `make([]int, 1e5)` costs
   about 7 visits. Those are contiguous scans (about 1-3 ns/slot), so the
