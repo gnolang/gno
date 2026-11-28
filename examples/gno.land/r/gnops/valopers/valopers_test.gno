@@ -7,7 +7,7 @@ import (
 
 	"gno.land/p/nt/avl/v0"
 	"gno.land/p/nt/bptree/v0"
-	"gno.land/p/nt/ownable/v0/exts/authorizable"
+	"gno.land/p/nt/ownable/exts/authorizable/v0"
 	"gno.land/p/nt/testutils/v0"
 	"gno.land/p/nt/uassert/v0"
 	"gno.land/p/nt/ufmt/v0"
@@ -138,6 +138,27 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		})
 	})
 
+	// A fee above MaxInt64 wraps negative in Coin.Amount, which would make
+	// the IsLT amount check false for every payment: the realm would read
+	// the fee as configured and collect 1ugnot. uint64(int64(-1)) is what
+	// valopers/proposal.ProposeNewMinFeeProposalRequest stores for a
+	// negative newMinFee, so this is reachable from one governance typo.
+	t.Run("unrepresentable fee fails closed", func(cur realm, t *testing.T) {
+		resetState()
+		testing.SetSysParamUint64("node", "valoper", "register_fee", ^uint64(0))
+
+		info := validValidatorInfo(t)
+		testing.SetRealm(testing.NewUserRealm(info.Address))
+
+		// Nowhere near the configured fee, and previously accepted.
+		testing.SetOriginSend(chain.Coins{chain.NewCoin("ugnot", 1)})
+
+		uassert.AbortsWithMessage(t, cur, ErrFeeParamOutOfRange.Error(), func() {
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+		})
+		uassert.False(t, isValoper(info.Address), "must not register")
+	})
+
 	t.Run("squat guard rejects mismatched OriginCaller", func(cur realm, t *testing.T) {
 		resetState()
 
@@ -211,7 +232,7 @@ func TestValopers_Register(cur realm, t *testing.T) {
 		resetState()
 
 		info := validValidatorInfo(t)
-		// Seed v3's valset:current with the very signing address that
+		// Seed v0's valset:current with the very signing address that
 		// `info.PubKey` derives to (g1sp8v98...). Any post-genesis
 		// Register attempting the same pubkey now trips
 		// `ChainHeight()>0 && validators.IsValidator(signingAddr)`.
@@ -259,9 +280,19 @@ func TestValopers_Register_AuthOwnerIsOperatorAddress(cur realm, t *testing.T) {
 
 		// Auth owner must be the operator addr (info.Address), NOT
 		// the deployer.
+		//
+		// Asserted through the exported AuthOwner() accessor, not the
+		// private v.auth: AuthOwner is the API that replaced the removed
+		// Auth() capability leak, so it is what external readers see. A
+		// second assertion against the underlying Authorizable pins that
+		// the accessor actually reports the auth list's owner rather
+		// than echoing OperatorAddress, which is what a plausible
+		// "simplification" of AuthOwner would do.
 		v := GetByAddr(info.Address)
-		uassert.Equal(t, info.Address.String(), v.Auth().Owner().String(),
+		uassert.Equal(t, info.Address.String(), v.AuthOwner().String(),
 			"auth owner must equal OperatorAddress, not OriginCaller")
+		uassert.Equal(t, v.auth.Owner().String(), v.AuthOwner().String(),
+			"AuthOwner must report the Authorizable's owner")
 
 		// Operator can manage their own profile post-genesis.
 		testing.SetHeight(100)
@@ -298,7 +329,7 @@ func TestValopers_Register_AuthOwnerIsOperatorAddress(cur realm, t *testing.T) {
 		})
 
 		v := GetByAddr(info.Address)
-		uassert.Equal(t, info.Address.String(), v.Auth().Owner().String())
+		uassert.Equal(t, info.Address.String(), v.AuthOwner().String())
 	})
 }
 
@@ -375,6 +406,87 @@ func TestValopers_UpdateAuthMembers(cur realm, t *testing.T) {
 			uassert.Equal(t, newMoniker, valoper.Moniker)
 		})
 	})
+
+	t.Run("invalid member address rejected", func(cur realm, t *testing.T) {
+		resetState()
+
+		info := validValidatorInfo(t)
+		testing.SetRealm(testing.NewUserRealm(info.Address))
+		testing.SetOriginSend(chain.Coins{minFee})
+
+		uassert.NotPanics(t, cur, func() {
+			Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+		})
+
+		// Caller is the owner, but the member address is invalid: the
+		// bech32 guard rejects it before reaching the auth list. Empty
+		// and malformed-but-nonempty (bad checksum) are both rejected,
+		// so a future weakening to a mere empty-check would fail here.
+		for _, bad := range []address{address(""), address("g1nonsense")} {
+			uassert.AbortsWithMessage(t, cur, ErrInvalidAddress.Error(), func() {
+				AddToAuthList(cross(cur), info.Address, bad)
+			})
+
+			uassert.AbortsWithMessage(t, cur, ErrInvalidAddress.Error(), func() {
+				DeleteFromAuthList(cross(cur), info.Address, bad)
+			})
+		}
+	})
+}
+
+func TestValopers_RenderSanitizesDescription(cur realm, t *testing.T) {
+	resetState()
+
+	info := validValidatorInfo(t)
+	// Description that tries to inject a top-level heading. Input
+	// validation accepts it (only length is checked); Render must
+	// neutralize the structural markdown before it reaches the profile
+	// page and the govdao proposal that embeds Render.
+	info.Description = "# FORGEDHEADING\nbody FORGEDBODY"
+
+	testing.SetRealm(testing.NewUserRealm(info.Address))
+	testing.SetOriginSend(chain.Coins{minFee})
+	uassert.NotPanics(t, cur, func() {
+		Register(cross(cur), info.Moniker, info.Description, info.ServerType, info.Address, info.PubKey)
+	})
+
+	out := GetByAddr(info.Address).Render()
+
+	// Prose survives.
+	uassert.True(t, strings.Contains(out, "FORGEDBODY"), "description body must be preserved")
+	uassert.True(t, strings.Contains(out, "FORGEDHEADING"), "heading text must be preserved as prose")
+	// But not as a live ATX heading line.
+	uassert.False(t, strings.Contains(out, "\n# FORGEDHEADING"), "forged heading must be neutralized")
+
+	// A non-empty description that sanitizes to empty (lone link-
+	// reference definition) must not glue the heading onto the chrome.
+	testing.SetRealm(testing.NewUserRealm(info.Address))
+	uassert.NotPanics(t, cur, func() {
+		UpdateDescription(cross(cur), info.Address, "[a]: https://x.example")
+	})
+	out2 := GetByAddr(info.Address).Render()
+	uassert.True(t, strings.Contains(out2, "## "+info.Moniker+"\n"), "heading line must stay terminated")
+	uassert.True(t, strings.Contains(out2, "\n- Operator Address:"), "operator-address line must not merge into the heading")
+}
+
+func TestValopers_RenderEscapesPath(cur realm, t *testing.T) {
+	resetState()
+
+	const link = "[Claim your reward](https://evil.example)"
+
+	// The path segment is attacker-controlled: it must not reach the
+	// markdown output as a live link, in either error reply.
+	for _, path := range []string{"g1" + link, "x" + link} {
+		out := Render(path)
+		uassert.False(t, strings.Contains(out, "]("), "link syntax must be escaped: "+out)
+		uassert.True(t, strings.Contains(out, "\\["), "brackets must be backslash-escaped: "+out)
+	}
+
+	// A well-formed address is alphanumeric, so escaping leaves it unchanged.
+	const addr = "g1sp8v98h2gadm5jggtzz9w5ksexqn68ympsd68h"
+	uassert.Equal(t, "unknown address "+addr, Render(addr))
+	bad := "x" + addr[1:]
+	uassert.Equal(t, "invalid address "+bad, Render(bad))
 }
 
 func TestValopers_UpdateMoniker(cur realm, t *testing.T) {

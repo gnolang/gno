@@ -2,7 +2,6 @@ package params
 
 import (
 	"fmt"
-	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/internal/execctx"
@@ -47,14 +46,65 @@ func UpdateParamStrings(m *gno.Machine, key string, val []string, add bool) {
 	execctx.GetContext(m).Params.UpdateStrings(pk, val, add)
 }
 
+// GetString reads a realm-local param previously written with SetString.
+//
+// The bool reports whether anything is stored at the key, NOT whether it holds
+// the type being asked for. Reading at the wrong type panics or converts, and
+// never reports false. The same applies to every GetXxx below; see the doc on
+// params.gno for what each mismatch does.
+func GetString(m *gno.Machine, key string) (string, bool) {
+	pk := pkey(m, key)
+	var out string
+	ok := execctx.GetContext(m).Params.GetString(pk, &out)
+	return out, ok
+}
+
+func GetBool(m *gno.Machine, key string) (bool, bool) {
+	pk := pkey(m, key)
+	var out bool
+	ok := execctx.GetContext(m).Params.GetBool(pk, &out)
+	return out, ok
+}
+
+func GetInt64(m *gno.Machine, key string) (int64, bool) {
+	pk := pkey(m, key)
+	var out int64
+	ok := execctx.GetContext(m).Params.GetInt64(pk, &out)
+	return out, ok
+}
+
+func GetUint64(m *gno.Machine, key string) (uint64, bool) {
+	pk := pkey(m, key)
+	var out uint64
+	ok := execctx.GetContext(m).Params.GetUint64(pk, &out)
+	return out, ok
+}
+
+func GetBytes(m *gno.Machine, key string) ([]byte, bool) {
+	pk := pkey(m, key)
+	var out []byte
+	ok := execctx.GetContext(m).Params.GetBytes(pk, &out)
+	return out, ok
+}
+
+func GetStrings(m *gno.Machine, key string) ([]string, bool) {
+	pk := pkey(m, key)
+	var out []string
+	ok := execctx.GetContext(m).Params.GetStrings(pk, &out)
+	return out, ok
+}
+
 // NOTE: further validation must happen by implementor of ParamsInterface.
 func pkey(m *gno.Machine, key string) string {
 	if len(key) == 0 {
 		m.PanicString("empty param key")
 	}
-	if strings.Contains(key, ":") {
-		m.PanicString("invalid param key: " + key)
-	}
+	// The key may contain any byte, colons included: it is always stored
+	// under vm:<realm>:, so it cannot reach another module's or realm's
+	// namespace, and every reader recovers the realm by splitting on the
+	// first colon after "vm:" (package paths contain none). IBC relies on
+	// this: its packet keys end in a big-endian sequence number, which
+	// contains 0x3a (':') for sequence 58 and many others.
 	_, rlmPath := execctx.CurrentRealm(m)
 	return fmt.Sprintf("vm:%s:%s", rlmPath, key)
 }

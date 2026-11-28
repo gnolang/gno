@@ -3,8 +3,8 @@ package avl_pager
 import (
 	"strconv"
 
+	"gno.land/p/nt/avl/pager/v0"
 	"gno.land/p/nt/avl/v0"
-	"gno.land/p/nt/avl/v0/pager"
 )
 
 // Tree instance for 100 items

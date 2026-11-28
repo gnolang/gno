@@ -1,0 +1,7 @@
+-- input.md --
+<gno-button href="/r/test&#9;x" label="tab" />
+
+Inline <gno-button href="/r/te&#127;st" label="del" />
+-- output.html --
+<p><!-- raw HTML omitted --></p>
+<p>Inline <!-- raw HTML omitted --></p>

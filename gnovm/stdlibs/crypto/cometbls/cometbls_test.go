@@ -56,7 +56,7 @@ func TestXVerifyZKPHappyPath(t *testing.T) {
 	header := validHeader(t)
 	proof := mustDecodeHex(t, testProofHex)
 
-	got := X_verifyZKP(testChainID, tvh[:], EncodeLightHeader(header), proof)
+	got := verifyZKP(testChainID, tvh[:], EncodeLightHeader(header), proof)
 	if got != "" {
 		t.Fatalf("expected empty success string, got %q", got)
 	}
@@ -68,7 +68,7 @@ func TestXVerifyZKPReturnsErrorString(t *testing.T) {
 	header.TimeSeconds = 1732205252 // tamper
 	proof := mustDecodeHex(t, testProofHex)
 
-	got := X_verifyZKP(testChainID, tvh[:], EncodeLightHeader(header), proof)
+	got := verifyZKP(testChainID, tvh[:], EncodeLightHeader(header), proof)
 	if got == "" {
 		t.Fatalf("expected non-empty error string for tampered proof")
 	}
@@ -84,25 +84,25 @@ func TestXVerifyZKPMalformedInputs(t *testing.T) {
 	proof := mustDecodeHex(t, testProofHex)
 
 	t.Run("short trusted validators hash", func(t *testing.T) {
-		got := X_verifyZKP(testChainID, tvh[:31], EncodeLightHeader(header), proof)
+		got := verifyZKP(testChainID, tvh[:31], EncodeLightHeader(header), proof)
 		if got == "" {
 			t.Fatalf("expected error for short tvh")
 		}
 	})
 	t.Run("short header", func(t *testing.T) {
-		got := X_verifyZKP(testChainID, tvh[:], EncodeLightHeader(header)[:100], proof)
+		got := verifyZKP(testChainID, tvh[:], EncodeLightHeader(header)[:100], proof)
 		if got != ErrInvalidHeaderLen.Error() {
 			t.Fatalf("expected %q, got %q", ErrInvalidHeaderLen.Error(), got)
 		}
 	})
 	t.Run("short proof", func(t *testing.T) {
-		got := X_verifyZKP(testChainID, tvh[:], EncodeLightHeader(header), proof[:383])
+		got := verifyZKP(testChainID, tvh[:], EncodeLightHeader(header), proof[:383])
 		if got != ErrInvalidRawProof.Error() {
 			t.Fatalf("expected %q, got %q", ErrInvalidRawProof.Error(), got)
 		}
 	})
 	t.Run("chain id too long", func(t *testing.T) {
-		got := X_verifyZKP("abcdefghijklmnopqrstuvwxyz0123456", tvh[:], EncodeLightHeader(header), proof)
+		got := verifyZKP("abcdefghijklmnopqrstuvwxyz0123456", tvh[:], EncodeLightHeader(header), proof)
 		if got != ErrInvalidChainIDLen.Error() {
 			t.Fatalf("expected %q, got %q", ErrInvalidChainIDLen.Error(), got)
 		}

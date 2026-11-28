@@ -68,11 +68,34 @@ func TestResponse_ValidateBasic(t *testing.T) {
 		assert.Error(t, r.ValidateBasic())
 	})
 
+	t.Run("more peers than the protocol shares", func(t *testing.T) {
+		t.Parallel()
+
+		// Every address in a Response is queued for dialing, and the recv
+		// capacity of the discovery channel leaves room for tens of
+		// thousands of them
+		r := &Response{
+			Peers: generateNetAddrs(t, maxPeersShared+1),
+		}
+
+		assert.ErrorIs(t, r.ValidateBasic(), errTooManyPeers)
+	})
+
 	t.Run("valid peer set", func(t *testing.T) {
 		t.Parallel()
 
 		r := &Response{
 			Peers: generateNetAddrs(t, 10),
+		}
+
+		assert.NoError(t, r.ValidateBasic())
+	})
+
+	t.Run("valid peer set at the limit", func(t *testing.T) {
+		t.Parallel()
+
+		r := &Response{
+			Peers: generateNetAddrs(t, maxPeersShared),
 		}
 
 		assert.NoError(t, r.ValidateBasic())

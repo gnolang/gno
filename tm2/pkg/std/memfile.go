@@ -16,7 +16,8 @@ import (
 const (
 	fileNameLimit = 256
 	pkgNameLimit  = 256
-	pkgPathLimit  = 256
+	// PkgPathLimit is the longest package path ValidateBasic accepts.
+	PkgPathLimit = 256
 )
 
 var (
@@ -92,7 +93,7 @@ type MemPackage struct {
 	Path  string     `json:"path" yaml:"path"`           // import path
 	Files []*MemFile `json:"files" yaml:"files"`         // plain file system files.
 	Type  any        `json:"type,omitempty" yaml:"type"` // (user defined) package type.
-	Info  any        `json:"info,omitempty" yaml:"info"` // (user defined) extra information.
+	Info  any        `json:"info,omitempty" yaml:"info"` // unused; must be nil (see gnolang.ValidateMemPackageAny).
 }
 
 // Package Name must be lower_case, can have digits & underscores.
@@ -106,8 +107,8 @@ func (mpkg *MemPackage) ValidateBasic() error {
 	if len(mpkg.Name) > pkgNameLimit {
 		return fmt.Errorf("name length %d exceeds limit %d", len(mpkg.Name), pkgNameLimit)
 	}
-	if len(mpkg.Path) > pkgPathLimit {
-		return fmt.Errorf("path length %d exceeds limit %d", len(mpkg.Path), pkgPathLimit)
+	if len(mpkg.Path) > PkgPathLimit {
+		return fmt.Errorf("path length %d exceeds limit %d", len(mpkg.Path), PkgPathLimit)
 	}
 	if !rePkgName.MatchString(mpkg.Name) {
 		return fmt.Errorf("invalid package name %q", mpkg.Name)

@@ -114,7 +114,9 @@ func TestGenesis_Generate(t *testing.T) {
 	t.Run("set block max data bytes", func(t *testing.T) {
 		t.Parallel()
 
-		blockMaxDataBytes := int64(100)
+		// Has to stay above the default MaxTxBytes plus the block header and
+		// commit allowance, or consensus-param validation rejects the pair.
+		blockMaxDataBytes := int64(1_500_000)
 
 		tempDir, cleanup := testutils.NewTestCaseDir(t)
 		t.Cleanup(cleanup)

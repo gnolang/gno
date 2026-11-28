@@ -190,6 +190,16 @@ fmt.Println(accountRes)
 //  Sequence:      0
 ```
 
+:::info `Coins` here is not the full balance
+
+The account object holds only the chain's gas denomination. Every other
+denomination — realm-issued coins, IBC vouchers — is stored separately and does
+not appear here.
+Query `bank/balances/<address>` for a complete balance. `QueryAccount` is the
+right call for `AccountNumber` and `Sequence`, which is what signing needs.
+
+:::
+
 We are now ready to send a transaction to the chain.
 
 ## Sending a transaction

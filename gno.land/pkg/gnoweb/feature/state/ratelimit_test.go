@@ -185,3 +185,33 @@ func TestRateLimitDisabledWhenPerMinuteZero(t *testing.T) {
 		t.Fatalf("expected nil limiter when PerMinute <= 0, got %v", l)
 	}
 }
+
+// AllowRequest must apply the limiter's own trusted-proxy list: behind a
+// proxy every request shares its RemoteAddr, so without it all clients
+// drain one bucket.
+func TestAllowRequestBucketsByRealIPBehindTrustedProxy(t *testing.T) {
+	now := time.Unix(0, 0)
+	l := newTestLimiter(RateLimitConfig{
+		PerMinute:      1,
+		Burst:          1,
+		NowFunc:        func() time.Time { return now },
+		TrustedProxies: mustCIDRs(t, "10.0.0.0/8"),
+	})
+
+	req := func(realIP string) *http.Request {
+		r := httptest.NewRequest(http.MethodGet, "/", nil)
+		r.RemoteAddr = "10.0.0.1:5555"
+		r.Header.Set("X-Real-IP", realIP)
+		return r
+	}
+
+	if !l.AllowRequest(req("1.1.1.1")) {
+		t.Fatal("first client: rejected, want allowed")
+	}
+	if !l.AllowRequest(req("2.2.2.2")) {
+		t.Fatal("second client behind the same proxy: rejected — it shared the first client's bucket")
+	}
+	if l.AllowRequest(req("1.1.1.1")) {
+		t.Fatal("first client again: allowed, want its own bucket drained")
+	}
+}

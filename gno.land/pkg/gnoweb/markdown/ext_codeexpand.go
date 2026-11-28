@@ -16,7 +16,7 @@ import (
 var defaultLexer = lexers.Fallback
 
 // ExtCodeExpand returns a Goldmark extension that renders fenced and indented
-// code blocks as collapsible <details class="doc-example"> disclosures with
+// code blocks as collapsible <details class="b-doc-example"> disclosures with
 // Chroma syntax highlighting applied to the code content. The formatter and
 // style are injected by the caller.
 func ExtCodeExpand(formatter *chromahtml.Formatter, style *chroma.Style) goldmark.Extender {
@@ -67,7 +67,7 @@ func (r *codeExpandRenderer) render(w util.BufWriter, source []byte, n ast.Node,
 		code = append(code, seg.Value(source)...)
 	}
 
-	w.WriteString(`<details class="doc-example"><summary>Example</summary>`)
+	w.WriteString(`<details class="b-doc-example"><summary>Example</summary>`)
 
 	// Use the named language when specified and recognised; fall back to
 	// the plain-text lexer otherwise.

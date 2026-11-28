@@ -3,22 +3,20 @@ package foo721
 import (
 	"testing"
 
-	"gno.land/p/demo/tokens/grc721"
+	"gno.land/p/nt/grc721/v0"
 )
 
 func TestFoo721(t *testing.T) {
-	admin := address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
-	hariom := address("g1rp7cmetn27eqlpjpc4vuusf8kaj746tysc0qgh")
+	admin := address("g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx")
 
 	for _, tc := range []struct {
 		name     string
 		expected any
 		fn       func() any
 	}{
-		{"BalanceOf(admin)", int64(15), func() interface{} { return BalanceOf(admin) }},
-		{"BalanceOf(hariom)", int64(15), func() interface{} { return BalanceOf(hariom) }},
-		{"OwnerOf(0)", admin, func() interface{} { return OwnerOf(grc721.TokenID("0")) }},
-		{"IsApprovedForAll(admin, hariom)", false, func() interface{} { return IsApprovedForAll(admin, hariom) }},
+		{"BalanceOf(admin)", int64(10), func() any { return BalanceOf(admin) }},
+		{"OwnerOf(0)", admin, func() any { return OwnerOf(grc721.TokenID("0")) }},
+		{"IsApprovedForAll(admin, admin)", false, func() any { return IsApprovedForAll(admin, admin) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := tc.fn()

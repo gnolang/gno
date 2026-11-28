@@ -22,7 +22,7 @@ package launderrh_pdr_p_recover_pfn
 // synchronously, only defer is the recover hook).
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

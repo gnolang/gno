@@ -13,7 +13,7 @@ package launderrh_conv_val_pun
 // exercised by conv_val_then_addr.
 
 import (
-	"gno.land/p/demo/tests/launderattack"
+	"gno.land/p/demo/tests/launderattack/v0"
 	"gno.land/r/tests/vm/launderrvictim"
 )
 

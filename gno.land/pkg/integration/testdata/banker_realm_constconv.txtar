@@ -1,0 +1,53 @@
+# A typed constant must not be convertible to realm merely by implementing its
+# public method set. Otherwise it can forge IsCurrent and Address together and
+# construct a RealmSend banker for an unrelated account.
+
+adduser attacker
+adduser victim
+
+gnoland start -max-gas 3000000000
+
+gnokey query bank/balances/${victim_user_addr}
+stdout '1000000000ugnot'
+
+! gnokey maketx addpkg -pkgdir $WORK/forge -pkgpath gno.land/r/test/forge -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test attacker
+stderr 'does not implement'
+
+gnokey query bank/balances/${victim_user_addr}
+stdout '1000000000ugnot'
+
+-- forge/gnomod.toml --
+module = "gno.land/r/test/forge"
+gno = "0.9"
+
+-- forge/forge.gno --
+package forge
+
+import (
+	"chain"
+	"chain/banker"
+)
+
+type fake int
+
+var spoofAddr address
+
+func (fake) Address() address         { return spoofAddr }
+func (fake) PkgPath() string          { return "gno.land/r/test/forge" }
+func (fake) Previous() realm          { var z realm; return z }
+func (fake) IsCode() bool             { return true }
+func (fake) IsUser() bool             { return false }
+func (fake) IsUserCall() bool         { return false }
+func (fake) IsUserRun() bool          { return false }
+func (fake) IsEphemeral() bool        { return false }
+func (fake) IsCurrent() bool          { return true }
+func (fake) Sub(string) realm         { var z realm; return z }
+func (fake) Subpath() string          { return "" }
+func (fake) String() string           { return "forged" }
+
+func Drain(cur realm, from, to address, amount int64) {
+	spoofAddr = from
+	rlm := realm(fake(1))
+	b := banker.NewBanker(banker.BankerTypeRealmSend, rlm)
+	b.SendCoins(from, to, chain.Coins{{"ugnot", amount}})
+}

@@ -10,7 +10,7 @@ package methodexprunexported
 // with "cannot access unexported method ... from ...".
 
 import (
-	"gno.land/p/demo/tests"
+	"gno.land/p/demo/tests/v0"
 )
 
 func main() {
@@ -18,7 +18,7 @@ func main() {
 }
 
 // Error:
-// gno.land/r/test/methodexprunexported/zrealm_method_expr_unexported.gno:17:6-42: cannot access unexported method gno.land/p/demo/tests.clearField from gno.land/r/test/methodexprunexported
+// gno.land/r/test/methodexprunexported/zrealm_method_expr_unexported.gno:17:6-42: cannot access unexported method gno.land/p/demo/tests/v0.clearField from gno.land/r/test/methodexprunexported
 
 // TypeCheckError:
 // gno.land/r/test/methodexprunexported/zrealm_method_expr_unexported.gno:17:32: (*tests.TestRealmObject2).clearField undefined (cannot refer to unexported method clearField)

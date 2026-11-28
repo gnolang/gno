@@ -4,8 +4,8 @@ import (
 	"chain"
 	"strconv"
 
-	"gno.land/p/moul/md"
-	"gno.land/p/moul/txlink"
+	"gno.land/p/moul/md/v0"
+	"gno.land/p/moul/txlink/v0"
 	"gno.land/r/sys/users"
 )
 
@@ -19,13 +19,13 @@ func init() {
 	pocInnovationName = "PoCInnovation"
 }
 
-func renderResult(address address, result bool, amount chain.Coin) string {
-	addressFmt := "**" + address.String()[:30] + "**: "
+func renderResult(addr address, result bool, amount chain.Coin) string {
+	addressFmt := "**" + addr.String()[:30] + "**: "
 	resultFmt := "lost"
 	amountFmt := " **" + amount.String() + "** "
 	emoji := "📉"
 
-	data := users.ResolveAddress(address)
+	data := users.ResolveAddress(addr)
 	if data != nil {
 		addressFmt = "**" + data.RenderLink("") + "**: "
 	}

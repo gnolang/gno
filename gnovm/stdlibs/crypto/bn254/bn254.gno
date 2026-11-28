@@ -34,7 +34,18 @@ const PairingOutputSize = 32
 // input must be exactly G1AddInputSize bytes. The output is G1OutputSize
 // bytes, or nil if input is malformed / coordinates are not reduced / points
 // are not on the curve.
-func G1Add(input []byte) []byte { return g1Add(input) }
+func G1Add(input []byte) []byte {
+	// Discard excess bytes here, before the native call. EIP-196 ignores
+	// anything past byte 128, so the native would discard them too — but it
+	// only gets to do that after the dispatcher has already copied the whole
+	// slice into Go memory. g1Add is priced flat, so that copy is work nobody
+	// pays for. Truncating first keeps the flat price honest; see
+	// adr/native_input_bounds.md.
+	if len(input) > G1AddInputSize {
+		input = input[:G1AddInputSize]
+	}
+	return g1Add(input)
+}
 
 // G1Mul returns scalar * G1 in affine form.
 //
@@ -42,7 +53,15 @@ func G1Add(input []byte) []byte { return g1Add(input) }
 // G1OutputSize bytes, or nil on malformed input / invalid point. The scalar
 // is reduced modulo the group order internally; it does not need to be below
 // the scalar field modulus.
-func G1Mul(input []byte) []byte { return g1Mul(input) }
+func G1Mul(input []byte) []byte {
+	// Same length check the native performs, moved ahead of the native call
+	// so a wrong-length input is rejected before the dispatcher copies it.
+	// See G1Add above and adr/native_input_bounds.md.
+	if len(input) != G1MulInputSize {
+		return nil
+	}
+	return g1Mul(input)
+}
 
 // PairingCheck evaluates the product of pairings and returns 1 iff the
 // product equals the identity in GT.

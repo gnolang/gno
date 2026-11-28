@@ -104,6 +104,10 @@ func (genDoc *GenesisDoc) Validate() error {
 	if len(genDoc.Validators) == 0 {
 		return ErrNoValidators
 	}
+	// Commit.ValidateBasic refuses commits with more precommits than this.
+	if len(genDoc.Validators) > MaxVotesCount {
+		return fmt.Errorf("too many validators: %d, max: %d", len(genDoc.Validators), MaxVotesCount)
+	}
 
 	// Make sure the validators are valid
 	for _, v := range genDoc.Validators {
@@ -146,6 +150,10 @@ func (genDoc *GenesisDoc) ValidateAndComplete() error {
 		return err
 	}
 
+	// Commit.ValidateBasic refuses commits with more precommits than this.
+	if len(genDoc.Validators) > MaxVotesCount {
+		return errors.New("too many validators: %d, max: %d", len(genDoc.Validators), MaxVotesCount)
+	}
 	for i, v := range genDoc.Validators {
 		if v.Power == 0 {
 			return errors.New("The genesis file cannot contain validators with no voting power: %v", v)

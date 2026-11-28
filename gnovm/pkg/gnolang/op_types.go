@@ -400,7 +400,7 @@ func (m *Machine) doOpStaticTypeOf() {
 			mt := ft.BoundType()
 			m.PushValue(asValue(mt))
 		case VPInterface:
-			_, _, _, ft, _ := findEmbeddedFieldType(dxt.GetPkgPath(), dxt, path.Name)
+			_, _, _, ft, _ := findEmbeddedFieldType(m.GasMeter, dxt.GetPkgPath(), dxt, path.Name)
 			m.PushValue(asValue(ft))
 		default:
 			panic(fmt.Sprintf(
@@ -416,6 +416,11 @@ func (m *Machine) doOpStaticTypeOf() {
 			m.PushValue(asValue(&SliceType{
 				Elt: pt.Elt.Elem(),
 			}))
+		} else if _, ok := xt.(*DeclaredType); ok &&
+			(xt.Kind() == StringKind || xt.Kind() == SliceKind) {
+			// A sliced declared string or slice keeps its declared
+			// type, as TypedValue.GetSlice keeps it on the value.
+			m.PushValue(asValue(xt))
 		} else if xt.Kind() == StringKind {
 			m.PushValue(asValue(StringType))
 		} else {

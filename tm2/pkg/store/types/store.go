@@ -58,6 +58,43 @@ type Queryable interface {
 	Query(abci.RequestQuery) abci.ResponseQuery
 }
 
+// ImmutableQueryer is the optional capability of serving a store query from a
+// frozen post-commit snapshot, so queries running concurrently with commits
+// (the query ABCI connection has its own mutex) never read live mutable store
+// state. A non-nil error means no snapshot view exists for req.Height (e.g.
+// pre-first-commit, pruned height); callers fall back to Queryable.
+type ImmutableQueryer interface {
+	QueryImmutable(req abci.RequestQuery) (abci.ResponseQuery, error)
+}
+
+// CommitHolder is a CommitMultiStore that can hold its commits in memory
+// across blocks and write them later as one atomic, synced batch. While
+// holding, Commit computes the new version and its hash and makes it the
+// LastCommitID without writing it, and iterators over the store's database
+// panic, since they would miss the held writes.
+type CommitHolder interface {
+	// SetHolding turns holding on or off. On first writes what was written
+	// outside a commit; off with commits held panics.
+	SetHolding(on bool)
+
+	// Holding reports whether commits are held.
+	Holding() bool
+
+	// WriteHeld writes every held commit as one synced batch.
+	WriteHeld() error
+
+	// HeldBytes returns the bytes of the held writes.
+	HeldBytes() int64
+
+	// WrittenCommitID returns the latest version on disk: the one loaded, or
+	// the last one written.
+	WrittenCommitID() CommitID
+
+	// TakeRefusedIterator reports whether an iterator was refused since the
+	// last call, and clears the record.
+	TakeRefusedIterator() bool
+}
+
 // Useful for debugging.
 type Printer interface {
 	Print()
@@ -148,16 +185,20 @@ type CommitMultiStore interface {
 
 	// Mount a store of type using the given db.
 	// If db == nil, the new store will use the CommitMultiStore db.
+	// A non-nil db MUST be the same physical DB as the CommitMultiStore's —
+	// ENFORCED (MountStoreWithDB panics otherwise): query snapshots cover only
+	// that DB, so a separate one would be invisible to snapshot-isolated reads
+	// (see rootmulti constructStore).
 	MountStoreWithDB(key StoreKey, cons CommitStoreConstructor, db dbm.DB)
 
 	// Panics on a nil key.
 	GetCommitStore(key StoreKey) CommitStore
 
-	// MultiImmutableCacheWrapWithVersion is analogous to MultiCacheWrap
-	// except that it attempts to load immutable stores at a given version
-	// (height). An error is returned if any store cannot be loaded. This
-	// should only be used for querying and iterating at past heights.
-	MultiImmutableCacheWrapWithVersion(version int64) (MultiStore, error)
+	// MultiImmutableCacheWrapWithVersion returns an immutable MultiStore pinned
+	// to version, backed by a DB snapshot so both IAVL and non-IAVL sub-stores
+	// reflect the same committed block. The caller must call the returned
+	// release func when done to free the snapshot reference.
+	MultiImmutableCacheWrapWithVersion(version int64) (MultiStore, func(), error)
 }
 
 // CommitID contains the tree version number and its merkle root.

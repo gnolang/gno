@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -51,6 +52,11 @@ type Reactor struct {
 
 	// store persists discovered peers to disk.
 	store *Store
+
+	// requested holds the connections sent a Request they have not answered
+	// yet, by peer ID. A Response is taken only from one of them, once
+	requested    map[types.ID]p2p.PeerConn
+	requestedMux sync.Mutex
 }
 
 // NewReactor creates a new peer discovery reactor.
@@ -63,6 +69,7 @@ func NewReactor(store *Store, opts ...Option) *Reactor {
 		cancelFn:          cancelFn,
 		discoveryInterval: discoveryInterval,
 		store:             store,
+		requested:         make(map[types.ID]p2p.PeerConn),
 	}
 
 	r.BaseReactor = *p2p.NewBaseReactor("Reactor", r)
@@ -102,6 +109,13 @@ func (r *Reactor) OnStart() error {
 				if len(peers) == 0 {
 					// No discovery to run
 					continue
+				}
+
+				// Keep the mark of every peer the node dialed and still holds
+				for _, p := range peers {
+					if p.IsOutbound() {
+						r.store.MarkConnected(p.SocketAddr())
+					}
 				}
 
 				// Generate a random peer index
@@ -147,6 +161,27 @@ func (r *Reactor) OnStop() {
 	}
 }
 
+// AddPeer records a newly dialed peer's address as connected in the store, and
+// requests its peer set, so a fresh connection contributes addresses
+// immediately instead of waiting for the random discovery tick to select it
+func (r *Reactor) AddPeer(peer p2p.PeerConn) {
+	if !peer.IsOutbound() {
+		// Inbound peers are not solicited: we did not choose them,
+		// and they are their own source
+		return
+	}
+
+	// The node dialed this address, and the peer proved its ID on it
+	r.store.MarkConnected(peer.SocketAddr())
+
+	go r.requestPeers(peer)
+}
+
+// RemovePeer forgets a Request the departing connection has not answered
+func (r *Reactor) RemovePeer(peer p2p.PeerConn, _ any) {
+	r.takeRequested(peer)
+}
+
 // requestPeers requests the peer set from the given peer
 func (r *Reactor) requestPeers(peer p2p.PeerConn) {
 	// Initiate peer discovery
@@ -163,9 +198,18 @@ func (r *Reactor) requestPeers(peer p2p.PeerConn) {
 		return
 	}
 
+	// Expect the answer before sending, so a fast one is not taken for
+	// unsolicited
+	r.requestedMux.Lock()
+	r.requested[peer.ID()] = peer
+	r.requestedMux.Unlock()
+
 	// Send the request
 	if !peer.Send(Channel, reqBytes) {
 		r.Logger.Warn("unable to send discovery request", "peer", peer.ID())
+
+		// A stopped peer fails here, and may already be past RemovePeer
+		r.takeRequested(peer)
 	}
 }
 
@@ -186,14 +230,14 @@ func (r *Reactor) Receive(chID byte, peer p2p.PeerConn, msgBytes []byte) {
 	var msg Message
 
 	if err := amino.UnmarshalAny(msgBytes, &msg); err != nil {
-		r.Logger.Error("unable to unmarshal discovery message", "err", err)
+		r.Logger.Error("unable to unmarshal discovery message", "bytes", len(msgBytes), "err", err)
 
 		return
 	}
 
 	// Validate the message
 	if err := msg.ValidateBasic(); err != nil {
-		r.Logger.Warn("unable to validate discovery message", "err", err)
+		r.Logger.Warn("unable to validate discovery message", "type", fmt.Sprintf("%T", msg), "err", err)
 
 		return
 	}
@@ -204,14 +248,39 @@ func (r *Reactor) Receive(chID byte, peer p2p.PeerConn, msgBytes []byte) {
 			r.Logger.Warn("unable to handle discovery request", "err", err)
 		}
 	case *Response:
+		// Take only the answer to a Request this node sent, once. Every
+		// address in it reaches the store and the dial queue, so a peer
+		// sending them unasked would fill both at the rate it can send
+		if !r.takeRequested(peer) {
+			r.Logger.Debug("dropping unsolicited discovery response", "peer", peer.ID())
+
+			return
+		}
+
 		// Persist the discovered peers so they survive a restart
 		r.store.AddPeers(msg.Peers...)
 
 		// Make the peers available for dialing on the switch
 		r.Switch.DialPeers(msg.Peers...)
 	default:
-		r.Logger.Warn("invalid message received", "msg", msgBytes)
+		r.Logger.Warn("invalid message received", "type", fmt.Sprintf("%T", msg), "bytes", len(msgBytes))
 	}
+}
+
+// takeRequested returns a flag indicating if the connection was sent a
+// Request it had not answered yet, and marks it answered. Another connection
+// of the same peer ID, one being replaced, leaves the entry alone
+func (r *Reactor) takeRequested(peer p2p.PeerConn) bool {
+	r.requestedMux.Lock()
+	defer r.requestedMux.Unlock()
+
+	if r.requested[peer.ID()] != peer {
+		return false
+	}
+
+	delete(r.requested, peer.ID())
+
+	return true
 }
 
 // handleDiscoveryRequest prepares a peer list that can be shared
@@ -270,8 +339,8 @@ func (r *Reactor) handleDiscoveryRequest(peer p2p.PeerConn) error {
 		return fmt.Errorf("unable to marshal discovery response, %w", err)
 	}
 
-	// Send the response to the peer
-	if !peer.Send(Channel, preparedResp) {
+	// Receive must keep reading pings even when the shared send budget is full.
+	if !peer.TrySend(Channel, preparedResp) {
 		return fmt.Errorf("unable to send discovery response to peer %s", peer.ID())
 	}
 

@@ -7,7 +7,7 @@ import (
 	"gno.land/p/nt/bptree/v0"
 	"gno.land/p/nt/seqid/v0"
 	"gno.land/p/nt/ufmt/v0"
-	"gno.land/p/sys/validators"
+	"gno.land/p/sys/validators/v0"
 )
 
 var (

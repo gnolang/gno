@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"time"
 
 	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
@@ -113,6 +114,13 @@ func NewRemoteSignerClient(
 	for _, option := range options {
 		option(rsc)
 	}
+
+	// Initialize the dialer with the configured dial timeout so that each
+	// dial attempt is bounded. Without this, the timeout set via
+	// WithDialTimeout is silently ignored, and a dial to an unreachable
+	// server blocks until the OS TCP stack gives up (potentially minutes),
+	// which can stall the consensus receiveRoutine indefinitely.
+	rsc.dialer = net.Dialer{Timeout: rsc.dialTimeout}
 
 	// Set a cancelable context for the client.
 	rsc.ctx, rsc.cancelCtx = context.WithCancel(ctx)

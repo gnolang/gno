@@ -4,10 +4,12 @@ import (
 	"testing"
 )
 
-// Testing this package is limited because it only contains an `std.Set` method
-// without a corresponding `std.Get` method. For comprehensive testing, refer to
-// the tests located in the r/gov/dao/ directory, specifically in one of the
-// propX_filetest.gno files.
+// These tests cover proposal CONSTRUCTION. Reading a value back is possible --
+// sys/params exposes typed getters (GetSysParamStrings and friends), which
+// valset.gno and delegate_test.gno both use, and tests can seed with
+// testing.SetSysParam* -- so add read-back assertions rather than assuming they
+// cannot be written. End-to-end execution is additionally covered by the
+// propX_filetest.gno files under r/gov/dao/.
 
 func TestNewStringPropRequest(cur realm, t *testing.T) {
 	pr := NewSysParamStringPropRequest(cur, "foo", "bar", "baz", "qux")

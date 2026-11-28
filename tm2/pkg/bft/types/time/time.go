@@ -42,7 +42,8 @@ func WeightedMedian(weightedTimes []*WeightedTime, totalVotingPower int64) (res 
 		if weightedTimes[j] == nil {
 			return true
 		}
-		return weightedTimes[i].Time.UnixNano() < weightedTimes[j].Time.UnixNano()
+		// UnixNano wraps past 2262; a signed vote timestamp can reach year 9999.
+		return weightedTimes[i].Time.Before(weightedTimes[j].Time)
 	})
 
 	for _, weightedTime := range weightedTimes {

@@ -128,7 +128,7 @@ func TestABCIResponsesSaveLoad1(t *testing.T) {
 		},
 	}}
 
-	sm.SaveABCIResponses(stateDB, block.Height, abciResponses)
+	require.NoError(t, sm.SaveABCIResponses(stateDB, block.Height, abciResponses))
 	loadedABCIResponses, err := sm.LoadABCIResponses(stateDB, block.Height)
 	assert.Nil(err)
 	assert.Equal(abciResponses, loadedABCIResponses,
@@ -220,7 +220,7 @@ func TestABCIResponsesSaveLoad2(t *testing.T) {
 			DeliverTxs: tc.added,
 			EndBlock:   abci.ResponseEndBlock{},
 		}
-		sm.SaveABCIResponses(stateDB, h, responses)
+		require.NoError(t, sm.SaveABCIResponses(stateDB, h, responses))
 	}
 
 	// Query all before, should return expected value.

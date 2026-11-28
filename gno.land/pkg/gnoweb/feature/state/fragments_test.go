@@ -210,6 +210,17 @@ func TestFragNodeHappyPath(t *testing.T) {
 		"happy path renders children via the shared state/node renderer")
 	assert.Equal(t, int32(1), atomic.LoadInt32(&client.objCalls),
 		"one StateObject call per frag=node request")
+	assert.Equal(t, 2, strings.Count(body, `data-shape="leaf"`), "one row per struct field")
+
+	// A pointer to field 1 of the object (&idx=1) renders only that field.
+	rec = serveFragReq(t, h, url.Values{
+		"frag": {"node"},
+		"oid":  {fragOID},
+		"idx":  {"1"},
+	})
+	body = rec.Body.String()
+	assert.Equal(t, 1, strings.Count(body, `data-shape="leaf"`), "one row for the pointee")
+	assert.Contains(t, body, `data-value="2"`, "the row shows field 1")
 }
 
 func TestFragNodeRefChildStaysLazilyExpandable(t *testing.T) {
@@ -458,18 +469,51 @@ func TestFragNodeRejectsTraversalInSourceFile(t *testing.T) {
 		"traversal payload must not surface fetched content in the fragment body")
 }
 
-func TestFragNodeInvalidOID(t *testing.T) {
-	h := newFragHandler(&fragMockClient{}, nil)
-	rec := serveFragReq(t, h, url.Values{
-		"frag": {"node"},
-		"oid":  {"not-an-oid"},
-	})
+func TestFragNodeInvalidParams(t *testing.T) {
+	client := &fragMockClient{}
+	h := newFragHandler(client, nil)
+	cases := []struct {
+		name string
+		q    url.Values
+	}{
+		{"invalid oid", url.Values{"frag": {"node"}, "oid": {"not-an-oid"}}},
+		{"negative idx", url.Values{"frag": {"node"}, "oid": {fragOID}, "idx": {"-1"}}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rec := serveFragReq(t, h, c.q)
 
-	assert.Equal(t, http.StatusOK, rec.Code, "validation failure surfaces via fragment-error (HTTP 200)")
-	body := rec.Body.String()
-	assert.Contains(t, body, "b-state-frag-error")
-	assert.NotContains(t, body, "b-state-frag-children",
-		"invalid input must not reach the success template")
+			assert.Equal(t, http.StatusOK, rec.Code, "validation failure surfaces via fragment-error (HTTP 200)")
+			body := rec.Body.String()
+			assert.Contains(t, body, "b-state-frag-error")
+			assert.NotContains(t, body, "b-state-frag-children",
+				"invalid input must not reach the success template")
+		})
+	}
+	assert.Equal(t, int32(0), atomic.LoadInt32(&client.objCalls), "invalid input is rejected before any RPC")
+}
+
+func TestFragNodeIdxOutOfRange(t *testing.T) {
+	// fragStructBody has two fields.
+	cases := []struct {
+		name string
+		q    url.Values
+	}{
+		{"untyped", url.Values{"frag": {"node"}, "oid": {fragOID}, "idx": {"2"}}},
+		{"typed", url.Values{"frag": {"node"}, "oid": {fragOID}, "tid": {"gno.land/r/demo.T"}, "idx": {"2"}}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			client := &fragMockClient{objBytes: fragStructBody(fragOID), typBytes: []byte(`{}`)}
+			h := newFragHandler(client, nil)
+			rec := serveFragReq(t, h, c.q)
+
+			assert.Equal(t, http.StatusOK, rec.Code, "validation failure surfaces via fragment-error (HTTP 200)")
+			body := rec.Body.String()
+			assert.Contains(t, body, "b-state-frag-error")
+			assert.Contains(t, body, "Invalid pointer index")
+		})
+	}
 }
 
 func TestFragNodeNotFoundReturnsFragError(t *testing.T) {
@@ -532,7 +576,7 @@ func TestFragNodeDepthCap(t *testing.T) {
 			]
 		}
 	}`
-	root, err := DecodeObject(context.Background(), []byte(fixture), DefaultFragmentRenderConfig())
+	root, err := DecodeObject(context.Background(), []byte(fixture), nil, DefaultFragmentRenderConfig())
 	require.NoError(t, err)
 
 	// Walk down: at depth >= 3 we should hit a (too deep) sentinel rather

@@ -41,7 +41,7 @@ const (
 	registerFunc    = "Register"
 
 	// gas budget per Register tx — enough headroom for the realm's
-	// signingRegistry insert + cross-call into v3 NotifyValoperChanged.
+	// signingRegistry insert + cross-call into v0 NotifyValoperChanged.
 	// Tuned against the txtar e2e tests (60M was sufficient there).
 	defaultRegisterGasWanted = 60_000_000
 )
@@ -103,34 +103,34 @@ Output is sorted by operator_addr so the same CSV produces a byte-equal
 .jsonl across runs. Idempotent: re-running with the same CSV is safe.
 
 PREREQUISITE: each Register call cross-calls
-gno.land/r/sys/validators/v3.NotifyValoperChanged, and gnoland's
-InitChainer auto-runs v3.AssertGenesisValopersConsistent at end of
-genesis-mode replay (when PastChainIDs is set). v3 must therefore
+gno.land/r/sys/validators/v0.NotifyValoperChanged, and gnoland's
+InitChainer auto-runs v0.AssertGenesisValopersConsistent at end of
+genesis-mode replay (when PastChainIDs is set). v0 must therefore
 already be deployed at genesis. If the source chain (the one being
-forked from) does not have v3 deployed in its genesis-mode addpkg
+forked from) does not have v0 deployed in its genesis-mode addpkg
 txs, use 'gnogenesis fork addpkg' to produce a separate .jsonl
-that deploys v3 (and any other new realms valopers transitively
+that deploys v0 (and any other new realms valopers transitively
 imports), and pass it BEFORE this seed via repeated --migration-tx
 flags. Order matters — addpkg first, then this seed:
 
-  gnogenesis fork addpkg --output addpkg-v3.jsonl examples/gno.land/r/sys/validators/v3
+  gnogenesis fork addpkg --output addpkg-v0.jsonl examples/gno.land/r/sys/validators/v0
   gnogenesis fork valoper-seed --csv valopers.csv --output valoper-seed.jsonl
   gnogenesis fork generate \
       --source ... \
-      --migration-tx addpkg-v3.jsonl \
+      --migration-tx addpkg-v0.jsonl \
       --migration-tx valoper-seed.jsonl \
       --output genesis.json
 
-If the source chain already has v3 deployed (e.g., a fresh launch or
-a fork from a chain where v3 was already live), pass --patch-realm
+If the source chain already has v0 deployed (e.g., a fresh launch or
+a fork from a chain where v0 was already live), pass --patch-realm
 on the existing addpkg and skip the addpkg step.
 
-Example (full flow, source is gnoland-1 with v3 NOT pre-deployed):
+Example (full flow, source is gnoland-1 with v0 NOT pre-deployed):
 
-  gnogenesis fork addpkg --output addpkg-v3.jsonl examples/gno.land/r/sys/validators/v3
+  gnogenesis fork addpkg --output addpkg-v0.jsonl examples/gno.land/r/sys/validators/v0
   gnogenesis fork valoper-seed --csv valopers.csv --output valoper-seed.jsonl
   gnogenesis fork generate --source ... \
-      --migration-tx addpkg-v3.jsonl --migration-tx valoper-seed.jsonl \
+      --migration-tx addpkg-v0.jsonl --migration-tx valoper-seed.jsonl \
       --patch-realm gno.land/r/gnops/valopers=examples/gno.land/r/gnops/valopers \
       --patch-realm gno.land/r/gnops/valopers/proposal=examples/gno.land/r/gnops/valopers/proposal \
       --output genesis.json`,

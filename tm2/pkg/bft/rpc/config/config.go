@@ -33,9 +33,9 @@ type RPCConfig struct {
 	// A list of non simple headers the client is allowed to use with cross-domain requests.
 	CORSAllowedHeaders []string `json:"cors_allowed_headers" toml:"cors_allowed_headers" comment:"A list of non simple headers the client is allowed to use with cross-domain requests"`
 
-	// TCP or UNIX socket address for the gRPC server to listen on
-	// NOTE: This server only supports /broadcast_tx_commit
-	GRPCListenAddress string `json:"grpc_laddr" toml:"grpc_laddr" comment:"TCP or UNIX socket address for the gRPC server to listen on\n NOTE: This server only supports /broadcast_tx_commit"`
+	// Unused: no gRPC server is started from this address. Kept so
+	// "gnoland config get/set rpc.grpc_laddr" keeps working.
+	GRPCListenAddress string `json:"grpc_laddr" toml:"grpc_laddr" comment:"Unused: no gRPC server is started from this address"`
 
 	// Maximum number of simultaneous connections.
 	// Does not include RPC (HTTP&WebSocket) connections. See max_open_connections
@@ -44,8 +44,9 @@ type RPCConfig struct {
 	// 0 - unlimited.
 	GRPCMaxOpenConnections int `json:"grpc_max_open_connections" toml:"grpc_max_open_connections" comment:"Maximum number of simultaneous connections.\n Does not include RPC (HTTP&WebSocket) connections. See max_open_connections\n If you want to accept a larger number than the default, make sure\n you increase your OS limits.\n 0 - unlimited.\n Should be < {ulimit -Sn} - {MaxNumInboundPeers} - {MaxNumOutboundPeers} - {N of wal, db and other open files}\n 1024 - 40 - 10 - 50 = 924 = ~900"`
 
-	// Activate unsafe RPC commands like /dial_persistent_peers and /unsafe_flush_mempool
-	Unsafe bool `json:"unsafe" toml:"unsafe" comment:"Activate unsafe RPC commands like /dial_seeds and /unsafe_flush_mempool"`
+	// Activate the unsafe_* RPC endpoints: unsafe_flush_mempool and the three
+	// pprof profiler endpoints. Two of those write to a caller-supplied path.
+	Unsafe bool `json:"unsafe" toml:"unsafe" comment:"Activate the unsafe_* RPC endpoints: unsafe_flush_mempool and the three pprof profiler endpoints.\n Two of the profiler endpoints create a file at a caller-supplied path."`
 
 	// Maximum number of simultaneous connections (including WebSocket).
 	// Does not include gRPC connections. See grpc_max_open_connections
@@ -62,11 +63,26 @@ type RPCConfig struct {
 	// See https://github.com/tendermint/tendermint/issues/3435
 	TimeoutBroadcastTxCommit time.Duration `json:"timeout_broadcast_tx_commit" toml:"timeout_broadcast_tx_commit" comment:"How long to wait for a tx to be committed during /broadcast_tx_commit.\n WARNING: Using a value larger than 10s will result in increasing the\n global HTTP write timeout, which applies to all connections and endpoints.\n See https://github.com/tendermint/tendermint/issues/3435"`
 
+	// How long a keep-alive HTTP connection may sit idle between requests
+	// before the server closes it. Zero falls back to the read timeout (10s).
+	// Set it larger than the idle timeout of any reverse proxy in front of
+	// the node to avoid intermittent 502s from reuse of closed connections.
+	IdleTimeout time.Duration `json:"idle_timeout" toml:"idle_timeout" comment:"How long a keep-alive HTTP connection may sit idle between requests\n before the server closes it. Zero falls back to the read timeout (10s).\n Set it larger than the idle timeout of any reverse proxy in front of\n the node to avoid intermittent 502s from reuse of closed connections."`
+
 	// Maximum size of request body, in bytes
 	MaxBodyBytes int64 `json:"max_body_bytes" toml:"max_body_bytes" comment:"Maximum size of request body, in bytes"`
 
 	// Maximum size of request header, in bytes
 	MaxHeaderBytes int `json:"max_header_bytes" toml:"max_header_bytes" comment:"Maximum size of request header, in bytes"`
+
+	// Maximum number of requests in one JSON-RPC batch, over HTTP or WebSocket.
+	// A larger batch is refused whole, with a single error response.
+	// 0 - unlimited.
+	MaxBatchRequests int `json:"max_batch_requests" toml:"max_batch_requests" comment:"Maximum number of requests in one JSON-RPC batch, over HTTP or WebSocket.\n A larger batch is refused whole, with a single error response.\n 0 - unlimited."`
+
+	// Whether abci_query serves the paths that run code on the node, such as
+	// ".app/simulate" and "vm/qeval". false refuses them; every other path stays open.
+	AllowCodeExecution bool `json:"allow_code_execution" toml:"allow_code_execution" comment:"Whether abci_query serves the paths that run code on the node, such as\n \".app/simulate\" and \"vm/qeval\". false refuses them; every other path stays open."`
 
 	// The path to a file containing certificate that is used to create the HTTPS server.
 	// Might be either absolute path or path related to tendermint's config directory.
@@ -100,8 +116,13 @@ func DefaultRPCConfig() *RPCConfig {
 
 		TimeoutBroadcastTxCommit: 10 * time.Second,
 
+		IdleTimeout: 0, // net/http: fall back to the read timeout
+
 		MaxBodyBytes:   int64(1000000), // 1MB
 		MaxHeaderBytes: 1 << 20,        // same as the net/http default
+
+		MaxBatchRequests:   1000,
+		AllowCodeExecution: true,
 
 		TLSCertFile: "",
 		TLSKeyFile:  "",
@@ -129,11 +150,17 @@ func (cfg *RPCConfig) ValidateBasic() error {
 	if cfg.TimeoutBroadcastTxCommit < 0 {
 		return errors.New("timeout_broadcast_tx_commit can't be negative")
 	}
+	if cfg.IdleTimeout < 0 {
+		return errors.New("idle_timeout can't be negative")
+	}
 	if cfg.MaxBodyBytes < 0 {
 		return errors.New("max_body_bytes can't be negative")
 	}
 	if cfg.MaxHeaderBytes < 0 {
 		return errors.New("max_header_bytes can't be negative")
+	}
+	if cfg.MaxBatchRequests < 0 {
+		return errors.New("max_batch_requests can't be negative")
 	}
 	return nil
 }
