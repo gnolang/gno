@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	r "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote"
 	rss "github.com/gnolang/gno/tm2/pkg/bft/privval/signer/remote/server"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -17,12 +18,17 @@ import (
 	"go.uber.org/multierr"
 )
 
+// ErrEmptyAuthorizedKeys is returned when a TCP signer has no authorized clients.
+var ErrEmptyAuthorizedKeys = errors.New("TCP listener requires authorized keys")
+
 // NewSignerServer creates a new remote signer server with the given gnokms signer.
 func NewSignerServer(
 	commonFlags *ServerFlags,
 	signer types.Signer,
 	logger *slog.Logger,
 ) (*rss.RemoteSignerServer, error) {
+	protocol, _ := osm.ProtocolAndAddress(commonFlags.Listener)
+
 	// Create server options.
 	options := []rss.Option{
 		rss.WithKeepAlivePeriod(commonFlags.KeepAlivePeriod),
@@ -35,17 +41,17 @@ func NewSignerServer(
 		if err != nil {
 			return nil, fmt.Errorf("invalid auth keys file: %w", err)
 		}
+		if protocol == r.TCPProtocol && len(authKeysFile.AuthorizedKeys()) == 0 {
+			return nil, fmt.Errorf("%w: auth keys file %q contains no authorized keys; run 'gnokms auth authorized add <public-key>'", ErrEmptyAuthorizedKeys, commonFlags.AuthKeysFile)
+		}
 
 		// Add the authorized keys and server private key to the server options.
 		options = append(options,
 			rss.WithAuthorizedKeys(authKeysFile.AuthorizedKeys()),
 			rss.WithServerPrivKey(authKeysFile.ServerIdentity.PrivKey),
 		)
-	} else if protocol, _ := osm.ProtocolAndAddress(commonFlags.Listener); protocol == "tcp" {
-		// If no auth keys file found and the listener use the TCP protocol, log a security
-		// warning suggesting to the user to generate mutual auth keys.
-		logger.Warn("Mutual auth keys not found, gnokms and its clients will not be able to authenticate")
-		logger.Warn("For more security, generate mutual auth keys using 'gnokms auth generate'")
+	} else if protocol == r.TCPProtocol {
+		return nil, fmt.Errorf("%w: auth keys file not found at %q; run 'gnokms auth generate', then 'gnokms auth authorized add <public-key>'", ErrEmptyAuthorizedKeys, commonFlags.AuthKeysFile)
 	}
 
 	// Initialize the remote signer server with its options.

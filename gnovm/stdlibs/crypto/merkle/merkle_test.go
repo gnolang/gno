@@ -116,7 +116,7 @@ func TestVerifySimpleProofValid(t *testing.T) {
 	for i, item := range items {
 		proof := proofs[i]
 		aunts := flattenAunts(proof.Aunts)
-		if !X_verifySimpleProof(rootHash, item, proof.Index, proof.Total, aunts) {
+		if !verifySimpleProof(rootHash, item, proof.Index, proof.Total, aunts) {
 			t.Fatalf("valid proof for item %d rejected", i)
 		}
 	}
@@ -128,7 +128,7 @@ func TestVerifySimpleProofTamperedLeaf(t *testing.T) {
 
 	proof := proofs[0]
 	aunts := flattenAunts(proof.Aunts)
-	if X_verifySimpleProof(rootHash, []byte("tampered"), proof.Index, proof.Total, aunts) {
+	if verifySimpleProof(rootHash, []byte("tampered"), proof.Index, proof.Total, aunts) {
 		t.Fatal("tampered leaf should not verify")
 	}
 }
@@ -140,7 +140,7 @@ func TestVerifySimpleProofWrongRoot(t *testing.T) {
 	wrongRoot := make([]byte, 32) // all zeros
 	proof := proofs[0]
 	aunts := flattenAunts(proof.Aunts)
-	if X_verifySimpleProof(wrongRoot, []byte("a"), proof.Index, proof.Total, aunts) {
+	if verifySimpleProof(wrongRoot, []byte("a"), proof.Index, proof.Total, aunts) {
 		t.Fatal("wrong root should not verify")
 	}
 }

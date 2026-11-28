@@ -1,0 +1,32 @@
+# A realm param key longer than the store accepts fails its own tx, and the
+# chain keeps committing blocks after it.
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK/realm -pkgpath gno.land/r/test/longkey -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# -simulate skip puts the tx in a block, so DeliverTx is what refuses it.
+! gnokey maketx call -pkgpath gno.land/r/test/longkey -func SetLong -simulate skip -gas-fee 1000000ugnot -gas-wanted 200_000_000 -max-deposit 200000000ugnot -chainid=tendermint_test test1
+stderr 'store key length 1048731 exceeds the maximum 1024'
+
+gnokey maketx call -pkgpath gno.land/r/test/longkey -func Ping -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+-- realm/gnomod.toml --
+module = "gno.land/r/test/longkey"
+
+gno = "0.9"
+
+-- realm/longkey.gno --
+package longkey
+
+import (
+	"chain/params"
+	"strings"
+)
+
+func SetLong(cur realm) {
+	params.SetString(strings.Repeat("a", 1048700), "v")
+}
+
+func Ping(cur realm) {}

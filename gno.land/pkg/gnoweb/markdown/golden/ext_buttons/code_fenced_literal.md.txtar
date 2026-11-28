@@ -1,0 +1,11 @@
+-- input.md --
+```markdown
+<gno-button href="/r/test" label="Fenced" />
+```
+
+    <gno-button href="/r/test" label="Indented code" />
+-- output.html --
+<pre><code class="language-markdown">&lt;gno-button href=&quot;/r/test&quot; label=&quot;Fenced&quot; /&gt;
+</code></pre>
+<pre><code>&lt;gno-button href=&quot;/r/test&quot; label=&quot;Indented code&quot; /&gt;
+</code></pre>

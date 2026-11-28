@@ -1,0 +1,4 @@
+-- input.md --
+<GNO-BUTTON HREF="/r/test" LABEL="Upper" VARIANT="info" />
+-- output.html --
+<p><a href="/r/test" class="gno-button gno-button-info">Upper</a></p>

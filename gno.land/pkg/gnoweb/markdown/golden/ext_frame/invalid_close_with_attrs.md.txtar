@@ -1,0 +1,12 @@
+-- input.md --
+<gno-frame>
+content
+</gno-frame class="x">
+still inside
+</gno-frame>
+-- output.html --
+<section class="gno-frame">
+<p>content</p>
+<!-- unexpected/invalid frame tag omitted -->
+<p>still inside</p>
+</section>

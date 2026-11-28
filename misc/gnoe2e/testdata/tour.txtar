@@ -1,0 +1,238 @@
+# The tour is the executable reference for the gnoe2e dialect. Each block below
+# demonstrates one capability of the harness and reads back what it did from
+# the chain, so a reader learns the verbs from lines that are also assertions.
+# It doubles as the dialect's regression test: rename a verb, a cluster key or
+# an exported variable and this is the file that fails first.
+#
+# Everything the harness offers appears at least once: every verb, every
+# "-- cluster --" key, and every exported variable except $GNOROOT, which this
+# file has no reason to name because every package it deploys comes from one of
+# its own sections rather than the checkout's examples. $GNOHOME is used
+# implicitly on each gnokey line: it is gnokey's -home.
+#
+# The cluster: four validators, so one can be stopped while the other three
+# keep a quorum; an inert code-submission policy, so a submitted package parks
+# until an approver enables it; a per-block gas ceiling; one node-config
+# override and one genesis-params override. Each of those five settings is
+# read back below rather than assumed.
+
+# ---- Every node answers for itself.
+
+# $RPC_ADDR is the first validator and the node gnokey uses when a line names
+# none. The cluster is handed over once that node has committed a block, so a
+# one-shot read of it is sound.
+gnokey query auth/accounts/$USER_ADDR
+stdout 'coins'
+
+# The other validators are asked for themselves, and waited on: a node may
+# still be applying genesis when the first one has already committed. An
+# account query answers empty and exits 0 on such a node, so the exit status
+# is not a gate here and -stdout carries the wait. -remote is a root flag and
+# precedes the subcommand.
+eventually -stdout 'coins' gnokey -remote $RPC_ADDR_1 query auth/accounts/$USER_ADDR
+stdout 'coins'
+eventually -stdout 'coins' gnokey -remote $RPC_ADDR_2 query auth/accounts/$USER_ADDR
+stdout 'coins'
+eventually -stdout 'coins' gnokey -remote $RPC_ADDR_3 query auth/accounts/$USER_ADDR
+stdout 'coins'
+
+# The oracle's own account. It is funded in every cluster whether or not the
+# script starts the oracle, so an enable it broadcasts later has fees to pay.
+gnokey query auth/accounts/$GPAO_ADDR
+stdout 'coins'
+
+# ---- Every cluster setting is read back from the chain.
+
+# genesis.vm.chain_domain, straight out of the vm params. It is also why every
+# package path in this file starts with tour.gno.land/ rather than gno.land/:
+# the chain refuses a path outside its own domain.
+gnokey query params/vm:p:chain_domain
+stdout 'tour.gno.land'
+
+# config.moniker, read from the node's own RPC. http_get takes the tcp://
+# address the harness exports and speaks HTTP to it, so the same verb that
+# polls the oracle's status board also reads the chain's.
+http_get $RPC_ADDR/status
+stdout '"moniker": *"tour"'
+
+# block-max-gas. The ante handler refuses a gas-wanted above the block ceiling
+# and names both numbers, so a refusal reads the ceiling back. Refused in
+# CheckTx: nothing is committed and the tour's state is untouched.
+#
+# One shot, not eventually: a comparison against a consensus parameter gives
+# the same answer on every attempt, and eventually refuses negation anyway.
+! gnokey maketx addpkg -broadcast=true -gas-wanted 300000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/hello -pkgpath tour.gno.land/r/tour/hello $USER_NAME
+stderr 'block-max-gas: 200000000'
+
+# ---- Under the inert policy a package parks until an approver enables it.
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/hello -pkgpath tour.gno.land/r/tour/hello $USER_NAME
+
+# One shot: -broadcast=true is BroadcastTxCommit, which returns once the
+# transaction is in a committed block, so the parked state is already readable
+# on the node that answered.
+gnokey query vm/qinertpaths -data ''
+stdout 'tour.gno.land/r/tour/hello'
+
+# Parked means unreadable as well as uncallable: the files sit outside the live
+# key space until an approver enables them. The refusal is pinned on its
+# reason, so this line cannot pass for a query that failed some other way.
+! gnokey query vm/qfile -data tour.gno.land/r/tour/hello
+stdout 'is not available'
+
+# ---- The oracle enables what parked.
+
+# Genesis named the oracle's key as the approver because the cluster section
+# named nobody else. -start-height 1 scans from the chain's start rather than
+# from the node's tip at startup: hello committed before this line ran, and the
+# default (watch from here on) would never see it.
+gpao start -start-height 1
+
+# Two nodes asked separately. A block commits on a quorum, not the whole set,
+# so node 0 serving hello says nothing about node 2 having applied that height.
+# A render of a package that is not live fails rather than answering empty, so
+# the exit status is the whole gate and no -stdout is needed.
+eventually gnokey -remote $RPC_ADDR_0 query vm/qrender -data 'tour.gno.land/r/tour/hello:x'
+stdout 'hello'
+eventually gnokey -remote $RPC_ADDR_2 query vm/qrender -data 'tour.gno.land/r/tour/hello:x'
+stdout 'hello'
+
+# The oracle's own verdict, a separate claim from the on-chain effect. Gated
+# rather than one shot: the board records an approval after the enable has
+# committed, so the package renders before the board says so. http_get checks
+# its pattern on every attempt, which is what makes waiting on it meaningful.
+eventually http_get $GPAO_STATUS/status/tour.gno.land/r/tour/hello '"status":"approved"'
+stdout '"status":"approved"'
+
+# ---- A validator goes down and the chain carries on.
+
+# Four validators, not three: consensus needs more than two thirds of the
+# voting power, so a three-node cluster tolerates no loss and would stop making
+# blocks here. Node 3 is stopped because nothing above read from it.
+validator stop 3
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/outage -pkgpath tour.gno.land/r/tour/outage $USER_NAME
+
+# Committed and approved with node 3 absent. A wait, not a read: the addpkg
+# returned once its own transaction committed, and that only parked the
+# package. Going live is a second transaction the oracle has not sent yet, and
+# no chain event announces it, so the only way to see it is to keep asking.
+eventually gnokey query vm/qrender -data 'tour.gno.land/r/tour/outage:x'
+stdout 'outage'
+
+validator restart 3
+
+# Asked of the restarted node. restart returns once its RPC answers, which is
+# earlier than it being current, so this wait covers catching up on every
+# block it missed. A render is the right thing to wait on: a node still behind
+# fails it rather than answering stale.
+eventually gnokey -remote $RPC_ADDR_3 query vm/qrender -data 'tour.gno.land/r/tour/outage:x'
+stdout 'outage'
+
+# ---- The oracle restarts and resumes from the tip.
+
+# restart is stop then start, and the flags belong to the new start. No
+# -start-height: with none, gpao asks the node for its tip and resumes past it,
+# which is sound here only because the package below is submitted after this
+# line has returned.
+gpao restart
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/rescan -pkgpath tour.gno.land/r/tour/rescan $USER_NAME
+
+# The same wait as above, for the same reason: the approval is a later
+# transaction, sent when the restarted oracle next polls.
+eventually gnokey query vm/qrender -data 'tour.gno.land/r/tour/rescan:x'
+stdout 'rescan'
+
+# Nothing left parked. Read three times with the negation checked once over all
+# three answers: repeat leaves every iteration's output in the buffer, so the
+# path has to be absent from each read.
+repeat 3 gnokey query vm/qinertpaths -data ''
+! stdout 'tour.gno.land/r/tour/'
+
+# ---- No oracle running, and the approver's key used by hand.
+
+gpao stop
+
+gnokey maketx addpkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/late -pkgpath tour.gno.land/r/tour/late $USER_NAME
+
+# An absence has no event to wait on, so a window is the only way to observe
+# one. Two seconds is two of gpao's default 1s poll ticks: an oracle that had
+# survived the stop above would have had both of them to act, so what follows
+# says "nothing will enable this" rather than "nothing has yet".
+sleep 2s
+
+gnokey query vm/qinertpaths -data ''
+stdout 'tour.gno.land/r/tour/late'
+! gnokey query vm/qrender -data 'tour.gno.land/r/tour/late:x'
+stdout 'package not found'
+
+# Parked state is chain state, not something the receiving node holds alone.
+# Gated on the path rather than the exit status: qinertpaths answers an empty
+# list and exits 0 on a node that has not applied that height yet, so the exit
+# status alone would return against a node still behind.
+eventually -stdout 'tour.gno.land/r/tour/late' gnokey -remote $RPC_ADDR_1 query vm/qinertpaths -data ''
+stdout 'tour.gno.land/r/tour/late'
+
+# $GPAO_KEY_NAME is the approver key in the harness keybase, so a script can do
+# by hand exactly what the oracle does. One shot: enablepkg broadcasts with
+# BroadcastTxCommit too, so the package is live when it returns.
+gnokey maketx enablepkg -broadcast=true -gas-wanted 20000000 -gas-fee 1000000ugnot -chainid $CHAIN_ID -pkgdir $WORK/late -pkgpath tour.gno.land/r/tour/late $GPAO_KEY_NAME
+gnokey query vm/qrender -data 'tour.gno.land/r/tour/late:x'
+stdout 'late'
+
+-- cluster --
+validators: 4
+code-submission-policy: inert
+# pkg-approver is left unset on purpose: under inert that names the oracle.
+# "user" would name the test account instead, which is how a scenario makes
+# the oracle an outsider.
+block-max-gas: 200000000
+# The two generic families: a node setting by its config.toml spelling, a
+# genesis param by the spelling gnogenesis params set takes.
+config.moniker: tour
+genesis.vm.chain_domain: tour.gno.land
+
+-- hello/gnomod.toml --
+module = "tour.gno.land/r/tour/hello"
+gno = "0.9"
+
+-- hello/hello.gno --
+package hello
+
+func Render(path string) string {
+	return "hello"
+}
+
+-- outage/gnomod.toml --
+module = "tour.gno.land/r/tour/outage"
+gno = "0.9"
+
+-- outage/outage.gno --
+package outage
+
+func Render(path string) string {
+	return "outage"
+}
+
+-- rescan/gnomod.toml --
+module = "tour.gno.land/r/tour/rescan"
+gno = "0.9"
+
+-- rescan/rescan.gno --
+package rescan
+
+func Render(path string) string {
+	return "rescan"
+}
+
+-- late/gnomod.toml --
+module = "tour.gno.land/r/tour/late"
+gno = "0.9"
+
+-- late/late.gno --
+package late
+
+func Render(path string) string {
+	return "late"
+}

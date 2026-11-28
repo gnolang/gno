@@ -1,5 +1,17 @@
 package std
 
+import (
+	"reflect"
+
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+)
+
+// TypedValue converts v to the gno.TypedValue a native binding takes in its
+// place. The transpiler wraps such arguments in it.
+func TypedValue(v any) gno.TypedValue {
+	return gno.Go2GnoValue(nil, nil, reflect.ValueOf(v))
+}
+
 type Realm interface {
 	Address() Address
 	PkgPath() string

@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gno.land/p/moul/md"
+	"gno.land/p/moul/md/v0"
 )
 
 type WAlignment string

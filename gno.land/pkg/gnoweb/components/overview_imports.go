@@ -2,20 +2,17 @@ package components
 
 import "strings"
 
-// buildImports turns the package's import paths — already deduplicated and
-// sorted by vm/qdoc — into rendered dependency links.
-func buildImports(paths []string, domain string) []ImportLink {
+// ImportLinks turns import paths — deduplicated and sorted, as vm/qdoc
+// reports them — into rendered dependency links.
+func ImportLinks(paths []string, domain string) []ImportLink {
 	if len(paths) == 0 {
 		return nil
 	}
 	out := make([]ImportLink, 0, len(paths))
 	for _, p := range paths {
 		kind := classifyImport(p, domain)
-		out = append(out, ImportLink{
-			Path: p,
-			Kind: kind,
-			Link: buildImportLink(p, kind, domain),
-		})
+		link, external := buildImportLink(p, kind, domain)
+		out = append(out, ImportLink{Path: p, Kind: kind, Link: link, External: external})
 	}
 	return out
 }
@@ -33,9 +30,17 @@ func classifyImport(p, domain string) string {
 	}
 }
 
-func buildImportLink(p, kind, domain string) string {
-	if kind == "package" || kind == "realm" {
-		return strings.TrimPrefix(p, domain)
+// stdlibSourceBase is where the Gno standard library lives. Stdlibs ship with
+// the node instead of being deployed on chain, so they have no package page to
+// link to and the source has to be reached upstream.
+const stdlibSourceBase = "https://github.com/gnolang/gno/tree/master/gnovm/stdlibs/"
+
+func buildImportLink(p, kind, domain string) (link string, external bool) {
+	switch kind {
+	case "package", "realm":
+		return strings.TrimPrefix(p, domain), false
+	case "stdlib":
+		return stdlibSourceBase + p, true
 	}
-	return ""
+	return "", false
 }

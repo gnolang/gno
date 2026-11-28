@@ -1,0 +1,7 @@
+-- input.md --
+    <gno-frame>
+content
+-- output.html --
+<pre><code>&lt;gno-frame&gt;
+</code></pre>
+<p>content</p>

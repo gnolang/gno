@@ -1,0 +1,10 @@
+-- input.md --
+<gno-buttons href="/r/test" label="Plural" />
+
+<gno-button-x href="/r/test" label="Suffix" />
+
+<gno-butto href="/r/test" label="Short" />
+-- output.html --
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->
+<!-- raw HTML omitted -->

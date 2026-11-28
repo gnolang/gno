@@ -1,6 +1,6 @@
 package groups
 
-import "gno.land/p/moul/addrset"
+import "gno.land/p/moul/addrset/v0"
 
 // ReadonlyRole is a read-only view of a Role. It exposes only read-side
 // methods and holds the *Role in an unexported field, so cross-package

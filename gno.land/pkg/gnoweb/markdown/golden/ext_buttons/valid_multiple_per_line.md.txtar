@@ -1,0 +1,4 @@
+-- input.md --
+<gno-button href="/r/a" label="A" /> <gno-button href="/r/b" label="B" variant="outline" />
+-- output.html --
+<p><a href="/r/a" class="gno-button">A<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span></a> <a href="/r/b" class="gno-button gno-button-outline">B<span class="link-internal tooltip" data-tooltip-target="info" data-tooltip="Cross package link" title="Cross package link"><svg class="c-icon"><use href="#ico-internal-link"></use></svg></span></a></p>

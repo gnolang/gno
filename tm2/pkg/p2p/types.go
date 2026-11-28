@@ -26,7 +26,7 @@ type PeerConn interface {
 	RemoteAddr() net.Addr // remote address of the connection
 
 	IsOutbound() bool   // did we dial the peer
-	IsPersistent() bool // do we redial this peer when we disconnect
+	IsPersistent() bool // is the peer in the switch's persistent peer set
 	IsPrivate() bool    // do we share the peer
 
 	CloseConn() error // close original connection
@@ -87,7 +87,8 @@ type Switch interface {
 	// StopPeerForError stops the peer with the given reason
 	StopPeerForError(peer PeerConn, err error)
 
-	// DialPeers marks the given peers as ready for async dialing
+	// DialPeers marks the given peers as ready for async dialing.
+	// Persistent peers are left to the switch's redial loop
 	DialPeers(peerAddrs ...*types.NetAddress)
 }
 

@@ -14,6 +14,17 @@ func (m *Machine) doOpValueDecl() {
 	}
 	var rvs []TypedValue
 	if s.Values != nil {
+		// `var a, b T = f()`: a result whose declared type differs from T
+		// only by name gets the conversion, and the checks, that `var a T = x`
+		// gets; preprocess records which in ATTR_ASSIGN_CONVERT. Convert in
+		// place, while the results are still on m.Values, as doOpAssign does:
+		// Copy can allocate and so run GC, which counts live bytes from
+		// m.Values and would miss popped ones.
+		if len(s.Values) == 1 && len(s.NameExprs) > 1 {
+			if convs, ok := s.GetAttribute(ATTR_ASSIGN_CONVERT).([]Type); ok {
+				m.convertTopValues(convs)
+			}
+		}
 		rvs = m.PopValues(len(s.NameExprs))
 	}
 	for i := range s.NameExprs {

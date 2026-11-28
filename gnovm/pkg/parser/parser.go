@@ -1204,7 +1204,11 @@ func (p *parser) embeddedElem(x ast.Expr) ast.Expr {
 	if x == nil {
 		x = p.embeddedTerm()
 	}
+	var n int
+	defer func() { p.nestLev -= n }()
 	for p.tok == token.OR {
+		n++
+		incNestLev(p)
 		t := new(ast.BinaryExpr)
 		t.OpPos = p.pos
 		t.Op = token.OR

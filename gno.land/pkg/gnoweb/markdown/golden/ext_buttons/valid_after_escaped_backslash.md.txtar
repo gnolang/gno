@@ -1,0 +1,7 @@
+-- input.md --
+An escaped backslash: \\<gno-button href="/r/test" label="live" />
+
+An escaped tag: \<gno-button href="/r/test" label="text" />
+-- output.html --
+<p>An escaped backslash: \<a href="/r/test" class="gno-button">live</a></p>
+<p>An escaped tag: &lt;gno-button href=&quot;/r/test&quot; label=&quot;text&quot; /&gt;</p>

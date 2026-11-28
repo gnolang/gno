@@ -2,7 +2,7 @@
 
 `gnoland` is the production binary powering the gno.land chain. This is the
 node-operator documentation: running a chain, joining a network, and the
-architecture and process expected of a validator.
+architecture expected of a validator.
 
 Not sure you need a node at all? Read
 [Running a node](../../../docs/builders/running-a-node.md) first — for writing
@@ -96,11 +96,21 @@ network. Set them with `gnoland config set <key> <value>`.
 | `p2p.persistent_peers` | Comma-separated `<node-id>@<host>:26656` list to stay connected to |
 | `p2p.pex` | Peer exchange: `true` to discover peers, `false` on a validator behind sentries |
 | `p2p.private_peer_ids` | Peer IDs never gossiped to others — a sentry's validator |
-| `p2p.max_num_outbound_peers` | Outbound peer cap, excluding persistent peers |
+| `p2p.max_num_outbound_peers` | Outbound peer cap. Persistent peers count toward it, but are dialed even when it is reached |
 | `rpc.laddr` | RPC listen address (default `tcp://127.0.0.1:26657`) — keep off the public internet |
 | `mempool.size` | Max transactions held in the mempool |
 | `application.prune_strategy` | `everything`, `nothing`, or `syncable` (default). `nothing` keeps all history — needed for historical queries |
+| `application.query_max_gas` / `application.query_max_alloc` | Gas and allocation (bytes) budget of one free VM query (`vm/qeval`, `vm/qrender`, ...). `0` (default) uses 3e9 gas / 1.5GB. Node-local, not consensus; a public RPC node can lower them |
+| `application.query_timeout` | Wall-clock limit of one free VM query, on top of its gas budget. `0` (default) derives it from `query_max_gas` at 2ns per gas, 6s for the default budget; set it on hardware slower than the gas calibration. A query past it fails with `QueryTimeoutError`. `.app/simulate` and transactions are not limited by it. Node-local, not consensus |
 | `consensus.timeout_commit` | Chain-wide; must match the network |
+| `halt_height` | Stop this node after committing that block. Normally left unset — a network-wide halt is scheduled by governance instead. See [UPGRADES.md](UPGRADES.md) |
+| `skip_upgrade_height` | Bypass both `halt_min_version` startup checks, before and after the halt, while it equals the governance `halt_height`. Set it back to `0` once past the halt. See [UPGRADES.md](UPGRADES.md#restart-gates) |
+
+Every `vm/q*` answer is limited to 1 MiB, envelope included. The renderers
+whose output can outgrow their input (`qeval`, `qfuncs`, `qtype_json` and the
+JSON endpoints) stop at that bound while writing. `qpaths` and `qinertpaths`
+return the leading paths that fit, with no error, so a short listing may be
+incomplete. The others are refused once built.
 
 Networks pin several of these; always start from the `config.toml` in the
 network's deployment directory rather than from the defaults.
@@ -202,40 +212,24 @@ directory.
 
 ## Become a validator
 
-Running the node is the easy half. Joining a validator set is a *process*, and
-it ends in a governance vote rather than a config change.
+Follow the target network's `VALIDATOR.md` in [`misc/deployments`](../../../misc/deployments) (mainnet: [`mainnet.gno.land/VALIDATOR.md`](../../../misc/deployments/mainnet.gno.land/VALIDATOR.md)), and ask in `#technical-start-here` on [Discord](https://discord.com/invite/gnoland) if you have a question.
 
-Get the node right **first** — the review team checks that your node is synced
-on the network before approving anything, so starting the paperwork early just
-means waiting twice.
+## Upgrades
 
-1. **Run the node properly.** Sentries, remote signing, monitoring, log rotation
-   — see the sections above.
-2. **Sync a full node** on the target network, following its
-   [deployment directory](../../../misc/deployments). Wait until
-   `/status` reports `catching_up: false`.
-3. **Start onboarding on [Discord](https://discord.gg/YFtMjWwUN7).** Run
-   `/candidate-testnet` in `#general-chat`. The bot assigns you the *Testnet
-   Validator Candidate* role and opens access to `#testnet-onboarding`.
-4. **Follow the pinned instructions** in `#testnet-onboarding`, which include
-   registering your valoper profile on-chain through the
-   [`r/gnops/valopers`](../../../examples/gno.land/r/gnops/valopers) realm.
-5. **Run `/submit-request`** in `#testnet-onboarding` with your operator
-   address. The team reviews it and either grants the *Testnet Validator* role
-   or tells you what is still missing.
-6. **Get voted in.** Entering the set is a GovDAO decision. Registering does not
-   entitle you to a slot, on a testnet or on mainnet.
+Chains stop and restart on purpose. A coordinated upgrade halts every node at
+the same block, and the nodes that come back have to satisfy a minimum binary
+version — so a restart that "just works" and one that refuses to start are both
+expected outcomes, depending on which binary you hold.
 
-The `#testnet-*` channels are only visible once you hold the candidate or
-validator role, so step 3 is what unlocks the rest. Current instructions are
-announced in `#announcements` and `#general-chat`.
+[UPGRADES.md](UPGRADES.md) covers what you need as an operator: how the halt
+height is set, what the halt looks like in your logs, why the process stays
+alive after halting at the tip, which binary version the node reports and where that value
+comes from, and what to do when the state format changes and the chain is
+rebuilt from a replayed genesis.
 
-Mainnet onboarding will differ; ask on Discord rather than assuming this flow
-carries over.
+[UPGRADES-TESTING.md](UPGRADES-TESTING.md) is a single-validator test plan for
+the halt mechanism, useful for rehearsing an upgrade before doing it for real.
 
 ## Getting help
 
-Ask on [Discord](https://discord.gg/YFtMjWwUN7) — `#general-chat` if you don't
-hold a testnet role yet, the `#testnet-*` channels once you do. Say which
-network you're on and paste your `config.toml` diff from that network's default;
-that is usually enough to answer in one round-trip.
+Join the `#technical-start-here` channel on [Discord](https://discord.com/invite/gnoland) and ask there.

@@ -12,7 +12,7 @@ import (
 )
 
 // TestValsetExportedSurface asserts the set of exported top-level
-// identifiers in examples/gno.land/r/sys/validators/v3/validators.gno.
+// identifiers in examples/gno.land/r/sys/validators/v0/validators.gno.
 //
 // This is the C1 regression test: it locks the realm's public surface
 // to a known allow-list. Any change (new export, renamed export,
@@ -35,7 +35,7 @@ func TestValsetExportedSurface(t *testing.T) {
 		t.Fatalf("getwd: %v", err)
 	}
 	root := filepath.Join(wd, "..", "..", "..")
-	src := filepath.Join(root, "examples", "gno.land", "r", "sys", "validators", "v3", "validators.gno")
+	src := filepath.Join(root, "examples", "gno.land", "r", "sys", "validators", "v0", "validators.gno")
 
 	// .gno files parse as Go syntax for top-level decls.
 	fset := token.NewFileSet()

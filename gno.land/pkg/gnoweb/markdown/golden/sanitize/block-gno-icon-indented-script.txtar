@@ -1,0 +1,12 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s\n\n## End
+-- input.md --
+   <gno-icon name="star" /><script>alert(1)</script>
+-- output.md --
+
+
+   \<gno-icon name="star" /><script>alert(1)</script>
+
+-- output.html --
+<p>&lt;gno-icon name=&quot;star&quot; /&gt;<!-- raw HTML omitted -->alert(1)<!-- raw HTML omitted --></p>
+<h2>End</h2>

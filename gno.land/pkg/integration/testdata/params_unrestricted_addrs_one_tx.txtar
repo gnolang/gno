@@ -1,0 +1,82 @@
+# Two passed GovDAO proposals, "add regular1" then "remove regular1", executed
+# in one transaction. The second write to auth:p:unrestricted_addrs must diff
+# against the first one's result, not the params snapshot the ante handler took
+# at the start of the transaction, so regular1 ends up restricted again.
+
+loadpkg gno.land/r/sys/params
+loadpkg gno.land/r/gov/dao/init/v0
+loadpkg gno.land/r/gov/dao
+adduserfrom regular1 'source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast' 1
+stdout 'g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4'
+
+gnoland start -lock-transfer
+
+gnokey maketx send -send "9999999ugnot" -to $regular1_user_addr -gas-fee 130001ugnot -gas-wanted 1_300_000 -chainid=tendermint_test test1
+stdout 'OK!'
+
+gnokey maketx run -gas-fee 3400001ugnot -gas-wanted 42_000_000 -chainid=tendermint_test test1 $WORK/run/load_user.gno
+stdout 'OK!'
+
+gnokey maketx run -gas-fee 5000001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1 $WORK/run/propose_both.gno
+stdout '0'
+stdout '1'
+
+gnokey maketx run -gas-fee 5000001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test test1 $WORK/run/vote_both.gno
+stdout 'OK!'
+
+## anyone may execute both passed proposals in a single MsgRun
+gnokey maketx run -gas-fee 5000001ugnot -gas-wanted 50_000_000 -chainid=tendermint_test regular1 $WORK/run/exec_both.gno
+stdout 'OK0'
+stdout 'OK1'
+
+gnokey query params/auth:p:unrestricted_addrs
+stdout '\["g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"\]'
+
+## the param no longer lists regular1, so its transfer must be restricted
+! gnokey maketx send -send "100ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 5000000ugnot -gas-wanted 50000000 -chainid=tendermint_test regular1
+stderr 'restricted token transfer error'
+
+-- run/load_user.gno --
+package main
+
+import i "gno.land/r/gov/dao/init/v0"
+
+func main(cur realm) {
+	i.InitWithUsers(cross(cur), address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+}
+-- run/propose_both.gno --
+package main
+
+import (
+	"gno.land/r/gov/dao"
+	"gno.land/r/sys/params"
+)
+
+func main(cur realm) {
+	a := params.ProposeAddUnrestrictedAcctsRequest(cross(cur), "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4")
+	println(dao.MustCreateProposal(cross(cur), a).String())
+	r := params.ProposeRemoveUnrestrictedAcctsRequest(cross(cur), "g18e22n23g462drp4pyszyl6e6mwxkaylthgeeq4")
+	println(dao.MustCreateProposal(cross(cur), r).String())
+}
+-- run/vote_both.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	dao.MustVoteOnProposalSimple(cross(cur), 0, "YES")
+	dao.MustVoteOnProposalSimple(cross(cur), 1, "YES")
+}
+-- run/exec_both.gno --
+package main
+
+import "gno.land/r/gov/dao"
+
+func main(cur realm) {
+	if dao.ExecuteProposal(cross(cur), dao.ProposalID(0)) {
+		println("OK0")
+	}
+	if dao.ExecuteProposal(cross(cur), dao.ProposalID(1)) {
+		println("OK1")
+	}
+}

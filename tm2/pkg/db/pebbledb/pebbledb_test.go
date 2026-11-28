@@ -36,6 +36,37 @@ func TestPebbleDBBackend(t *testing.T) {
 	assert.True(t, ok)
 }
 
+// pebble reserves 2 x MemTableSize of the block cache for memtables. With its
+// defaults (8 MiB cache, 4 MiB memtables) no block stayed cached once the
+// memtables had grown, and every read missed the cache.
+func TestNewPebbleDBCacheHoldsBlocksAfterWrites(t *testing.T) {
+	t.Parallel()
+
+	name := fmt.Sprintf("test_%x", internal.RandStr(12))
+	opened, err := db.NewDB(name, db.PebbleDBBackend, t.TempDir())
+	require.NoError(t, err)
+	pdb := opened.(*PebbleDB)
+	defer pdb.Close()
+
+	// 64 MiB of writes: memtables grow one doubling per rotation, so they
+	// reach full size well before the end.
+	val := make([]byte, 1024)
+	for i := range 64 << 10 {
+		require.NoError(t, pdb.Set(fmt.Appendf(nil, "key-%06d", i), val))
+	}
+	// Read a flushed working set twice: the second pass should hit.
+	for range 2 {
+		for i := range 1000 {
+			_, err := pdb.Get(fmt.Appendf(nil, "key-%06d", i))
+			require.NoError(t, err)
+		}
+	}
+
+	m := pdb.db.Metrics()
+	hitRate := float64(m.BlockCache.Hits) / float64(m.BlockCache.Hits+m.BlockCache.Misses)
+	assert.Greater(t, hitRate, 0.4, "block cache hits %d, misses %d", m.BlockCache.Hits, m.BlockCache.Misses)
+}
+
 func BenchmarkPebbleDBRandomReadsWrites(b *testing.B) {
 	name := fmt.Sprintf("test_%x", internal.RandStr(12))
 	db, err := NewPebbleDB(name, b.TempDir())

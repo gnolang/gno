@@ -7,7 +7,7 @@ package launderb
 // panic.
 
 import (
-	"gno.land/p/demo/tests/launderpkg"
+	"gno.land/p/demo/tests/launderpkg/v0"
 	"gno.land/r/tests/vm/laundervictim"
 )
 

@@ -1,0 +1,47 @@
+# crypto/ed25519.Verify and crypto/cometbls.VerifyZKP against operands kept in
+# realm state: each native receives them as a gno.TypedValue and must fill them
+# from the store before copying them.
+
+loadpkg gno.land/r/opstore $WORK
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/opstore -func Set -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout OK!
+
+# A later transaction reads the operands back from the store.
+gnokey maketx call -pkgpath gno.land/r/opstore -func CheckEd25519 -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout '(true bool)'
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/opstore -func CheckCometbls -gas-fee 1000000ugnot -gas-wanted 20_000_000 -chainid=tendermint_test test1
+stdout '("cometbls: invalid raw proof" string)'
+stdout OK!
+
+-- opstore.gno --
+package opstore
+
+import (
+	"crypto/cometbls"
+	"crypto/ed25519"
+	"encoding/hex"
+)
+
+var pk, sig, tvh, zkp []byte
+
+func Set(cur realm) {
+	pk, _ = hex.DecodeString("0D853FA898A07EB91F618BB3E8B738B0E45BE9B3053799A2C42F8204F5FA3505")
+	sig, _ = hex.DecodeString("2B39638983858715AD2FA059665ADFE267936B8F20C4DA01E9650958E0CA65C0255C75164360F468087FE8385140E48EE3471E332472A50AEE599F9D0EADD106")
+	tvh = make([]byte, 32)
+	zkp = make([]byte, 1000)
+}
+
+func CheckEd25519(cur realm) bool {
+	return ed25519.Verify(pk, []byte("hello gno.land"), sig)
+}
+
+func CheckCometbls(cur realm) string {
+	h := make([]byte, 32)
+	header := cometbls.LightHeader{ValidatorsHash: h, NextValidatorsHash: h, AppHash: h}
+	return cometbls.VerifyZKP("x", tvh, header, zkp).Error()
+}

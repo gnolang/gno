@@ -24,7 +24,7 @@ func handlerSearchJSON(logger *slog.Logger, dir RealmDirectory) http.Handler {
 			return
 		}
 
-		realms, packages, err := dir.Paths(r.Context())
+		paths, err := dir.Paths(r.Context())
 		if err != nil {
 			logger.Error("search: unable to list paths", "error", err)
 			http.Error(w, "search unavailable", http.StatusBadGateway)
@@ -36,6 +36,10 @@ func handlerSearchJSON(logger *slog.Logger, dir RealmDirectory) http.Handler {
 		_ = json.NewEncoder(w).Encode(struct {
 			Realms   []string `json:"realms"`
 			Packages []string `json:"packages"`
-		}{Realms: realms, Packages: packages})
+			// Truncated tells the browser its local filter covers only part
+			// of the chain, so it can say so instead of reporting "no match"
+			// for a realm the node simply did not send.
+			Truncated bool `json:"truncated,omitempty"`
+		}{Realms: paths.Realms, Packages: paths.Packages, Truncated: paths.Truncated})
 	})
 }

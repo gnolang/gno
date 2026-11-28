@@ -11,7 +11,19 @@ var (
 	ErrInvalidMaxPayloadSize       = errors.New("invalid message payload size")
 	ErrInvalidSendRate             = errors.New("invalid packet send rate")
 	ErrInvalidReceiveRate          = errors.New("invalid packet receive rate")
+	ErrInvalidRecvAssemblyTimeout  = errors.New("invalid receive assembly timeout")
+	ErrInvalidMaxRecvBufferBytes   = errors.New("invalid max receive buffer size")
+	ErrInvalidMaxSendBufferBytes   = errors.New("invalid max send buffer size")
 )
+
+// MinSendBufferBytes is the smallest nonzero MaxSendBufferBytes: one maximum
+// legal block response, the block data ceiling plus framing. A smaller budget
+// can never admit that response. It must track types.MaxBlockDataBytesLimit.
+const MinSendBufferBytes = 8<<20 + 64<<10
+
+// MinRecvBufferBytes is the smallest nonzero MaxRecvBufferBytes, for the same
+// reason: a smaller budget disconnects any peer that sends us that response.
+const MinRecvBufferBytes = MinSendBufferBytes
 
 // defaultAddrBookPath is the default relative path for the persisted peer address book
 var defaultAddrBookPath = "config/addrbook.json"
@@ -35,8 +47,8 @@ type P2PConfig struct {
 	// Maximum number of inbound peers
 	MaxNumInboundPeers uint64 `json:"max_num_inbound_peers" toml:"max_num_inbound_peers" comment:"Maximum number of inbound peers"`
 
-	// Maximum number of outbound peers to connect to, excluding persistent peers
-	MaxNumOutboundPeers uint64 `json:"max_num_outbound_peers" toml:"max_num_outbound_peers" comment:"Maximum number of outbound peers to connect to, excluding persistent peers"`
+	// Maximum number of outbound peers to connect to. Persistent peers count toward it, but are dialed even when it is reached
+	MaxNumOutboundPeers uint64 `json:"max_num_outbound_peers" toml:"max_num_outbound_peers" comment:"Maximum number of outbound peers to connect to. Persistent peers count toward it, but are dialed even when it is reached"`
 
 	// Time to wait before flushing messages out on the connection
 	FlushThrottleTimeout time.Duration `json:"flush_throttle_timeout" toml:"flush_throttle_timeout" comment:"Time to wait before flushing messages out on the connection"`
@@ -50,11 +62,23 @@ type P2PConfig struct {
 	// Rate at which packets can be received, in bytes/second
 	RecvRate int64 `json:"recv_rate" toml:"recv_rate" comment:"Rate at which packets can be received, in bytes/second"`
 
+	// Maximum time a single incoming message may spend being assembled from partial packets
+	RecvAssemblyTimeout time.Duration `json:"recv_assembly_timeout" toml:"recv_assembly_timeout" comment:"Maximum time a single incoming message may spend being assembled from partial packets.\n The deadline is anchored to the first partial packet of a message and is not extended by later ones,\n so a peer cannot hold buffer space indefinitely by dribbling packets. 0 disables the deadline."`
+
+	// Maximum total bytes buffered for incomplete messages, across all of a connection's channels
+	MaxRecvBufferBytes int `json:"max_recv_buffer_bytes" toml:"max_recv_buffer_bytes" comment:"Maximum total bytes buffered for incomplete incoming messages, across all of a connection's channels.\n This is the per-connection bound on memory a peer can pin, so the node's worst case is this times the peer limits.\n It must admit one maximum legal block response (8MB + 64KB).\n 0 disables the budget, leaving only each channel's own capacity."`
+
+	// Maximum total bytes buffered for outgoing messages, across all of a connection's channels
+	MaxSendBufferBytes int `json:"max_send_buffer_bytes" toml:"max_send_buffer_bytes" comment:"Maximum total bytes buffered for outgoing messages, across all of a connection's channels.\n This is the per-connection bound on admitted payloads waiting for a queue slot, queued, or currently sending.\n It must admit one maximum legal block response (8MB + 64KB).\n 0 disables the budget, leaving only each channel's own capacity."`
+
 	// Set true to enable the peer-exchange reactor
 	PeerExchange bool `json:"pex" toml:"pex" comment:"Set true to enable the peer-exchange reactor"`
 
 	// Comma separated list of peer IDs to keep private (will not be gossiped to other peers)
 	PrivatePeerIDs string `json:"private_peer_ids" toml:"private_peer_ids" comment:"Comma separated list of peer IDs to keep private (will not be gossiped to other peers)"`
+
+	// Toggle to disable guard against peers connecting from the same ip
+	AllowDuplicateIP bool `json:"allow_duplicate_ip" toml:"allow_duplicate_ip" comment:"Toggle to disable guard against peers connecting from the same ip"`
 
 	// Path to the address book file used to persist discovered peers across restarts.
 	// When empty, a default path relative to the root directory is used.
@@ -72,7 +96,11 @@ func DefaultP2PConfig() *P2PConfig {
 		MaxPacketMsgPayloadSize: 1024,    // 1 kB
 		SendRate:                5120000, // 5 mB/s
 		RecvRate:                5120000, // 5 mB/s
+		RecvAssemblyTimeout:     30 * time.Second,
+		MaxRecvBufferBytes:      20 << 20, // 20MB
+		MaxSendBufferBytes:      20 << 20, // 20MB
 		PeerExchange:            true,
+		AllowDuplicateIP:        false,
 		AddrBook:                defaultAddrBookPath,
 	}
 }
@@ -94,6 +122,20 @@ func (cfg *P2PConfig) ValidateBasic() error {
 
 	if cfg.RecvRate < 0 {
 		return ErrInvalidReceiveRate
+	}
+
+	if cfg.RecvAssemblyTimeout < 0 {
+		return ErrInvalidRecvAssemblyTimeout
+	}
+
+	if cfg.MaxRecvBufferBytes < 0 ||
+		(cfg.MaxRecvBufferBytes > 0 && cfg.MaxRecvBufferBytes < MinRecvBufferBytes) {
+		return ErrInvalidMaxRecvBufferBytes
+	}
+
+	if cfg.MaxSendBufferBytes < 0 ||
+		(cfg.MaxSendBufferBytes > 0 && cfg.MaxSendBufferBytes < MinSendBufferBytes) {
+		return ErrInvalidMaxSendBufferBytes
 	}
 
 	return nil

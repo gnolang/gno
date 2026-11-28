@@ -1,0 +1,25 @@
+-- input.md --
+<gno-button href="javascript:alert(1)" label="js" />
+
+Inline <gno-button href="JaVaScRiPt:alert(1)" label="js mixed case" />
+
+Inline <gno-button href=" javascript:alert(1)" label="js leading space" />
+
+Inline <gno-button href="&#x6a;avascript:alert(1)" label="js entity" />
+
+Inline <gno-button href="&amp;#x6a;avascript:alert(1)" label="js double entity" />
+
+Inline <gno-button href="java&#x09;script:alert(1)" label="js tab" />
+
+Inline <gno-button href="vbscript:msgbox(1)" label="vbs" />
+
+Inline <gno-button href="file:///etc/passwd" label="file" />
+-- output.html --
+<p><!-- raw HTML omitted --></p>
+<p>Inline <!-- raw HTML omitted --></p>
+<p>Inline <!-- raw HTML omitted --></p>
+<p>Inline <!-- raw HTML omitted --></p>
+<p>Inline <a href="&amp;#x6a;avascript:alert(1)" class="gno-button">js double entity</a></p>
+<p>Inline <!-- raw HTML omitted --></p>
+<p>Inline <!-- raw HTML omitted --></p>
+<p>Inline <!-- raw HTML omitted --></p>

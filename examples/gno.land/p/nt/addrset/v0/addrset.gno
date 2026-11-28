@@ -1,7 +1,7 @@
 // Package addrset provides a set of blockchain addresses backed by a
 // B+ tree, with a read-only view type for safe cross-realm exposure.
 //
-// It mirrors the gno.land/p/moul/addrset API on a
+// It mirrors the gno.land/p/moul/addrset/v0 API on a
 // gno.land/p/nt/bptree/v0 backing: a B+ tree packs many entries per
 // persisted node, so a stored address costs ~0.9 KB vs the
 // one-node-per-entry AVL backing's ~2.0 KB (2.2x asymptotically, 1.6x

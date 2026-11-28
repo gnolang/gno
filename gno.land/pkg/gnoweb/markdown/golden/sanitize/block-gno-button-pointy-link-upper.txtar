@@ -1,0 +1,11 @@
+// MARKDOWNFUNC: Block
+// CONTEXT: %s\n\n[evil]: https://realm.example/home
+-- input.md --
+see [evil](<GNO-BUTTON href=/x />) now
+-- output.md --
+
+
+see \[evil\](\<GNO-BUTTON href=/x />) now
+
+-- output.html --
+<p>see [evil](&lt;GNO-BUTTON href=/x /&gt;) now</p>

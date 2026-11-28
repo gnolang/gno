@@ -1,0 +1,19 @@
+// MARKDOWNFUNC: BlockRich
+// CONTEXT: <gno-frame>\nrealm intro\n%s\nrealm footer\n</gno-frame>\n\nREALM AFTER
+-- input.md --
+</gno-frame>
+# spoofed
+-- output.md --
+
+
+\</gno-frame>
+# spoofed
+
+-- output.html --
+<section class="gno-frame">
+<p>realm intro</p>
+<p>&lt;/gno-frame&gt;</p>
+<h1>spoofed</h1>
+<p>realm footer</p>
+</section>
+<p>REALM AFTER</p>

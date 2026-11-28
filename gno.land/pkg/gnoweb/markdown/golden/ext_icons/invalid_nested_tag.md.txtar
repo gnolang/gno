@@ -1,0 +1,4 @@
+-- input.md --
+A tag inside the attributes ends the attempt, so this is not an icon: <gno-icon name="x" <b> />
+-- output.html --
+<p>A tag inside the attributes ends the attempt, so this is not an icon: &lt;gno-icon name=&quot;x&quot; <!-- raw HTML omitted --> /&gt;</p>

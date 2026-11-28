@@ -1,5 +1,5 @@
 // govdao_prop1_test13.gno is the test-13 variant of gnoland1's
-// govdao_prop1.gno (see misc/deployments/gnoland1/govdao_prop1.gno).
+// govdao_prop1.gno (see misc/deployments/betanet/govdao_prop1.gno).
 //
 // It runs as a MsgRun at genesis to bootstrap the test-13 governance
 // state. test-13 is a hardfork of gnoland1: the new chain replays

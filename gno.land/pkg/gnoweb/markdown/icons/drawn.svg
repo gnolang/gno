@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+<!--
+  Icons drawn for gnoweb, for names the vendored set lacks. Hand-maintained;
+  keep the vendored style: 21px grid, 1.3 stroke, round caps and joins, no fill.
+-->
+<symbol id="ico-shield" viewBox="0 0 21 21" stroke-width="1.3"><path d="m10.5 3 6 2.5v4.5c0 4-2.7 6.7-6 8-3.3-1.3-6-4-6-8v-4.5z" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="ico-shield-check" viewBox="0 0 21 21" stroke-width="1.3"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 3 6 2.5v4.5c0 4-2.7 6.7-6 8-3.3-1.3-6-4-6-8v-4.5z"/><path d="m8 10.5 2 2 3.5-4"/></g></symbol>
+<symbol id="ico-key" viewBox="0 0 21 21" stroke-width="1.3"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="14" r="3.5"/><path d="m9.5 11.5 7.5-7.5m-2.5 2.5 2 2m-4 0 1.5 1.5"/></g></symbol>
+<symbol id="ico-layers" viewBox="0 0 21 21" stroke-width="1.3"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 3.5 7 3.5-7 3.5-7-3.5z"/><path d="m3.5 10.5 7 3.5 7-3.5"/><path d="m3.5 14 7 3.5 7-3.5"/></g></symbol>
+<symbol id="ico-music" viewBox="0 0 21 21" stroke-width="1.3"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m8.5 15.5v-10.5l8-1.5v10"/><circle cx="6.5" cy="15.5" r="2"/><circle cx="14.5" cy="13.5" r="2"/></g></symbol>
+<symbol id="ico-map" viewBox="0 0 21 21" stroke-width="1.3"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m3.5 5.5 4.5-2 5 2 4.5-2v12l-4.5 2-5-2-4.5 2z"/><path d="m8 3.5v12m5-10v12"/></g></symbol>
+</svg>

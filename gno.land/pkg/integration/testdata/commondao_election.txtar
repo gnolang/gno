@@ -15,7 +15,7 @@ adduser test3
 
 # Make the genesis council a real two-member set {test1, test2} (the two
 # hardcoded genesis members map to two distinct accounts).
-patchpkg g16jpf0puufcpcjkph5nxueec8etpcldz7zwgydq $test1_user_addr
+patchpkg g1skl80cuz8zq3lul9pgz5pc35l2pfzgxgfpsqkx $test1_user_addr
 patchpkg g1manfred47kzduec920z88wfr64ylksmdcedlf5 $test2_user_addr
 
 gnoland start

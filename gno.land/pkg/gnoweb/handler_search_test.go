@@ -8,9 +8,13 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,8 +28,11 @@ type stubDirectory struct {
 	err              error
 }
 
-func (s stubDirectory) Paths(context.Context) ([]string, []string, error) {
-	return s.realms, s.packages, s.err
+func (s stubDirectory) Paths(context.Context) (PathsResult, error) {
+	if s.err != nil {
+		return PathsResult{}, s.err
+	}
+	return PathsResult{Realms: s.realms, Packages: s.packages}, nil
 }
 
 type stubPathLister struct {
@@ -46,10 +53,74 @@ func TestRPCRealmDirectory_Paths(t *testing.T) {
 	}}
 	dir := newRPCRealmDirectory(lister, "gno.land", 4)
 
-	realms, packages, err := dir.Paths(context.Background())
+	got, err := dir.Paths(context.Background())
 	require.NoError(t, err)
-	require.Equal(t, []string{"/r/demo/boards", "/r/demo/users"}, realms) // empty entry filtered
-	require.Equal(t, []string{"/p/demo/avl"}, packages)
+	require.Equal(t, []string{"/r/demo/boards", "/r/demo/users"}, got.Realms) // empty entry filtered
+	require.Equal(t, []string{"/p/demo/avl"}, got.Packages)
+	require.False(t, got.Truncated, "a short listing is not a capped one")
+}
+
+// A listing the node cut at its response cap has fewer than searchPathLimit
+// entries, so its size has to mark it truncated.
+func TestRPCRealmDirectory_TruncatedNearOutputCap(t *testing.T) {
+	t.Parallel()
+	long := "/r/" + strings.Repeat("x", std.PkgPathLimit-len("gno.land/r/")) // full length with the domain
+	atCap := vm.MaxQueryOutputBytes / (std.PkgPathLimit + 1)
+	for n, want := range map[int]bool{atCap - 1: false, atCap: true} {
+		lister := stubPathLister{fn: func(prefix string) []string {
+			if strings.HasSuffix(prefix, "/r") {
+				return slices.Repeat([]string{long}, n)
+			}
+			return nil
+		}}
+		got, err := newRPCRealmDirectory(lister, "gno.land", 4).Paths(context.Background())
+		require.NoError(t, err)
+		assert.Equal(t, want, got.Truncated, "%d paths", n)
+	}
+}
+
+// countingLister counts ListPaths calls and can fail on demand.
+type countingLister struct {
+	calls atomic.Int32
+	fail  atomic.Bool
+}
+
+func (c *countingLister) ListPaths(_ context.Context, prefix string, _ int) ([]string, error) {
+	c.calls.Add(1)
+	if c.fail.Load() {
+		return nil, errors.New("node down")
+	}
+	return []string{prefix + "/demo/x"}, nil
+}
+
+// Sequential callers within pathsTTL reuse one listing: the omnibar asks on
+// every debounced keystroke, and singleflight only merges concurrent calls.
+func TestRPCRealmDirectory_ReusesListingWithinTTL(t *testing.T) {
+	t.Parallel()
+	lister := &countingLister{}
+	dir := newRPCRealmDirectory(lister, "gno.land", 4)
+
+	for range 5 {
+		_, err := dir.Paths(context.Background())
+		require.NoError(t, err)
+	}
+	assert.Equal(t, int32(2), lister.calls.Load(), "one qpaths per prefix, not per call")
+}
+
+// A failure is not cached: the next caller asks the node again.
+func TestRPCRealmDirectory_DoesNotCacheFailures(t *testing.T) {
+	t.Parallel()
+	lister := &countingLister{}
+	lister.fail.Store(true)
+	dir := newRPCRealmDirectory(lister, "gno.land", 4)
+
+	_, err := dir.Paths(context.Background())
+	require.Error(t, err)
+
+	lister.fail.Store(false)
+	got, err := dir.Paths(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"gno.land/r/demo/x"}, got.Realms)
 }
 
 func TestHandlerSearchJSON_OK(t *testing.T) {

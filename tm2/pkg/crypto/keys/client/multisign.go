@@ -144,6 +144,15 @@ func execMultisign(cfg *MultisignCfg, args []string, io commands.IO) error {
 		}
 	}
 
+	// The chain takes exactly K signatures, so refuse here rather than save a
+	// transaction it will reject. With more than K, pick which K to send.
+	if err = multisigSig.ValidateBasic(multisigPub); err != nil {
+		return fmt.Errorf("unable to combine signatures, pass exactly %d --signature files: %w", multisigPub.K, err)
+	}
+	if err = validateNestedMultisigs(*multisigSig, multisigPub); err != nil {
+		return fmt.Errorf("unable to combine signatures: %w", err)
+	}
+
 	// Construct the signature
 	sig := &std.Signature{
 		PubKey:    pubKey,
@@ -162,6 +171,39 @@ func execMultisign(cfg *MultisignCfg, args []string, io commands.IO) error {
 
 	io.Printf("\nTx successfully signed and saved to %s\n", cfg.TxPath)
 
+	return nil
+}
+
+// validateNestedMultisigs applies ValidateBasic to the multisignature of every
+// nested threshold key that mSig, already checked against pk, signs for. A
+// signature file for a nested key carries a multisignature assembled
+// elsewhere, and the chain takes exactly K signatures at every level.
+func validateNestedMultisigs(mSig multisig.Multisignature, pk multisig.PubKeyMultisigThreshold) error {
+	sigIndex := 0
+	for i, key := range pk.PubKeys {
+		if !mSig.BitArray.GetIndex(i) {
+			continue
+		}
+		sig := mSig.Sigs[sigIndex]
+		sigIndex++
+
+		nestedPub, ok := key.(multisig.PubKeyMultisigThreshold)
+		if !ok {
+			continue
+		}
+		var nestedSig multisig.Multisignature
+		// Canonically, as the chain decodes it. Dropped: amino's error renders
+		// the whole buffer as hex.
+		if err := amino.UnmarshalCanonical(sig, &nestedSig); err != nil {
+			return fmt.Errorf("signature for constituent %d is not a multisignature", i)
+		}
+		if err := nestedSig.ValidateBasic(nestedPub); err != nil {
+			return fmt.Errorf("constituent %d: %w", i, err)
+		}
+		if err := validateNestedMultisigs(nestedSig, nestedPub); err != nil {
+			return fmt.Errorf("constituent %d: %w", i, err)
+		}
+	}
 	return nil
 }
 

@@ -1,0 +1,7 @@
+-- input.md --
+Unknown: <gno-icon name="unicorn" />
+
+Wrong case: <gno-icon name="Star" />
+-- output.html --
+<p>Unknown: <!-- gno-icon: unknown name "unicorn" --></p>
+<p>Wrong case: <!-- gno-icon: unknown name "Star" --></p>

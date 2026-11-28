@@ -57,6 +57,9 @@ each network pins its own.
 :::warning
 Don't point a `master` build at a released network. Chains run pinned
 releases; a node built from `master` will not reach consensus with them.
+After a coordinated upgrade the chain can also require a minimum binary
+version, and a `master` build satisfies none — see
+[upgrades](../../gno.land/cmd/gnoland/UPGRADES.md).
 :::
 
 ## Become a validator
@@ -65,21 +68,17 @@ This is not "a full node, but voted in". Expect to run that node behind
 sentries, sign through a remote signer such as
 [tmkms](../../gno.land/cmd/gnoland/TMKMS.md), monitor it, and go through
 an onboarding process on Discord that ends in a GovDAO vote. None of
-that is enforced by the software, but the review team checks your node
-is synced before approving you, and registering entitles you to nothing.
+that is enforced by the software, and registering entitles you to nothing.
 
 Get the node running first, then start onboarding. Two places:
 
 - [`gno.land/cmd/gnoland`](../../gno.land/cmd/gnoland) — the operator
-  documentation: sentry architecture, remote signing, hardware, and the
-  step-by-step onboarding process, which is kept up to date there rather
-  than duplicated here.
+  documentation: sentry architecture, remote signing and hardware.
 - [`misc/deployments/`](../../misc/deployments) — the target network's
   own genesis, peers, and `VALIDATOR.md`.
 
-Onboarding starts in `#general-chat` on
-[Discord](https://discord.gg/YFtMjWwUN7); the `#testnet-*` channels only
-become visible once you hold a candidate or validator role.
+Onboarding starts in `#technical-start-here` on
+[Discord](https://discord.com/invite/gnoland).
 
 ## Run a chain locally
 
@@ -92,5 +91,5 @@ Install the binary with the `--full` flag of the
 
 ## Still not sure?
 
-Ask on [Discord](https://discord.gg/YFtMjWwUN7). Say what you're trying
+Ask on [Discord](https://discord.com/invite/gnoland). Say what you're trying
 to build; someone will tell you whether a node is part of the answer.

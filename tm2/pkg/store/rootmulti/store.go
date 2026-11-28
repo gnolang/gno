@@ -54,8 +54,13 @@ type multiStore struct {
 	// lastCommitID is written by Commit/LoadVersion (consensus and startup)
 	// and read by LastCommitID, which query handlers call per request on the
 	// CONCURRENT query connection (BaseApp.LastBlockHeight) — hence atomic.
-	// The stored CommitID is immutable once published.
+	// The stored CommitID is immutable once published. While holding (see
+	// SetHolding) it runs ahead of writtenCommitID.
 	lastCommitID atomic.Pointer[types.CommitID]
+	// writtenCommitID is the latest version on disk, published at load and at
+	// every write, and read by queries on the concurrent query connection.
+	writtenCommitID atomic.Pointer[types.CommitID]
+
 	storeOpts    types.StoreOptions
 	storesParams map[types.StoreKey]storeParams
 	stores       map[types.StoreKey]types.CommitStore
@@ -107,6 +112,7 @@ var (
 	_ types.CommitMultiStore = (*multiStore)(nil)
 	_ types.Queryable        = (*multiStore)(nil)
 	_ types.ImmutableQueryer = (*multiStore)(nil)
+	_ types.CommitHolder     = (*multiStore)(nil)
 )
 
 func NewMultiStore(db dbm.DB) *multiStore {
@@ -198,6 +204,7 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 		}
 		ms.stores = newStores
 		ms.setLastCommitID(types.CommitID{})
+		ms.setWrittenCommitID(types.CommitID{})
 		ms.refreshQuerySnapshot()
 		return nil
 	}
@@ -239,6 +246,7 @@ func (ms *multiStore) LoadVersion(ver int64) error {
 	}
 
 	ms.setLastCommitID(cInfo.CommitID())
+	ms.setWrittenCommitID(cInfo.CommitID())
 	ms.stores = newStores
 	ms.refreshQuerySnapshot()
 
@@ -260,6 +268,60 @@ func (ms *multiStore) LastCommitID() types.CommitID {
 // connection. cid's Hash must not be mutated after publication.
 func (ms *multiStore) setLastCommitID(cid types.CommitID) {
 	ms.lastCommitID.Store(&cid)
+}
+
+// Implements types.CommitHolder.
+func (ms *multiStore) WrittenCommitID() types.CommitID {
+	if cid := ms.writtenCommitID.Load(); cid != nil {
+		return *cid
+	}
+	return types.CommitID{}
+}
+
+func (ms *multiStore) setWrittenCommitID(cid types.CommitID) {
+	ms.writtenCommitID.Store(&cid)
+}
+
+// Implements types.CommitHolder. Turning holding on first writes what the
+// collector holds from outside a commit, such as a store's maintenance at load
+// (the bptree fast index's rebuild): it belongs to the version on disk, and
+// what is held next must be only the commits that follow.
+func (ms *multiStore) SetHolding(on bool) {
+	if on && ms.collector.Len() > 0 {
+		if err := ms.writeCollected(); err != nil {
+			panic("rootmulti: writing before holding failed: " + err.Error())
+		}
+	}
+	ms.collector.SetHolding(on)
+}
+
+// Implements types.CommitHolder.
+func (ms *multiStore) Holding() bool { return ms.collector != nil && ms.collector.Holding() }
+
+// Implements types.CommitHolder.
+func (ms *multiStore) WriteHeld() error {
+	if err := ms.writeCollected(); err != nil {
+		return err
+	}
+	ms.setWrittenCommitID(ms.LastCommitID())
+	return nil
+}
+
+// Implements types.CommitHolder.
+func (ms *multiStore) HeldBytes() int64 { return int64(ms.collector.Size()) }
+
+// Implements types.CommitHolder.
+func (ms *multiStore) TakeRefusedIterator() bool { return ms.collector.TakeRefusedIterator() }
+
+// writeCollected writes everything in the collector as one synced batch, then
+// takes a fresh snapshot of the now-consistent DB state, which queries read
+// until the next write.
+func (ms *multiStore) writeCollected() error {
+	if err := ms.collector.WriteTo(ms.db); err != nil {
+		return err
+	}
+	ms.refreshQuerySnapshot()
+	return nil
 }
 
 // Implements Committer/CommitStore.
@@ -297,26 +359,25 @@ func (ms *multiStore) Commit() types.CommitID {
 		panic("rootmulti: Commit() metadata write failed: " + err.Error())
 	}
 
-	// Drain the collector into a real batch and flush atomically.
-	realBatch := ms.db.NewBatch()
-	defer realBatch.Close()
-	if err := ms.collector.Drain(realBatch); err != nil {
-		panic("rootmulti: Commit() drain failed: " + err.Error())
-	}
-	if err := realBatch.WriteSync(); err != nil {
-		panic("rootmulti: Commit() failed: " + err.Error())
-	}
-
-	// Take a fresh snapshot of the now-consistent DB state.
-	// Queries will read from this until the next Commit.
-	ms.refreshQuerySnapshot()
-
-	// Prepare for next version.
 	commitID := types.CommitID{
 		Version: version,
 		Hash:    commitInfo.Hash(),
 	}
+
+	// While holding, the commit stays in the collector until WriteHeld.
+	if ms.collector.Holding() {
+		ms.setLastCommitID(commitID)
+		return commitID
+	}
+
+	// Drain the collector into a real batch and flush atomically.
+	if err := ms.writeCollected(); err != nil {
+		panic("rootmulti: Commit() failed: " + err.Error())
+	}
+
+	// Prepare for next version.
 	ms.setLastCommitID(commitID)
+	ms.setWrittenCommitID(commitID)
 	return commitID
 }
 
@@ -512,6 +573,13 @@ func (ms *multiStore) getStoreByName(name string) types.Store {
 // Ie. `req.Path` here is `/<substore>/<path>`, and trimmed to `/<path>` for the substore.
 // TODO: add proof for `multistore -> substore`.
 func (ms *multiStore) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
+	// The live stores hold commits that are not on disk while holding, and a
+	// reader on one would make the next commit's pruning panic.
+	if ms.Holding() {
+		res.Error = serrors.ErrInternal("cannot query the live store while commits are held")
+		return
+	}
+
 	// Query just routes this to a substore.
 	path := req.Path
 	storeName, subpath, err := parsePath(path)

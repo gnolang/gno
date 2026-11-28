@@ -52,6 +52,10 @@ func (b *Balance) Verify() error {
 func (b *Balance) Parse(entry string) error {
 	// Format: <address>=<coins> [;vesting=<coins>,<start>,<end> [;type=delayed]]
 	// The vesting suffix is optional.
+	//
+	// A delayed schedule vests everything at <end> and never reads <start>, but
+	// the field is still required here so that every entry has the same shape.
+	// Write 0 for it.
 	parts := strings.SplitN(strings.TrimSpace(entry), ";", 3)
 	balancePart := parts[0]
 
