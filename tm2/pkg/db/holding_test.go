@@ -169,10 +169,20 @@ func TestHoldingDB_ReleaseWithHeldWritesPanics(t *testing.T) {
 }
 
 // TestHoldingDB_IteratorRefusedWhileHolding pins that an iterator panics while
-// writes are held, rather than read the database without them.
+// writes are held, rather than read the database without them, and runs while
+// holding nothing yet.
 func TestHoldingDB_IteratorRefusedWhileHolding(t *testing.T) {
 	h := dbm.NewHoldingDB(memdb.NewMemDB())
 	h.Hold(true)
+	it, err := h.Iterator(nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	it.Close()
+
+	if err := h.Set([]byte("k"), []byte("v")); err != nil {
+		t.Fatal(err)
+	}
 	defer func() {
 		err, _ := recover().(error)
 		if !errors.Is(err, dbm.ErrIteratorOverHeldWrites) {

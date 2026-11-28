@@ -23,7 +23,8 @@ func SetPruningOptions(opts store.PruningOptions) func(*BaseApp) {
 // memory during block sync (see BaseApp.DeferCommits). Only for an
 // application whose stores never iterate their database inside a block, as
 // gno.land's bptree and plain stores do not: while commits are held such an
-// iterator panics, ending the node at that block. An application whose
+// iterator panics, ending the node at that block. The first block deferred
+// holds nothing yet, so an iterator there runs. An application whose
 // blocks can schedule a halt that the next binary checks on disk must also
 // call RequireFlushPoint from the block that does.
 func AllowDeferredCommits() func(*BaseApp) {

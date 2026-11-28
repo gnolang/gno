@@ -245,7 +245,7 @@ func (c *CollectingDB) Has(key []byte) (bool, error) {
 // dbadapter cache flush, rootmulti metadata) don't iterate during a commit
 // window, so this is safe today; revisit if that changes. While the
 // collector holds writes across commits they panic instead, with
-// ErrIteratorOverHeldWrites, and record it.
+// ErrIteratorOverHeldWrites, and record it; see refuseWhileHolding.
 func (c *CollectingDB) Iterator(start, end []byte) (Iterator, error) {
 	c.refuseWhileHolding()
 	return c.real.Iterator(start, end)
@@ -256,8 +256,11 @@ func (c *CollectingDB) ReverseIterator(start, end []byte) (Iterator, error) {
 	return c.real.ReverseIterator(start, end)
 }
 
+// refuseWhileHolding refuses an iterator only while writes are held: with
+// holding on but nothing held yet, as in the first block after a flush point
+// or a restart, the database is the latest committed state.
 func (c *CollectingDB) refuseWhileHolding() {
-	if c.collector.Holding() {
+	if c.collector.Holding() && c.collector.Len() > 0 {
 		c.collector.refused.Store(true)
 		panic(ErrIteratorOverHeldWrites)
 	}
