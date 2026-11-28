@@ -118,11 +118,12 @@ This resolved correctly before (inner block defines `i.loopvar`, RHS finds
 the outer block's `i.loopvar`); the fix leaves that AST unchanged.
 
 Emitting `TRANS_BLOCK2` for two more node types touches every `Transcribe`
-/`TranscribeB` callback: all 14 live in `preprocess.go`, none switch on
-stage with a panicking default, `preprocess1`'s `TRANS_BLOCK2` case matches
-only `*SwitchStmt` and returns `TRANS_CONTINUE` otherwise, and `TranscribeB`
-already handles `TRANS_BLOCK2` generically (including the pop on
-`TRANS_SKIP`). No callback outside the package exists.
+/`TranscribeB` callback: 18 call sites in `preprocess.go`, one in
+`go2gno.go` (acts only on `TRANS_ENTER`) and three in package tests. None
+switch on stage with a panicking default, `preprocess1`'s `TRANS_BLOCK2`
+case matches only `*SwitchStmt` and returns `TRANS_CONTINUE` otherwise, and
+`TranscribeB` already handles `TRANS_BLOCK2` generically (including the pop
+on `TRANS_SKIP`). No callback outside the package exists.
 
 ## Alternatives considered
 
@@ -168,11 +169,20 @@ already handles `TRANS_BLOCK2` generically (including the pop on
 - `for x := range <expr reading loop x>`, `switch x := x.(type)` and
   `for k, v = range ...` inside a loop declaring `x`/`k`/`v` now work.
 - Not every affected shape was rejected before. Some ran to completion on
-  master with a result that differs from Go's, and now give Go's result:
-  a `for i = range` assignment nested in a loop that declares `i` (master
-  assigned the outer `i` instead of the loop's), and a for-init reading a
-  shadowing function parameter of the same name (master read the enclosing
-  loop variable). Because already-deployed code can compute something
+  master with a result that differs from Go's, and now give Go's result.
+  Each needs a name declared by an enclosing `for` init plus a second
+  variable of the same name visible at the inner statement:
+  - a `for i = range` assignment nested in a loop that declares `i`, with
+    an outer `i` (master assigned the outer `i` instead of the loop's);
+  - a for-init whose RHS reads its own name, where that name was shadowed
+    between the two loops by a function parameter, a `:=` or a `var`
+    (master read the enclosing loop variable instead of the shadowing one);
+  - a range `X` or type-switch `X` that reads the enclosing loop's variable
+    while a same-named local or package-level variable exists
+    (master read that other variable instead of the loop's). The
+    package-level form is the one most likely to exist in deployed realms.
+
+  Because already-deployed code can compute something
   different after this change, it needs a coordinated upgrade rather than a
   plain node restart. Comparing the AST after `initStaticBlocks1` at master
   and at this change over the chain's stored packages would show which
@@ -191,7 +201,13 @@ already handles `TRANS_BLOCK2` generically (including the pop on
   `loopvar_typeswitch_x_shadow_1.gno`, `loopvar_range_assign_1.gno`. The
   `Preprocessed:` directives pin the resolution: the clause reads the
   enclosing `x<~VPBlock(2,0)>` / `x.loopvar<VPBlock(2,0)>` while the body
-  sees the statement's own name.
+  sees the statement's own name. The shapes that ran with a non-Go result
+  on master are pinned by `loopvar_range_assign_2.gno`,
+  `loopvar_shadow_init_capture_{4,5}.gno`, `loopvar_range_x_shadow_2.gno`
+  and `loopvar_typeswitch_x_shadow_2.gno`; each prints a different result
+  on master. (`loopvar_shadow_init_capture_3.gno`'s `shadowBetween` is the
+  same shape as `_5`, but that file fails to preprocess on master because
+  of its other functions.)
 
 ## Verification
 
