@@ -247,7 +247,7 @@ func execLint(cmd *lintCmd, args []string, io commands.IO) error {
 					Code:       gnoDirectiveError,
 					Confidence: 1,
 					Location:   gnofile,
-					Msg:        fmt.Sprintf("directives are not supported: %q", directive),
+					Msg:        fmt.Sprintf("directives are not supported: %+q", directive),
 				})
 				hasError = true
 				tagged = true

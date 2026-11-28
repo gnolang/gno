@@ -1093,7 +1093,12 @@ func (ds *defaultStore) AddMemPackage(mpkg *std.MemPackage, mptype MemPackageTyp
 	if mpkgtype != mptype {
 		panic(fmt.Sprintf("unexpected mempackage type: expected %v but got %v", mptype, mpkgtype))
 	}
-	err := ValidateMemPackageAny(mpkg)
+	// AlreadyOnChain: the store is not an admission gate. The keeper applies
+	// the admission rules before a package gets here, and waives them on a
+	// genesis replay (see ValidateOptions); repeating them here, where there is
+	// no context to tell a replay from a live deploy, would panic on history
+	// the chain already accepted.
+	err := ValidateMemPackageAnyWith(mpkg, ValidateOptions{AlreadyOnChain: true})
 	if err != nil {
 		panic(fmt.Errorf("invalid mempackage: %w", err))
 	}

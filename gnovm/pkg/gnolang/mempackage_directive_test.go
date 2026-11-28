@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"math/rand"
@@ -84,6 +85,18 @@ func TestFindDirectiveComment(t *testing.T) {
 		{"go:generate with tab", "package zz\n\nconst s = `\n//go:generate\techo x\n`\n", true},
 		{"indented go:generate in raw string", "package zz\n\nconst s = `\n\t//go:generate echo x\n`\n", false},
 		{"go:generate without separator", "package zz\n\nconst s = `\n//go:generateecho x\n`\n", false},
+
+		// go/printer strips the common indentation of a multi-line block
+		// comment, and `gno tool transpile` formats with it, so an indented
+		// line inside one reaches column 1 of the .go `go generate` reads.
+		// TestIndentedGoGenerateMirrorsPrinter pins the blank set against
+		// go/format; a raw string is not re-indented (case above).
+		{"tab-indented go:generate in block comment", "package zz\n\n/*\n\t//go:generate echo x\n\t*/\nvar X = 1\n", true},
+		{"space-indented go:generate in block comment", "package zz\n\n/*\n  //go:generate echo x\n  */\nvar X = 1\n", true},
+		{"vt/ff-indented go:generate in block comment", "package zz\n\n/*\n\v\f//go:generate echo x\n*/\nvar X = 1\n", true},
+		{"indented go:generate after block text", "package zz\n\n/* a\n\t\t//go:generate echo x\n\t\t*/\nvar X = 1\n", true},
+		{"NBSP-indented go:generate in block comment", "package zz\n\n/*\n\u00a0//go:generate echo x\n*/\nvar X = 1\n", false},
+		{"starred go:generate in block comment", "package zz\n\n/*\n * //go:generate echo x\n */\nvar X = 1\n", false},
 
 		// Bypasses of a naive line scan. go/parser honours the constraint in
 		// every case below (verified against go1.25.9), so missing one would
@@ -196,6 +209,51 @@ func TestIsDirectiveTextMirrorsGo(t *testing.T) {
 		}
 		assert.Equal(t, goSaysDirective(c), isDirectiveText(c),
 			"disagrees with go/ast.isDirective on %q", c)
+	}
+}
+
+// TestIndentedGoGenerateMirrorsPrinter pins the block-comment check against
+// go/printer, which `gno tool transpile` formats with (format.Node): every file
+// whose formatted output holds a column-1 go:generate line -- the one
+// `go generate` would run -- must be refused. A miss here is a command that
+// passes validation and runs after transpiling.
+func TestIndentedGoGenerateMirrorsPrinter(t *testing.T) {
+	t.Parallel()
+
+	blanks := []string{"", " ", "\t", "\v", "\f", "\r", "  ", "\t\t", " \t", "\u00a0", "\u2003", "\u3000"}
+	shapes := []string{
+		"/*\n%[1]s//go:generate echo x\n%[1]s*/",
+		"/*\n%[1]s//go:generate echo x\n*/",
+		"/* a\n%[1]s//go:generate echo x\n%[1]s*/",
+		"/*\n%[1]sb\n%[1]s//go:generate echo x\n%[1]s*/",
+		"/*\n%[1]s * //go:generate echo x\n%[1]s */",
+	}
+	for _, shape := range shapes {
+		for _, blank := range blanks {
+			for _, where := range []string{"top", "func"} {
+				comment := fmt.Sprintf(shape, blank)
+				var src string
+				if where == "top" {
+					src = "package zz\n\n" + comment + "\nvar X = 1\n"
+				} else {
+					src = "package zz\n\nfunc F() {\n\t" + comment + "\n}\n"
+				}
+				out, err := format.Source([]byte(src))
+				if err != nil {
+					continue // not a file the transpiler could emit
+				}
+				runs := false
+				for line := range strings.SplitSeq(string(out), "\n") {
+					if isGoGenerateLine(line) {
+						runs = true
+					}
+				}
+				_, found, _ := FindDirectiveComment(src)
+				if runs && !found {
+					t.Errorf("go generate would run %q (formatted %q), but the scan accepts it", src, out)
+				}
+			}
+		}
 	}
 }
 
@@ -335,6 +393,18 @@ func TestValidateMemPackage_Directives(t *testing.T) {
 		assert.NotContains(t, fmt.Sprint(err), "\x07", "bell byte must not be echoed raw")
 	})
 
+	t.Run("non-ASCII in a directive is escaped", func(t *testing.T) {
+		t.Parallel()
+
+		// %q would print a rune raw or escaped depending on the toolchain's
+		// unicode.IsPrint tables, so two validators could word the same
+		// rejection differently. %+q escapes every non-ASCII rune.
+		err := validateBody(t, MPUserProd, userPath,
+			"package zz\n\n//a:b\u00e9\U0001FAE8\nfunc F() {}\n")
+		require.Error(t, err)
+		assert.Contains(t, fmt.Sprint(err), `\u00e9\U0001fae8`)
+	})
+
 	t.Run("a go:generate hidden in a raw string is rejected", func(t *testing.T) {
 		t.Parallel()
 
@@ -344,6 +414,30 @@ func TestValidateMemPackage_Directives(t *testing.T) {
 		err := validateBody(t, MPUserProd, userPath,
 			"package zz\n\nconst doc = `\n//go:generate echo PWNED\n`\n")
 		assert.ErrorContains(t, err, "directives are not supported")
+	})
+
+	t.Run("AlreadyOnChain waives the directive rule only", func(t *testing.T) {
+		t.Parallel()
+
+		// A genesis replay re-delivers deploys the chain already admitted; see
+		// ValidateOptions and the keeper's TestDirectiveRuleWaivedOnGenesisReplay.
+		replay := ValidateOptions{AlreadyOnChain: true}
+		mpkg := func(body string) *std.MemPackage {
+			return &std.MemPackage{
+				Type: MPUserProd, Name: "zz", Path: userPath,
+				Files: []*std.MemFile{{Name: "z.gno", Body: body}},
+			}
+		}
+		const tagged = "//go:build go1.99\n\npackage zz\nfunc F() {}\n"
+		assert.ErrorContains(t, ValidateMemPackageAnyWith(mpkg(tagged), ValidateOptions{}), "directives are not supported")
+		assert.NoError(t, ValidateMemPackageAnyWith(mpkg(tagged), replay))
+		assert.NoError(t, ValidateMemPackageWith(mpkg(tagged), replay))
+
+		// Everything that decides what the package is still runs.
+		assert.Error(t, ValidateMemPackageAnyWith(mpkg("//go:build go1.99\n\npackage other\nfunc F() {}\n"), replay),
+			"a wrong package name must still be refused")
+		assert.Error(t, ValidateMemPackageAnyWith(mpkg("//go:build go1.99\n\npackag zz\n"), replay),
+			"an unparseable file must still be refused")
 	})
 
 	t.Run("stdlibs are not affected", func(t *testing.T) {

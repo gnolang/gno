@@ -754,20 +754,6 @@ func (mptype MemPackageType) ExcludeGno(fname string, pname Name) bool {
 	}
 }
 
-// ReadMemPackage initializes a new MemPackage by reading the OS directory at
-// dir, and saving it with the given pkgPath (import path).  The resulting
-// MemPackage will contain the names and content of all *.gno files, and
-// additionally LICENSE, *.md and *.toml .
-// All *_filetest.gno files are added from subdirectory filetests.
-//
-// ReadMemPackage only reads good file extensions or whitelisted good files,
-// and ignores bad file extensions. Validation will fail if any bad extensions
-// are found, but otherwise new files may be added by various logic. It also
-// ignores and does not include files that wouldn't pass validation before any
-// any filters applied. Unless MPFiletests, the package name declared in each
-// file must be consistent with others, or nil and an error is returned.
-//
-// Filtering, parsing, and validation is performed separately.
 // MemPackageFilePaths lists the files ReadMemPackage would read from dir, in
 // the order it would read them: the eligible files in dir itself, followed by
 // the _filetest.gno files in a "filetests" subdirectory, which the package
@@ -840,7 +826,20 @@ func MemPackageFilePaths(dir string, pkgPath string, mptype MemPackageType) ([]s
 	return list, nil
 }
 
-// ReadMemPackage reads the file contents in the given directory.
+// ReadMemPackage initializes a new MemPackage by reading the OS directory at
+// dir, and saving it with the given pkgPath (import path).  The resulting
+// MemPackage will contain the names and content of all *.gno files, and
+// additionally LICENSE, *.md and *.toml .
+// All *_filetest.gno files are added from subdirectory filetests.
+//
+// ReadMemPackage only reads good file extensions or whitelisted good files,
+// and ignores bad file extensions. Validation will fail if any bad extensions
+// are found, but otherwise new files may be added by various logic. It also
+// ignores and does not include files that wouldn't pass validation before any
+// any filters applied. Unless MPFiletests, the package name declared in each
+// file must be consistent with others, or nil and an error is returned.
+//
+// Filtering, parsing, and validation is performed separately.
 func ReadMemPackage(dir string, pkgPath string, mptype MemPackageType) (*std.MemPackage, error) {
 	mptype = mptype.Decide(pkgPath)
 	list, err := MemPackageFilePaths(dir, pkgPath, mptype)
@@ -1167,6 +1166,27 @@ func (m *Machine) ParseMemPackageTests(mpkg *std.MemPackage) (tset, itset *FileS
 
 // Validates a non-stdlib production mempackage with no tests.
 func ValidateMemPackage(mpkg *std.MemPackage) error {
+	return ValidateMemPackageWith(mpkg, ValidateOptions{})
+}
+
+// ValidateOptions adjusts ValidateMemPackageAnyWith. The zero value applies
+// every rule.
+type ValidateOptions struct {
+	// AlreadyOnChain marks a package the chain already admitted, re-delivered
+	// by a genesis replay (gnoland-1's history included). Rules that gate
+	// ADMISSION and were added after that history are skipped, as
+	// TypeCheckOptions.AlreadyOnChain skips them in the type-check: refusing
+	// a deploy the chain once accepted would stop the node at InitChain, or
+	// under -skip-failing-genesis-txs bring it up diverged. Today that is the
+	// directive rule (adr/pr6078_forbid_directives.md). Everything that
+	// decides what the package is still runs.
+	//
+	// AddPackage, Run and EnablePackage set it from auth.IsGenesisReplay.
+	AlreadyOnChain bool
+}
+
+// ValidateMemPackageWith is ValidateMemPackage with options.
+func ValidateMemPackageWith(mpkg *std.MemPackage, opts ValidateOptions) error {
 	mptype := mpkg.Type.(MemPackageType)
 	mptype.Validate(mpkg.Path)
 	if mptype.IsAny() {
@@ -1178,7 +1198,7 @@ func ValidateMemPackage(mpkg *std.MemPackage) error {
 	if mptype.IsStdlib() {
 		return errors.New("unexpected stdlib")
 	}
-	return ValidateMemPackageAny(mpkg)
+	return ValidateMemPackageAnyWith(mpkg, opts)
 }
 
 // ErrMemPackageInfo reports a std.MemPackage that arrived with its Info field
@@ -1189,7 +1209,12 @@ var ErrMemPackageInfo = errors.New("info field is not accepted")
 // Validates everything about mpkg, including that all files are within the
 // scope of its type.  It does not validate whether mpkg is runnable or
 // storable.
-func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
+func ValidateMemPackageAny(mpkg *std.MemPackage) error {
+	return ValidateMemPackageAnyWith(mpkg, ValidateOptions{})
+}
+
+// ValidateMemPackageAnyWith is ValidateMemPackageAny with options.
+func ValidateMemPackageAnyWith(mpkg *std.MemPackage, opts ValidateOptions) (errs error) {
 	// '#' is reserved for sub-realm pkgpath synthesis (realm.Sub); no
 	// real package path may contain it. The path checks below already
 	// exclude it implicitly — this check makes the reservation an
@@ -1277,8 +1302,10 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 			// line directive rewrites the positions go/parser reports, so
 			// parsing first would let a rejected file choose the filename and
 			// line printed in its own error. The directive name is quoted
-			// because it is submitted text and may hold control bytes.
-			if mptype.IsUserlib() {
+			// because it is submitted text and may hold control bytes, and
+			// ASCII-quoted (%+q) so the text does not follow the toolchain's
+			// unicode.IsPrint tables, which %q consults.
+			if mptype.IsUserlib() && !opts.AlreadyOnChain {
 				d, ok, serr := FindDirectiveComment(mfile.Body)
 				if serr != nil {
 					errs = multierr.Append(errs, fmt.Errorf(
@@ -1287,7 +1314,7 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 				}
 				if ok {
 					errs = multierr.Append(errs, fmt.Errorf(
-						"invalid file %q: directives are not supported: %q", fname, d))
+						"invalid file %q: directives are not supported: %+q", fname, d))
 					continue
 				}
 			}
@@ -1347,8 +1374,7 @@ func ValidateMemPackageAny(mpkg *std.MemPackage) (errs error) {
 func hasRawGoGenerate(body string) bool {
 	for off := 0; off < len(body); {
 		rest := body[off:]
-		if strings.HasPrefix(rest, "//go:generate ") ||
-			strings.HasPrefix(rest, "//go:generate\t") {
+		if isGoGenerateLine(rest) {
 			return true
 		}
 		nl := strings.IndexByte(rest, '\n')
@@ -1358,6 +1384,27 @@ func hasRawGoGenerate(body string) bool {
 		off += nl + 1
 	}
 	return false
+}
+
+// hasIndentedGoGenerate reports whether a line of a block comment would start
+// with a go:generate directive once its leading blanks are gone. cmd/go reads
+// the transpiled .go, not the .gno, and go/printer strips the common
+// indentation of a multi-line block comment, so "/*\n\t//go:generate x\n\t*/"
+// lands at column 1 there. The blank set is the bytes go/printer strips; it
+// leaves Unicode spaces in place. String literals are not re-indented, so an
+// indented line inside one stays harmless and is not checked.
+func hasIndentedGoGenerate(comment string) bool {
+	for line := range strings.SplitSeq(comment, "\n") {
+		if isGoGenerateLine(strings.TrimLeft(line, " \t\v\f\r")) {
+			return true
+		}
+	}
+	return false
+}
+
+func isGoGenerateLine(s string) bool {
+	return strings.HasPrefix(s, "//go:generate ") ||
+		strings.HasPrefix(s, "//go:generate\t")
 }
 
 // errCannotScan reports a file go/scanner cannot lex. Positionless on purpose;
@@ -1407,6 +1454,9 @@ func FindDirectiveComment(body string) (string, bool, error) {
 		case token.COMMENT:
 			if name, ok := directiveName(lit); ok {
 				return name, true, nil
+			}
+			if strings.HasPrefix(lit, "/*") && hasIndentedGoGenerate(lit) {
+				return "//go:generate", true, nil
 			}
 		}
 		if sc.ErrorCount > 0 {

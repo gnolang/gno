@@ -48,12 +48,26 @@ Two costs remain once the tag is stored:
 
 Reject build constraints in **user** packages, in `ValidateMemPackageAny`
 (`gnovm/pkg/gnolang/mempackage.go`), the validation every chain entry point
-already runs: `MsgAddPackage`, `MsgRun`, genesis, and `AddMemPackage`.
+already runs: `MsgAddPackage`, `MsgRun`, `MsgEnablePackage` (re-validating the
+parked blob) and genesis-file loading.
+
+It is an **admission** rule, so it is waived where admission is not being
+decided. `ValidateOptions.AlreadyOnChain` skips it, mirroring
+`TypeCheckOptions.AlreadyOnChain`: the keeper sets it from
+`auth.IsGenesisReplay` on all three messages, because a replay re-delivers
+deploys the source chain already accepted (gnoland-1's history included), and
+refusing one would stop `InitChain` or, under `-skip-failing-genesis-txs`, bring
+the fork up diverged. `AddMemPackage` always sets it: the store is not an
+admission gate, it has no context to tell a replay from a live deploy, and it
+panics on failure. A live `MsgEnablePackage` still applies the rule to a blob
+parked by an older binary, as `validateParkedBlob` re-validates under the
+current rules by design.
 
 `FindDirectiveComment` returns the first directive in a file: a build constraint
-(`constraint.IsGoBuild`, `constraint.IsPlusBuild`) or a directive comment —
-`//line`, `//extern`, `//export`, and the `//tool:name` form that covers
-`//go:generate`, `//go:embed`, and the pragmas.
+(`//go:build`, caught by the `//tool:name` form below, and legacy `// +build`,
+caught by `constraint.IsPlusBuild` since it is not directive-shaped) or a
+directive comment — `//line`, `//extern`, `//export`, and the `//tool:name`
+form that covers `//go:generate`, `//go:embed`, and the pragmas.
 
 The **whole file** is scanned, and both comment forms are matched. Build
 constraints must precede the package clause, but pragmas attach to declarations
@@ -79,6 +93,16 @@ package validated, `gno tool transpile` kept the line at column 1 of the
 generated `.go`, and `go generate -tags gno -n` printed its command. The column
 and separator rules mirror `cmd/go` so this does not reject text `go generate`
 would ignore. No file in `examples/` contains such a line.
+
+`cmd/go` reads the **transpiled** `.go`, though, and the transpiler formats with
+`go/printer`, which strips the common indentation of a multi-line block comment.
+`/*\n\t//go:generate x\n\t*/` is therefore not at column 1 in the `.gno` but is
+in the `.go` — found in review, where it validated and `go generate` ran it. Each
+line of a block comment is therefore also checked after dropping the ASCII
+blanks `go/printer` strips (space, tab, `\v`, `\f`, `\r`; it leaves Unicode
+spaces). A test formats every combination of those blanks and comment shapes
+with `go/format` and requires the scan to refuse each one that ends at column 1.
+Raw strings are not re-indented, so an indented line inside one stays accepted.
 
 Everything else scans **tokens**, via `go/scanner`, not raw lines. That is the mechanism
 `go/parser` itself uses, so the two agree on inputs where a line scan does not:
@@ -108,7 +132,8 @@ Scope is deliberate:
 - **User packages only** (`mptype.IsUserlib()`). Those are the submitted,
   attacker-controlled ones. Stdlibs ship with the node binary and are reviewed
   as part of it.
-- **Stdlibs and filetests are untouched.** The VM suite deliberately pins that
+- **Stdlibs and the VM's own fixtures are untouched** (the `MPFiletests` type;
+  a `_filetest.gno` inside a user package is scanned like any other file). The VM suite deliberately pins that
   constraints are inert (`gnovm/tests/files/build0.gno`, `extern/ct`); those
   fixtures test real VM semantics and keep working unchanged.
 - **The whitelist holds exactly one entry: `//nolint`.** Everything else is
@@ -170,6 +195,13 @@ Those bytes are already priced. The ante handler charges
 and the scan spends ~9.4 ns/byte, so it fits inside a charge that already
 applies — it is not unmetered work.
 
+That figure is for ordinary source. Review measured adversarial shapes at about
+1 MB: ~62 ms for a file of newlines (of which ~30 ms is `PackageNameFromFileBody`
+on master already), ~44 ms for 340k `//` lines, ~15 ms for 262k `/**/`. The
+worst adds ~30 ns/byte over the ante rate. It stays bounded by
+`MaxBlockTxBytes` and runs once per transaction, so it is not a DoS, but the
+prefilter below is the lever if it ever matters.
+
 Moving the preprocess charge (1250 gas/byte) ahead of validation was considered
 and rejected. It would price the scan 125× over the ante rate and, because it
 lands before the reason for rejection is known, would turn a clean
@@ -204,16 +236,21 @@ start `// ` with a space, so honest files would skip tokenizing entirely.
 ## Consequences
 
 - A package carrying a directive is now rejected at `AddPackage`/`Run` with
-  `invalid file %q: directives are not supported: %s`, naming the directive, and
-  flagged by `gno lint` as `gnoDirectiveError`.
+  `invalid file %q: directives are not supported: %+q`, naming the directive, and
+  flagged by `gno lint` as `gnoDirectiveError`. The ABCI error type is
+  `ErrInvalidPkgPath`, as for every other file-level validation failure
+  (`errInvalidMemPackage`); that type is hashed into `ABCIResult.Error`, so
+  giving file errors their own type is a separate, consensus-visible change.
 - The verdict and its error text are functions of the submitted bytes alone. The
   predicate consults no version information, so unlike the bug in #5978 — whose
   message embedded the builder's Go release — it cannot differ between two
   validators built with different toolchains. Rejection also happens before the
   type-check, so a bad package is refused at the cheap end of AddPackage.
-- **This narrows accepted consensus input.** A package already stored on a live
-  network with a constraint line would fail to replay under a node running this
-  change, so it needs the usual coordinated upgrade. Doing it now is cheap;
+- **This narrows accepted consensus input** for new submissions only. History
+  is unaffected: a genesis replay waives the rule (see Decision), so a chain
+  whose past deploys carry a directive still replays. A package parked under the
+  inert policy before the upgrade can no longer be enabled live if it carries
+  one. The live change needs the usual coordinated upgrade. Doing it now is cheap;
   after mainnet freezes the accepted-input set it is not. The direction matters:
   loosening later (adding a whitelist entry) is backward-compatible because it
   only accepts more, while tightening later is a break — so rejecting now and
