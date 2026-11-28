@@ -330,7 +330,9 @@ func NormalizeBreaks(s string) string {
 // folds every newline to a single space (so paragraph structure is
 // erased) and escapes inline-active CommonMark punctuation:
 //
-//	\ * _ [ ] ( ) ~ > - + . ! ` # < &
+//	\ * _ [ ] ( ) ~ > - + . ! ` # < & $
+//
+// ($ is gnoweb's math delimiter: unescaped, it could open a formula.)
 //
 // Two characters are intentionally NOT escaped:
 //
@@ -967,9 +969,10 @@ func BlockquoteRich(text string) string {
 //	![alt](src "TITLE")
 //	[label]: url "TITLE"
 //
-// Escapes the inline-active set plus `"` and `'` (the title delimiters
-// that aren't already in the inline set; `(` and `)` are), so the
-// caller can choose any of the three title-quote styles safely.
+// Escapes the inline-active set except `$` (a title is never parsed as
+// math), plus `"` and `'` (the title delimiters that aren't already in
+// the inline set; `(` and `)` are), so the caller can choose any of the
+// three title-quote styles safely.
 //
 // Pick the right helper for the slot — markdown title and HTML
 // attribute share the look but use different escape rules:

@@ -1,0 +1,21 @@
+// MARKDOWNFUNC: TableCell
+// CONTEXT: | %s | b |\n|---|---|\n| c | d |
+-- input.md --
+$x^{2} + ADMIN_{verified}$
+-- output.md --
+\$x^{2} \+ ADMIN\_{verified}\$
+-- output.html --
+<table>
+<thead>
+<tr>
+<th>$x^{2} + ADMIN_{verified}$</th>
+<th>b</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>c</td>
+<td>d</td>
+</tr>
+</tbody>
+</table>
