@@ -1266,6 +1266,7 @@ func ValidateMemPackageAnyWith(mpkg *std.MemPackage, opts ValidateOptions) (errs
 	}
 	numGnoFiles := 0
 	pkgNameFound := false
+	skippedUnparsed := false // a file refused before it was parsed (see below)
 	for _, mfile := range mpkg.Files {
 		// Validate file name.
 		fname := mfile.Name
@@ -1310,11 +1311,13 @@ func ValidateMemPackageAnyWith(mpkg *std.MemPackage, opts ValidateOptions) (errs
 				if serr != nil {
 					errs = multierr.Append(errs, fmt.Errorf(
 						"invalid file %q: %w", fname, serr))
+					skippedUnparsed = true
 					continue
 				}
 				if ok {
 					errs = multierr.Append(errs, fmt.Errorf(
 						"invalid file %q: directives are not supported: %+q", fname, d))
+					skippedUnparsed = true
 					continue
 				}
 			}
@@ -1361,7 +1364,9 @@ func ValidateMemPackageAnyWith(mpkg *std.MemPackage, opts ValidateOptions) (errs
 	if numGnoFiles == 0 { // something else is probably wrong.
 		errs = multierr.Append(errs, fmt.Errorf("package has no .gno files"))
 	}
-	if !mptype.IsFiletests() && !pkgNameFound { // strange.
+	// A file skipped before parsing never declared its name, so the miss is
+	// already explained by that file's own error; errs is non-nil either way.
+	if !mptype.IsFiletests() && !pkgNameFound && !skippedUnparsed { // strange.
 		errs = multierr.Append(errs, fmt.Errorf("package name %q not found in files", mpkg.Name))
 	}
 	return errs
@@ -1371,7 +1376,16 @@ func ValidateMemPackageAnyWith(mpkg *std.MemPackage, opts ValidateOptions) (errs
 // directive, matching cmd/go's isGoGenerate: the prefix must start the line and
 // be followed by a space or a tab. Line-based on purpose -- this mirrors a
 // consumer that never parses the file, so the token scan cannot stand in for it.
+//
+// CRs are dropped first. cmd/go reads the transpiled .go, and go/scanner
+// strips CR from a raw string (and from comments), which go/printer then
+// prints without it, so "`\n\r//go:generate x\n`" lands at column 1 there.
+// Dropping every CR over-approximates safely: interpreted strings cannot span
+// lines, and nothing else carries one into a line start.
 func hasRawGoGenerate(body string) bool {
+	if strings.IndexByte(body, '\r') >= 0 {
+		body = strings.ReplaceAll(body, "\r", "")
+	}
 	for off := 0; off < len(body); {
 		rest := body[off:]
 		if isGoGenerateLine(rest) {
@@ -1387,20 +1401,25 @@ func hasRawGoGenerate(body string) bool {
 }
 
 // hasIndentedGoGenerate reports whether a line of a block comment would start
-// with a go:generate directive once its leading blanks are gone. cmd/go reads
-// the transpiled .go, not the .gno, and go/printer strips the common
-// indentation of a multi-line block comment, so "/*\n\t//go:generate x\n\t*/"
-// lands at column 1 there. The blank set is the bytes go/printer strips; it
-// leaves Unicode spaces in place. String literals are not re-indented, so an
-// indented line inside one stays harmless and is not checked.
+// with a go:generate directive once its prefix is gone. cmd/go reads the
+// transpiled .go, not the .gno, and go/printer strips the common prefix of a
+// multi-line block comment's lines, so "/*\n\t//go:generate x\n\t*/" lands at
+// column 1 there. The set trimmed is the one go/printer's commonPrefix strips:
+// every byte <= ' ', control bytes included, and '*'. Unicode spaces are left
+// in place, as it leaves them. Trimming each line fully over-approximates the
+// common prefix, so this may refuse a line go/printer would keep indented.
 func hasIndentedGoGenerate(comment string) bool {
 	for line := range strings.SplitSeq(comment, "\n") {
-		if isGoGenerateLine(strings.TrimLeft(line, " \t\v\f\r")) {
+		if isGoGenerateLine(strings.TrimLeftFunc(line, isPrinterPrefixByte)) {
 			return true
 		}
 	}
 	return false
 }
+
+// isPrinterPrefixByte mirrors go/printer's commonPrefix byte test. It is
+// called per rune; every rune it accepts is a single byte.
+func isPrinterPrefixByte(r rune) bool { return r <= ' ' || r == '*' }
 
 func isGoGenerateLine(s string) bool {
 	return strings.HasPrefix(s, "//go:generate ") ||

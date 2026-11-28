@@ -57,11 +57,17 @@ decided. `ValidateOptions.AlreadyOnChain` skips it, mirroring
 `auth.IsGenesisReplay` on all three messages, because a replay re-delivers
 deploys the source chain already accepted (gnoland-1's history included), and
 refusing one would stop `InitChain` or, under `-skip-failing-genesis-txs`, bring
-the fork up diverged. `AddMemPackage` always sets it: the store is not an
+the fork up diverged. `IsGenesisReplay` is true for *every* `InitChain` tx, so
+this also waives the rule for a tx an operator writes into a genesis file by
+hand. That matches the type-check and code-policy waivers, and genesis content
+is the chain's own; `LoadPackage`, which builds genesis txs from a directory,
+still applies the rule. `AddMemPackage` always sets it: the store is not an
 admission gate, it has no context to tell a replay from a live deploy, and it
 panics on failure. A live `MsgEnablePackage` still applies the rule to a blob
 parked by an older binary, as `validateParkedBlob` re-validates under the
-current rules by design.
+current rules by design. Tools that load packages through the store without
+the keeper (`gno test`, `contribs/gpao`) therefore do not apply the rule;
+`gno lint` does.
 
 `FindDirectiveComment` returns the first directive in a file: a build constraint
 (`//go:build`, caught by the `//tool:name` form below, and legacy `// +build`,
@@ -98,11 +104,27 @@ would ignore. No file in `examples/` contains such a line.
 `go/printer`, which strips the common indentation of a multi-line block comment.
 `/*\n\t//go:generate x\n\t*/` is therefore not at column 1 in the `.gno` but is
 in the `.go` — found in review, where it validated and `go generate` ran it. Each
-line of a block comment is therefore also checked after dropping the ASCII
-blanks `go/printer` strips (space, tab, `\v`, `\f`, `\r`; it leaves Unicode
-spaces). A test formats every combination of those blanks and comment shapes
-with `go/format` and requires the scan to refuse each one that ends at column 1.
-Raw strings are not re-indented, so an indented line inside one stays accepted.
+line of a block comment is therefore also checked after dropping the bytes
+`go/printer`'s `commonPrefix` strips: every byte `<= ' '` (control bytes
+included, which a second review round found) and `*`. Unicode spaces are left,
+as `go/printer` leaves them. Trimming each line fully over-approximates the
+common prefix, which only ever refuses more, inside a comment. Raw strings are
+not re-indented, so an indented line inside one stays accepted; but go/scanner
+strips CR from a raw string and go/printer prints the result, so
+`` `\n\r//go:generate x\n` `` also reaches column 1, and the raw-line check runs
+with every CR removed.
+
+A test builds every byte `<= ' '` (alone, paired, and beside `*`) and Unicode
+spaces into each comment and raw-string shape, formats the file with
+`go/format`, and requires the scan to refuse every file whose output has a
+column-1 `//go:generate`. The first version of that test only tried the bytes
+the code already trimmed, which is why it missed the control bytes; a mirror
+test must enumerate the consumer's input space, not the implementation's.
+
+Formatting the file and scanning the output was considered and declined: the
+verdict would then follow `go/printer`'s behaviour in whichever toolchain built
+the validator, which is a consensus input. The byte sets above are pinned in
+this repository and checked against the toolchain by the test instead.
 
 Everything else scans **tokens**, via `go/scanner`, not raw lines. That is the mechanism
 `go/parser` itself uses, so the two agree on inputs where a line scan does not:
@@ -117,7 +139,11 @@ than called**: this decides whether a package is accepted on chain, so it must
 not shift when the toolchain's own copy evolves. A test pins the copy against
 Go's own behaviour (observable through `CommentGroup.Text()`, which drops
 directives), so a future toolchain change surfaces as a failure to be decided on
-rather than as silent drift. Requiring no space after `//`
+rather than as silent drift. The copy pins the *classification*; tokenizing still
+uses the toolchain's `go/scanner`, and legacy constraints its
+`go/build/constraint.IsPlusBuild`. Consensus already depends on `go/scanner`
+through `go/parser`, so this adds no new toolchain input, but "copied rather
+than called" covers the rule, not every byte of the path. Requiring no space after `//`
 is what keeps an ordinary `// see: below` comment from counting. The predicate
 is a pure function of the file bytes, as a consensus check must be.
 

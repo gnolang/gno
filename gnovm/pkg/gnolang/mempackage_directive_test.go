@@ -96,7 +96,13 @@ func TestFindDirectiveComment(t *testing.T) {
 		{"vt/ff-indented go:generate in block comment", "package zz\n\n/*\n\v\f//go:generate echo x\n*/\nvar X = 1\n", true},
 		{"indented go:generate after block text", "package zz\n\n/* a\n\t\t//go:generate echo x\n\t\t*/\nvar X = 1\n", true},
 		{"NBSP-indented go:generate in block comment", "package zz\n\n/*\n\u00a0//go:generate echo x\n*/\nvar X = 1\n", false},
-		{"starred go:generate in block comment", "package zz\n\n/*\n * //go:generate echo x\n */\nvar X = 1\n", false},
+		// go/printer keeps this line indented, but commonPrefix can strip '*'
+		// (with other lines shaped to match), so the check trims it as well:
+		// over-refusing inside a comment costs nothing.
+		{"starred go:generate in block comment", "package zz\n\n/*\n * //go:generate echo x\n */\nvar X = 1\n", true},
+		{"control byte before go:generate in block comment", "package zz\n\n/*\n\x01//go:generate echo x\n\x01x\n*/\nfunc F() {}\n", true},
+		{"CR before go:generate in raw string", "package zz\n\nconst S = `\n\r//go:generate echo x\n`\n", true},
+		{"CRLF go:generate in raw string", "package zz\r\n\r\nconst S = `\r\n//go:generate echo x\r\n`\r\n", true},
 
 		// Bypasses of a naive line scan. go/parser honours the constraint in
 		// every case below (verified against go1.25.9), so missing one would
@@ -220,23 +226,36 @@ func TestIsDirectiveTextMirrorsGo(t *testing.T) {
 func TestIndentedGoGenerateMirrorsPrinter(t *testing.T) {
 	t.Parallel()
 
-	blanks := []string{"", " ", "\t", "\v", "\f", "\r", "  ", "\t\t", " \t", "\u00a0", "\u2003", "\u3000"}
+	// Every byte go/printer's commonPrefix may strip (<= ' ', and '*'), each
+	// alone and paired, plus Unicode spaces it must leave alone.
+	var blanks []string
+	for c := 1; c <= ' '; c++ {
+		if c == '\n' {
+			continue
+		}
+		blanks = append(blanks, string(rune(c)), string(rune(c))+"*", "*"+string(rune(c)), string(rune(c))+" ")
+	}
+	blanks = append(blanks, "", "*", "**", " * ", "\t*\t", "\u00a0", "\u2003", "\u3000")
 	shapes := []string{
 		"/*\n%[1]s//go:generate echo x\n%[1]s*/",
+		"/*\n%[1]s//go:generate echo x\n%[1]sx\n*/",
 		"/*\n%[1]s//go:generate echo x\n*/",
 		"/* a\n%[1]s//go:generate echo x\n%[1]s*/",
 		"/*\n%[1]sb\n%[1]s//go:generate echo x\n%[1]s*/",
 		"/*\n%[1]s * //go:generate echo x\n%[1]s */",
+		// go/scanner strips CR from raw strings, and go/printer prints what
+		// is left, so a CR can sit between a newline and the prefix.
+		"var S = `\n%[1]s//go:generate echo x\n`",
 	}
 	for _, shape := range shapes {
 		for _, blank := range blanks {
 			for _, where := range []string{"top", "func"} {
-				comment := fmt.Sprintf(shape, blank)
+				decl := fmt.Sprintf(shape, blank)
 				var src string
 				if where == "top" {
-					src = "package zz\n\n" + comment + "\nvar X = 1\n"
+					src = "package zz\n\n" + decl + "\nvar X = 1\n"
 				} else {
-					src = "package zz\n\nfunc F() {\n\t" + comment + "\n}\n"
+					src = "package zz\n\nfunc F() {\n\t" + decl + "\n\t_ = 0\n}\n"
 				}
 				out, err := format.Source([]byte(src))
 				if err != nil {
@@ -360,6 +379,17 @@ func TestValidateMemPackage_Directives(t *testing.T) {
 		assert.ErrorContains(t, err, "directives are not supported")
 		assert.ErrorContains(t, err, `"b.gno"`, "the error must name the tagged file")
 		assert.NotContains(t, fmt.Sprint(err), "a.gno", "the clean file must not be blamed")
+	})
+
+	t.Run("the rejection is not followed by a spurious name error", func(t *testing.T) {
+		t.Parallel()
+
+		// The tagged file is skipped before it is parsed, so it never declares
+		// its package name; reporting that miss as well would send the author
+		// looking for a second, nonexistent problem.
+		err := validateBody(t, MPUserProd, userPath, "//go:noinline\npackage zz\nfunc F() {}\n")
+		assert.ErrorContains(t, err, "directives are not supported")
+		assert.NotContains(t, fmt.Sprint(err), "not found in files")
 	})
 
 	t.Run("nolint is allowed", func(t *testing.T) {

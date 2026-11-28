@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	tmerrors "github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
@@ -49,6 +50,35 @@ func TestDirectiveRuleWaivedOnGenesisReplay(t *testing.T) {
 		require.NoError(t, env.vmk.AddPackage(replay, NewMsgAddPackage(addr, pkgPath, directiveFiles(pkgPath, name))),
 			"replay must reproduce a deploy the source chain accepted")
 		require.NotNil(t, env.vmk.getGnoTransactionStore(replay).GetPackage(pkgPath, false))
+	})
+
+	t.Run("replay still applies the GoVersion pin", func(t *testing.T) {
+		// With the directive rule waived, a replayed //go:build line reaches the
+		// type-check again, and #5978's pin must still hold there: the tag must
+		// not unlock go1.22 syntax. This is the coverage
+		// addpkg_build_tag_goversion.txtar gave before the directive gate
+		// pre-empted it on live submissions.
+		const (
+			pkgPath = "gno.land/r/test/zdirreplaypin"
+			name    = "zdirreplaypin"
+		)
+		env := setupTestEnv()
+		ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+		addr := crypto.AddressFromPreimage([]byte("zdirreplaypin"))
+		env.acck.SetAccount(ctx, env.acck.NewAccountWithAddress(ctx, addr))
+		require.NoError(t, env.bankk.SetCoins(ctx, addr, initialBalance))
+		files := []*std.MemFile{
+			{Name: "gnomod.toml", Body: `module = "` + pkgPath + `"
+gno = "0.9"`},
+			{Name: name + ".gno", Body: "//go:build go1.22\n\npackage " + name + "\n\nfunc F() {\n\tfor range 10 {\n\t}\n}\n"},
+		}
+
+		err := env.vmk.AddPackage(ctx.WithValue(auth.GenesisReplayKey{}, true), NewMsgAddPackage(addr, pkgPath, files))
+		require.Error(t, err)
+		assert.Equal(t, TypeCheckError{}, tmerrors.Cause(err), "refused by the type-check, not earlier")
+		full := fmt.Sprintf("%+v", err)
+		assert.Contains(t, full, "go1.22", "the type-check must refuse go1.22 syntax")
+		assert.NotContains(t, full, "directives are not supported", "the directive rule is waived on replay")
 	})
 
 	t.Run("Run", func(t *testing.T) {
