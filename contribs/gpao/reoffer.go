@@ -14,7 +14,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// maxReoffers caps how often one submission is verified again in a run,
+// maxReoffers caps how often one submission is offered again in a run,
 // whatever left it pending.
 const maxReoffers = 3
 
@@ -28,11 +28,13 @@ type strandedSubmission struct {
 	height    int64
 	offers    int
 	blockedOn string // the import that held it back at the last look, if any
+	verified  bool   // passed verification; only its enable is offered again
 }
 
 // track records how handleCandidate left path. Pending keeps the submission
 // for a later offer; anything else is a verdict and ends its tracking.
-func (o *oracle) track(path string, height int64) {
+// verified says it was left pending after passing verification.
+func (o *oracle) track(path string, height int64, verified bool) {
 	if o.status.get(path).Status != statusPending {
 		delete(o.stranded, path)
 		return
@@ -42,11 +44,12 @@ func (o *oracle) track(path string, height int64) {
 		s = strandedSubmission{height: height}
 	}
 	s.blockedOn = ""
+	s.verified = verified
 	o.stranded[path] = s
 }
 
-// reofferStranded verifies again each submission this run left pending that
-// no import holds back any more. Heights are read once, so nothing else
+// reofferStranded offers again each submission this run left pending that no
+// import holds back any more. Heights are read once, so nothing else
 // reaches it again. It runs on the verifier between candidates and stops as
 // soon as one is queued, so new blocks go first. The next pass resumes where
 // it stopped, so on a chain that keeps receiving candidates a path late in
@@ -105,12 +108,15 @@ func (o *oracle) reoffer(ctx context.Context, path string, statuses map[string]s
 		delete(o.stranded, path)
 		return
 	}
-	if blocked := o.firstImportHoldingBack(ctx, c.mpkg, statuses); blocked != "" {
-		s.blockedOn = blocked
-		o.stranded[path] = s
-		o.status.record(path, statusPending,
-			fmt.Sprintf("waits on %q, which is not live; offered again once it is", blocked), s.offers)
-		return
+	// A verified submission's imports were live when it passed, and stay live.
+	if !s.verified {
+		if blocked := o.firstImportHoldingBack(ctx, c.mpkg, statuses); blocked != "" {
+			s.blockedOn = blocked
+			o.stranded[path] = s
+			o.status.record(path, statusPending,
+				fmt.Sprintf("waits on %q, which is not live; offered again once it is", blocked), s.offers)
+			return
+		}
 	}
 	s.offers++
 	o.stranded[path] = s
