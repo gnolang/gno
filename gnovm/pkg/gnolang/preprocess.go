@@ -264,15 +264,23 @@ func initStaticBlocks(store Store, ctx BlockNode, nn Node) {
 // from the top frame on encountering an inner DEFINE/var/type decl) are
 // scoped to the enclosing block. A NameExpr is renamed (Name += ".loopvar")
 // iff its name is in the top frame and its position is not a declaration
-// site (composite-literal key, var-name, range key/value, or assign-LHS in
-// a DEFINE).
+// site (var-name, or range key/value and assign-LHS in a DEFINE).
+//
+// The names a ForStmt, RangeStmt or SwitchStmt declares itself change its
+// frame at TRANS_BLOCK2, i.e. only after the clauses resolved before those
+// names exist (.Init, .X) have been walked: `x := 7; for x := x + 1; ...`
+// reads the outer x on the RHS, `for _, x := range []int{x}` inside
+// `for x := ...` reads the loop's x, and so does `switch x := x.(type)`.
+// Names of an enclosing loop are in the cloned frame throughout, so such a
+// clause referring to one of those is renamed.
 //
 // O(N) total, replacing the previous O(N + Σ K_i × M_i) per-loopvar walk.
 func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 	// Fast path for the common case (no for-loop with multi-name DEFINE
-	// init in scope): if the parent frame is empty and `modify` doesn't
-	// add anything, skip the push entirely. `didPush` records whether each
-	// scope actually pushed a frame so pop can match.
+	// init in scope): if the parent frame is empty, skip the push entirely.
+	// `modify` only ever deletes, and a delete from an empty frame is a
+	// no-op. `didPush` records whether each scope actually pushed a frame
+	// so pop can match.
 	var stack []map[Name]bool
 	var didPush []bool
 	top := func() map[Name]bool {
@@ -281,12 +289,15 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 		}
 		return stack[len(stack)-1]
 	}
+	// pushClone pushes a copy of the top frame with modify applied to it.
+	// modify must only delete names; adds go through ownFrame.
 	pushClone := func(modify func(map[Name]bool)) {
 		parent := top()
-		// Fast path: no parent state and no contribution -> skip alloc.
-		// We must NOT skip when parent is non-empty even if modify trims
-		// the result to empty: the empty frame still shadows parent.
-		if modify == nil && len(parent) == 0 {
+		// Fast path: an empty parent clones to an empty frame whatever
+		// modify deletes, so skip the alloc. We must NOT skip when parent
+		// is non-empty even if modify trims the result to empty: the empty
+		// frame still shadows parent.
+		if len(parent) == 0 {
 			didPush = append(didPush, false)
 			return
 		}
@@ -303,6 +314,17 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 			stack = stack[:len(stack)-1]
 		}
 		didPush = didPush[:len(didPush)-1]
+	}
+	// ownFrame returns the innermost scope's own frame for adding a name,
+	// pushing one if the fast path skipped it (the parent was empty, so a
+	// fresh map is the clone). Deletes never need this: on a shared empty
+	// frame they are no-ops.
+	ownFrame := func() map[Name]bool {
+		if !didPush[len(didPush)-1] {
+			stack = append(stack, map[Name]bool{})
+			didPush[len(didPush)-1] = true
+		}
+		return top()
 	}
 
 	_ = TranscribeB(ctx, nn, func(
@@ -349,48 +371,55 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 
 		case TRANS_BLOCK:
 			// Other block-introducing nodes push here. Pairs naturally with
-			// TranscribeB's BLOCK→LEAVE flow.
+			// TranscribeB's BLOCK→LEAVE flow. Names the statement itself
+			// declares are applied at TRANS_BLOCK2 below.
+			switch n.(type) {
+			case *ForStmt, *RangeStmt, *SwitchStmt, *BlockStmt, *IfStmt,
+				*IfCaseStmt, *SwitchClauseStmt, *SelectCaseStmt:
+				pushClone(nil)
+			}
+
+		case TRANS_BLOCK2:
+			// After the clauses resolved before the statement's own
+			// declared names exist, before the children that see them.
 			switch n := n.(type) {
 			case *ForStmt:
-				pushClone(func(f map[Name]bool) {
-					fsinit, ok := n.Init.(*AssignStmt)
-					if !ok || fsinit.Op != DEFINE {
-						return
+				// After .Init: rename the declared names and bring them
+				// into scope for cond, post and body.
+				fsinit, ok := n.Init.(*AssignStmt)
+				if !ok || fsinit.Op != DEFINE {
+					break
+				}
+				for _, lx := range fsinit.Lhs {
+					nx := lx.(*NameExpr)
+					ln := nx.Name
+					if ln == blankIdentifier {
+						continue
 					}
-					for _, lx := range fsinit.Lhs {
-						nx := lx.(*NameExpr)
-						ln := nx.Name
-						if ln == blankIdentifier {
-							continue
-						}
-						if strings.HasSuffix(string(ln), ".loopvar") {
-							continue
-						}
-						nx.Name += ".loopvar"
-						f[ln] = true
+					if strings.HasSuffix(string(ln), ".loopvar") {
+						continue // already renamed (initStaticBlocks runs twice)
 					}
-				})
+					nx.Name += ".loopvar"
+					ownFrame()[ln] = true
+				}
 			case *RangeStmt:
-				pushClone(func(f map[Name]bool) {
-					if n.Op != DEFINE {
-						return
-					}
-					if kx, ok := n.Key.(*NameExpr); ok {
-						delete(f, kx.Name)
-					}
-					if vx, ok := n.Value.(*NameExpr); ok {
-						delete(f, vx.Name)
-					}
-				})
+				// After .X: the key/value shadow matching names in the body.
+				if n.Op != DEFINE {
+					break
+				}
+				f := top()
+				if kx, ok := n.Key.(*NameExpr); ok {
+					delete(f, kx.Name)
+				}
+				if vx, ok := n.Value.(*NameExpr); ok {
+					delete(f, vx.Name)
+				}
 			case *SwitchStmt:
-				pushClone(func(f map[Name]bool) {
-					if n.IsTypeSwitch && n.VarName != "" {
-						delete(f, n.VarName)
-					}
-				})
-			case *BlockStmt, *IfStmt, *IfCaseStmt,
-				*SwitchClauseStmt, *SelectCaseStmt:
-				pushClone(nil)
+				// After .Init and .X: the type switch's VarName shadows a
+				// matching name in the clauses.
+				if n.IsTypeSwitch && n.VarName != "" {
+					delete(top(), n.VarName)
+				}
 			}
 
 		case TRANS_LEAVE:
@@ -418,25 +447,29 @@ func initStaticBlocks1(store Store, ctx BlockNode, nn Node) {
 			case *TypeDecl:
 				delete(top(), n.NameExpr.Name)
 			case *NameExpr:
-				f := top()
-				if f == nil || !f[n.Name] {
-					return n, TRANS_CONTINUE
+				if f := top(); f != nil && f[n.Name] && !isLoopvarDeclSite(ns, ftype) {
+					n.Name += ".loopvar"
 				}
-				switch ftype {
-				case TRANS_VAR_NAME,
-					TRANS_RANGE_KEY,
-					TRANS_RANGE_VALUE:
-					return n, TRANS_CONTINUE
-				case TRANS_ASSIGN_LHS:
-					if as, ok := ns[len(ns)-1].(*AssignStmt); ok && as.Op == DEFINE {
-						return n, TRANS_CONTINUE
-					}
-				}
-				n.Name += ".loopvar"
 			}
 		}
 		return n, TRANS_CONTINUE
 	})
+}
+
+// isLoopvarDeclSite reports whether a NameExpr at ftype declares a name
+// rather than referencing one; initStaticBlocks1 never renames those. A
+// range key/value or assign LHS is a reference when the stmt assigns
+// (`for k = range ...`, `k = ...`) rather than defines.
+func isLoopvarDeclSite(ns []Node, ftype TransField) bool {
+	switch ftype {
+	case TRANS_VAR_NAME:
+		return true
+	case TRANS_RANGE_KEY, TRANS_RANGE_VALUE:
+		return ns[len(ns)-1].(*RangeStmt).Op == DEFINE
+	case TRANS_ASSIGN_LHS:
+		return ns[len(ns)-1].(*AssignStmt).Op == DEFINE
+	}
+	return false
 }
 
 // Initialize static blocks, and also reserves all names.
